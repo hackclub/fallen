@@ -1,0 +1,96 @@
+class User < ApplicationRecord
+  ROLES = %w[user reviewer admin].freeze
+  FALLBACK_AVATAR = "/static-assets/pfp_fallback.webp"
+
+  include PublicIdentifiable
+  include Discardable
+  include PgSearch::Model
+
+  set_public_id_prefix :usr
+  has_paper_trail
+
+  pg_search_scope :search, against: %i[display_name email slack_id], using: { tsearch: { prefix: true } }
+
+  encrypts :hca_token
+
+  validates :hca_id, :email, :display_name, :timezone, presence: true
+  validates :hca_id, uniqueness: true
+  validates :email, format: { with: URI::MailTo::EMAIL_REGEXP }
+  validates :roles, presence: true
+  validate :roles_are_known
+
+  scope :admins, -> { where("roles @> ARRAY[?]::varchar[]", "admin") }
+  scope :with_role, ->(role) { where("roles @> ARRAY[?]::varchar[]", role.to_s) }
+  scope :banned, -> { where(is_banned: true) }
+
+  def has_role?(role) = roles.include?(role.to_s)
+  def admin? = has_role?(:admin)
+  def reviewer? = has_role?(:reviewer)
+  def staff? = admin? || reviewer?
+
+  def add_role(role)
+    return true if has_role?(role)
+
+    update(roles: roles + [ role.to_s ])
+  end
+
+  def remove_role(role)
+    update(roles: roles - [ role.to_s ])
+  end
+
+  def avatar_url = avatar.presence || FALLBACK_AVATAR
+
+  def slack_mention = slack_id.present? ? "<@#{slack_id}>" : display_name
+
+  def touch_last_seen
+    update_column(:last_seen_at, Time.current) if last_seen_at.nil? || last_seen_at < 5.minutes.ago
+  end
+
+  # Signs a user in from an HCA authorization code: exchanges the code, loads the identity,
+  # then creates or updates the local user. Slack profile details are refreshed in a background job.
+  def self.from_hca_code!(code, redirect_uri)
+    token_data = HCA.exchange_code_for_token(code, redirect_uri)
+    access_token = token_data&.dig("access_token")
+    raise HCA::Error, "HCA did not return an access token" if access_token.blank?
+
+    identity = HCA.identity(access_token)
+    raise HCA::Error, "HCA did not return an identity" if identity.blank? || identity["id"].blank?
+
+    user = find_or_initialize_by(hca_id: identity["id"])
+    user.assign_from_hca(identity, access_token)
+    user.save!
+    SyncSlackProfileJob.perform_later(user) if user.slack_id.present?
+    user
+  end
+
+  def assign_from_hca(identity, access_token)
+    self.hca_token = access_token
+    self.email = identity["primary_email"].presence || email
+    self.display_name = [ identity["first_name"], identity["last_name"] ].compact_blank.join(" ").presence || display_name.presence || "Hack Clubber"
+    self.avatar = identity["profile_picture"].presence || avatar
+    self.slack_id = identity["slack_id"].presence || slack_id
+    self.verification_status = identity["verification_status"].presence || verification_status
+    self.is_adult = HCA.adult?(identity) if identity.key?("birthday")
+    self.roles = [ "user" ] if roles.blank?
+  end
+
+  # Pulls display name, avatar and timezone from the Slack workspace. Needs SLACK_BOT_TOKEN with users:read.
+  def sync_slack_profile!
+    return if slack_id.blank?
+
+    info = SlackBot.client.users_info(user: slack_id)
+    profile = info.user.profile
+    updates = {}
+    updates[:display_name] = profile.display_name.presence || profile.real_name.presence || display_name
+    updates[:avatar] = profile.image_192.presence || profile.image_512.presence || profile.image_72.presence || avatar
+    updates[:timezone] = info.user.tz.presence || timezone
+    update!(updates)
+  end
+
+  private
+
+  def roles_are_known
+    unknown = roles - ROLES
+    errors.add(:roles, "contains unknown roles: #{unknown.join(', ')}") if unknown.any?
+  end
+end

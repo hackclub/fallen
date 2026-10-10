@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "fallen",
+      "runtimeExecutable": "platform/bin/dev",
+      "runtimeArgs": [],
+      "port": 3000
+    }
+  ]
+}

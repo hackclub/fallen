@@ -1,0 +1,12 @@
+#!/usr/bin/env ruby
+# Prints a Slack app manifest for this app. Usage:
+#   bin/slack-manifest                       # uses APP_URL / APP_HOST
+#   bin/slack-manifest https://my.app.com    # explicit public URL
+#   bin/slack-manifest --socket-mode         # for local dev with script/slack_socket_mode.mjs
+require_relative "../config/environment"
+
+socket_mode = ARGV.delete("--socket-mode")
+url = ARGV.first.presence || ENV["APP_URL"].presence || (ENV["APP_HOST"].present? ? "https://#{ENV['APP_HOST']}" : "https://example.com")
+name = ENV.fetch("SLACK_APP_NAME", Rails.application.class.module_parent_name)
+
+puts SlackBot::Manifest.to_yaml(app_url: url.chomp("/"), name: name, socket_mode: socket_mode.present?)

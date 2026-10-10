@@ -1,0 +1,20 @@
+admin:
+  hca_id: hca_admin
+  email: admin@example.com
+  display_name: Admin Person
+  slack_id: U0ADMIN
+  roles: ["admin", "user"]
+
+member:
+  hca_id: hca_member
+  email: member@example.com
+  display_name: Member Person
+  slack_id: U0MEMBER
+  roles: ["user"]
+
+banned:
+  hca_id: hca_banned
+  email: banned@example.com
+  display_name: Banned Person
+  roles: ["user"]
+  is_banned: true
