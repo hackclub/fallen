@@ -1,0 +1,20 @@
+<script lang="ts">
+  import type { Snippet } from 'svelte'
+  import Nav from '@/components/Nav.svelte'
+  import Flash from '@/components/Flash.svelte'
+  import ImpersonationBanner from '@/components/ImpersonationBanner.svelte'
+
+  let { children }: { children?: Snippet } = $props()
+</script>
+
+<div class="flex min-h-screen flex-col">
+  <ImpersonationBanner />
+  <Nav />
+  <main class="mx-auto w-full max-w-5xl flex-1 px-4 py-8 sm:px-6">
+    <Flash />
+    {@render children?.()}
+  </main>
+  <footer class="border-t border-stone-200 py-6 text-center text-xs text-stone-500">
+    <a href="https://hackclub.com" class="hover:underline">Hack Club</a>
+  </footer>
+</div>
