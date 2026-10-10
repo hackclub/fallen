@@ -1,4 +1,7 @@
-# fallen
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/wordmark-dark.png">
+  <img src=".github/wordmark-light.png" width="400" alt="Fallen">
+</picture>
 
 fall fall fallen
 
