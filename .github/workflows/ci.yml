@@ -44,6 +44,8 @@ jobs:
       - name: Tests
         run: bin/rails db:prepare test
       - name: Generated files are current (annotations, TypeScript types, route helpers)
+        env:
+          TYPELIZER: "1"
         run: |
           bundle exec annotaterb models --frozen --show-migration
           bin/rails typelizer:generate:refresh
