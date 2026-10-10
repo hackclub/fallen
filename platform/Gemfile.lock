@@ -360,10 +360,6 @@ GEM
       prism (>= 1.6.0)
       rbs (>= 4.0.0)
       tsort
-    redis (5.4.1)
-      redis-client (>= 0.22.0)
-    redis-client (0.31.0)
-      connection_pool
     regexp_parser (2.13.1)
     reline (0.7.0)
       io-console (~> 0.5)
@@ -524,7 +520,6 @@ DEPENDENCIES
   pundit (~> 2.4)
   rack-attack (~> 6.7)
   rails (~> 8.1.4)
-  redis (~> 5.0)
   rubocop-rails-omakase
   selenium-webdriver
   sentry-rails (~> 7.0)
