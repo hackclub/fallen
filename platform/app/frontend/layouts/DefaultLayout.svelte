@@ -14,7 +14,7 @@
     <Flash />
     {@render children?.()}
   </main>
-  <footer class="border-t border-stone-200 py-6 text-center text-xs text-stone-500">
+  <footer class="border-t border-stone-200 py-6 text-center text-xs text-stone-500 dark:border-stone-800">
     <a href="https://hackclub.com" class="hover:underline">Hack Club</a>
   </footer>
 </div>
