@@ -30,6 +30,9 @@ gem "typelizer", "~> 0.14"
 gem "faraday", "~> 2.13"
 gem "pundit", "~> 2.4"
 
+# Privacy hub tokens (ES256 JWTs). See app/services/privacy_token.rb
+gem "jwt", "~> 3.1"
+
 # Slack (bot + profile sync)
 gem "slack-ruby-client", "~> 3.0"
 

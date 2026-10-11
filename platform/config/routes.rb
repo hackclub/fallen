@@ -23,6 +23,12 @@ Rails.application.routes.draw do
     post "interactions", action: :interactions
   end
 
+  # Hack Club privacy hub (https://yeet.hackclub.com/docs/deletions). Token verified in the controller, no session.
+  scope "api/privacy", controller: "api/privacy", as: :privacy do
+    post "delete", action: :delete
+    post "export", action: :export
+  end
+
   constraints Constraints::Admin.new do
     namespace :admin do
       root "dashboard#index"

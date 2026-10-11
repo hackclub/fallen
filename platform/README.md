@@ -69,6 +69,11 @@ Local dev, no tunnel:
 
 For production, `bin/slack-manifest https://your.app` and disable Socket Mode.
 
+## Privacy requests
+
+The Hack Club privacy hub calls `POST /api/privacy/delete` and `/api/privacy/export` to delete a person's data. What
+gets deleted and kept is in [docs/privacy.md](docs/privacy.md). Update it when you add a table that holds user data.
+
 ## Layout
 
 ```
@@ -80,7 +85,8 @@ app/
   models/         User, concerns (PublicIdentifiable, Discardable)
   policies/       Pundit
   serializers/    Alba serializers; typelizer generates app/frontend/types and app/frontend/routes from these + routes.rb
-  services/       HCA client
+  services/       HCA client, privacy hub token and deletion
+docs/             privacy.md
 lib/
   slack_bot/      Router, Handler, Command/Event/Action/View/Shortcut, Blocks, Manifest, Payload
   constraints/    Constraints::Admin, Constraints::Staff

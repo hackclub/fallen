@@ -196,6 +196,8 @@ GEM
       reline (>= 0.4.2)
     jmespath (1.6.2)
     json (3.0.2)
+    jwt (3.3.0)
+      base64
     language_server-protocol (3.17.0.6)
     launchy (3.1.1)
       addressable (~> 2.8)
@@ -508,6 +510,7 @@ DEPENDENCIES
   hashid-rails (~> 1.4)
   image_processing (~> 1.2)
   inertia_rails (~> 3.10)
+  jwt (~> 3.1)
   letter_opener
   mission_control-jobs (~> 1.1)
   pagy (~> 43.2)
@@ -535,4 +538,4 @@ DEPENDENCIES
   web-console
 
 BUNDLED WITH
-   2.6.9
+   2.6.2
