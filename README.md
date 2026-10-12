@@ -9,7 +9,6 @@
 
 </div>
 
-<br/>
 <hr>
 
 - [`platform/`](platform/) is the main app & setup instructions are in [`platform/README.md`](platform/README.md).
