@@ -1,12 +1,19 @@
+<div align="center"> 
+  
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset=".github/wordmark-dark.png">
   <img src=".github/wordmark-light.png" width="400" alt="Fallen">
 </picture>
 
-fall fall fallen
+### A 4-day hardware adventure in Shenzhen, China!
 
-- [`platform/`](platform/) is the app. Setup is in [`platform/README.md`](platform/README.md).
-- [`program/`](program/) is everything else about the program.
+</div>
+
+<br/>
+<hr>
+
+- [`platform/`](platform/) is the main app & setup instructions are in [`platform/README.md`](platform/README.md).
+- [`program/`](program/) breaks down how we're organizing this event!
 
 ## Local development
 
