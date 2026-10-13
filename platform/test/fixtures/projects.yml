@@ -1,0 +1,43 @@
+# == Schema Information
+#
+# Table name: projects
+#
+#  id               :bigint           not null, primary key
+#  demo_url         :string
+#  description      :text
+#  discarded_at     :datetime
+#  repo_url         :string
+#  slack_thread_ts  :string
+#  title            :string           not null
+#  created_at       :datetime         not null
+#  updated_at       :datetime         not null
+#  slack_channel_id :string
+#  user_id          :bigint           not null
+#
+# Indexes
+#
+#  index_projects_on_discarded_at                          (discarded_at)
+#  index_projects_on_slack_channel_id_and_slack_thread_ts  (slack_channel_id,slack_thread_ts) UNIQUE WHERE (slack_thread_ts IS NOT NULL)
+#  index_projects_on_updated_at                            (updated_at)
+#  index_projects_on_user_id                               (user_id)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (user_id => users.id)
+#
+station:
+  user: member
+  title: Weather station
+  description: ESP32 and a BME280
+  slack_channel_id: CJOURNALS
+  slack_thread_ts: "1700000000.000100"
+
+unlinked:
+  user: member
+  title: Not yet on Slack
+
+admins:
+  user: admin
+  title: Admin's thing
+  slack_channel_id: CJOURNALS
+  slack_thread_ts: "1700000000.000200"

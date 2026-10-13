@@ -2,28 +2,32 @@
 #
 # Table name: users
 #
-#  id                  :bigint           not null, primary key
-#  avatar              :string
-#  discarded_at        :datetime
-#  display_name        :string           not null
-#  email               :string           not null
-#  hca_token           :text
-#  is_adult            :boolean          default(FALSE), not null
-#  is_banned           :boolean          default(FALSE), not null
-#  last_seen_at        :datetime
-#  roles               :string           default([]), not null, is an Array
-#  timezone            :string           default("UTC"), not null
-#  verification_status :string
-#  created_at          :datetime         not null
-#  updated_at          :datetime         not null
-#  hca_id              :string           not null
-#  slack_id            :string
+#  id                      :bigint           not null, primary key
+#  avatar                  :string
+#  discarded_at            :datetime
+#  display_name            :string           not null
+#  email                   :string           not null
+#  hca_token               :text
+#  is_adult                :boolean          default(FALSE), not null
+#  is_banned               :boolean          default(FALSE), not null
+#  last_seen_at            :datetime
+#  roles                   :string           default([]), not null, is an Array
+#  slack_user_token        :text
+#  slack_user_token_scopes :string
+#  timezone                :string           default("UTC"), not null
+#  verification_status     :string
+#  created_at              :datetime         not null
+#  updated_at              :datetime         not null
+#  hca_id                  :string           not null
+#  slack_id                :string
 #
 # Indexes
 #
+#  index_users_on_created_at    (created_at)
 #  index_users_on_discarded_at  (discarded_at)
 #  index_users_on_email         (email)
 #  index_users_on_hca_id        (hca_id) UNIQUE
+#  index_users_on_last_seen_at  (last_seen_at)
 #  index_users_on_roles         (roles) USING gin
 #  index_users_on_slack_id      (slack_id)
 #
@@ -40,7 +44,10 @@ class User < ApplicationRecord
 
   pg_search_scope :search, against: %i[display_name email slack_id], using: { tsearch: { prefix: true } }
 
-  encrypts :hca_token
+  encrypts :hca_token, :slack_user_token
+
+  has_many :projects, dependent: :destroy
+  has_many :journals, dependent: :destroy
 
   validates :hca_id, :email, :display_name, :timezone, presence: true
   validates :hca_id, uniqueness: true
@@ -70,6 +77,11 @@ class User < ApplicationRecord
   def avatar_url = avatar.presence || FALLBACK_AVATAR
 
   def slack_mention = slack_id.present? ? "<@#{slack_id}>" : display_name
+
+  # Journals posted from the web go to Slack as this person when they have connected Slack (SlackAuthController).
+  def slack_connected? = slack_user_token.present?
+
+  def disconnect_slack! = update!(slack_user_token: nil, slack_user_token_scopes: nil)
 
   def touch_last_seen
     update_column(:last_seen_at, Time.current) if last_seen_at.nil? || last_seen_at < 5.minutes.ago

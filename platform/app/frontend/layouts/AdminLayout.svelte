@@ -1,42 +1,35 @@
 <script lang="ts">
   import type { Snippet } from 'svelte'
-  import { Link, page } from '@inertiajs/svelte'
-  import DefaultLayout from '@/layouts/DefaultLayout.svelte'
-  import { adminRoot, adminUsers } from '@/routes'
+  import { BitsConfig } from 'bits-ui'
+  import AdminCommandPalette from '@/components/admin/AdminCommandPalette.svelte'
+  import AdminFlash from '@/components/admin/AdminFlash.svelte'
+  import AdminSidebar from '@/components/admin/AdminSidebar.svelte'
+  import { adminDark } from '@/lib/adminDark.svelte'
 
   let { children }: { children?: Snippet } = $props()
 
-  const links = [
-    { href: adminRoot().url, label: 'Dashboard', exact: true },
-    { href: adminUsers.index().url, label: 'Users', exact: false },
-  ]
-  const current = $derived(page.url.split('?')[0])
-  const active = (href: string, exact: boolean) => (exact ? current === href : current.startsWith(href))
+  let paletteOpen = $state(false)
+  let sidebarCollapsed = $state(true)
 </script>
 
-<DefaultLayout>
-  <div class="grid gap-8 md:grid-cols-[180px_1fr]">
-    <aside class="space-y-1">
-      <p class="mb-2 px-3 text-xs font-semibold tracking-wide text-stone-500 uppercase">Admin</p>
-      {#each links as link (link.href)}
-        <Link
-          href={link.href}
-          class="block rounded-lg px-3 py-2 text-sm font-medium {active(link.href, link.exact)
-            ? 'bg-hc-red/10 text-hc-red'
-            : 'text-stone-700 hover:bg-stone-100'}"
-        >
-          {link.label}
-        </Link>
-      {/each}
-      <a
-        href="/admin/jobs"
-        class="block rounded-lg px-3 py-2 text-sm font-medium text-stone-700 hover:bg-stone-100"
-      >
-        Jobs ↗
-      </a>
-    </aside>
-    <section class="min-w-0">
-      {@render children?.()}
-    </section>
-  </div>
-</DefaultLayout>
+<svelte:head><title>Fallen Admin</title></svelte:head>
+
+<!-- The admin theme lives on this element, so dialogs and menus portal into it instead of <body>. -->
+<div class={['admin min-h-screen bg-background text-foreground antialiased', adminDark.on && 'dark']}>
+  <BitsConfig defaultPortalTo=".admin">
+    <AdminSidebar onSearch={() => (paletteOpen = true)} bind:collapsed={sidebarCollapsed} />
+    <AdminCommandPalette bind:open={paletteOpen} />
+
+    <div
+      class={[
+        'pt-10 transition-[padding] duration-200 ease-in-out sm:pt-0',
+        sidebarCollapsed ? 'sm:pl-12' : 'sm:pl-56',
+      ]}
+    >
+      <main class="t-admin-page p-6">
+        <AdminFlash />
+        {@render children?.()}
+      </main>
+    </div>
+  </BitsConfig>
+</div>

@@ -7,7 +7,7 @@
     "autoBuild": true,
     "publicOutputDir": "vite-dev",
     "port": 3036,
-    "skipProxy": true
+    "skipProxy": false
   },
   "test": {
     "autoBuild": true,

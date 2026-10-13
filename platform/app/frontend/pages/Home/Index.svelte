@@ -1,59 +1,60 @@
+<script lang="ts" module>
+  export { default as layout } from '@/layouts/SkyLayout.svelte'
+</script>
+
 <script lang="ts">
   import type { UserProfile } from '@/types'
   import { formatDate } from '@/lib/format'
-  import RoleBadge from '@/components/RoleBadge.svelte'
 
   let { user, slack_connected }: { user: UserProfile; slack_connected: boolean } = $props()
+
+  const details = $derived([
+    { label: 'Public ID', value: user.id, mono: true },
+    { label: 'Slack', value: user.slack_id ?? 'not linked', mono: true },
+    { label: 'Timezone', value: user.timezone, mono: false },
+    { label: 'Verification', value: user.verification_status ?? 'unknown', mono: false },
+    { label: 'Joined', value: formatDate(user.created_at), mono: false },
+  ])
 </script>
 
 <svelte:head><title>Home · Fallen</title></svelte:head>
 
 <div class="grid gap-6 md:grid-cols-[1fr_320px]">
-  <div class="card">
+  <section class="sky-card">
     <div class="flex items-center gap-4">
-      <img src={user.avatar} alt="" class="h-16 w-16 rounded-full bg-stone-200 object-cover" />
+      <img src={user.avatar} alt="" class="h-16 w-16 rounded-full bg-sky-night object-cover" />
       <div>
-        <h1 class="text-2xl font-bold">{user.display_name}</h1>
-        <p class="text-sm text-stone-500">{user.email}</p>
+        <h1 class="font-display text-2xl text-white">{user.display_name}</h1>
+        <p class="font-outfit text-sm text-sky-ice/60">{user.email}</p>
       </div>
     </div>
 
-    <dl class="mt-6 grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
+    <dl class="mt-6 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-white/10 pt-6 text-sm">
       <div>
-        <dt class="text-stone-500">Public ID</dt>
-        <dd class="font-mono">{user.id}</dd>
-      </div>
-      <div>
-        <dt class="text-stone-500">Roles</dt>
-        <dd class="flex gap-1">
-          {#each user.roles as role (role)}<RoleBadge {role} />{/each}
+        <dt class="sky-label">Roles</dt>
+        <dd class="mt-1 flex flex-wrap gap-1.5">
+          {#each user.roles as role (role)}
+            <span class="badge border border-white/15 font-outfit text-sky-ice">{role}</span>
+          {/each}
         </dd>
       </div>
-      <div>
-        <dt class="text-stone-500">Slack</dt>
-        <dd class="font-mono">{user.slack_id ?? 'not linked'}</dd>
-      </div>
-      <div>
-        <dt class="text-stone-500">Timezone</dt>
-        <dd>{user.timezone}</dd>
-      </div>
-      <div>
-        <dt class="text-stone-500">Verification</dt>
-        <dd>{user.verification_status ?? 'unknown'}</dd>
-      </div>
-      <div>
-        <dt class="text-stone-500">Joined</dt>
-        <dd>{formatDate(user.created_at)}</dd>
-      </div>
+      {#each details as detail (detail.label)}
+        <div>
+          <dt class="sky-label">{detail.label}</dt>
+          <dd class="mt-1 text-white {detail.mono ? 'font-mono text-xs' : 'font-outfit'}">{detail.value}</dd>
+        </div>
+      {/each}
     </dl>
-  </div>
+  </section>
 
-  <aside class="card space-y-3 text-sm">
-    <h2 class="font-semibold">Slack bot</h2>
+  <aside class="sky-card space-y-3 text-sm">
+    <h2 class="font-display text-lg text-white">Slack bot</h2>
     {#if slack_connected}
-      <p class="text-stone-600">Connected. Try <code>/ping</code> or @mention the bot in Slack.</p>
+      <p class="font-outfit text-sky-ice/70">
+        Connected. Try <code>/ping</code> or @mention the bot in Slack.
+      </p>
     {:else}
-      <p class="text-stone-600">
+      <p class="font-outfit text-sky-ice/70">
         Not configured. Run <code>bin/slack-manifest --socket-mode</code>, create the app, then fill in the
         <code>SLACK_*</code> variables.
       </p>

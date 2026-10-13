@@ -3,21 +3,25 @@ class Admin::UsersController < Admin::ApplicationController
 
   def index
     scope = policy_scope(User)
+    scope = scope.kept unless include_deleted?
     scope = scope.search(params[:query]) if params[:query].present?
-    @pagy, users = pagy(scope.order(created_at: :desc))
 
+    # The filters render at once; the table fills in from a second request.
     render inertia: "Admin/Users/Index", props: {
-      users: AdminUserSerializer.render(users),
-      pagy: pagy_props(@pagy),
-      query: params[:query].to_s
+      query: params[:query].to_s,
+      include_deleted: include_deleted?,
+      total_count: InertiaRails.defer(group: "table") { scope.count },
+      **deferred_table(scope.order(created_at: :desc), AdminUserSerializer, :users)
     }
   end
 
   def show
     authorize @user
+    projects = @user.projects.kept.recent.to_a
 
     render inertia: "Admin/Users/Show", props: {
       user: AdminUserDetailSerializer.render(@user),
+      projects: AdminProjectSerializer.render(projects, **project_totals(projects)),
       roles: User::ROLES,
       can: { update: policy(@user).update?, impersonate: policy(@user).impersonate? }
     }
@@ -49,6 +53,8 @@ class Admin::UsersController < Admin::ApplicationController
   def set_user
     @user = User.find_by_public_id!(params[:id])
   end
+
+  def include_deleted? = params[:include_deleted] == "1"
 
   def user_params
     params.expect(user: [ :is_banned, roles: [] ])

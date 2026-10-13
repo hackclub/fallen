@@ -1,0 +1,10 @@
+{
+  "hooks": {
+    "get-manifest": "bin/slack-manifest --json --socket-mode",
+    "start": "script/slack_cli_start.sh"
+  },
+  "config": {
+    "sdk-managed-connection-enabled": true,
+    "watch": { "filter-regex": "^manifest\\.json$", "paths": ["."] }
+  }
+}

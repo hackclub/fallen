@@ -19,3 +19,13 @@ export interface Pagy {
   next: number | null
   prev: number | null
 }
+
+// Shared by Admin::ApplicationController#inertia_share. Deferred, so missing on the first render.
+export interface AdminStats {
+  users_count: number
+  projects_count: number
+}
+
+export interface AdminSharedProps extends SharedProps {
+  admin_stats?: AdminStats
+}

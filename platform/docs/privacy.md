@@ -20,8 +20,9 @@ Only from the token's `subject`: any `emails` (case-insensitive against `users.e
 
 | What | Where |
 | --- | --- |
-| The account: name, email, avatar, Slack id, timezone, roles, HCA token, verification status | `users` |
-| Change history of the account (PaperTrail copies of the row) | `versions` where `item_type = 'User'` |
+| The account: name, email, avatar, Slack id, timezone, roles, HCA token, Slack user token, verification status | `users` |
+| Their projects and journals (text, hours, Lapse links, Slack message ids) and journal photos | `projects`, `journals`, Active Storage |
+| Change history of the account, projects and journals (PaperTrail copies of the rows) | `versions` |
 
 Sessions are signed cookies holding the user id, so they stop working once the row is gone.
 
@@ -37,7 +38,7 @@ Sessions are signed cookies holding the user id, so they stop working once the r
 - Solid Queue job rows can hold a user's GlobalID (`gid://fallen/User/1`) or a raw Slack event payload until they
   are cleared (finished jobs after a day by default). They are not searched.
 - Sentry events and application logs are not touched. They expire on their own retention.
-- Slack itself is not ours to delete from.
+- Slack itself is not ours to delete from. Project threads and journal messages stay in the workspace.
 
 When a feature adds a table, upload or external service that holds user data, add it to `PrivacyRequest` and to this
 file. Delete files in external storage only on a real run, before the transaction commits.

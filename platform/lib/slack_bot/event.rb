@@ -6,6 +6,13 @@ module SlackBot
   class Event < Handler
     class << self
       def event_type = name.delete_suffix("Event").underscore
+
+      # Event names for the manifest. "message" events come per conversation type, so a MessageEvent
+      # declares `subscribes_to "message.channels", "message.groups"`.
+      def subscribes_to(*names)
+        @subscriptions = names.flatten if names.any?
+        @subscriptions || [ event_type ]
+      end
     end
 
     def event = payload.event

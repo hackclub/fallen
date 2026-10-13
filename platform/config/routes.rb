@@ -16,6 +16,15 @@ Rails.application.routes.draw do
   delete "auth/sign_out" => "auth#destroy", as: :sign_out
   delete "impersonation" => "impersonations#destroy", as: :impersonation
 
+  # Slack user token (post journals as yourself)
+  get "auth/slack/start" => "slack_auth#new", as: :connect_slack
+  get "auth/slack/callback" => "slack_auth#create", as: :slack_callback
+  delete "auth/slack" => "slack_auth#destroy", as: :disconnect_slack
+
+  resources :projects do
+    resources :journals, only: %i[create update destroy], shallow: true
+  end
+
   # Slack app endpoints (signature-verified, no session). See lib/slack_bot and app/bot.
   scope "slack", controller: :slack, as: :slack do
     post "events", action: :events
@@ -35,6 +44,7 @@ Rails.application.routes.draw do
       resources :users, only: %i[index show update] do
         post :impersonate, on: :member
       end
+      resources :projects, only: %i[index show]
       mount MissionControl::Jobs::Engine, at: "jobs"
     end
   end

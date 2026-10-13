@@ -1,4 +1,4 @@
-# Receives the modal opened by /feedback. Return `errors(...)` to show validation errors inline.
+# Receives the modal opened by /fallen-feedback. Return `errors(...)` to show validation errors inline.
 class FeedbackView < SlackBot::View
   def call
     message = values["message"].to_s.strip

@@ -1,0 +1,287 @@
+/* Admin theme (shadcn-svelte, components in components/admin/ui). Imported by application.css.
+   The colour tokens only exist inside AdminLayout's `.admin` wrapper, so the public pages keep their own look.
+   Overlays (dialogs, menus) portal into that wrapper too; see AdminLayout. */
+
+@import 'tw-animate-css';
+@import '@fontsource-variable/geist';
+
+/* Public pages follow the OS setting. Admin has its own toggle (`.admin.dark`, see lib/adminDark.svelte.ts). */
+@custom-variant dark {
+  @media (prefers-color-scheme: dark) {
+    &:not(:where(.admin, .admin *)) {
+      @slot;
+    }
+  }
+  &:where(.admin.dark, .admin.dark *) {
+    @slot;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --font-geist: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Same as Tailwind's default radii, so rounded-* outside admin is unchanged. */
+:root {
+  --radius: 0.5rem;
+}
+
+.admin {
+  --page-slide-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --digit-dur: 500ms;
+  --digit-distance: 8px;
+  --digit-stagger: 70ms;
+  --digit-blur: 2px;
+  --digit-ease: cubic-bezier(0.34, 1.45, 0.64, 1);
+  --badge-pop-dur: 500ms;
+  --badge-pop-ease: cubic-bezier(0.34, 1.36, 0.64, 1);
+  --badge-blur: 2px;
+
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.885 0 0);
+  --input: oklch(0.885 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.623 0.214 259.815);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.96 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.94 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.88 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+
+  color-scheme: light;
+  font-family: var(--font-geist);
+}
+
+.admin.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.985 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(0.3 0 0);
+  --input: oklch(0.3 0 0);
+  --ring: oklch(0.439 0 0);
+  --chart-1: oklch(0.707 0.165 254.624);
+  --chart-2: oklch(0.765 0.177 163.223);
+  --chart-3: oklch(0.828 0.189 84.429);
+  --chart-4: oklch(0.714 0.203 305.504);
+  --chart-5: oklch(0.712 0.194 13.428);
+  --sidebar: oklch(0.115 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.985 0 0);
+  --sidebar-primary-foreground: oklch(0.205 0 0);
+  --sidebar-accent: oklch(0.22 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(0.3 0 0);
+  --sidebar-ring: oklch(0.439 0 0);
+
+  color-scheme: dark;
+}
+
+/* shadcn's base style: borders without a colour use the theme's, not currentColor. */
+@layer base {
+  .admin,
+  .admin *,
+  .admin ::before,
+  .admin ::after {
+    border-color: var(--border);
+    outline-color: color-mix(in oklch, var(--ring) 50%, transparent);
+  }
+}
+
+/* @tailwindcss/forms styles every input for the public pages; the admin components bring their own. */
+.admin :where(input, textarea, select):focus {
+  --tw-ring-color: transparent;
+  outline: none;
+}
+
+.admin .t-admin-page {
+  position: relative;
+  overflow-x: clip;
+}
+
+/* Clickable cards lift a little on hover. */
+.admin .t-card-lift {
+  transition:
+    transform 240ms var(--page-slide-ease),
+    box-shadow 240ms var(--page-slide-ease);
+}
+.admin .t-card-lift:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px -8px rgb(0 0 0 / 0.12);
+}
+.admin.dark .t-card-lift:hover {
+  box-shadow: 0 4px 16px -8px rgb(0 0 0 / 0.5);
+}
+
+/* Table rows stagger in when data arrives. */
+@keyframes admin-row-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.admin .t-row-enter {
+  animation: admin-row-enter 280ms var(--page-slide-ease) both;
+}
+
+/* NumberPopIn: digits slide in with a blur whenever the value changes. */
+@keyframes t-digit-pop-in {
+  from {
+    transform: translateY(var(--digit-distance));
+    opacity: 0;
+    filter: blur(var(--digit-blur));
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+.admin .t-digit-group {
+  display: inline-flex;
+  align-items: baseline;
+}
+.admin .t-digit {
+  display: inline-block;
+}
+.admin .t-digit-group.is-animating .t-digit {
+  animation: t-digit-pop-in var(--digit-dur) var(--digit-ease) both;
+}
+.admin .t-digit-group.is-animating .t-digit[data-stagger='1'] {
+  animation-delay: var(--digit-stagger);
+}
+.admin .t-digit-group.is-animating .t-digit[data-stagger='2'] {
+  animation-delay: calc(var(--digit-stagger) * 2);
+}
+.admin .t-digit-group.is-animating .t-digit[data-stagger='3'] {
+  animation-delay: calc(var(--digit-stagger) * 3);
+}
+
+/* Sidebar: a small bar marks the active item. */
+.admin .t-nav-item {
+  position: relative;
+}
+.admin .t-nav-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  height: 0;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--sidebar-primary);
+  transform: translateY(-50%);
+  opacity: 0;
+  transition:
+    height 240ms var(--page-slide-ease),
+    opacity 200ms var(--page-slide-ease);
+}
+.admin .t-nav-item[data-active='true']::before {
+  height: 60%;
+  opacity: 1;
+}
+
+/* Sidebar count pills pop when they appear or change. */
+@keyframes admin-badge-pop {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+    filter: blur(var(--badge-blur));
+  }
+  60% {
+    transform: scale(1.08);
+    opacity: 1;
+    filter: blur(0);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+.admin .t-nav-badge {
+  animation: admin-badge-pop var(--badge-pop-dur) var(--badge-pop-ease) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin .t-row-enter,
+  .admin .t-digit-group .t-digit,
+  .admin .t-nav-badge {
+    animation: none !important;
+  }
+  .admin .t-card-lift,
+  .admin .t-nav-item::before {
+    transition: none !important;
+  }
+}

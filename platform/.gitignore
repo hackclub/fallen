@@ -46,3 +46,11 @@ node_modules
 *.sql
 *.dump
 *.csv
+
+# Slack CLI state (app ids per team, cache)
+/.slack/apps*.json
+/.slack/cache/
+/tmp/slack_install.json
+
+# Svelte plugin cache
+/app/frontend/.vite/

@@ -48,6 +48,10 @@ Rails.application.configure do
   # Don't log any deprecations.
   config.active_support.report_deprecations = false
 
+  # Tag every SQL statement with its controller/action or job so pg_stat_statements says where slow queries come from.
+  config.active_record.query_log_tags_enabled = true
+  config.active_record.query_log_tags = [ :application, :controller, :action, :job ]
+
   # Replace the default in-process memory cache store with a durable alternative.
   config.cache_store = :solid_cache_store
 

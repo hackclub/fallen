@@ -7,6 +7,27 @@ module ActiveSupport
     parallelize(workers: :number_of_processors)
     fixtures :all
 
+    # Bullet raises on N+1 queries and unused preloads (config/environments/test.rb). Fix the query, don't
+    # silence the check: `includes`/`preload` the association, or precompute aggregates in one grouped query.
+    setup { Bullet.start_request }
+    teardown do
+      Bullet.perform_out_of_channel_notifications if Bullet.notification?
+      Bullet.end_request
+    end
+
+    # Fails when the block runs more than `limit` SQL statements (schema and transaction statements excluded).
+    # Budgets catch pages that load a little more on every change until they are slow.
+    def assert_query_budget(limit, &block)
+      queries = []
+      counter = ->(_name, _start, _finish, _id, payload) {
+        next if payload[:name].in?([ "SCHEMA", "TRANSACTION" ]) || payload[:cached]
+
+        queries << payload[:sql]
+      }
+      ActiveSupport::Notifications.subscribed(counter, "sql.active_record", &block)
+      assert queries.size <= limit, "Expected at most #{limit} queries, ran #{queries.size}:\n#{queries.join("\n")}"
+    end
+
     # Temporarily replace a singleton/module method: stub_method(HCA, :identity, { "id" => "x" }) { ... }
     def stub_method(target, name, value)
       original = target.method(name)
@@ -26,6 +47,14 @@ module ActiveSupport
   end
 end
 
+module FixtureHelper
+  # Adds `count` journals without hours to a project, newer than the fixtures, so pagination has something to do.
+  def pad_journals(project, count)
+    now = Time.current
+    Journal.insert_all(Array.new(count) { |i| { project_id: project.id, user_id: project.user_id, body: "Journal #{i}", source: "web", created_at: now + i, updated_at: now + i } })
+  end
+end
+
 module SignInHelper
   # Uses the local-only DevController route to establish a session.
   def sign_in_as(user)
@@ -34,6 +63,71 @@ module SignInHelper
   end
 end
 
+module InertiaHelper
+  # The page's props as the Inertia client receives them.
+  def inertia_props(path, component)
+    get path, headers: { "X-Inertia" => "true", "X-Inertia-Version" => InertiaRails.configuration.version.to_s }
+    assert_response :success
+    assert_equal component, response.parsed_body["component"]
+    response.parsed_body["props"]
+  end
+
+  # The follow-up request Inertia's client makes for deferred props (InertiaRails.defer).
+  def load_deferred(path, component, *props)
+    get path, headers: {
+      "X-Inertia" => "true",
+      "X-Inertia-Version" => InertiaRails.configuration.version.to_s,
+      "X-Inertia-Partial-Component" => component,
+      "X-Inertia-Partial-Data" => props.join(",")
+    }
+    assert_response :success
+    response.parsed_body["props"]
+  end
+end
+
 class ActionDispatch::IntegrationTest
   include SignInHelper
+  include InertiaHelper
+end
+
+# Stands in for Slack::Web::Client. Records every call; chat_postMessage answers with a fresh ts.
+class FakeSlackClient
+  attr_reader :calls
+
+  def initialize
+    @calls = []
+    @counter = 0
+  end
+
+  def method_missing(name, *args, **kwargs)
+    @calls << [ name, args.first || kwargs ]
+    Slack::Messages::Message.new(name == :chat_postMessage ? { "ok" => true, "ts" => "1700009999.#{(@counter += 1).to_s.rjust(6, '0')}" } : { "ok" => true, "messages" => [] })
+  end
+
+  def respond_to_missing?(*) = true
+
+  def calls_to(name) = calls.select { |n, _| n == name }.map(&:last)
+end
+
+module SlackStubHelper
+  # Routes SlackBot.client (and user-token clients) to a FakeSlackClient for the block. response_url posts
+  # (Faraday.post) are recorded on the fake as :response_url calls.
+  def with_fake_slack(journals_channel: "CJOURNALS")
+    fake = FakeSlackClient.new
+    SlackBot.instance_variable_set(:@client, fake)
+    original_client_for = SlackMessaging.method(:client_for)
+    original_post = Faraday.method(:post)
+    SlackMessaging.define_singleton_method(:client_for) { |_user| fake }
+    Faraday.define_singleton_method(:post) { |url, body = nil, *_rest| fake.calls << [ :response_url, { url: url, body: body && JSON.parse(body) } ] }
+    with_env("SLACK_BOT_TOKEN" => "xoxb-test", "SLACK_SIGNING_SECRET" => "secret", "SLACK_JOURNALS_CHANNEL_ID" => journals_channel) { yield fake }
+  ensure
+    SlackMessaging.define_singleton_method(:client_for, original_client_for)
+    Faraday.define_singleton_method(:post, original_post)
+    SlackBot.reset_client!
+  end
+end
+
+class ActiveSupport::TestCase
+  include SlackStubHelper
+  include FixtureHelper
 end

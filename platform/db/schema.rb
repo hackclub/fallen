@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_11_201405) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_13_040000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -42,8 +42,45 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_11_201405) do
     t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
   end
 
+  create_table "journals", force: :cascade do |t|
+    t.bigint "project_id", null: false
+    t.bigint "user_id", null: false
+    t.text "body", null: false
+    t.integer "duration_minutes"
+    t.string "source", default: "web", null: false
+    t.string "slack_channel_id"
+    t.string "slack_ts"
+    t.datetime "discarded_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "lapse_url"
+    t.index ["created_at"], name: "index_journals_on_created_at"
+    t.index ["discarded_at"], name: "index_journals_on_discarded_at"
+    t.index ["project_id"], name: "index_journals_needing_hours", where: "((discarded_at IS NULL) AND (duration_minutes IS NULL))"
+    t.index ["project_id"], name: "index_journals_on_project_id"
+    t.index ["slack_channel_id", "slack_ts"], name: "index_journals_on_slack_channel_id_and_slack_ts", unique: true, where: "(slack_ts IS NOT NULL)"
+    t.index ["user_id"], name: "index_journals_on_user_id"
+  end
+
   create_table "privacy_token_uses", primary_key: "jti", id: :text, force: :cascade do |t|
     t.datetime "used_at", default: -> { "CURRENT_TIMESTAMP" }, null: false
+  end
+
+  create_table "projects", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "title", null: false
+    t.text "description"
+    t.string "repo_url"
+    t.string "demo_url"
+    t.string "slack_channel_id"
+    t.string "slack_thread_ts"
+    t.datetime "discarded_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["discarded_at"], name: "index_projects_on_discarded_at"
+    t.index ["slack_channel_id", "slack_thread_ts"], name: "index_projects_on_slack_channel_id_and_slack_thread_ts", unique: true, where: "(slack_thread_ts IS NOT NULL)"
+    t.index ["updated_at"], name: "index_projects_on_updated_at"
+    t.index ["user_id"], name: "index_projects_on_user_id"
   end
 
   create_table "solid_cable_messages", force: :cascade do |t|
@@ -232,9 +269,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_11_201405) do
     t.datetime "discarded_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.text "slack_user_token"
+    t.string "slack_user_token_scopes"
+    t.index ["created_at"], name: "index_users_on_created_at"
     t.index ["discarded_at"], name: "index_users_on_discarded_at"
     t.index ["email"], name: "index_users_on_email"
     t.index ["hca_id"], name: "index_users_on_hca_id", unique: true
+    t.index ["last_seen_at"], name: "index_users_on_last_seen_at"
     t.index ["roles"], name: "index_users_on_roles", using: :gin
     t.index ["slack_id"], name: "index_users_on_slack_id"
   end
@@ -251,6 +292,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_11_201405) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "journals", "projects"
+  add_foreign_key "journals", "users"
+  add_foreign_key "projects", "users"
   add_foreign_key "solid_queue_batch_executions", "solid_queue_batches", column: "batch_id", on_delete: :cascade
   add_foreign_key "solid_queue_batch_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_blocked_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade

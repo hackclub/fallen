@@ -312,6 +312,8 @@ GEM
     rack (3.2.7)
     rack-attack (6.8.0)
       rack (>= 1.0, < 4)
+    rack-mini-profiler (5.0.0)
+      rack (>= 1.2.0)
     rack-proxy (2.0.1)
       rack (>= 2.0, < 4)
     rack-session (2.1.2)
@@ -438,6 +440,8 @@ GEM
       thor (>= 1.3.1)
     stimulus-rails (1.3.4)
       railties (>= 6.0.0)
+    strong_migrations (2.8.0)
+      activerecord (>= 7.2)
     thor (1.5.0)
     thruster (0.1.27)
     thruster (0.1.27-aarch64-linux)
@@ -522,6 +526,7 @@ DEPENDENCIES
   puma (>= 6.0)
   pundit (~> 2.4)
   rack-attack (~> 6.7)
+  rack-mini-profiler
   rails (~> 8.1.4)
   rubocop-rails-omakase
   selenium-webdriver
@@ -531,6 +536,7 @@ DEPENDENCIES
   solid_cable
   solid_cache
   solid_queue
+  strong_migrations (~> 2.8)
   thruster
   typelizer (~> 0.14)
   tzinfo-data

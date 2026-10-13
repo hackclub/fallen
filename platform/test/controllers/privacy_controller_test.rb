@@ -20,7 +20,7 @@ class PrivacyControllerTest < ActionDispatch::IntegrationTest
     body = response.parsed_body
     assert_equal true, body["found"]
     assert_equal true, body["dry_run"]
-    assert_equal({ "users" => 1, "versions" => 1 }, body["deleted"])
+    assert_equal({ "users" => 1, "versions" => 1, "projects" => 2, "journals" => 3 }, body["deleted"])
     assert_equal [], body["retained"]
     assert User.exists?(member.id)
   end
@@ -38,6 +38,16 @@ class PrivacyControllerTest < ActionDispatch::IntegrationTest
     assert_equal dry, response.parsed_body["deleted"]
     assert_not User.exists?(member.id)
     assert_not PaperTrail::Version.exists?(item_type: "User", item_id: member.id)
+  end
+
+  test "deletes projects and journals with the account" do
+    member_id = users(:member).id
+    call_hub :delete, dry_run: false, subject: { emails: [ "member@example.com" ] }
+
+    assert_equal 2, response.parsed_body["deleted"]["projects"]
+    assert_equal 3, response.parsed_body["deleted"]["journals"]
+    assert_not Project.exists?(user_id: member_id)
+    assert_not PaperTrail::Version.exists?(item_type: "Journal")
   end
 
   test "echoes the request id" do

@@ -52,4 +52,12 @@ Rails.application.configure do
   config.action_controller.raise_on_missing_callback_actions = true
 
   config.active_job.queue_adapter = :test
+  config.active_record.encryption.encrypt_fixtures = true
+
+  # An N+1 query or an unused preload fails the test that caused it (test/test_helper.rb).
+  config.after_initialize do
+    Bullet.enable = true
+    Bullet.bullet_logger = true
+    Bullet.raise = true
+  end
 end

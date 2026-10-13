@@ -79,10 +79,14 @@ Rails.application.configure do
 
   # Redirect 127.0.0.1 -> localhost so the Vite dev server origin matches (see routes.rb).
   config.hosts << "localhost" if config.respond_to?(:hosts)
+  # Development is sometimes served through a tunnel (Tailscale serve) so Slack OAuth gets an https callback.
+  config.hosts << URI(ENV["APP_URL"]).host if ENV["APP_URL"].present? && config.respond_to?(:hosts)
 
+  # N+1 queries and unused preloads show up in the browser console and log/development.log. In tests they raise.
   config.after_initialize do
     Bullet.enable = true
     Bullet.rails_logger = true
+    Bullet.console = true
     Bullet.add_footer = false
   end
 end

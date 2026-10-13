@@ -6,7 +6,7 @@ on:
     branches: [main]
 
 jobs:
-  ruby:
+  ci:
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -35,38 +35,5 @@ jobs:
           cache: npm
           cache-dependency-path: platform/package-lock.json
       - run: npm ci
-      - name: Lint (RuboCop)
-        run: bin/rubocop -f github
-      - name: Security scan (Brakeman)
-        run: bin/brakeman --no-pager
-      - name: Audit gems
-        run: bin/bundler-audit --update
-      - name: Tests
-        run: bin/rails db:prepare test
-      - name: Generated files are current (annotations, TypeScript types, route helpers)
-        env:
-          TYPELIZER: "1"
-        run: |
-          bundle exec annotaterb models --frozen --show-migration
-          bin/rails typelizer:generate:refresh
-          git diff --exit-code -- app/frontend/types app/frontend/routes db/schema.rb
-
-  frontend:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: platform
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 24
-          cache: npm
-          cache-dependency-path: platform/package-lock.json
-      - run: npm ci
-      - name: Type check (svelte-check)
-        run: npm run check
-      - name: Formatting (Prettier)
-        run: npm run format:check
-      - name: Audit packages
-        run: npm audit --omit=dev
+      # Every check lives in config/ci.rb so bin/ci locally and this job stay identical.
+      - run: bin/ci

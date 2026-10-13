@@ -2,7 +2,14 @@
   import { router } from '@inertiajs/svelte'
   import type { Pagy } from '@/types'
 
-  let { pagy }: { pagy: Pagy } = $props()
+  // Previous/next for a paginated prop. Unstyled beyond layout so it fits the public (dark) and admin pages;
+  // pass the button classes of the page it sits on.
+  let {
+    pagy,
+    noun = 'items',
+    class: className = '',
+    buttonClass = 'btn-secondary',
+  }: { pagy: Pagy; noun?: string; class?: string; buttonClass?: string } = $props()
 
   function goTo(pageNumber: number) {
     const url = new URL(window.location.href)
@@ -12,19 +19,19 @@
 </script>
 
 {#if pagy.pages > 1}
-  <nav class="mt-6 flex items-center justify-between text-sm" aria-label="Pagination">
+  <nav class="flex items-center justify-between text-sm {className}" aria-label="Pagination">
     <button
       type="button"
-      class="btn-secondary"
+      class={buttonClass}
       disabled={!pagy.prev}
       onclick={() => pagy.prev && goTo(pagy.prev)}
     >
       Previous
     </button>
-    <span class="text-stone-600">Page {pagy.page} of {pagy.pages} · {pagy.count} total</span>
+    <span>Page {pagy.page} of {pagy.pages} · {pagy.count} {noun}</span>
     <button
       type="button"
-      class="btn-secondary"
+      class={buttonClass}
       disabled={!pagy.next}
       onclick={() => pagy.next && goTo(pagy.next)}
     >

@@ -4,6 +4,11 @@ default: &default
   adapter: postgresql
   encoding: unicode
   pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  # No single statement may run longer than this. A page that needs more has a missing index or belongs in a
+  # job. Migrations set their own timeouts (config/initializers/strong_migrations.rb).
+  variables:
+    statement_timeout: <%= ENV.fetch("DB_STATEMENT_TIMEOUT", "5s") %>
+    lock_timeout: 5s
 
 development:
   <<: *default

@@ -3,35 +3,34 @@
 </script>
 
 <script lang="ts">
+  import type { DevUser } from '@/types'
   import Wordmark from '@/components/Wordmark.svelte'
+  import HeroArt from '@/components/HeroArt.svelte'
   import { signIn } from '@/routes'
-  import bg from '@/assets/bg2.webp'
-  import soupFalling from '@/assets/soup-falling.png'
 
-  import { Canvas } from '@threlte/core'
-  import Particles from '@/components/shaders/Particles.svelte'
-  import Shards from '@/components/shaders/Shards.svelte'
-  import Noise from '@/components/shaders/Noise.svelte'
+  import { onMount } from 'svelte'
+  import type { Component } from 'svelte'
 
-  let { hca_configured }: { hca_configured: boolean } = $props()
+  let { hca_configured, dev_users }: { hca_configured: boolean; dev_users: DevUser[] | null } = $props()
+
+  // bind:value selects the first option and fills this in when it starts out undefined.
+  let devUserUrl: string | undefined = $state()
+
+  // The WebGL effects start after the page has painted.
+  let LandingScene: Component | undefined = $state()
+  onMount(async () => {
+    LandingScene = (await import('@/components/shaders/LandingScene.svelte')).default
+  })
 </script>
 
 <svelte:head><title>Fallen</title></svelte:head>
 
-<!-- film grain over everything; overlay blending lets it texture the colours underneath without greying them -->
-<div class="fixed inset-0 z-1000 pointer-events-none mix-blend-overlay opacity-10">
-  <Canvas>
-    <Noise />
-  </Canvas>
-</div>
+{#if LandingScene}
+  <LandingScene />
+{/if}
 
-<section
-  class="relative min-h-screen w-full text-stone-100 p-6 md:p-10 py-10 xl:p-20 space-y-6"
->
-  <div
-    style="background-image: url({bg})"
-    class="absolute inset-0 bg-top-right bg-no-repeat bg-cover pointer-events-none select-none -z-1"
-  ></div>
+<section class="relative min-h-screen w-full text-stone-100 p-6 md:p-10 py-10 xl:p-20 space-y-6">
+  <HeroArt />
   <h1><Wordmark onDark class="absolute top-6 left-6 h-16" /></h1>
 
   <p class="text-3xl mt-60">December 11–14, 2026</p>
@@ -61,13 +60,35 @@
       >By <a href="https://hackclub.com" class="underline opacity-60">Hack Club</a>, for teens 13–18</span
     >
   </div>
-  <div class="absolute inset-0 pointer-events-none">
-    <Canvas>
-      <Particles />
-      <Shards />
-    </Canvas>
-  </div>
-  <img src={soupFalling} alt="" class="absolute left-1/2 -translate-x-1/2 bottom-0 h-80" />
+
+  {#if dev_users}
+    <div class="relative z-10">
+      {#if dev_users.length > 0}
+        <form
+          class="flex items-center gap-2"
+          onsubmit={(event) => {
+            event.preventDefault()
+            if (devUserUrl) window.location.assign(devUserUrl)
+          }}
+        >
+          <select
+            bind:value={devUserUrl}
+            class="input w-auto border-white/20 bg-black text-white"
+            aria-label="Dev user"
+          >
+            {#each dev_users as devUser (devUser.id)}
+              <option value={devUser.sign_in_url}>
+                {devUser.display_name} ({devUser.roles.join(', ')})
+              </option>
+            {/each}
+          </select>
+          <button type="submit" class="btn border-white/20 text-white hover:bg-white/10">Dev login</button>
+        </form>
+      {:else}
+        <p class="text-sm opacity-70">No users to dev login as yet. Run <code>bin/rails db:seed</code>.</p>
+      {/if}
+    </div>
+  {/if}
 
   <!-- <div class="mt-8 flex justify-center gap-3">
     {#if hca_configured}

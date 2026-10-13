@@ -2,7 +2,9 @@ import { createInertiaApp, router, type ResolvedComponent } from '@inertiajs/sve
 import DefaultLayout from '@/layouts/DefaultLayout.svelte'
 import '@/entrypoints/application.css'
 
-const pages = import.meta.glob<ResolvedComponent>('../pages/**/*.svelte', { eager: true })
+// Lazy: each page is its own chunk, so the admin tables, the landing shaders and so on only download when
+// visited. Vite preloads a page's shared chunks with it.
+const pages = import.meta.glob<ResolvedComponent>('../pages/**/*.svelte')
 
 // Lets ApplicationController#sync_browser_timezone keep users' timezone current without asking.
 const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
@@ -14,7 +16,7 @@ createInertiaApp({
   resolve: (name) => {
     const page = pages[`../pages/${name}.svelte`]
     if (!page) throw new Error(`Missing Inertia page component: app/frontend/pages/${name}.svelte`)
-    return page
+    return page()
   },
   // Pages can override this with `export { default as layout } from '...'` in a <script module> block.
   layout: () => DefaultLayout,

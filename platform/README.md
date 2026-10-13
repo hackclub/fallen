@@ -69,6 +69,21 @@ Local dev, no tunnel:
 
 For production, `bin/slack-manifest https://your.app` and disable Socket Mode.
 
+## Projects and journals
+
+A project is one Slack thread in the journals channel (`SLACK_JOURNALS_CHANNEL_ID`, invite the bot). Its top-level
+message is the project; each reply by the owner is a journal. Both sides stay in sync:
+
+- Slack -> web: `MessageEvent` turns thread replies into `Journal`s, reacts to confirm and offers "Log time"
+  (`JournalTimeAction` opens `JournalTimeView`, a typed duration). Edits and deletions in Slack update the journal. A top-level message by a signed-in user gets a nudge to become a
+  project (`ProjectFromMessageAction`); `/project` opens the same modal (`ProjectView`).
+- Web -> Slack: `PostProjectToSlackJob` posts the thread anchor, `SyncJournalToSlackJob` posts, edits and deletes
+  journal replies. Messages go out as the person when they have connected Slack (`SlackAuthController`, user scope
+  `chat:write`, needs `SLACK_CLIENT_ID` / `SLACK_CLIENT_SECRET` and the redirect URL from the manifest); otherwise the
+  bot posts under their name and avatar (`chat:write.customize`).
+
+Time on a journal is typed, never picked from presets ("1.5", "1h 30m", `Duration.parse`), and stored as minutes.
+
 ## Privacy requests
 
 The Hack Club privacy hub calls `POST /api/privacy/delete` and `/api/privacy/export` to delete a person's data. What
@@ -102,9 +117,13 @@ Records use public ids (`usr_Ab12Cd`). Pundit fails closed: every action must `a
 ## Checks
 
 ```sh
-bin/rubocop && bin/brakeman --no-pager && bin/rails test
-npm run check && npm run format:check
+bin/ci
 ```
+
+Runs everything GitHub runs (`config/ci.rb`): RuboCop, Prettier, svelte-check, Brakeman, dependency audits, tests
+and a check that generated files are committed. Tests fail on N+1 queries and on pages over their query budget;
+[docs/performance.md](docs/performance.md) explains the guardrails and how to read them. Conventions for working
+in this folder are in [AGENTS.md](AGENTS.md).
 
 ## Deploy
 

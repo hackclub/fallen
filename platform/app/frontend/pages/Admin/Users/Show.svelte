@@ -4,116 +4,211 @@
 
 <script lang="ts">
   import { Link, router, useForm } from '@inertiajs/svelte'
-  import RoleBadge from '@/components/RoleBadge.svelte'
+  import ArrowLeft from '@lucide/svelte/icons/arrow-left'
+  import Ban from '@lucide/svelte/icons/ban'
+  import VenetianMask from '@lucide/svelte/icons/venetian-mask'
+  import DataTable from '@/components/admin/DataTable.svelte'
+  import RoleBadges from '@/components/admin/RoleBadges.svelte'
+  import * as AlertDialog from '@/components/admin/ui/alert-dialog'
+  import { Badge } from '@/components/admin/ui/badge'
+  import { Button } from '@/components/admin/ui/button'
+  import * as Card from '@/components/admin/ui/card'
+  import { Checkbox } from '@/components/admin/ui/checkbox'
+  import { Label } from '@/components/admin/ui/label'
+  import { projectColumns } from '@/lib/adminColumns'
   import { formatDate, formatDateTime } from '@/lib/format'
   import { adminUsers, impersonateAdminUser } from '@/routes'
-  import type { AdminUserDetail } from '@/types'
+  import type { AdminProject, AdminUserDetail } from '@/types'
 
   let {
     user,
+    projects,
     roles,
     can,
-  }: { user: AdminUserDetail; roles: string[]; can: { update: boolean; impersonate: boolean } } = $props()
+  }: {
+    user: AdminUserDetail
+    projects: AdminProject[]
+    roles: string[]
+    can: { update: boolean; impersonate: boolean }
+  } = $props()
 
   // svelte-ignore state_referenced_locally
-  const form = useForm({ roles: [...user.roles], is_banned: user.is_banned })
+  const rolesForm = useForm({ roles: [...user.roles] })
+  // svelte-ignore state_referenced_locally
+  const banForm = useForm({ is_banned: !user.is_banned })
 
-  function toggleRole(role: string) {
-    form.roles = form.roles.includes(role) ? form.roles.filter((r) => r !== role) : [...form.roles, role]
+  let confirmRoles = $state(false)
+  let confirmBan = $state(false)
+
+  const rolesChanged = $derived(
+    rolesForm.roles.length !== user.roles.length ||
+      rolesForm.roles.some((role) => !user.roles.includes(role)),
+  )
+  const columns = projectColumns({ owner: false })
+
+  const details = $derived([
+    { label: 'Public ID', value: user.id, mono: true },
+    { label: 'HCA ID', value: user.hca_id, mono: true },
+    { label: 'Slack ID', value: user.slack_id ?? '—', mono: true },
+    { label: 'Timezone', value: user.timezone },
+    { label: 'Verification', value: user.verification_status ?? 'unknown' },
+    { label: 'Adult', value: user.is_adult ? 'Yes' : 'No' },
+    { label: 'Last seen', value: formatDateTime(user.last_seen_at) },
+    { label: 'Joined', value: formatDate(user.created_at) },
+  ])
+
+  function toggleRole(role: string, checked: boolean) {
+    rolesForm.roles = checked ? [...rolesForm.roles, role] : rolesForm.roles.filter((r) => r !== role)
   }
 
-  function save(event: SubmitEvent) {
-    event.preventDefault()
-    form.transform((data) => ({ user: data })).submit(adminUsers.update(user.id), { preserveScroll: true })
+  function saveRoles() {
+    rolesForm
+      .transform((data) => ({ user: data }))
+      .submit(adminUsers.update(user.id), {
+        preserveScroll: true,
+        onFinish: () => (confirmRoles = false),
+      })
+  }
+
+  function saveBan() {
+    banForm.is_banned = !user.is_banned
+    banForm
+      .transform((data) => ({ user: data }))
+      .submit(adminUsers.update(user.id), {
+        preserveScroll: true,
+        onFinish: () => (confirmBan = false),
+      })
   }
 </script>
 
-<svelte:head><title>{user.display_name} · Admin</title></svelte:head>
+<svelte:head><title>{user.display_name} · Fallen Admin</title></svelte:head>
 
-<Link href={adminUsers.index()} class="text-sm text-stone-500 hover:underline">← All users</Link>
+<Link
+  href={adminUsers.index()}
+  class="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+>
+  <ArrowLeft class="size-4" /> Users
+</Link>
 
-<div class="mt-4 flex items-center gap-4">
-  <img src={user.avatar} alt="" class="h-16 w-16 rounded-full bg-stone-200 object-cover" />
-  <div>
-    <h1 class="text-2xl font-bold">{user.display_name}</h1>
-    <p class="text-sm text-stone-500">{user.email}</p>
+<div class="flex flex-wrap items-center gap-4">
+  <img src={user.avatar} alt="" class="size-14 rounded-full bg-muted object-cover" />
+  <div class="min-w-0">
+    <div class="flex items-center gap-2">
+      <h1 class="text-2xl font-semibold tracking-tight">{user.display_name}</h1>
+      {#if user.is_banned}<Badge variant="destructive">Banned</Badge>{/if}
+      {#if user.discarded_at}<Badge variant="destructive">Deleted</Badge>{/if}
+    </div>
+    <p class="text-sm text-muted-foreground">{user.email}</p>
   </div>
-  <span class="ml-auto flex gap-1"
-    >{#each user.roles as role (role)}<RoleBadge {role} />{/each}</span
-  >
+  <div class="ml-auto flex items-center gap-2">
+    <RoleBadges roles={user.roles} />
+    {#if can.impersonate}
+      <Button variant="outline" size="sm" onclick={() => router.visit(impersonateAdminUser(user.id))}>
+        <VenetianMask data-icon="inline-start" /> Impersonate
+      </Button>
+    {/if}
+  </div>
 </div>
 
-<div class="mt-6 grid gap-6 lg:grid-cols-2">
-  <dl class="card grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
-    <div>
-      <dt class="text-stone-500">Public ID</dt>
-      <dd class="font-mono">{user.id}</dd>
-    </div>
-    <div>
-      <dt class="text-stone-500">HCA ID</dt>
-      <dd class="font-mono">{user.hca_id}</dd>
-    </div>
-    <div>
-      <dt class="text-stone-500">Slack ID</dt>
-      <dd class="font-mono">{user.slack_id ?? 'none'}</dd>
-    </div>
-    <div>
-      <dt class="text-stone-500">Timezone</dt>
-      <dd>{user.timezone}</dd>
-    </div>
-    <div>
-      <dt class="text-stone-500">Verification</dt>
-      <dd>{user.verification_status ?? 'unknown'}</dd>
-    </div>
-    <div>
-      <dt class="text-stone-500">Adult</dt>
-      <dd>{user.is_adult ? 'yes' : 'no'}</dd>
-    </div>
-    <div>
-      <dt class="text-stone-500">Last seen</dt>
-      <dd>{formatDateTime(user.last_seen_at)}</dd>
-    </div>
-    <div>
-      <dt class="text-stone-500">Joined</dt>
-      <dd>{formatDate(user.created_at)}</dd>
-    </div>
-  </dl>
+<div class="mt-6 grid gap-4 lg:grid-cols-3">
+  <Card.Root class="lg:col-span-2">
+    <Card.Header><Card.Title>Details</Card.Title></Card.Header>
+    <Card.Content>
+      <dl class="grid grid-cols-2 gap-x-6 gap-y-4 text-sm sm:grid-cols-4">
+        {#each details as detail (detail.label)}
+          <div class="min-w-0">
+            <dt class="text-muted-foreground">{detail.label}</dt>
+            <dd class={['truncate', detail.mono && 'font-mono text-xs leading-5']}>{detail.value}</dd>
+          </div>
+        {/each}
+      </dl>
+    </Card.Content>
+  </Card.Root>
 
-  <form onsubmit={save} class="card space-y-5 text-sm">
-    <fieldset disabled={!can.update} class="space-y-5">
-      <div>
-        <p class="font-semibold">Roles</p>
-        <div class="mt-2 flex flex-wrap gap-4">
-          {#each roles as role (role)}
-            <label class="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={form.roles.includes(role)}
-                onchange={() => toggleRole(role)}
-                class="rounded border-stone-300 text-hc-red focus:ring-hc-red"
-              />
-              {role}
-            </label>
-          {/each}
-        </div>
-        {#if form.errors.roles}<p class="mt-1 text-red-600">{form.errors.roles}</p>{/if}
+  <Card.Root>
+    <Card.Header>
+      <Card.Title>Access</Card.Title>
+      <Card.Description>
+        {can.update ? 'Roles and bans apply on the next request.' : "You can't edit your own account."}
+      </Card.Description>
+    </Card.Header>
+    <Card.Content class="space-y-4">
+      <div class="flex flex-wrap gap-4">
+        {#each roles as role (role)}
+          <Label class="flex items-center gap-2 font-normal">
+            <Checkbox
+              checked={rolesForm.roles.includes(role)}
+              onCheckedChange={(checked) => toggleRole(role, checked)}
+              disabled={!can.update}
+            />
+            {role}
+          </Label>
+        {/each}
       </div>
+      {#if rolesForm.errors.roles}<p class="text-sm text-destructive">{rolesForm.errors.roles}</p>{/if}
 
-      <label class="flex items-center gap-2">
-        <input
-          type="checkbox"
-          bind:checked={form.is_banned}
-          class="rounded border-stone-300 text-hc-red focus:ring-hc-red"
-        />
-        <span class="font-semibold">Banned</span>
-        <span class="text-stone-500">(blocks sign in and every page)</span>
-      </label>
+      <div class="flex flex-wrap gap-2">
+        <AlertDialog.Root bind:open={confirmRoles}>
+          <AlertDialog.Trigger>
+            {#snippet child({ props })}
+              <Button {...props} size="sm" disabled={!can.update || !rolesChanged}>Save roles</Button>
+            {/snippet}
+          </AlertDialog.Trigger>
+          <AlertDialog.Content>
+            <AlertDialog.Header>
+              <AlertDialog.Title>Update roles for {user.display_name}?</AlertDialog.Title>
+              <AlertDialog.Description>
+                They will have: {rolesForm.roles.join(', ') || 'no roles'}.
+              </AlertDialog.Description>
+            </AlertDialog.Header>
+            <AlertDialog.Footer>
+              <AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+              <AlertDialog.Action onclick={saveRoles} disabled={rolesForm.processing}
+                >Update roles</AlertDialog.Action
+              >
+            </AlertDialog.Footer>
+          </AlertDialog.Content>
+        </AlertDialog.Root>
 
-      <div class="flex items-center gap-3">
-        <button type="submit" class="btn-primary" disabled={form.processing}>Save</button>
-        {#if form.recentlySuccessful}<span class="text-emerald-700">Saved.</span>{/if}
-        {#if !can.update}<span class="text-stone-500">You can't edit your own account.</span>{/if}
+        <AlertDialog.Root bind:open={confirmBan}>
+          <AlertDialog.Trigger>
+            {#snippet child({ props })}
+              <Button
+                {...props}
+                size="sm"
+                variant={user.is_banned ? 'outline' : 'destructive'}
+                disabled={!can.update}
+              >
+                <Ban data-icon="inline-start" />
+                {user.is_banned ? 'Unban' : 'Ban'}
+              </Button>
+            {/snippet}
+          </AlertDialog.Trigger>
+          <AlertDialog.Content>
+            <AlertDialog.Header>
+              <AlertDialog.Title>{user.is_banned ? 'Unban' : 'Ban'} {user.display_name}?</AlertDialog.Title>
+              <AlertDialog.Description>
+                {user.is_banned
+                  ? 'They will be able to sign in and use Fallen again.'
+                  : 'Every page will send them to /sorry until they are unbanned.'}
+              </AlertDialog.Description>
+            </AlertDialog.Header>
+            <AlertDialog.Footer>
+              <AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+              <AlertDialog.Action
+                variant={user.is_banned ? 'default' : 'destructive'}
+                onclick={saveBan}
+                disabled={banForm.processing}
+              >
+                {user.is_banned ? 'Unban' : 'Ban'}
+              </AlertDialog.Action>
+            </AlertDialog.Footer>
+          </AlertDialog.Content>
+        </AlertDialog.Root>
       </div>
-    </fieldset>
-  </form>
+    </Card.Content>
+  </Card.Root>
 </div>
+
+<h2 class="mt-8 mb-4 text-lg font-semibold tracking-tight">{user.display_name}'s projects</h2>
+<DataTable {columns} data={projects} noun="projects" />

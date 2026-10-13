@@ -1,0 +1,7 @@
+#!/usr/bin/env ruby
+# Runs every check CI runs, in order, and stops at the first failure. Same command locally and on GitHub.
+require_relative "../config/boot"
+require "active_support/continuous_integration"
+
+CI = ActiveSupport::ContinuousIntegration
+require_relative "../config/ci.rb"

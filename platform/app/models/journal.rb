@@ -1,0 +1,103 @@
+# One session of work on a Project. Lives twice: here, and as a reply in the project's Slack thread.
+# `slack_ts` is the reply's timestamp, whichever side it was written on. `source` says where it was written.
+# == Schema Information
+#
+# Table name: journals
+#
+#  id               :bigint           not null, primary key
+#  body             :text             not null
+#  discarded_at     :datetime
+#  duration_minutes :integer
+#  lapse_url        :string
+#  slack_ts         :string
+#  source           :string           default("web"), not null
+#  created_at       :datetime         not null
+#  updated_at       :datetime         not null
+#  project_id       :bigint           not null
+#  slack_channel_id :string
+#  user_id          :bigint           not null
+#
+# Indexes
+#
+#  index_journals_needing_hours                     (project_id) WHERE ((discarded_at IS NULL) AND (duration_minutes IS NULL))
+#  index_journals_on_created_at                     (created_at)
+#  index_journals_on_discarded_at                   (discarded_at)
+#  index_journals_on_project_id                     (project_id)
+#  index_journals_on_slack_channel_id_and_slack_ts  (slack_channel_id,slack_ts) UNIQUE WHERE (slack_ts IS NOT NULL)
+#  index_journals_on_user_id                        (user_id)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (project_id => projects.id)
+#  fk_rails_...  (user_id => users.id)
+#
+class Journal < ApplicationRecord
+  include PublicIdentifiable
+  include Discardable
+
+  SOURCES = %w[web slack].freeze
+  MAX_MINUTES = 24 * 60
+
+  set_public_id_prefix :jrn
+  has_paper_trail
+
+  belongs_to :project
+  belongs_to :user
+  has_many_attached :images
+
+  IMAGE_TYPES = %w[image/png image/jpeg image/gif image/webp].freeze
+  MAX_IMAGES = 10
+  MAX_IMAGE_BYTES = 10.megabytes
+
+  validates :body, presence: true, length: { maximum: 10_000 }
+  validates :source, inclusion: { in: SOURCES }
+  validates :duration_minutes, numericality: { only_integer: true, greater_than: 0, less_than_or_equal_to: MAX_MINUTES }, allow_nil: true
+  validates :slack_ts, uniqueness: { scope: :slack_channel_id }, allow_nil: true
+  validates :lapse_url, format: { with: %r{\Ahttps://\S+\z}, message: "must be a link starting with https://" }, allow_blank: true
+  validate :author_owns_project
+  validate :images_are_images
+  validate :duration_was_understood
+
+  scope :newest_first, -> { order(created_at: :desc) }
+  scope :needing_hours, -> { where(duration_minutes: nil) }
+
+  def self.find_by_slack_message(channel_id, ts)
+    return nil if channel_id.blank? || ts.blank?
+
+    find_by(slack_channel_id: channel_id, slack_ts: ts)
+  end
+
+  def from_slack? = source == "slack"
+  def from_web? = source == "web"
+  def on_slack? = slack_channel_id.present? && slack_ts.present?
+  def slack_url = on_slack? ? SlackMessaging.permalink(slack_channel_id, slack_ts, thread_ts: project.slack_thread_ts) : nil
+  def hours_logged? = duration_minutes.present?
+  def duration_text = Duration.format(duration_minutes)
+
+  # Typed time ("1.5", "1h 30m", "45m"), never picked from presets. Blank clears it.
+  def duration=(text)
+    @duration_text_given = text.to_s.strip
+    self.duration_minutes = Duration.parse(@duration_text_given)
+  end
+
+  private
+
+  def duration_was_understood
+    return if @duration_text_given.blank? || duration_minutes.present?
+
+    errors.add(:duration, "should look like 1h 30m, 2.5 or 45m")
+  end
+
+  def images_are_images
+    blobs = images.attachments.filter_map(&:blob)
+    errors.add(:images, "at most #{MAX_IMAGES} per journal") if blobs.size > MAX_IMAGES
+    errors.add(:images, "must be PNG, JPEG, GIF or WebP") unless blobs.all? { |blob| blob.content_type.in?(IMAGE_TYPES) }
+    errors.add(:images, "must be under #{MAX_IMAGE_BYTES / 1.megabyte} MB each") if blobs.any? { |blob| blob.byte_size > MAX_IMAGE_BYTES }
+  end
+
+  def author_owns_project
+    return if project.nil? || project.user_id == user_id
+
+    errors.add(:project, "must be yours")
+  end
+end

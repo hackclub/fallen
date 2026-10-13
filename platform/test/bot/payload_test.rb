@@ -14,7 +14,7 @@ class PayloadTest < ActiveSupport::TestCase
     manifest = SlackBot::Manifest.generate(app_url: "https://example.com", name: "Test")
     commands = manifest.dig("features", "slash_commands").map { |c| c["command"] }
     assert_includes commands, "/ping"
-    assert_includes commands, "/feedback"
+    assert_includes commands, "/fallen-feedback"
     assert_includes manifest.dig("settings", "event_subscriptions", "bot_events"), "app_mention"
   end
 end

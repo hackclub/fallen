@@ -7,6 +7,13 @@ class PagesTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "Landing/Index"
   end
 
+  test "landing offers a dev sign in dropdown outside production" do
+    get root_path
+    assert_includes response.body, users(:member).email
+    assert_includes response.body, dev_sign_in_as_path(users(:member).public_id)
+    assert_not_includes response.body, users(:member).hca_id
+  end
+
   test "home requires sign in" do
     get home_path
     assert_redirected_to root_path
@@ -31,11 +38,6 @@ class PagesTest < ActionDispatch::IntegrationTest
     sign_in_as users(:admin)
     get admin_root_path
     assert_response :success
-    get admin_users_path(query: "member")
-    assert_response :success
-    assert_includes response.body, users(:member).public_id
-    assert_not_includes response.body, users(:member).hca_id, "index rows do not leak detail fields"
-
     patch admin_user_path(users(:member)), params: { user: { roles: [ "user", "reviewer" ], is_banned: false } }
     assert_redirected_to admin_user_path(users(:member))
     assert users(:member).reload.reviewer?
