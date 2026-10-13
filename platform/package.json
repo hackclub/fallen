@@ -9,16 +9,20 @@
     "slack:socket": "node script/slack_socket_mode.mjs"
   },
   "dependencies": {
+    "@fontsource-variable/inter": "^5.3.0",
     "@inertiajs/svelte": "^3.9.1",
     "@tailwindcss/forms": "^0.5.11",
     "@tailwindcss/vite": "^4.3.3",
+    "@threlte/core": "^8.6.1",
     "svelte": "^5.57.2",
-    "tailwindcss": "^4.3.3"
+    "tailwindcss": "^4.3.3",
+    "three": "^0.186.1"
   },
   "devDependencies": {
     "@slack/socket-mode": "^3.1.0",
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
     "@types/node": "^26.6.5",
+    "@types/three": "^0.186.0",
     "prettier": "^3.9.10",
     "prettier-plugin-svelte": "^4.1.1",
     "svelte-check": "^4.7.6",

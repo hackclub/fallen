@@ -1,10 +1,29 @@
 @import 'tailwindcss';
+@import '@fontsource-variable/inter';
 
 @plugin '@tailwindcss/forms';
 
 @source '../../../app/views';
 
+/* Split by unicode-range so Latin text only downloads the small file, not the 3.5 MB of CJK glyphs. */
+@font-face {
+  font-family: 'Genshin';
+  src: url('../assets/fonts/genshin-latin.woff2') format('woff2');
+  font-display: swap;
+  unicode-range: U+0000-024F, U+2000-206F, U+20AC, U+2122;
+}
+
+@font-face {
+  font-family: 'Genshin';
+  src: url('../assets/fonts/genshin-extended.woff2') format('woff2');
+  font-display: swap;
+  unicode-range: U+0250-1FFF, U+2070-20AB, U+20AD-2121, U+2123-10FFFF;
+}
+
 @theme {
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-genshin: 'Genshin', ui-sans-serif, system-ui, sans-serif;
+
   --color-hc-red: #ec3750;
   --color-hc-orange: #ff8c37;
   --color-hc-yellow: #f1c40f;
@@ -12,6 +31,16 @@
   --color-hc-cyan: #5bc0de;
   --color-hc-blue: #338eda;
   --color-hc-purple: #a633d6;
+
+  /*--color-navy: #071b5a;*/
+  --color-navy: #002592;
+  --color-light-blue: #73bfff;
+
+  /*it's not really black*/
+  --color-black: #06011a;
+  --color-purple: #4e5aca;
+  --color-cobalt: #294eff;
+  --color-beige: #fcf3ee;
 }
 
 @layer base {
