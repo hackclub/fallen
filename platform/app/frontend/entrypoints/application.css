@@ -1,5 +1,9 @@
 @import 'tailwindcss';
-@import '@fontsource-variable/inter';
+@import '@fontsource-variable/nunito-sans';
+@import '@fontsource-variable/nunito-sans/wght-italic.css';
+@import '@fontsource/jacques-francois';
+@import '@fontsource-variable/lora';
+@import '@fontsource-variable/lora/wght-italic.css';
 @import './admin.css';
 
 @plugin '@tailwindcss/forms';
@@ -22,8 +26,10 @@
 }
 
 @theme {
-  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Nunito Sans Variable', ui-sans-serif, system-ui, sans-serif;
   --font-genshin: 'Genshin', ui-sans-serif, system-ui, sans-serif;
+  --font-jacques: 'Jacques Francois', Georgia, serif;
+  --font-lora: 'Lora Variable', Georgia, serif;
 
   --color-hc-red: #ec3750;
   --color-hc-orange: #ff8c37;

@@ -88,6 +88,6 @@
 
 <Grain />
 
-<div class="pointer-events-none absolute inset-0" aria-hidden="true">
+<div class="pointer-events-none absolute inset-0 z-1" aria-hidden="true">
   <canvas bind:this={canvas} class="block h-full w-full"></canvas>
 </div>

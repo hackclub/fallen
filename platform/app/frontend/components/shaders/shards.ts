@@ -15,10 +15,11 @@ const beamWidth = 1.8 // the spread across the beam; most shards fall within thi
 const beamDepth = 1.4 // the spread towards and away from the camera, so the beam is a tube rather than a sheet
 const glowRoom = 2.5 // each point is drawn this many times the shard's size, leaving space round it for the glow
 
-// the cursor turns the whole beam round its middle, much further than the particles tilt, so one end swings
-// towards the camera and the shards slide past each other by depth
-const maxYaw = 0.04 // radians at the left and right edges of the screen
-const maxPitch = 0.025 // radians at the top and bottom
+// the cursor turns the whole beam round its middle, just enough that the shards slide past each other by depth.
+// The beam also follows only part of the camera's drift, so it barely shifts under the cursor.
+const maxYaw = 0.012 // radians at the left and right edges of the screen
+const maxPitch = 0.008 // radians at the top and bottom
+const cameraFollow = 0.3 // share of the camera's drift the beam moves with
 
 export function createShards(gl: WebGL2RenderingContext): Layer {
   // x is how far along the beam, y how far across it, z how far towards the camera
@@ -54,6 +55,7 @@ export function createShards(gl: WebGL2RenderingContext): Layer {
   let onPage = false
   const turn = spring(4, 3.4) // damping a little under critical (2 * sqrt(stiffness)) so it settles with a sway
   const matrix = new Float32Array(16)
+  const camera = [0, 0]
 
   return {
     update(delta) {
@@ -63,7 +65,9 @@ export function createShards(gl: WebGL2RenderingContext): Layer {
 
     draw(view) {
       const [x, y] = turn.value
-      modelView(beamCentre, -y * maxPitch, x * maxYaw, view.camera, matrix)
+      camera[0] = view.camera[0] * cameraFollow
+      camera[1] = view.camera[1] * cameraFollow
+      modelView(beamCentre, -y * maxPitch, x * maxYaw, camera, matrix)
 
       gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA)
       points.draw({

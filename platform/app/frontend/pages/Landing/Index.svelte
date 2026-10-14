@@ -6,15 +6,37 @@
   import type { DevUser } from '@/types'
   import Wordmark from '@/components/Wordmark.svelte'
   import HeroArt from '@/components/HeroArt.svelte'
+  import HeroFrame from '@/components/HeroFrame.svelte'
+  import CursorTrail from '@/components/CursorTrail.svelte'
+  import Footer from '@/components/Footer.svelte'
+  import PhotoCard from '@/components/PhotoCard.svelte'
   import { signIn } from '@/routes'
 
   import { onMount } from 'svelte'
-  import type { Component } from 'svelte'
+  import type { Component, ComponentProps } from 'svelte'
 
   let { hca_configured, dev_users }: { hca_configured: boolean; dev_users: DevUser[] | null } = $props()
 
   // bind:value selects the first option and fills this in when it starts out undefined.
   let devUserUrl: string | undefined = $state()
+
+  // the scattered photos either side of the recap video; shift is in % of the card's own size
+  const leftPhotos: ComponentProps<typeof PhotoCard>[] = [
+    { class: 'aspect-4/3 w-60', rotate: 5 },
+    { class: 'aspect-4/3 w-70', rotate: -2 },
+  ]
+  const rightPhotos: ComponentProps<typeof PhotoCard>[] = [
+    { class: 'aspect-6/5 w-40 z-30', rotate: 7, shift: [25, 0] },
+    { class: 'aspect-4/3 w-70', rotate: -4, shift: [0, -25] },
+    { class: 'aspect-4/3 w-80', rotate: 4, shift: [0, 33.33] },
+  ]
+
+  const navItems = [
+    { label: 'GET STARTED', href: '/', class: '' },
+    { label: 'View Stats', href: '/', class: '' },
+  ]
+  // GET STARTED stays highlighted until another item is hovered, and again once the pointer leaves the nav
+  let activeNav = $state(0)
 
   // The WebGL effects start after the page has painted.
   let LandingScene: Component | undefined = $state()
@@ -25,42 +47,98 @@
 
 <svelte:head><title>Fallen</title></svelte:head>
 
+{#snippet ornament(visible: boolean, extra = '')}
+  <svg
+    class={['transition-opacity drop-shadow-[0_0_4px_rgb(255_255_255/0.6)]', extra, !visible && 'opacity-0']}
+    aria-hidden="true"
+    width="180"
+    height="30"
+    viewBox="0 0 202 43"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <rect
+      x="0.821599"
+      width="36.2118"
+      height="36.2118"
+      transform="matrix(0.821599 -0.570066 0.821599 0.570066 106.147 21.6816)"
+      stroke="#FEFEFE"
+    />
+    <rect
+      x="0.821599"
+      width="36.2118"
+      height="36.2118"
+      transform="matrix(0.821599 -0.570066 0.821599 0.570066 122.002 21.6816)"
+      stroke="#FEFEFE"
+    />
+    <line y1="20.5" x2="106" y2="20.5" stroke="white" />
+    <line x1="182" y1="21" x2="202" y2="21" stroke="white" />
+    <rect
+      x="71.4923"
+      y="21.2132"
+      width="12.1802"
+      height="12.1802"
+      transform="rotate(-45 71.4923 21.2132)"
+      fill="#024B81"
+      stroke="#FEFEFE"
+    />
+  </svg>
+{/snippet}
+
+<CursorTrail />
+
 {#if LandingScene}
   <LandingScene />
 {/if}
 
-<section class="relative min-h-screen w-full text-stone-100 p-6 md:p-10 py-10 xl:p-20 space-y-6">
-  <HeroArt />
-  <h1><Wordmark onDark class="absolute top-6 left-6 h-16" /></h1>
-
-  <p class="text-3xl mt-60">December 11–14, 2026</p>
-  <h2 class="relative z-10 text-6xl max-w-6xl text-left font-semibold leading-16">
-    Build a hardware project for free, present it in <span class="text-shadow-md text-shadow-purple/20"
-      >Shenzhen, China</span
-    >!
-  </h2>
-
-  <div class="space-y-2">
-    <form class="mt-10 space-x-4 flex items-center">
-      <input
-        type="email"
-        name="email"
-        autocomplete="email"
-        aria-label="Email"
-        placeholder="fallen@hackclub.com"
-        class="bg-beige text-black w-90 h-14 shadow-sm shadow-white/40 rounded-xs rounded-bl-xl rounded-tr-xl pl-6 outline-2 outline-beige border-3 border-beige"
-      />
-      <button
-        type="submit"
-        class="bg-[#3F5BFD]/60 h-14 px-4 rounded-xs rounded-br-xl rounded-tl-xl font-genshin text-beige text-3xl outline-2 outline-beige"
-        >START</button
-      >
-    </form>
-    <span class="block"
-      >By <a href="https://hackclub.com" class="underline opacity-60">Hack Club</a>, for teens 13–18</span
-    >
+<section
+  class="relative min-h-screen w-full text-stone-100 p-6 md:p-10 py-10 xl:p-20 space-y-6 flex flex-col justify-center items-center text-center bg-[url('/assets/hero/background.webp')] bg-center bg-cover bg-no-repeat"
+>
+  <HeroFrame />
+  <div class="w-full h-full fixed inset-0 -z-1 bg-black/10"></div>
+  <div
+    class="blur-[2px] pointer-events-none absolute inset-0 m-auto grid grid-cols-1 grid-rows-1 place-items-center"
+    aria-hidden="true"
+  >
+    <div
+      class="col-start-1 row-start-1 size-220 rounded-full p-14 bg-linear-to-b from-[#162C86]/30 to-transparent
+                   [mask:linear-gradient(#000_0_0)_content-box_exclude,linear-gradient(#000_0_0)]"
+    ></div>
+    <div class="col-start-1 row-start-1 size-220 rounded-full outline-8 outline-[#162C86]/6"></div>
+    <div
+      class=" col-start-1 row-start-1 rounded-full size-170 bg-clip-padding border-linear-to-b bg-linear-to-b from-[#162C86]/30 to-transparent"
+    ></div>
   </div>
 
+  <h1><Wordmark onDark class="z-10 h-70 -mt-10 drop-shadow-[0_0_4px_rgb(255_255_255/0.6)]" /></h1>
+
+  <!-- <p class="absolute top-10 mx-auto z-3 text-2xl text-[#ACACE1] px-2 py-1 bg-navy rounded-xs">December 11–14, 2026</p> -->
+  <h2 class="text-4xl font-lora font-medium max-w-2xl leading-10 text-shadow-md text-shadow-purple/20 text-[#F5EBE4]">
+    Build a hardware project for free, <span class="text-[#F6B75B]"> present it in Shenzhen, China</span>
+  </h2>
+
+  <nav class="relative z-10 flex flex-col items-center space-y-4" onmouseleave={() => (activeNav = 0)}>
+    {#each navItems as item, i (item.label)}
+      {@const active = activeNav === i}
+      <div class="flex items-center justify-center gap-2">
+        {@render ornament(active)}
+        <a
+          href={item.href}
+          class={[
+            'font-lora transition-all text-shadow-md text-shadow-black/20 [-webkit-text-stroke:6px_#162C8640] [paint-order:stroke_fill]',
+            item.class,
+            active ? 'text-4xl font-medium' : 'text-3xl text-[#C7E1B8]',
+          ]}
+          onmouseenter={() => (activeNav = i)}
+          onfocus={() => (activeNav = i)}
+        >
+          {item.label}
+        </a>
+        {@render ornament(active, 'rotate-180')}
+      </div>
+    {/each}
+  </nav>
+  <!--
   {#if dev_users}
     <div class="relative z-10">
       {#if dev_users.length > 0}
@@ -88,7 +166,7 @@
         <p class="text-sm opacity-70">No users to dev login as yet. Run <code>bin/rails db:seed</code>.</p>
       {/if}
     </div>
-  {/if}
+  {/if} -->
 
   <!-- <div class="mt-8 flex justify-center gap-3">
     {#if hca_configured}
@@ -105,3 +183,24 @@
     {/if}
   </div> -->
 </section>
+<section id="watch" class="h-screen flex flex-col items-center space-y-2 p-10 bg-[#040224]">
+  <h3 class="text-[#ACACE1] text-3xl font-display">Last July we brought 180+ to Shenzhen, China.</h3>
+  <span class="text-[#5758BF] text-2xl">Watch the recap below...</span>
+  <div class="flex h-full justify-center items-center -space-x-18">
+    <div class="z-20 flex h-full flex-col justify-center gap-40 pb-10 pr-14">
+      {#each leftPhotos as photo, i (i)}
+        <PhotoCard {...photo} />
+      {/each}
+    </div>
+    <div
+      class="aspect-video h-[80%] w-full rounded-sm rounded-tl-4xl rounded-br-4xl border-10 border-[#5758BF] bg-[repeating-linear-gradient(-45deg,#1F1C66_0_14px,color-mix(in_oklab,#1F1C66,#5758BF_35%)_14px_28px)]"
+    ></div>
+    <div class="z-20 flex h-full flex-col justify-between py-10">
+      {#each rightPhotos as photo, i (i)}
+        <PhotoCard {...photo} />
+      {/each}
+    </div>
+  </div>
+</section>
+
+<Footer />
