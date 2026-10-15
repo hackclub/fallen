@@ -11,7 +11,7 @@
     class: className = '',
     itemClass = '',
   }: {
-    items: { label: string; href: string }[]
+    items: { label: string; href: string; onclick?: (event: MouseEvent) => void }[]
     small?: boolean
     glow?: boolean
     label?: string
@@ -103,18 +103,20 @@
               ? 'text-3xl sm:text-4xl'
               : 'text-2xl sm:text-3xl',
         ]}
+        onclick={item.onclick}
         onmouseenter={() => (active = i)}
         onfocus={() => (active = i)}
       >
-        <!-- the soft oval of light Genshin puts behind a selected menu item -->
+        <!-- the soft oval of light Genshin puts behind a selected menu item. It swells past its size and settles
+             back as it lights up -->
         <span
           class={[
-            'pointer-events-none absolute -inset-x-16 inset-y-1 -z-1 rounded-[50%] blur-md transition-opacity duration-300',
+            'pointer-events-none absolute -inset-x-16 inset-y-1 -z-1 rounded-[50%] blur-md transition-[opacity,scale] duration-500 ease-[cubic-bezier(0.3,1.9,0.5,1)]',
             // it shows far more on the footer's near-black than on the hero's blue, so it's fainter there
             glow
               ? 'bg-[radial-gradient(closest-side,rgb(255_255_255/0.08),rgb(199_225_255/0.03)_55%,transparent)]'
               : 'bg-[radial-gradient(closest-side,rgb(255_255_255/0.3),rgb(199_225_255/0.12)_55%,transparent)]',
-            on ? 'opacity-100' : 'opacity-0',
+            on ? 'opacity-100' : 'scale-x-60 scale-y-50 opacity-0',
           ]}
           aria-hidden="true"
         ></span>

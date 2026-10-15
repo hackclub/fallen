@@ -7,6 +7,13 @@ class PagesTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "Landing/Index"
   end
 
+  test "landing renders for signed in users" do
+    sign_in_as users(:member)
+    get root_path
+    assert_response :success
+    assert_includes response.body, "Landing/Index"
+  end
+
   test "landing offers a dev sign in dropdown outside production" do
     get root_path
     assert_includes response.body, users(:member).email

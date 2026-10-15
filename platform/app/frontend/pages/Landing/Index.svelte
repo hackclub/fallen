@@ -13,7 +13,8 @@
   import Recap from '@/components/Recap.svelte'
   // import Store from '@/components/Store.svelte'
   import Wordmark from '@/components/Wordmark.svelte'
-  import { root, signIn } from '@/routes'
+  import { home, root, signIn } from '@/routes'
+  import { shared } from '@/lib/shared.svelte'
   import type { DevUser } from '@/types'
 
   import { onMount } from 'svelte'
@@ -68,10 +69,21 @@
   // bind:value selects the first option and fills this in when it starts out undefined.
   let devUserUrl: string | undefined = $state()
 
-  const navItems = [
-    { label: 'GET STARTED', href: root().url },
+  // Without Hack Club Auth (local development), getting started opens the dev login picker instead.
+  let showDevLogin = $state(false)
+  const openDevLogin = (event: MouseEvent) => {
+    event.preventDefault()
+    showDevLogin = true
+  }
+
+  const navItems = $derived([
+    shared().auth.user
+      ? { label: 'DASHBOARD', href: home.index().url }
+      : hca_configured || !dev_users
+        ? { label: 'GET STARTED', href: signIn().url }
+        : { label: 'GET STARTED', href: signIn().url, onclick: openDevLogin },
     { label: 'View Stats', href: root().url },
-  ]
+  ])
 
   // The WebGL effects start after the page has painted.
   let LandingScene: Component | undefined = $state()
@@ -156,8 +168,7 @@
   </h2>
 
   <OrnamentNav items={navItems} />
-  <!--
-  {#if dev_users}
+  {#if showDevLogin && dev_users}
     <div class="relative z-10">
       {#if dev_users.length > 0}
         <form
@@ -184,7 +195,7 @@
         <p class="text-sm opacity-70">No users to dev login as yet. Run <code>bin/rails db:seed</code>.</p>
       {/if}
     </div>
-  {/if} -->
+  {/if}
 
   <!-- <div class="mt-8 flex justify-center gap-3">
     {#if hca_configured}
