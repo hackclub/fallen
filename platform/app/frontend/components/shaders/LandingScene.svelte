@@ -1,12 +1,16 @@
 <script lang="ts">
-  // The landing page's moving background: film grain over everything, and one WebGL canvas drawing the layers in
-  // order. Each layer (particles.ts, shards.ts) owns its points, shaders and how it follows the cursor; webgl.ts
-  // has the shared plumbing. Imported dynamically from the page so it starts after the page has painted.
+  // The landing page's moving background: one WebGL canvas drawing the layers in order. Each layer (particles.ts,
+  // shards.ts) owns its points, shaders and how it follows the cursor; webgl.ts has the shared plumbing. Both scenes
+  // are fixed to the viewport: the hero scene is particles and shards behind the sections, plus film grain over
+  // everything; the dust scene is a fainter, sparser field of particles in front of them, so a few drift over every
+  // section. Imported dynamically from the page so it starts after the page has painted.
   import { onMount } from 'svelte'
   import Grain from './Grain.svelte'
   import { clamp, perspective, spring, type Layer, type View } from './webgl'
   import { createParticles } from './particles'
   import { createShards } from './shards'
+
+  let { scene = 'hero' }: { scene?: 'hero' | 'dust' } = $props()
 
   const parallax = 0.3 // world units the camera drifts at the edge of the screen; nearer shards move more
 
@@ -24,7 +28,10 @@
     const gl = canvas.getContext('webgl2', { alpha: true, antialias: false, depth: false })
     if (!gl) return // no WebGL2: the page just goes without the effect
 
-    layers = [createParticles(gl), createShards(gl)]
+    layers =
+      scene === 'hero'
+        ? [createParticles(gl, { axis: 100 }), createShards(gl, 140)]
+        : [createParticles(gl, { axis: 40, brightness: 0.6 })]
     gl.enable(gl.BLEND)
 
     const view: View = { projection: new Float32Array(16), camera: camera.value }
@@ -86,8 +93,11 @@
 <svelte:window onpointermove={onPointerMove} />
 <svelte:document onmouseleave={onPointerLeave} />
 
-<Grain />
+{#if scene === 'hero'}
+  <Grain />
+{/if}
 
-<div class="pointer-events-none absolute inset-0 z-1" aria-hidden="true">
+<!-- z-1 is under the page's sections (also z-1, but later); the dust's z-2 is over them, under the frame -->
+<div class={['pointer-events-none fixed inset-0', scene === 'hero' ? 'z-1' : 'z-2']} aria-hidden="true">
   <canvas bind:this={canvas} class="block h-full w-full"></canvas>
 </div>

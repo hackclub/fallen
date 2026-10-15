@@ -4,7 +4,6 @@ import { clamp, createPoints, modelView, randomFadeIn, spring, type Layer } from
 import vertexShader from './particles.vert?raw'
 import fragmentShader from './particles.frag?raw'
 
-const axis = 80 // the field starts as an axis x axis grid, scattered
 const glowHold = 0.8 // seconds the glow stays after the cursor stops before it fades
 const maxTilt = 0.06 // radians at the edge of the screen
 const maxShift = 0.08 // world units at the edge of the screen
@@ -12,7 +11,8 @@ const maxShift = 0.08 // world units at the edge of the screen
 // eases off towards the screen edges so most of the movement happens near the middle
 const shape = (v: number) => Math.sin((clamp(v, -1, 1) * Math.PI) / 2)
 
-export function createParticles(gl: WebGL2RenderingContext): Layer {
+// axis: the field starts as an axis x axis grid, scattered. brightness scales how much light each particle adds.
+export function createParticles(gl: WebGL2RenderingContext, { axis = 80, brightness = 1 } = {}): Layer {
   const count = axis * axis
   const positions = new Float32Array(count * 3)
   const sizes = new Float32Array(count)
@@ -83,6 +83,7 @@ export function createParticles(gl: WebGL2RenderingContext): Layer {
         uMouse: mouse,
         uHover: hover,
         uAspect: aspect,
+        uBrightness: brightness,
       })
     },
 

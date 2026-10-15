@@ -1,7 +1,6 @@
 @import 'tailwindcss';
 @import '@fontsource-variable/nunito-sans';
 @import '@fontsource-variable/nunito-sans/wght-italic.css';
-@import '@fontsource/jacques-francois';
 @import '@fontsource-variable/lora';
 @import '@fontsource-variable/lora/wght-italic.css';
 @import './admin.css';
@@ -10,44 +9,33 @@
 
 @source '../../../app/views';
 
-/* Split by unicode-range so Latin text only downloads the small file, not the 3.5 MB of CJK glyphs. */
-@font-face {
-  font-family: 'Genshin';
-  src: url('../assets/fonts/genshin-latin.woff2') format('woff2');
-  font-display: swap;
-  unicode-range: U+0000-024F, U+2000-206F, U+20AC, U+2122;
-}
-
-@font-face {
-  font-family: 'Genshin';
-  src: url('../assets/fonts/genshin-extended.woff2') format('woff2');
-  font-display: swap;
-  unicode-range: U+0250-1FFF, U+2070-20AB, U+20AD-2121, U+2123-10FFFF;
-}
-
 @theme {
   --font-sans: 'Nunito Sans Variable', ui-sans-serif, system-ui, sans-serif;
-  --font-genshin: 'Genshin', ui-sans-serif, system-ui, sans-serif;
-  --font-jacques: 'Jacques Francois', Georgia, serif;
   --font-lora: 'Lora Variable', Georgia, serif;
 
+  /* The landing page's palette, every colour sampled from the hero art so the page below reads as more of the same
+     night: the sky's cobalt darkening to blue-black, the flowers' icy periwinkles, and the
+     buildings' ivory and sandstone as the only warm colours, used sparingly. Some names predate it (green and
+     purple) and no longer describe the colour; they say where it's used. */
+  --color-blue: #2a48b5; /* the sky's mid cobalt: the hero's rings and text outlines */
+  --color-indigo: #1c369b; /* the sky's deep cobalt */
+  --color-purple: #172064; /* the sky's darkest blue: the middle of the page's fade from the FAQ to the footer */
+  --color-dark-purple: #11163f; /* the recap video's backing, the play badge's text and dark text on light panels */
+  --color-dark-blue: #0c1238; /* the cards' backing, the unlit path stops and the vignette */
+  --color-black: #04060f; /* not really black: the bottom of the footer */
+  --color-bright-blue: #5164d3; /* the sky's brightest blue: FAQ dividers, the recap's glows */
+  --color-pale-blue: #d6dcfb; /* body text */
+  --color-light-blue: #9cabf7; /* the recap's subtitle */
+  --color-beige: #fbf7ee; /* the How It Works panel */
+  --color-cream: #fcf9ef; /* the buildings' ivory: the hero's text, FAQ questions and selected links */
+  --color-green: #f7dda6; /* the buildings' parchment: section headings and unselected nav links */
+  --color-gold: #dab771; /* the buildings' sandstone: frame lines, ornaments, card outlines, the open FAQ question */
+  --color-amber: #c9a462; /* a How It Works stop once the line reaches it */
+  --color-twilight: #262056; /* the page's colour behind How It Works: the sky turned to lavender dusk */
+
+  /* Still used by the buttons, the impersonation banner and the Home/Projects pages. */
   --color-hc-red: #ec3750;
   --color-hc-orange: #ff8c37;
-  --color-hc-yellow: #f1c40f;
-  --color-hc-green: #33d6a6;
-  --color-hc-cyan: #5bc0de;
-  --color-hc-blue: #338eda;
-  --color-hc-purple: #a633d6;
-
-  /*--color-navy: #071b5a;*/
-  --color-navy: #002592;
-  --color-light-blue: #73bfff;
-
-  /*it's not really black*/
-  --color-black: #06011a;
-  --color-purple: #4e5aca;
-  --color-cobalt: #294eff;
-  --color-beige: #fcf3ee;
   /* "Sky" palette for the Genshin-flavoured landing page and dashboard. */
   --color-sky-deep: #071b5a;
   --color-sky-night: #0b1340;
@@ -109,6 +97,59 @@
 
 @utility btn-sky-gold {
   @apply btn bg-sky-gold font-outfit text-sky-night hover:bg-[#f3dea2] focus-visible:ring-sky-gold/60;
+}
+
+/* The landing page cards' hover tilt (lib/holo.ts sets the angles, HoloShine.svelte draws the light). Every part of
+   it eases on the same quick-then-gentle curve; the card's other changes keep a plain 300ms. */
+@utility holo-card {
+  --holo-ease: 0.4s cubic-bezier(0.03, 0.98, 0.52, 0.99);
+  transform: perspective(1000px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) scale(var(--scale, 1));
+  transition:
+    transform var(--holo-ease),
+    translate 300ms,
+    opacity 300ms,
+    filter 300ms,
+    box-shadow 300ms,
+    outline-color 300ms;
+
+  @media (prefers-reduced-motion: reduce) {
+    transform: none;
+  }
+}
+
+/* The landing sections' entrance: each `place-down` element tilts in as it comes up from the bottom of the screen,
+   its top edge leaning away, and lies flat by the time it's partway up, like a sheet being laid down. Its parent
+   is a `place-down-stage`, whose close perspective exaggerates the foreshortening. Scroll-driven and only rotate and
+   scale, so the compositor runs it with no script or repaint, and it stacks with an element's own transform.
+   --place-down-range moves where it lands; browsers without scroll-driven animations show everything flat. */
+@utility place-down-stage {
+  @supports (animation-timeline: view()) {
+    @media (prefers-reduced-motion: no-preference) {
+      perspective: 700px;
+    }
+  }
+}
+
+@utility place-down {
+  @supports (animation-timeline: view()) {
+    @media (prefers-reduced-motion: no-preference) {
+      transform-origin: bottom center;
+      animation: place-down cubic-bezier(0.33, 1, 0.68, 1) both;
+      animation-timeline: view();
+      animation-range: var(--place-down-range, entry 0% cover 35%);
+    }
+  }
+}
+
+@keyframes place-down {
+  from {
+    rotate: x 40deg;
+    scale: 1.05;
+  }
+  to {
+    rotate: none;
+    scale: none;
+  }
 }
 
 /* Paper: the journal composer and journal cards, a notebook page over the dark sky. */

@@ -107,7 +107,7 @@
 <div
   bind:this={card}
   role="presentation"
-  class="relative touch-none select-none cursor-grab active:cursor-grabbing rounded-lg border-4 border-[#F09834] bg-beige {className}"
+  class="relative cursor-grab touch-none rounded-xl select-none active:cursor-grabbing bg-linear-to-b from-[#F8F0E6] to-[#ECDDCB] shadow-[0_10px_24px_-12px_rgb(7_16_46/0.35),0_0_20px_rgb(246_183_91/0.08)] ring-[1.5px] ring-gold/80 {className}"
   style:z-index={z}
   style:transform-origin={origin ? `${origin[0]}px ${origin[1]}px` : undefined}
   style:transform="translate(calc({shift[0]}% + {x}px), calc({shift[1]}% + {y}px)) rotate({rotate}deg) rotate({swing}rad)"
@@ -117,6 +117,11 @@
   onpointercancel={onPointerUp}
 >
   {#if children}
-    <div class="pointer-events-none absolute inset-0 overflow-hidden rounded-sm">{@render children()}</div>
+    <div class="pointer-events-none absolute inset-2 overflow-hidden rounded-lg">{@render children()}</div>
   {/if}
+  <!-- a gold hairline inside the edge with a small diamond on top, like the cards in Genshin's menus -->
+  <div class="pointer-events-none absolute inset-1.5 rounded-lg border border-gold/45" aria-hidden="true">
+    <span class="absolute top-0 left-1/2 size-2 -translate-1/2 rotate-45 border border-gold/70 bg-[#F8F0E6]"
+    ></span>
+  </div>
 </div>

@@ -8,6 +8,8 @@ in float vDiffuse;
 in float vHover;
 in float vFadeIn;
 
+uniform float uBrightness; // scales the whole field, for a fainter one
+
 out vec4 fragColor;
 
 float hash(float n) {
@@ -81,7 +83,7 @@ void main() {
   vec3 light = mix(color, vec3(1.0), white * 0.4);
   // faint when facing away from the light, only a little brighter under the cursor
   float lit = 0.05 + 0.12 * vDiffuse + 0.05 * rim * vDiffuse;
-  float intensity = (alpha * mix(lit, 0.25, white) + halo) * vFadeIn;
+  float intensity = (alpha * mix(lit, 0.25, white) + halo) * vFadeIn * uBrightness;
 
   // additive blending multiplies rgb by alpha, so alpha is how much light gets added
   fragColor = vec4(light, clamp(intensity, 0.0, 1.0));

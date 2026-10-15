@@ -6,8 +6,8 @@
   // The page is dark throughout; on a light background it would need a different colour.
   import { onMount } from 'svelte'
 
-  const life = 0.2 // seconds a point stays on the line
-  const reach = 140 // px the line can trail behind the cursor, however fast it moves; it thins out towards this
+  const life = 0.35 // seconds a point stays on the line
+  const reach = 320 // px the line can trail behind the cursor, however fast it moves; it thins out towards this
   const passes = 2 // overlapping hairlines per piece, like going over a pencil line twice
   const jitter = 0.4 // px each pass can sit off the true path
   const boil = 0.12 // seconds between re-rolls of the jitter
@@ -96,6 +96,9 @@
       }
 
       ctx.clearRect(0, 0, innerWidth, innerHeight)
+      // softened as it's drawn, so only the strokes are blurred: a CSS blur on the canvas would blur the whole screen
+      // every frame the line moves
+      ctx.filter = 'blur(0.6px)'
       ctx.strokeStyle = pencil
       // butt ends, because round caps overlap where the short pieces meet and bead the line
       ctx.lineCap = 'butt'
@@ -148,6 +151,6 @@
 
 <canvas
   bind:this={canvas}
-  class="pointer-events-none fixed inset-0 z-1001 h-screen w-screen blur-[0.6px]"
+  class="pointer-events-none fixed inset-0 z-1001 h-screen w-screen"
   aria-hidden="true"
 ></canvas>

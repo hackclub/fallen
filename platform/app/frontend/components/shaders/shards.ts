@@ -5,8 +5,6 @@ import { clamp, createPoints, modelView, randomFadeIn, spring, type Layer } from
 import vertexShader from './shards.vert?raw'
 import fragmentShader from './shards.frag?raw'
 
-const count = 90
-
 // world units at z = 0, where the screen is about 12 wide and 7.7 tall
 const beamCentre = [2.5, 0.5, 0] as const
 const beamDirection = normalize(-0.6, -0.8)
@@ -21,7 +19,7 @@ const maxYaw = 0.012 // radians at the left and right edges of the screen
 const maxPitch = 0.008 // radians at the top and bottom
 const cameraFollow = 0.3 // share of the camera's drift the beam moves with
 
-export function createShards(gl: WebGL2RenderingContext): Layer {
+export function createShards(gl: WebGL2RenderingContext, count = 90): Layer {
   // x is how far along the beam, y how far across it, z how far towards the camera
   const positions = new Float32Array(count * 3)
   const sizes = new Float32Array(count)

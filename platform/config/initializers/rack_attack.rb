@@ -6,6 +6,9 @@ class Rack::Attack
   # Slack webhooks are signature-verified in SlackController; never throttle them by IP.
   safelist("slack webhooks") { |req| req.path.start_with?("/slack/") }
   safelist("health check") { |req| req.path == "/up" }
+  # In development there's nothing to protect locally, and one page load is hundreds of requests (every Vite module and
+  # asset is proxied through Rails, plus the profiler's), so never throttle your own machine.
+  safelist("local development") { |req| Rails.env.development? && %w[127.0.0.1 ::1].include?(req.ip) }
 
   throttle("req/ip", limit: 300, period: 5.minutes, &:ip)
 
@@ -27,8 +30,9 @@ class Rack::Attack
     end
   end
 
-  self.throttled_responder = lambda do |env|
-    retry_after = env["rack.attack.match_data"][:period]
+  # Since rack-attack 6.7 the responders get the Rack::Attack::Request, not the env hash.
+  self.throttled_responder = lambda do |request|
+    retry_after = request.env["rack.attack.match_data"][:period]
     [ 429, { "Content-Type" => "text/plain", "Retry-After" => retry_after.to_s }, [ "Too many requests. Please try again later.\n" ] ]
   end
 

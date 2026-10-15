@@ -44,5 +44,11 @@ void main() {
   // shards swung right up to the camera would fill the screen, so they fade out before they get there
   vFade *= smoothstep(1.0, 2.0, -mvPosition.z);
 
+  // the hero's logo, tagline and buttons sit in the middle of the screen; shards passing behind them dim to a
+  // quarter so they don't fight the text. An ellipse in screen space, so it keeps to the content at any aspect.
+  vec2 screen = gl_Position.xy / gl_Position.w;
+  float fromContent = length((screen - vec2(0.0, 0.03)) / vec2(0.45, 0.55));
+  vFade *= mix(0.25, 1.0, smoothstep(0.6, 1.2, fromContent));
+
   vFade *= smoothstep(0.0, fadeIns, uTime);
 }

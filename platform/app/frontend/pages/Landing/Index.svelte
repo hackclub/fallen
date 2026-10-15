@@ -3,40 +3,75 @@
 </script>
 
 <script lang="ts">
-  import type { DevUser } from '@/types'
-  import Wordmark from '@/components/Wordmark.svelte'
-  import HeroArt from '@/components/HeroArt.svelte'
-  import HeroFrame from '@/components/HeroFrame.svelte'
   import CursorTrail from '@/components/CursorTrail.svelte'
+  import Faq from '@/components/Faq.svelte'
   import Footer from '@/components/Footer.svelte'
-  import PhotoCard from '@/components/PhotoCard.svelte'
-  import { signIn } from '@/routes'
+  import GoldFrame from '@/components/GoldFrame.svelte'
+  import HowItWorks from '@/components/HowItWorks.svelte'
+  import OrnamentNav from '@/components/OrnamentNav.svelte'
+  import ProjectsMarquee from '@/components/ProjectsMarquee.svelte'
+  import Recap from '@/components/Recap.svelte'
+  // import Store from '@/components/Store.svelte'
+  import Wordmark from '@/components/Wordmark.svelte'
+  import { root, signIn } from '@/routes'
+  import type { DevUser } from '@/types'
 
   import { onMount } from 'svelte'
-  import type { Component, ComponentProps } from 'svelte'
+  import type { Component } from 'svelte'
 
   let { hca_configured, dev_users }: { hca_configured: boolean; dev_users: DevUser[] | null } = $props()
+
+  // Everything that follows the scroll is plain arithmetic on scrollY, so a scroll costs no layout: the only
+  // measurement is How It Works' place on the page, taken again whenever the page changes height.
+  let scrollY = $state(0)
+  let innerHeight = $state(1)
+  let pageHeight = $state(0)
+  let howItWorks: { top: number; bottom: number } | undefined = $state()
+
+  $effect(() => {
+    void [pageHeight, innerHeight]
+    const box = document.getElementById('how-it-works')!.getBoundingClientRect()
+    howItWorks = { top: box.top + window.scrollY, bottom: box.bottom + window.scrollY }
+  })
+
+  const unit = (v: number) => Math.min(1, Math.max(0, v))
+  const easeInOut = (t: number) => (t < 0.5 ? 2 * t * t : 1 - 2 * (1 - t) ** 2)
+  // 0 to 1 as a point `at` px down the page scrolls up the screen from `from` to `to` (shares of its height)
+  const passing = (at: number, from: number, to: number) =>
+    easeInOut(unit((from * innerHeight - (at - scrollY)) / ((from - to) * innerHeight)))
+
+  // The hero's background and frame stay fixed behind the whole page, and the sections below scroll over it with no
+  // backgrounds of their own. The hero's rings stay put too, fading out over the first screen of scrolling: pinned to
+  // the sky they frame, and gone before the sections scroll in under them.
+  const heroFade = $derived(unit(1 - scrollY / innerHeight))
+
+  // How It Works has its own colour: the whole page fades from the sky into twilight as the section comes up the
+  // screen, holds it while the section is read, and fades back to the sky as it leaves, taking the hero's frame with
+  // it.
+  const leaving = $derived(howItWorks ? passing(howItWorks.bottom, 0.75, 0.15) : 0)
+  const tint = $derived(howItWorks ? passing(howItWorks.top, 0.85, 0.25) * (1 - leaving) : 0)
+
+  // ...and the screen's edges are softly darkened with a multiplied vignette. Multiply only ever darkens, so a dark
+  // card stays dark rather than turning see-through. It fades away over the last stretch of the page, so the footer
+  // is never left dimmed.
+  const vignette = $derived(unit((pageHeight - scrollY - innerHeight) / (innerHeight * 0.2)))
+
+  // the frame's border, from the screen edge in to its inner line (GoldFrame's innerInset, 21px), and which way each
+  // strip fades
+  const blurEdges = [
+    ['inset-x-0 top-0 h-[21px]', 'bottom'],
+    ['inset-x-0 bottom-0 h-[21px]', 'top'],
+    ['inset-y-[21px] left-0 w-[21px]', 'right'],
+    ['inset-y-[21px] right-0 w-[21px]', 'left'],
+  ]
 
   // bind:value selects the first option and fills this in when it starts out undefined.
   let devUserUrl: string | undefined = $state()
 
-  // the scattered photos either side of the recap video; shift is in % of the card's own size
-  const leftPhotos: ComponentProps<typeof PhotoCard>[] = [
-    { class: 'aspect-4/3 w-60', rotate: 5 },
-    { class: 'aspect-4/3 w-70', rotate: -2 },
-  ]
-  const rightPhotos: ComponentProps<typeof PhotoCard>[] = [
-    { class: 'aspect-6/5 w-40 z-30', rotate: 7, shift: [25, 0] },
-    { class: 'aspect-4/3 w-70', rotate: -4, shift: [0, -25] },
-    { class: 'aspect-4/3 w-80', rotate: 4, shift: [0, 33.33] },
-  ]
-
   const navItems = [
-    { label: 'GET STARTED', href: '/', class: '' },
-    { label: 'View Stats', href: '/', class: '' },
+    { label: 'GET STARTED', href: root().url },
+    { label: 'View Stats', href: root().url },
   ]
-  // GET STARTED stays highlighted until another item is hovered, and again once the pointer leaves the nav
-  let activeNav = $state(0)
 
   // The WebGL effects start after the page has painted.
   let LandingScene: Component | undefined = $state()
@@ -46,98 +81,81 @@
 </script>
 
 <svelte:head><title>Fallen</title></svelte:head>
-
-{#snippet ornament(visible: boolean, extra = '')}
-  <svg
-    class={['transition-opacity drop-shadow-[0_0_4px_rgb(255_255_255/0.6)]', extra, !visible && 'opacity-0']}
-    aria-hidden="true"
-    width="180"
-    height="30"
-    viewBox="0 0 202 43"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <rect
-      x="0.821599"
-      width="36.2118"
-      height="36.2118"
-      transform="matrix(0.821599 -0.570066 0.821599 0.570066 106.147 21.6816)"
-      stroke="#FEFEFE"
-    />
-    <rect
-      x="0.821599"
-      width="36.2118"
-      height="36.2118"
-      transform="matrix(0.821599 -0.570066 0.821599 0.570066 122.002 21.6816)"
-      stroke="#FEFEFE"
-    />
-    <line y1="20.5" x2="106" y2="20.5" stroke="white" />
-    <line x1="182" y1="21" x2="202" y2="21" stroke="white" />
-    <rect
-      x="71.4923"
-      y="21.2132"
-      width="12.1802"
-      height="12.1802"
-      transform="rotate(-45 71.4923 21.2132)"
-      fill="#024B81"
-      stroke="#FEFEFE"
-    />
-  </svg>
-{/snippet}
+<svelte:window bind:scrollY bind:innerHeight />
+<svelte:body bind:clientHeight={pageHeight} />
 
 <CursorTrail />
 
+<div
+  class="fixed inset-0 -z-2 bg-[url('/assets/hero/background.webp')] bg-cover bg-center bg-no-repeat"
+  aria-hidden="true"
+></div>
+<!-- the page's colour while How It Works is on screen, over the sky (see tint above). Twilight, lit from the middle
+     by the sky's bright blue, like Lulu's card -->
+<div
+  class="pointer-events-none fixed inset-0 -z-1 bg-twilight bg-[radial-gradient(ellipse_60%_55%_at_50%_45%,color-mix(in_oklab,var(--color-bright-blue)_45%,transparent),transparent)]"
+  style:opacity={tint}
+  aria-hidden="true"
+></div>
+<!-- the vignette, over the sections and under the frame: the dark painted all round a heavily rounded window, then
+     blurred, so it falls off smoothly in a squircle rather than an ellipse. Centred and faint, reaching a little
+     further in from the sides than from the top and bottom: just enough to settle the edges -->
+<div
+  class="pointer-events-none fixed inset-0 z-2 overflow-hidden mix-blend-multiply"
+  style:opacity={vignette}
+  aria-hidden="true"
+>
+  <div
+    class="absolute inset-x-[11vw] inset-y-[6vmin] rounded-[min(22vw,30vh)] shadow-[0_0_0_100vmax_color-mix(in_oklab,var(--color-dark-blue)_30%,transparent)] blur-[9vw]"
+  ></div>
+</div>
+<!-- the frame is its own layer above the sections, so their darkening gradient never covers it as it fades -->
+<div class="pointer-events-none fixed inset-0 z-3" style:opacity={1 - leaving} aria-hidden="true">
+  <!-- the frame's border, from the screen edge to its inner line (GoldFrame's innerInset, 21px), lightly blurs
+       everything scrolling under it: most at the screen edge, fading to none by the inner line. Four strips rather
+       than one full-screen layer, so only that border is ever blurred; each one's mask fades it inwards. -->
+  {#each blurEdges as [edge, inwards] (edge)}
+    <div
+      class="absolute {edge} backdrop-blur-xs"
+      style:mask-image="linear-gradient(to {inwards}, #000, transparent)"
+    ></div>
+  {/each}
+  <GoldFrame />
+</div>
+
 {#if LandingScene}
   <LandingScene />
+  <LandingScene scene="dust" />
 {/if}
 
 <section
-  class="relative min-h-screen w-full text-stone-100 p-6 md:p-10 py-10 xl:p-20 space-y-6 flex flex-col justify-center items-center text-center bg-[url('/assets/hero/background.webp')] bg-center bg-cover bg-no-repeat"
+  class="relative flex min-h-screen w-full flex-col items-center justify-center space-y-6 overflow-x-clip px-6 py-10 text-center text-stone-100 md:p-10 xl:p-20"
 >
-  <HeroFrame />
-  <div class="w-full h-full fixed inset-0 -z-1 bg-black/10"></div>
+  <div class="fixed inset-0 -z-1 bg-black/10"></div>
   <div
-    class="blur-[2px] pointer-events-none absolute inset-0 m-auto grid grid-cols-1 grid-rows-1 place-items-center"
+    class="pointer-events-none fixed inset-0 m-auto grid grid-cols-1 grid-rows-1 place-items-center blur-[2px]"
+    style:opacity={heroFade}
     aria-hidden="true"
   >
     <div
-      class="col-start-1 row-start-1 size-220 rounded-full p-14 bg-linear-to-b from-[#162C86]/30 to-transparent
-                   [mask:linear-gradient(#000_0_0)_content-box_exclude,linear-gradient(#000_0_0)]"
+      class="col-start-1 row-start-1 size-220 rounded-full bg-linear-to-b from-blue/30 to-transparent p-14 [mask:linear-gradient(#000_0_0)_content-box_exclude,linear-gradient(#000_0_0)]"
     ></div>
-    <div class="col-start-1 row-start-1 size-220 rounded-full outline-8 outline-[#162C86]/6"></div>
+    <div class="col-start-1 row-start-1 size-220 rounded-full outline-8 outline-blue/6"></div>
     <div
-      class=" col-start-1 row-start-1 rounded-full size-170 bg-clip-padding border-linear-to-b bg-linear-to-b from-[#162C86]/30 to-transparent"
+      class="col-start-1 row-start-1 size-170 rounded-full border-linear-to-b bg-linear-to-b from-blue/30 to-transparent bg-clip-padding"
     ></div>
   </div>
 
-  <h1><Wordmark onDark class="z-10 h-70 -mt-10 drop-shadow-[0_0_4px_rgb(255_255_255/0.6)]" /></h1>
+  <h1><Wordmark onDark class="z-10 -mt-10 h-60 drop-shadow-[0_0_4px_rgb(255_255_255/0.6)]" /></h1>
 
-  <!-- <p class="absolute top-10 mx-auto z-3 text-2xl text-[#ACACE1] px-2 py-1 bg-navy rounded-xs">December 11–14, 2026</p> -->
-  <h2 class="text-4xl font-lora font-medium max-w-2xl leading-10 text-shadow-md text-shadow-purple/20 text-[#F5EBE4]">
-    Build a hardware project for free, <span class="text-[#F6B75B]"> present it in Shenzhen, China</span>
-  </h2>
+  <!-- <p class="absolute top-10 mx-auto z-3 text-2xl text-light-blue px-2 py-1 bg-navy rounded-xs">December 11–14, 2026</p> -->
+  <!-- <h2
+    class="text-4xl font-lora font-bold max-w-2xl leading-10 text-shadow-md text-shadow-purple/20 text-cream"
+  >
+    Build a hardware project for free, <span class="text-green"> present it in Shenzhen, China</span>
+  </h2> -->
 
-  <nav class="relative z-10 flex flex-col items-center space-y-4" onmouseleave={() => (activeNav = 0)}>
-    {#each navItems as item, i (item.label)}
-      {@const active = activeNav === i}
-      <div class="flex items-center justify-center gap-2">
-        {@render ornament(active)}
-        <a
-          href={item.href}
-          class={[
-            'font-lora transition-all text-shadow-md text-shadow-black/20 [-webkit-text-stroke:6px_#162C8640] [paint-order:stroke_fill]',
-            item.class,
-            active ? 'text-4xl font-medium' : 'text-3xl text-[#C7E1B8]',
-          ]}
-          onmouseenter={() => (activeNav = i)}
-          onfocus={() => (activeNav = i)}
-        >
-          {item.label}
-        </a>
-        {@render ornament(active, 'rotate-180')}
-      </div>
-    {/each}
-  </nav>
+  <OrnamentNav items={navItems} />
   <!--
   {#if dev_users}
     <div class="relative z-10">
@@ -173,7 +191,7 @@
       <a href={signIn().url} class="btn-primary text-base">Sign in with Hack Club</a>
     {:else}
       <div class="card text-left text-sm">
-        <p class="font-semibold">Hack Club Auth isn't configured yet.</p>
+        <p class="font-bold">Hack Club Auth isn't configured yet.</p>
         <p class="mt-1 text-stone-600">
           Set <code>HCA_CLIENT_ID</code> and <code>HCA_CLIENT_SECRET</code> in <code>.env.development</code>,
           or run
@@ -183,24 +201,19 @@
     {/if}
   </div> -->
 </section>
-<section id="watch" class="h-screen flex flex-col items-center space-y-2 p-10 bg-[#040224]">
-  <h3 class="text-[#ACACE1] text-3xl font-display">Last July we brought 180+ to Shenzhen, China.</h3>
-  <span class="text-[#5758BF] text-2xl">Watch the recap below...</span>
-  <div class="flex h-full justify-center items-center -space-x-18">
-    <div class="z-20 flex h-full flex-col justify-center gap-40 pb-10 pr-14">
-      {#each leftPhotos as photo, i (i)}
-        <PhotoCard {...photo} />
-      {/each}
-    </div>
-    <div
-      class="aspect-video h-[80%] w-full rounded-sm rounded-tl-4xl rounded-br-4xl border-10 border-[#5758BF] bg-[repeating-linear-gradient(-45deg,#1F1C66_0_14px,color-mix(in_oklab,#1F1C66,#5758BF_35%)_14px_28px)]"
-    ></div>
-    <div class="z-20 flex h-full flex-col justify-between py-10">
-      {#each rightPhotos as photo, i (i)}
-        <PhotoCard {...photo} />
-      {/each}
-    </div>
-  </div>
-</section>
 
-<Footer />
+<!-- relative z-1: over the fixed hero scene (also z-1, but earlier), so its shards pass behind the video and text -->
+<div class="relative z-1">
+  <!-- one gradient behind all the sections: clear at the top so the sky shows through, then the sky's darkest blue,
+       and black at the bottom of the footer -->
+  <div
+    class="absolute inset-0 -z-1 bg-linear-to-b from-transparent via-purple via-60% to-black"
+    aria-hidden="true"
+  ></div>
+  <HowItWorks />
+  <ProjectsMarquee />
+  <!-- <Store /> -->
+  <Faq />
+  <Recap />
+  <Footer />
+</div>
