@@ -9,7 +9,7 @@
   import GoldFrame from '@/components/GoldFrame.svelte'
   import HowItWorks from '@/components/HowItWorks.svelte'
   import OrnamentNav from '@/components/OrnamentNav.svelte'
-  import ProjectsMarquee from '@/components/ProjectsMarquee.svelte'
+  import PastProjects from '@/components/PastProjects.svelte'
   import Recap from '@/components/Recap.svelte'
   // import Store from '@/components/Store.svelte'
   import Wordmark from '@/components/Wordmark.svelte'
@@ -211,7 +211,7 @@
     aria-hidden="true"
   ></div>
   <HowItWorks />
-  <ProjectsMarquee />
+  <PastProjects />
   <!-- <Store /> -->
   <Faq />
   <Recap />

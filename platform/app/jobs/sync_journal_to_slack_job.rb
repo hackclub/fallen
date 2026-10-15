@@ -24,8 +24,10 @@ class SyncJournalToSlackJob < ApplicationJob
     journal.update_columns(slack_channel_id: project.slack_channel_id, slack_ts: ts)
   end
 
+  # A journal spanning several Slack replies has no one message to rewrite, so web edits stay on the web.
   def update(journal)
     return create(journal) unless journal.on_slack?
+    return if journal.multi_part?
 
     SlackMessaging.update(journal.user, channel: journal.slack_channel_id, ts: journal.slack_ts, **SlackMessages.journal(journal))
   rescue Slack::Web::Api::Errors::CantUpdateMessage, Slack::Web::Api::Errors::MessageNotFound

@@ -2,11 +2,17 @@ import type { User } from '@/types/serializers'
 
 export type * from '@/types/serializers'
 
+// Rails' flash[:notice] / flash[:alert], sent by inertia_rails as page flash rather than a prop.
+declare module '@inertiajs/core' {
+  export interface InertiaConfig {
+    flashDataType: { notice?: string; alert?: string }
+  }
+}
+
 // Props shared with every page from ApplicationController#inertia_share.
 export interface SharedProps {
   auth: { user: User | null }
   impersonation: { impersonator_name: string } | null
-  flash: { notice?: string; alert?: string }
   errors: Record<string, string[]>
   [key: string]: unknown
 }

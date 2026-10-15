@@ -2,9 +2,9 @@
   import CircleAlert from '@lucide/svelte/icons/circle-alert'
   import CircleCheck from '@lucide/svelte/icons/circle-check'
   import * as Alert from '@/components/admin/ui/alert'
-  import { shared } from '@/lib/shared.svelte'
+  import { usePage } from '@inertiajs/svelte'
 
-  const flash = $derived(shared().flash ?? {})
+  const flash = $derived(usePage().flash)
 </script>
 
 {#if flash.notice}

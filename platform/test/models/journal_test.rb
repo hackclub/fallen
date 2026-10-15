@@ -9,6 +9,7 @@ require "test_helper"
 #  discarded_at     :datetime
 #  duration_minutes :integer
 #  lapse_url        :string
+#  slack_parts      :jsonb            not null
 #  slack_ts         :string
 #  source           :string           default("web"), not null
 #  created_at       :datetime         not null
@@ -24,6 +25,7 @@ require "test_helper"
 #  index_journals_on_discarded_at                   (discarded_at)
 #  index_journals_on_project_id                     (project_id)
 #  index_journals_on_slack_channel_id_and_slack_ts  (slack_channel_id,slack_ts) UNIQUE WHERE (slack_ts IS NOT NULL)
+#  index_journals_on_slack_parts                    (slack_parts jsonb_path_ops) USING gin
 #  index_journals_on_user_id                        (user_id)
 #
 # Foreign Keys
@@ -54,6 +56,14 @@ class JournalTest < ActiveSupport::TestCase
     journal.duration = "a while"
     assert_not journal.valid?
     assert journal.errors[:duration].any?
+  end
+
+  test "every journal needs a time" do
+    journal = projects(:station).journals.build(user: users(:member), body: "x")
+    assert_not journal.valid?
+    assert journal.errors[:duration].any?
+    journal.duration = "45m"
+    assert journal.valid?
   end
 
   test "author must own the project" do

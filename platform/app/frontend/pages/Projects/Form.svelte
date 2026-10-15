@@ -3,96 +3,78 @@
 </script>
 
 <script lang="ts">
-  import { Link, useForm } from '@inertiajs/svelte'
+  import { Link } from '@inertiajs/svelte'
+  import ProjectFields from '@/components/ProjectFields.svelte'
+  import { projectForm, saveProject } from '@/lib/projectForm'
   import { project as projectRoute, projects } from '@/routes'
+  import { pages } from '@/lib/pages'
   import type { Project } from '@/types'
 
-  let { project }: { project: Project | null } = $props()
+  // Editing, or creating without the modal (a direct visit to /projects/new).
+  let {
+    project,
+    direct_upload_url,
+  }: {
+    project: Project | null
+    // Missing for a moment after an instant visit; the banner picker waits for it.
+    direct_upload_url?: string
+  } = $props()
 
   // svelte-ignore state_referenced_locally
-  const form = useForm({
-    title: project?.title ?? '',
-    description: project?.description ?? '',
-    repo_url: project?.repo_url ?? '',
-    demo_url: project?.demo_url ?? '',
-  })
+  const form = projectForm(project)
+  let root: HTMLElement
 
-  function save(event: SubmitEvent) {
+  function submit(event: SubmitEvent) {
     event.preventDefault()
-    const target = project ? projects.update(project.id) : projects.create()
-    form.transform((data) => ({ project: data })).submit(target)
+    saveProject(form, project, root)
   }
 
-  const fields = [
-    { key: 'repo_url', label: 'Repo', placeholder: 'https://github.com/you/thing' },
-    { key: 'demo_url', label: 'Demo or docs', placeholder: 'https://' },
-  ] as const
+  const back = $derived(project ? projectRoute(project.id) : projects.index())
 </script>
 
-<svelte:head><title>{project ? `Edit ${project.title}` : 'New project'} · Fallen</title></svelte:head>
+<svelte:head><title>{project ? `Edit ${project.title}` : 'Create New Project'} · Fallen</title></svelte:head>
 
-<div class="mx-auto max-w-xl">
-  <Link
-    href={project ? projectRoute(project.id) : projects.index()}
-    class="font-outfit text-sm text-sky-ice/60 hover:text-white"
-  >
-    ← {project ? project.title : 'Projects'}
-  </Link>
-
-  <h1 class="mt-4 font-display text-2xl text-white">{project ? 'Edit project' : 'Start a project'}</h1>
-  {#if !project}
-    <p class="mt-2 font-outfit text-sm text-sky-ice/70">
-      One big build. You can change the details later. A thread for it is posted in the Slack journals
-      channel.
-    </p>
-  {/if}
-
-  <form onsubmit={save} class="sky-card mt-6 space-y-5">
-    <label class="block">
-      <span class="sky-label">What are you building?</span>
-      <input
-        type="text"
-        bind:value={form.title}
-        maxlength="120"
-        required
-        placeholder="A short, memorable name"
-        class="input mt-1 border-white/20 bg-sky-night text-white placeholder:text-sky-ice/40"
-      />
-      {#if form.errors.title}<p class="mt-1 font-outfit text-xs text-red-300">{form.errors.title}</p>{/if}
-    </label>
-
-    <label class="block">
-      <span class="sky-label">Tell us a bit more</span>
-      <textarea
-        bind:value={form.description}
-        rows="4"
-        placeholder="What is it, who is it for, what will it do when it's done?"
-        class="input mt-1 border-white/20 bg-sky-night text-white placeholder:text-sky-ice/40"></textarea>
-      {#if form.errors.description}<p class="mt-1 font-outfit text-xs text-red-300">
-          {form.errors.description}
-        </p>{/if}
-    </label>
-
-    {#each fields as field (field.key)}
-      <label class="block">
-        <span class="sky-label">{field.label} <span class="text-sky-ice/35">(optional)</span></span>
-        <input
-          type="url"
-          bind:value={form[field.key]}
-          placeholder={field.placeholder}
-          class="input mt-1 border-white/20 bg-sky-night text-white placeholder:text-sky-ice/40"
-        />
-        {#if form.errors[field.key]}<p class="mt-1 font-outfit text-xs text-red-300">
-            {form.errors[field.key]}
-          </p>{/if}
-      </label>
-    {/each}
-
-    <div class="flex items-center gap-3">
-      <button type="submit" class="btn-sky-gold px-5 py-2" disabled={form.processing}>
-        {project ? 'Save' : 'Start project'}
-      </button>
-      {#if form.recentlySuccessful}<span class="font-outfit text-sm text-sky-ice/70">Saved.</span>{/if}
+<div bind:this={root} class="mx-auto max-w-xl">
+  <div class="paper shadow-[0_30px_80px_-20px_rgba(0,0,0,0.8)]">
+    <div class="flex items-center justify-between border-b border-ink/10 p-3 md:p-6">
+      <h1 class="font-display text-lg text-ink md:text-2xl">
+        {project ? 'Edit Project' : 'Create New Project'}
+      </h1>
+      <Link
+        href={back}
+        component={project ? pages.project : pages.projects}
+        pageProps={project ? (_, shared) => ({ ...shared, project }) : null}
+        aria-label="Close"
+        class="flex h-8 w-8 items-center justify-center rounded-full text-2xl leading-none text-ink-soft hover:bg-ink/5 hover:text-ink"
+        >×</Link
+      >
     </div>
-  </form>
+
+    <form onsubmit={submit} novalidate class="p-3 md:p-6">
+      <ProjectFields {form} directUploadUrl={direct_upload_url} />
+
+      {#if !project}
+        <p class="mt-4 border-t border-ink/10 pt-3 font-outfit text-xs text-ink-soft md:text-sm">
+          Only the title is required. Everything else can be added later. Creating it posts a thread for it in
+          the journals channel, as you.
+        </p>
+      {/if}
+
+      <div class="mt-3 flex justify-end gap-2 md:mt-4 md:gap-3">
+        <Link
+          href={back}
+          component={project ? pages.project : pages.projects}
+          pageProps={project ? (_, shared) => ({ ...shared, project }) : null}
+          class="btn-paper px-5 py-2">Cancel</Link
+        >
+        <button
+          type="submit"
+          class="btn-ink px-5 py-2"
+          disabled={form.processing || form.title.trim() === ''}
+        >
+          {form.processing ? 'Saving...' : project ? 'Save' : 'Create Project'}
+        </button>
+      </div>
+    </form>
+  </div>
 </div>

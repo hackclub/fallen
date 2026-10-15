@@ -17,11 +17,11 @@ class Admin::UsersController < Admin::ApplicationController
 
   def show
     authorize @user
-    projects = @user.projects.kept.recent.to_a
+    projects = @user.projects.kept.recent.with_attached_banner.to_a
 
     render inertia: "Admin/Users/Show", props: {
       user: AdminUserDetailSerializer.render(@user),
-      projects: AdminProjectSerializer.render(projects, **project_totals(projects)),
+      projects: AdminProjectSerializer.render(projects, **Project.journal_totals(projects)),
       roles: User::ROLES,
       can: { update: policy(@user).update?, impersonate: policy(@user).impersonate? }
     }

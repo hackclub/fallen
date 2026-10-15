@@ -12,6 +12,7 @@ module SlackBot
       channels:history
       chat:write
       commands
+      files:read
       groups:history
       reactions:write
       users:read

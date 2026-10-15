@@ -51,4 +51,7 @@ void main() {
   vFade *= mix(0.25, 1.0, smoothstep(0.6, 1.2, fromContent));
 
   vFade *= smoothstep(0.0, fadeIns, uTime);
+
+  // an invisible shard still costs its whole sprite's fragments, and the near ones are hundreds of px across
+  if (vFade < 0.01) gl_PointSize = 0.0;
 }

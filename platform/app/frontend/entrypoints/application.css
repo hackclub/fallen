@@ -3,6 +3,8 @@
 @import '@fontsource-variable/nunito-sans/wght-italic.css';
 @import '@fontsource-variable/lora';
 @import '@fontsource-variable/lora/wght-italic.css';
+@import '@fontsource-variable/outfit';
+@import '@fontsource/montserrat/600.css';
 @import './admin.css';
 
 @plugin '@tailwindcss/forms';
@@ -43,7 +45,11 @@
   --color-sky-gold: #e8cf8a;
 
   --font-display: 'UoqMunThenKhung', 'Georgia', serif;
-  --font-outfit: 'Outfit', ui-sans-serif, system-ui, sans-serif;
+  --font-outfit: 'Outfit Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-montserrat: 'Montserrat', ui-sans-serif, system-ui, sans-serif;
+
+  /* App shell (the signed-in layout): cream pills (--color-cream) over the starry sky. */
+  --color-slate-ink: #40455b;
 }
 
 @layer base {
@@ -55,7 +61,7 @@
 
 /* Small set of reusable classes. Add more with @utility so they can be @apply-ed and used with variants. */
 @utility btn {
-  @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-transparent px-4 py-2 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-hc-red/50 disabled:cursor-not-allowed disabled:opacity-60;
+  @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-transparent px-4 py-2 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-hc-red/50 disabled:cursor-not-allowed disabled:opacity-60;
 }
 
 @utility btn-primary {
@@ -84,11 +90,20 @@
 
 /* Sky surfaces: flat dark panels for the landing page and dashboard. */
 @utility sky-card {
-  @apply rounded-lg border border-white/10 bg-sky-night/80 p-6 text-sky-ice;
+  @apply rounded-2xl border border-white/10 bg-sky-night/80 p-6 text-sky-ice;
 }
 
 @utility sky-label {
   @apply font-outfit text-xs text-sky-ice/55;
+}
+
+/* Placeholder bars for instant visits: the page renders before its props arrive. */
+@utility skeleton {
+  @apply animate-pulse rounded-sm bg-white/10;
+}
+
+@utility skeleton-ink {
+  @apply animate-pulse rounded-sm bg-ink/10;
 }
 
 @utility btn-sky {
@@ -156,16 +171,21 @@
 @theme {
   --color-paper: #f5eddc;
   --color-paper-edge: #d8c7a6;
+  --color-paper-rim: #e9dfc8;
+  --color-paper-well: #fbf3e3;
   --color-ink: #221b17;
   --color-ink-soft: #6b5d4e;
 }
 
+/* Every card on the sky, after summer-of-making's: thick soft rim, rounded-2xl. Things inside a card step down to
+   rounded-xl (buttons, inputs) and rounded-lg (images); chips are rounded-full. */
 @utility paper {
-  @apply rounded-sm border border-paper-edge bg-paper text-ink shadow-[0_20px_60px_-20px_rgba(0,0,0,0.7)];
+  @apply rounded-2xl border-4 border-paper-rim bg-paper text-ink shadow-[0_20px_60px_-20px_rgba(0,0,0,0.7)];
 }
 
+/* Inputs on paper: filled, no visible border until focused (summer-of-making's som-horizontal-input). */
 @utility paper-input {
-  @apply w-full rounded-sm border-paper-edge bg-white/60 font-outfit text-sm text-ink placeholder:text-ink-soft/50 focus:border-ink focus:ring-ink/30;
+  @apply w-full rounded-xl border border-transparent bg-paper-well px-3 py-2 font-outfit text-sm text-ink placeholder:text-ink-soft/45 focus:border-ink/40 focus:ring-0;
 }
 
 @utility btn-ink {
@@ -205,15 +225,113 @@
     @apply rounded bg-ink/10 px-1 py-0.5 font-mono text-[13px];
   }
   & pre {
-    @apply my-3 overflow-x-auto rounded bg-ink p-3 font-mono text-[13px] text-paper;
+    @apply my-3 overflow-x-auto rounded-lg bg-ink p-3 font-mono text-[13px] text-paper;
   }
   & pre code {
     @apply bg-transparent p-0 text-paper;
   }
   & img {
-    @apply my-3 max-h-96 rounded-sm border border-paper-edge;
+    @apply my-3 max-h-96 rounded-lg;
   }
   & blockquote {
     @apply my-2 border-l-2 border-ink/30 pl-3 text-ink-soft;
   }
+}
+
+/* Signed-in nav rail: jolts' header pill (hackclub/jolts site-header.tsx + globals.css .jolts-glow) on its side. The
+   white gradient on ::before is brightest at the rail's left edge, where a 1px line sits on ::after; below md the
+   rail is a row and both go back to jolts' bottom edge. background-image cannot transition, so the gradient lives on
+   an overlay that overshoots (peak 1) and settles (rest 0.72); fading out is a plain 0.1s transition. NavRail adds
+   rail-flash on click and rail-hold until the pointer leaves, so hovering through a navigation stays dark. The
+   current page rests lit. */
+@utility rail-item {
+  @apply relative flex items-center gap-3 px-4 py-3 font-montserrat text-lg font-semibold tracking-[-0.03em] text-white focus-visible:outline-none;
+
+  &::before {
+    @apply pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,rgba(255,255,255,0)_0%,rgba(255,255,255,0.55)_92%,rgba(255,255,255,0.85)_100%)] opacity-0 transition-opacity duration-100 ease-out content-[''] md:bg-[linear-gradient(to_left,rgba(255,255,255,0)_0%,rgba(255,255,255,0.55)_92%,rgba(255,255,255,0.85)_100%)];
+  }
+
+  &::after {
+    @apply pointer-events-none absolute inset-x-0 bottom-0 h-px bg-white opacity-0 transition-opacity duration-150 ease-out content-[''] md:inset-x-auto md:inset-y-0 md:left-0 md:h-auto md:w-px;
+  }
+
+  &:active::before,
+  &:focus-visible::before {
+    animation: rail-glow-in 0.3s ease-out forwards;
+  }
+
+  &:focus-visible::after,
+  &[aria-current='page']::after {
+    opacity: 1;
+  }
+
+  &[aria-current='page']::before {
+    opacity: 0.72;
+  }
+
+  /* Mouse only, and only where the rail is vertical: a touch browser's synthetic hover latches on otherwise. */
+  @media (hover: hover) and (pointer: fine) and (width >= 48rem) {
+    &:hover::before {
+      animation: rail-glow-in 0.3s ease-out forwards;
+    }
+
+    &:hover::after {
+      opacity: 1;
+    }
+  }
+
+  &.rail-hold::before {
+    animation: none !important;
+  }
+
+  &.rail-hold:not([aria-current='page'])::before {
+    opacity: 0 !important;
+  }
+
+  &.rail-hold:not([aria-current='page'])::after {
+    opacity: 0 !important;
+  }
+
+  &.rail-flash::before {
+    animation: rail-glow-flash 0.25s ease-out forwards;
+  }
+}
+
+/* While another item is hovered, the current page's glow and line drop to half. */
+@media (hover: hover) and (pointer: fine) and (width >= 48rem) {
+  .rail:has(.rail-item:hover) .rail-item[aria-current='page']:not(:hover)::before {
+    opacity: 0.36;
+  }
+
+  .rail:has(.rail-item:hover) .rail-item[aria-current='page']:not(:hover)::after {
+    opacity: 0.5;
+  }
+}
+
+@keyframes rail-glow-in {
+  0% {
+    opacity: 0;
+  }
+  35% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.72;
+  }
+}
+
+@keyframes rail-glow-flash {
+  0% {
+    opacity: 1;
+  }
+  55% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.72;
+  }
+}
+
+@utility pill-cream {
+  @apply inline-flex h-[50px] items-center justify-center rounded-full bg-cream px-5 font-montserrat text-xl font-semibold text-slate-ink outline-1 outline-offset-4 outline-cream transition hover:bg-white focus-visible:outline-2;
 }

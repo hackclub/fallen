@@ -2,6 +2,8 @@
 
 cd "$(dirname "$0")/.." || exit 1
 export PORT="${PORT:-3000}"
+# Foreman and friends hand every process its own PORT, so tell the Socket Mode listener where web is.
+export SLACK_SOCKET_FORWARD_URL="${SLACK_SOCKET_FORWARD_URL:-http://localhost:$PORT}"
 
 if command -v overmind >/dev/null 2>&1; then
   exec overmind start -f Procfile.dev "$@"

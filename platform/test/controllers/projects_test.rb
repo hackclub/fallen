@@ -39,6 +39,37 @@ class ProjectsTest < ActionDispatch::IntegrationTest
     assert_equal users(:member), project.user
   end
 
+  test "a project banner is a direct upload that can be swapped or removed" do
+    blob = ActiveStorage::Blob.create_and_upload!(io: StringIO.new("png"), filename: "banner.png", content_type: "image/png")
+    post projects_path, params: { project: { title: "Robot arm", banner: blob.signed_id } }
+    project = Project.last
+    assert_equal blob, project.banner.blob
+    assert_equal blob.signed_id, inertia_props(project_path(project), "Projects/Show")["project"]["banner"]["id"]
+
+    patch project_path(project), params: { project: { title: "Robot arm", banner: blob.signed_id } }
+    assert_equal blob, project.reload.banner.blob
+
+    patch project_path(project), params: { project: { title: "Robot arm", banner: "" } }
+    assert_not project.reload.banner.attached?
+  end
+
+  test "a project without a banner shows its first journal photo" do
+    blob = ActiveStorage::Blob.create_and_upload!(io: StringIO.new("png"), filename: "board.png", content_type: "image/png")
+    journals(:first).images.attach(blob)
+
+    cards = inertia_props(projects_path, "Projects/Index")["projects"].index_by { |p| p["id"] }
+    assert_includes cards[projects(:station).public_id]["cover_url"], blob.filename.to_s
+    assert_nil cards[projects(:station).public_id]["banner"]
+    assert_nil cards[projects(:unlinked).public_id]["cover_url"]
+  end
+
+  test "rejects a banner that is not an image" do
+    blob = ActiveStorage::Blob.create_and_upload!(io: StringIO.new("%PDF"), filename: "plan.pdf", content_type: "application/pdf")
+    assert_no_difference -> { Project.count } do
+      post projects_path, params: { project: { title: "Robot arm", banner: blob.signed_id } }
+    end
+  end
+
   test "rejects a project without a title" do
     post projects_path, params: { project: { title: "" } }, headers: { "X-Inertia" => "true", "X-Inertia-Version" => "" }
     assert_response :found
@@ -47,7 +78,7 @@ class ProjectsTest < ActionDispatch::IntegrationTest
 
   test "writing a journal syncs to slack" do
     assert_enqueued_with(job: SyncJournalToSlackJob) do
-      post project_journals_path(projects(:station)), params: { journal: { body: "Wired the display" } }
+      post project_journals_path(projects(:station)), params: { journal: { body: "Wired the display", duration: "1h" } }
     end
     journal = Journal.last
     assert_redirected_to project_path(projects(:station))
@@ -56,7 +87,7 @@ class ProjectsTest < ActionDispatch::IntegrationTest
 
   test "journals carry images and a lapse link" do
     blob = ActiveStorage::Blob.create_and_upload!(io: StringIO.new("png"), filename: "board.png", content_type: "image/png")
-    post project_journals_path(projects(:station)), params: { journal: { body: "![board](x)", lapse_url: "https://lapse.hackclub.com/t/1", images: [ blob.signed_id ] } }
+    post project_journals_path(projects(:station)), params: { journal: { body: "![board](x)", duration: "45m", lapse_url: "https://lapse.hackclub.com/t/1", images: [ blob.signed_id ] } }
     journal = Journal.last
     assert_equal 1, journal.images.count
     assert_equal "https://lapse.hackclub.com/t/1", journal.lapse_url

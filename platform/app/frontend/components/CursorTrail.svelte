@@ -22,7 +22,11 @@
     if (!matchMedia('(pointer: fine)').matches || matchMedia('(prefers-reduced-motion: reduce)').matches)
       return
     const ctx = canvas.getContext('2d')
-    if (!ctx) return
+    // the strokes are drawn here first, unfiltered, then blurred onto the screen in one go: a filter on the strokes
+    // themselves costs a blur per piece, hundreds a frame
+    const ink = document.createElement('canvas')
+    const inkCtx = ink.getContext('2d')
+    if (!ctx || !inkCtx) return
 
     // speckled graphite: a small tile of random light specks, used as the stroke's paint
     const tile = document.createElement('canvas')
@@ -45,9 +49,10 @@
     let rolled = 0
 
     const resize = () => {
-      canvas.width = innerWidth * devicePixelRatio
-      canvas.height = innerHeight * devicePixelRatio
+      ink.width = canvas.width = innerWidth * devicePixelRatio
+      ink.height = canvas.height = innerHeight * devicePixelRatio
       ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0)
+      inkCtx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0)
     }
 
     // a Catmull-Rom curve through one pass's points, sampled every `step` px, so the line bends smoothly however far
@@ -96,12 +101,12 @@
       }
 
       ctx.clearRect(0, 0, innerWidth, innerHeight)
-      // softened as it's drawn, so only the strokes are blurred: a CSS blur on the canvas would blur the whole screen
-      // every frame the line moves
-      ctx.filter = 'blur(0.6px)'
-      ctx.strokeStyle = pencil
+      inkCtx.clearRect(0, 0, innerWidth, innerHeight)
+      inkCtx.strokeStyle = pencil
       // butt ends, because round caps overlap where the short pieces meet and bead the line
-      ctx.lineCap = 'butt'
+      inkCtx.lineCap = 'butt'
+      // the box the line was drawn in, so only that much is blurred
+      let [left, top, right, bottom] = [Infinity, Infinity, -Infinity, -Infinity]
       // per pass, a short piece per sample, walking back from the cursor until the line is `reach` long. Each fades
       // by its age or its distance from the cursor, whichever is further along, so the tail tapers instead of popping.
       for (let pass = 0; pass < passes; pass++) {
@@ -113,12 +118,28 @@
           if (along >= reach) break
           const fresh = Math.min(1 - (now - b.born) / (life * 1000), 1 - along / reach)
           if (fresh <= 0) continue
-          ctx.globalAlpha = fresh
-          ctx.lineWidth = width * (0.6 + 0.4 * fresh)
-          ctx.beginPath()
-          ctx.moveTo(a.x, a.y)
-          ctx.lineTo(b.x, b.y)
-          ctx.stroke()
+          inkCtx.globalAlpha = fresh
+          inkCtx.lineWidth = width * (0.6 + 0.4 * fresh)
+          inkCtx.beginPath()
+          inkCtx.moveTo(a.x, a.y)
+          inkCtx.lineTo(b.x, b.y)
+          inkCtx.stroke()
+          left = Math.min(left, a.x, b.x)
+          top = Math.min(top, a.y, b.y)
+          right = Math.max(right, a.x, b.x)
+          bottom = Math.max(bottom, a.y, b.y)
+        }
+      }
+      // softened once, as it goes on screen, so only the line is blurred: a CSS blur on the canvas would blur the
+      // whole screen every frame the line moves
+      if (right >= left) {
+        const pad = width + 2
+        const [x, y] = [Math.max(0, left - pad), Math.max(0, top - pad)]
+        const [w, h] = [Math.min(innerWidth, right + pad) - x, Math.min(innerHeight, bottom + pad) - y]
+        if (w > 0 && h > 0) {
+          const d = devicePixelRatio
+          ctx.filter = 'blur(0.6px)'
+          ctx.drawImage(ink, x * d, y * d, w * d, h * d, x, y, w, h)
         }
       }
 

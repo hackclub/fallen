@@ -23,6 +23,10 @@ class SlackAuthController < ApplicationController
     if current_user.slack_id.present? && authed["id"] != current_user.slack_id
       return redirect_to return_path, alert: "That Slack account (#{authed['id']}) is not the one linked to your Hack Club account."
     end
+    # The bot finds people by Slack ID, so a second account on the same ID would make their Slack replies go nowhere.
+    if User.kept.where(slack_id: authed["id"]).where.not(id: current_user.id).exists?
+      return redirect_to return_path, alert: "That Slack account is already connected to another Fallen account."
+    end
 
     current_user.update!(slack_id: authed["id"], slack_user_token: authed["access_token"], slack_user_token_scopes: authed["scope"])
     SyncSlackProfileJob.perform_later(current_user)

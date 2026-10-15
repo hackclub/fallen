@@ -1,10 +1,8 @@
-# /project opens the "Start a project" modal (ProjectView). The anchor message is posted by PostProjectToSlackJob.
+# /project points at the site: projects are only started there, and PostProjectToSlackJob posts their thread.
 class ProjectCommand < SlackBot::Command
-  description "Start a project and track its journals in a thread"
+  description "Start a project on Fallen"
 
   def call
-    return respond(":wave: Sign in first so I know who you are: #{ENV.fetch('APP_URL', 'http://localhost:3000')}") unless user
-
-    open_modal ProjectView.build(channel_id: channel_id)
+    respond(":hammer_and_wrench: Projects start on Fallen: #{SlackMessages.new_project_url}\nOnce it is created, its thread shows up in the journals channel and every reply you post there is a journal.")
   end
 end

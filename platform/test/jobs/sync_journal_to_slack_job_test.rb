@@ -2,7 +2,7 @@ require "test_helper"
 
 class SyncJournalToSlackJobTest < ActiveJob::TestCase
   test "posts a web journal into the thread as the author" do
-    journal = projects(:station).journals.create!(user: users(:member), body: "**Soldered** the [board](https://x.test)", source: "web", lapse_url: "https://lapse.hackclub.com/t/1")
+    journal = projects(:station).journals.create!(user: users(:member), body: "**Soldered** the [board](https://x.test)", duration_minutes: 60, source: "web", lapse_url: "https://lapse.hackclub.com/t/1")
 
     with_fake_slack do |slack|
       SyncJournalToSlackJob.perform_now(journal, "create")
@@ -11,14 +11,14 @@ class SyncJournalToSlackJobTest < ActiveJob::TestCase
       assert_equal projects(:station).slack_thread_ts, call[:thread_ts]
       assert_nil call[:username]
       assert_equal "*Soldered* the <https://x.test|board>", call[:text]
-      assert_includes call[:blocks].last[:elements].first[:text], "lapse.hackclub.com"
+      refute_includes call[:blocks].to_s, "lapse.hackclub.com"
     end
     assert journal.reload.on_slack?
   end
 
   test "refuses to post for someone who has not connected slack" do
     users(:member).disconnect_slack!
-    journal = projects(:station).journals.create!(user: users(:member), body: "x", source: "web")
+    journal = projects(:station).journals.create!(user: users(:member), body: "x", duration_minutes: 30, source: "web")
     with_fake_slack do |slack|
       assert_raises(SlackMessaging::NotConnected) { SyncJournalToSlackJob.perform_now(journal, "create") }
       assert_empty slack.calls

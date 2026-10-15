@@ -1,16 +1,17 @@
 class ProjectsController < ApplicationController
+  include SlackStatus
+
   JOURNALS_PER_PAGE = 20
 
   before_action :set_project, only: %i[show edit update destroy]
 
   def index
-    projects = policy_scope(Project).recent.to_a
-    ids = projects.map(&:id)
-    kept = Journal.kept.where(project_id: ids).group(:project_id)
+    projects = policy_scope(Project).recent.with_attached_banner.to_a
 
     render inertia: "Projects/Index", props: {
-      projects: ProjectSerializer.render(projects, totals: kept.sum(:duration_minutes), counts: kept.count),
+      projects: ProjectSerializer.render(projects, **Project.journal_totals(projects), covers: Project.journal_covers(projects)),
       slack: slack_props,
+      direct_upload_url: rails_direct_uploads_path,
       can: { create: policy(Project).create? }
     }
   end
@@ -20,8 +21,9 @@ class ProjectsController < ApplicationController
     pagy, journals = pagy(@project.journals.kept.newest_first.includes(images_attachments: :blob), limit: JOURNALS_PER_PAGE)
 
     render inertia: "Projects/Show", props: {
-      project: ProjectSerializer.render(@project),
+      project: ProjectSerializer.render(@project, covers: Project.journal_covers([ @project ])),
       journals: JournalSerializer.render(journals),
+      owner: { name: @project.user.display_name, avatar: @project.user.avatar_url },
       pagy: pagy_props(pagy),
       slack: slack_props,
       direct_upload_url: rails_direct_uploads_path,
@@ -31,7 +33,7 @@ class ProjectsController < ApplicationController
 
   def new
     authorize Project
-    render inertia: "Projects/Form", props: { project: nil }
+    render inertia: "Projects/Form", props: { project: nil, direct_upload_url: rails_direct_uploads_path }
   end
 
   def create
@@ -48,7 +50,7 @@ class ProjectsController < ApplicationController
 
   def edit
     authorize @project
-    render inertia: "Projects/Form", props: { project: ProjectSerializer.render(@project) }
+    render inertia: "Projects/Form", props: { project: ProjectSerializer.render(@project), direct_upload_url: rails_direct_uploads_path }
   end
 
   def update
@@ -73,16 +75,10 @@ class ProjectsController < ApplicationController
     @project = Project.kept.find_by_public_id!(params[:id])
   end
 
+  # `banner` is a direct upload's signed blob id; blank removes it.
   def project_params
-    params.expect(project: %i[title description repo_url demo_url])
-  end
-
-  def slack_props
-    {
-      configured: SlackMessaging.configured?,
-      oauth_available: SlackMessaging.oauth_configured?,
-      connected: current_user.slack_connected?,
-      linked: current_user.slack_id.present?
-    }
+    params.expect(project: %i[title description repo_url demo_url banner]).tap do |permitted|
+      permitted[:banner] = nil if permitted.key?(:banner) && permitted[:banner].blank?
+    end
   end
 end

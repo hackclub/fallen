@@ -52,7 +52,10 @@ class PrivacyRequest
       .or(PaperTrail::Version.where(item_type: "Project", item_id: project_ids))
       .or(PaperTrail::Version.where(item_type: "Journal", item_id: journal_ids)).delete_all
     Journal.where(id: journal_ids).includes(images_attachments: :blob).find_each { |journal| journal.images.purge_later } if commit?
+    Project.where(id: project_ids).with_attached_banner.find_each { |project| project.banner.purge_later } if commit?
     ActiveStorage::Attachment.where(record_type: "Journal", record_id: journal_ids).delete_all
+    deleted["journal_drafts"] = JournalDraft.where(user_id: ids).or(JournalDraft.where(project_id: project_ids)).delete_all
+    ActiveStorage::Attachment.where(record_type: "Project", record_id: project_ids).delete_all
     deleted["journals"] = Journal.where(id: journal_ids).delete_all
     deleted["projects"] = Project.where(id: project_ids).delete_all
     deleted["users"] = User.where(id: removable.map(&:id)).delete_all

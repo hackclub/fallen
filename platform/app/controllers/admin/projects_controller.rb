@@ -1,6 +1,6 @@
 class Admin::ProjectsController < Admin::ApplicationController
   def index
-    scope = policy_scope([ :admin, Project ]).includes(:user)
+    scope = policy_scope([ :admin, Project ]).includes(:user).with_attached_banner
     scope = scope.kept unless include_deleted?
     scope = search(scope, params[:query]) if params[:query].present?
 
@@ -8,7 +8,7 @@ class Admin::ProjectsController < Admin::ApplicationController
       query: params[:query].to_s,
       include_deleted: include_deleted?,
       total_count: InertiaRails.defer(group: "table") { scope.count },
-      **deferred_table(scope.order(updated_at: :desc), AdminProjectSerializer, :projects) { |projects| project_totals(projects) }
+      **deferred_table(scope.order(updated_at: :desc), AdminProjectSerializer, :projects) { |projects| Project.journal_totals(projects) }
     }
   end
 

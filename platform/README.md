@@ -74,15 +74,26 @@ For production, `bin/slack-manifest https://your.app` and disable Socket Mode.
 A project is one Slack thread in the journals channel (`SLACK_JOURNALS_CHANNEL_ID`, invite the bot). Its top-level
 message is the project; each reply by the owner is a journal. Both sides stay in sync:
 
-- Slack -> web: `MessageEvent` turns thread replies into `Journal`s, reacts to confirm and offers "Log time"
-  (`JournalTimeAction` opens `JournalTimeView`, a typed duration). Edits and deletions in Slack update the journal. A top-level message by a signed-in user gets a nudge to become a
-  project (`ProjectFromMessageAction`); `/project` opens the same modal (`ProjectView`).
+- Slack -> web: the owner's replies in their thread are collected into a `JournalDraft` (`MessageEvent`), since they
+  may just be chatting. Replies by anyone else are ignored. Once the owner stops posting for a moment,
+  `JournalPromptJob` asks them privately: a time box under their text with "Save journal" (`JournalDraftAction`), "Add more" (later
+  replies join the same journal) or "Not a journal". Photos posted on their own get "Add to last journal" or "Save
+  for my next one". `CollectSlackJournalJob` copies the photos onto the journal (bot scope `files:read`) and reacts to
+  each reply. Edits and deletions of any reply in Slack update the draft or journal.
+- Projects are only started on the web; `/project` links there. Any other top-level post in the journals channel is
+  deleted with its thread through [Prometheus](https://github.com/hackclub/prometheus) (`RemoveStrayPostJob`,
+  `PROMETHEUS_API_KEY`, a key a channel manager makes for the journals channel), and the author gets their text back.
+- Before that happens: `bin/slack-typing` watches who starts typing a top-level post and `TypingHintJob` sends them
+  a hidden hint, with a "Start a project" button or links to the threads of projects they already have. Slack only
+  reports typing to its own clients, so it signs in as an account in the channel (`SLACK_BROWSER_TOKEN`, an `xoxc-`
+  token, and `SLACK_BROWSER_COOKIE`, its `d` cookie; `SlackBot::BrowserSocket`). In production it runs as its own
+  process from the web image.
 - Web -> Slack: `PostProjectToSlackJob` posts the thread anchor, `SyncJournalToSlackJob` posts, edits and deletes
   journal replies. Messages go out as the person when they have connected Slack (`SlackAuthController`, user scope
   `chat:write`, needs `SLACK_CLIENT_ID` / `SLACK_CLIENT_SECRET` and the redirect URL from the manifest); otherwise the
   bot posts under their name and avatar (`chat:write.customize`).
 
-Time on a journal is typed, never picked from presets ("1.5", "1h 30m", `Duration.parse`), and stored as minutes.
+Every journal has a time. It is typed, never picked from presets ("1.5", "1h 30m", `Duration.parse`), and stored as minutes.
 
 ## Privacy requests
 
@@ -103,7 +114,7 @@ app/
   services/       HCA client, privacy hub token and deletion
 docs/             privacy.md
 lib/
-  slack_bot/      Router, Handler, Command/Event/Action/View/Shortcut, Blocks, Manifest, Payload
+  slack_bot/      Router, Handler, Command/Event/Action/View/Shortcut, Blocks, Manifest, Payload, BrowserSocket
   constraints/    Constraints::Admin, Constraints::Staff
 ```
 

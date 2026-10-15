@@ -1,9 +1,15 @@
-# Watches the journals channel. A reply in a project's thread by its owner is a journal; a fresh top-level
-# message gets a nudge to become a project. Edits and deletions in Slack flow back to the journal.
+# Watches the journals channel. Replies in a project's thread by its owner are collected into a JournalDraft and
+# become a journal only when they say so (JournalPromptJob asks once they pause), since they may just be chatting.
+# Replies by anyone else are conversation and left alone. Top-level messages are only written by Fallen (project
+# anchors, PostProjectToSlackJob); anything else is removed by RemoveStrayPostJob. Edits and deletions in Slack flow
+# back to the draft or journal.
 class MessageEvent < SlackBot::Event
   subscribes_to "message.channels", "message.groups"
 
   SAVED_EMOJI = "notebook_with_decorative_cover"
+  # A post by someone with an unposted project may be its anchor: PostProjectToSlackJob records the ts right
+  # after posting, and this event can arrive first.
+  ANCHOR_GRACE = 1.minute
 
   def call
     case subtype
@@ -19,26 +25,31 @@ class MessageEvent < SlackBot::Event
     return if from_bot?
 
     if in_thread?
-      journal_from_reply
+      collect_reply
     elsif channel_id == SlackMessaging.journals_channel_id
-      nudge_new_project
+      remove_stray_post
     end
   end
 
   def in_thread? = event.thread_ts.present? && event.thread_ts != ts
 
-  def journal_from_reply
+  def collect_reply
     project = Project.find_by_slack_thread(channel_id, event.thread_ts) or return
     return unless user && project.user_id == user.id
     return if Journal.find_by_slack_message(channel_id, ts)
     return if echo_of_web_journal?(project)
+    return if text.strip.empty? && photos.empty?
 
-    journal = project.journals.create!(user: user, body: text, source: "slack", slack_channel_id: channel_id, slack_ts: ts)
-    SlackBot::Reactions.add(channel_id, ts, SAVED_EMOJI)
-    ephemeral(nil, thread_ts: thread_ts, blocks: [
-      section(":notebook_with_decorative_cover: Saved to *#{SlackMessages.escape(project.title)}*. How long did this session take?"),
-      actions(button("Log time", "journal_time:#{journal.public_id}", style: "primary"), button("Skip", "dismiss_nudge"))
-    ])
+    draft = JournalDraft.collect(project, user, ts: ts, text: text, files: photos)
+    # A first reply is asked about straight away; later ones wait in case more are coming.
+    prompt = draft.message_count == 1 ? JournalPromptJob : JournalPromptJob.set(wait: JournalDraft::ASK_AFTER)
+    prompt.perform_later(draft, ts)
+  end
+
+  def photos
+    @photos ||= Array(event.files).select { |file| file.mimetype.in?(Journal::IMAGE_TYPES) }.map do |file|
+      { "id" => file.id, "name" => file.name, "mimetype" => file.mimetype, "url" => file.url_private_download, "size" => file.size }
+    end
   end
 
   # A journal written on the web and posted as the person arrives here too. The job records its ts
@@ -47,29 +58,29 @@ class MessageEvent < SlackBot::Event
     project.journals.kept.where(user: user, slack_ts: nil, body: text).where(created_at: 10.minutes.ago..).exists?
   end
 
-  def nudge_new_project
-    if user.nil?
-      ephemeral(":wave: Want this tracked as a project? Sign in at #{ENV.fetch('APP_URL', 'http://localhost:3000')} and run `/project`.")
-      return
-    end
+  def remove_stray_post
+    wait = may_be_web_anchor? ? ANCHOR_GRACE : 0
+    RemoveStrayPostJob.set(wait: wait).perform_later(channel_id, ts, slack_user_id, text)
+  end
 
-    ephemeral(nil, blocks: [
-      section(":hammer_and_wrench: Starting something new? Make this message your project thread and every reply you post in it becomes a journal."),
-      actions(button("Make it a project", "project_from_message", value: ts, style: "primary"), button("No thanks", "dismiss_nudge"))
-    ])
+  def may_be_web_anchor?
+    user.present? && user.projects.kept.where(slack_thread_ts: nil).exists?
   end
 
   def message_changed
     changed = event.message or return
-    journal = Journal.find_by_slack_message(channel_id, changed.ts) or return
-    return if journal.discarded? || changed.text.to_s == journal.body
-
-    journal.update(body: changed.text.to_s)
+    if (journal = Journal.find_by_slack_message(channel_id, changed.ts))
+      journal.slack_message_edited(changed.ts, changed.text.to_s) unless journal.discarded?
+    else
+      JournalDraft.containing(changed.ts).first&.edit(changed.ts, changed.text.to_s)
+    end
   end
 
   def message_deleted
-    journal = Journal.find_by_slack_message(channel_id, event.deleted_ts) or return
-
-    journal.discard
+    if (journal = Journal.find_by_slack_message(channel_id, event.deleted_ts))
+      journal.slack_message_deleted(event.deleted_ts) unless journal.discarded?
+    else
+      JournalDraft.containing(event.deleted_ts).first&.remove(event.deleted_ts)
+    end
   end
 end

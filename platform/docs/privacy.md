@@ -21,7 +21,8 @@ Only from the token's `subject`: any `emails` (case-insensitive against `users.e
 | What | Where |
 | --- | --- |
 | The account: name, email, avatar, Slack id, timezone, roles, HCA token, Slack user token, verification status | `users` |
-| Their projects and journals (text, hours, Lapse links, Slack message ids) and journal photos | `projects`, `journals`, Active Storage |
+| Their projects and journals (text, hours, Lapse links, Slack message ids and text), project banners and journal photos | `projects`, `journals`, Active Storage |
+| Slack thread replies not yet made into a journal (text, Slack message ids, photo names and links) | `journal_drafts` |
 | Change history of the account, projects and journals (PaperTrail copies of the rows) | `versions` |
 
 Sessions are signed cookies holding the user id, so they stop working once the row is gone.
@@ -39,6 +40,8 @@ Sessions are signed cookies holding the user id, so they stop working once the r
   are cleared (finished jobs after a day by default). They are not searched.
 - Sentry events and application logs are not touched. They expire on their own retention.
 - Slack itself is not ours to delete from. Project threads and journal messages stay in the workspace.
+- Stray posts in the journals channel are deleted through Prometheus, which keeps their text in its private audit
+  log channel. That log belongs to Prometheus, not Fallen.
 
 When a feature adds a table, upload or external service that holds user data, add it to `PrivacyRequest` and to this
 file. Delete files in external storage only on a real run, before the transaction commits.

@@ -129,14 +129,14 @@
   }
 </script>
 
-<div class="flex min-h-0 flex-1 flex-col rounded-sm border border-paper-edge bg-white/50">
-  <div class="flex items-center gap-1 border-b border-paper-edge px-2 py-1.5">
+<div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl bg-paper-well">
+  <div class="flex items-center gap-1 border-b border-ink/10 px-2 py-1.5">
     {#each tools as tool (tool.title)}
       <button
         type="button"
         title={tool.title}
         onclick={() => run(tool)}
-        class="rounded px-2 py-1 font-outfit text-xs font-semibold text-ink-soft hover:bg-ink/10 hover:text-ink {tool.label ===
+        class="rounded-lg px-2 py-1 font-outfit text-xs font-semibold text-ink-soft hover:bg-ink/10 hover:text-ink {tool.label ===
         'I'
           ? 'italic'
           : ''}"
@@ -148,7 +148,7 @@
       type="button"
       title="Add a photo"
       onclick={() => fileInput?.click()}
-      class="rounded px-2 py-1 font-outfit text-xs font-semibold text-ink-soft hover:bg-ink/10 hover:text-ink"
+      class="rounded-lg px-2 py-1 font-outfit text-xs font-semibold text-ink-soft hover:bg-ink/10 hover:text-ink"
     >
       photo
     </button>
@@ -169,7 +169,7 @@
       <button
         type="button"
         onclick={() => (preview = !preview)}
-        class="rounded px-2 py-1 hover:bg-ink/10 hover:text-ink"
+        class="rounded-lg px-2 py-1 hover:bg-ink/10 hover:text-ink"
       >
         {preview ? 'write' : 'preview'}
       </button>
@@ -205,7 +205,7 @@
       ></textarea>
       {#if dragging}
         <div
-          class="pointer-events-none absolute inset-1 flex items-center justify-center rounded-sm border-2 border-dashed border-ink/50 bg-paper/80 font-outfit text-sm text-ink"
+          class="pointer-events-none absolute inset-1 flex items-center justify-center rounded-lg border-2 border-dashed border-ink/50 bg-paper/80 font-outfit text-sm text-ink"
         >
           Drop photos to add them
         </div>

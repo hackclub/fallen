@@ -58,6 +58,10 @@ module SlackBot
       }.compact
     end
 
+    def checkboxes(action_id, options, initial: nil)
+      { type: "checkboxes", action_id: action_id, options: options, initial_options: initial.presence }.compact
+    end
+
     def plain_text_input(action_id, placeholder: nil, multiline: false, initial_value: nil, max_length: nil)
       {
         type: "plain_text_input",

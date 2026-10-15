@@ -26,11 +26,6 @@ class Admin::ApplicationController < ApplicationController
     }
   end
 
-  def project_totals(projects)
-    journals = Journal.kept.where(project_id: projects.map(&:id)).group(:project_id)
-    { totals: journals.sum(:duration_minutes), counts: journals.count }
-  end
-
   def require_admin!
     raise ActionController::RoutingError, "Not Found" unless current_user&.admin?
   end

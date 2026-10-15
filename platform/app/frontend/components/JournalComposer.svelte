@@ -73,7 +73,9 @@
   })
 
   const words = $derived(countWords(form.body))
-  const canSubmit = $derived(form.body.trim().length > 0 && !form.processing)
+  const canSubmit = $derived(
+    form.body.trim().length > 0 && form.duration.trim().length > 0 && !form.processing,
+  )
 
   function addImage(image: UploadedImage) {
     uploadError = null
@@ -126,7 +128,7 @@
     class="paper relative flex max-h-full w-full max-w-5xl flex-col overflow-hidden lg:h-[min(760px,100%)]"
     aria-labelledby="composer-title"
   >
-    <div class="flex items-start justify-between gap-4 border-b border-paper-edge px-5 py-4 sm:px-7">
+    <div class="flex items-start justify-between gap-4 border-b border-ink/10 px-5 py-4 sm:px-7">
       <div>
         <p class="font-outfit text-xs tracking-wide text-ink-soft uppercase">
           {editing ? 'Editing a journal for' : 'Journaling for'}
@@ -137,7 +139,7 @@
     </div>
 
     <div class="grid min-h-0 flex-1 overflow-y-auto lg:grid-cols-[1fr_300px] lg:overflow-hidden">
-      <section class="flex min-h-0 flex-col gap-2 px-5 py-4 sm:px-7 lg:border-r lg:border-paper-edge">
+      <section class="flex min-h-0 flex-col gap-2 px-5 py-4 sm:px-7 lg:border-r lg:border-ink/10">
         <label for="journal-body" class="font-display text-lg text-ink">What did you do?</label>
         <MarkdownEditor
           bind:this={editor}
@@ -160,8 +162,10 @@
       <aside class="flex flex-col gap-5 bg-ink/[0.04] px-5 py-4 sm:px-7 lg:overflow-y-auto">
         <div>
           <p class="font-display text-lg text-ink">Time spent</p>
-          <p class="mb-2 font-outfit text-xs text-ink-soft">However you'd write it: 1h 30m, 2.5, 45m.</p>
-          <input type="text" bind:value={form.duration} placeholder="1h 30m" class="paper-input" />
+          <p class="mb-2 font-outfit text-xs text-ink-soft">
+            Every journal needs one. However you'd write it: 1h 30m, 2.5, 45m.
+          </p>
+          <input type="text" bind:value={form.duration} placeholder="1h 30m" required class="paper-input" />
           {#if form.errors.duration}<p class="mt-1 font-outfit text-xs text-red-700">
               {form.errors.duration}
             </p>{/if}
@@ -196,9 +200,7 @@
           {#if form.images.length > 0}
             <ul class="grid grid-cols-3 gap-2">
               {#each form.images as image (image.id)}
-                <li
-                  class="group relative aspect-square overflow-hidden rounded-sm border border-paper-edge bg-white"
-                >
+                <li class="group relative aspect-square overflow-hidden rounded-lg bg-paper-well">
                   <img src={image.url} alt={image.filename} class="h-full w-full object-cover" />
                   <button
                     type="button"

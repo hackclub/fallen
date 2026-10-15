@@ -74,12 +74,12 @@
     return true
   }
 
-  // the canvas ignores pointer events so the page stays clickable, so the cursor is tracked on the window
+  // the canvas ignores pointer events so the page stays clickable, so the cursor is tracked on the window. It fills the
+  // viewport, so the viewport is its box: measuring it would force a layout on every move.
   function onPointerMove(event: PointerEvent) {
-    const rect = canvas.getBoundingClientRect()
-    const x = ((event.clientX - rect.left) / rect.width) * 2 - 1
-    const y = -((event.clientY - rect.top) / rect.height) * 2 + 1
-    for (const layer of layers) layer.pointerMove(x, y, rect.width / rect.height)
+    const x = (event.clientX / innerWidth) * 2 - 1
+    const y = -(event.clientY / innerHeight) * 2 + 1
+    for (const layer of layers) layer.pointerMove(x, y, innerWidth / innerHeight)
     cameraTarget[0] = clamp(x, -1, 1)
     cameraTarget[1] = clamp(y, -1, 1)
   }

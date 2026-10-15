@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_13_040000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_14_010100) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -42,6 +42,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_13_040000) do
     t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
   end
 
+  create_table "journal_drafts", force: :cascade do |t|
+    t.bigint "project_id", null: false
+    t.bigint "user_id", null: false
+    t.jsonb "parts", default: [], null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["parts"], name: "index_journal_drafts_on_parts", opclass: :jsonb_path_ops, using: :gin
+    t.index ["project_id", "user_id"], name: "index_journal_drafts_on_project_id_and_user_id", unique: true
+    t.index ["user_id"], name: "index_journal_drafts_on_user_id"
+  end
+
   create_table "journals", force: :cascade do |t|
     t.bigint "project_id", null: false
     t.bigint "user_id", null: false
@@ -54,11 +65,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_13_040000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "lapse_url"
+    t.jsonb "slack_parts", default: [], null: false
     t.index ["created_at"], name: "index_journals_on_created_at"
     t.index ["discarded_at"], name: "index_journals_on_discarded_at"
     t.index ["project_id"], name: "index_journals_needing_hours", where: "((discarded_at IS NULL) AND (duration_minutes IS NULL))"
     t.index ["project_id"], name: "index_journals_on_project_id"
     t.index ["slack_channel_id", "slack_ts"], name: "index_journals_on_slack_channel_id_and_slack_ts", unique: true, where: "(slack_ts IS NOT NULL)"
+    t.index ["slack_parts"], name: "index_journals_on_slack_parts", opclass: :jsonb_path_ops, using: :gin
     t.index ["user_id"], name: "index_journals_on_user_id"
   end
 
@@ -292,6 +305,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_13_040000) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "journal_drafts", "projects"
+  add_foreign_key "journal_drafts", "users"
   add_foreign_key "journals", "projects"
   add_foreign_key "journals", "users"
   add_foreign_key "projects", "users"

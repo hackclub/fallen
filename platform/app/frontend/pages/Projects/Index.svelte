@@ -3,74 +3,93 @@
 </script>
 
 <script lang="ts">
-  import { Link } from '@inertiajs/svelte'
+  import CreateProjectModal from '@/components/CreateProjectModal.svelte'
+  import PageTitle from '@/components/PageTitle.svelte'
+  import ProjectCard from '@/components/ProjectCard.svelte'
   import SlackConnect, { type SlackStatus } from '@/components/SlackConnect.svelte'
-  import { timeAgo } from '@/lib/format'
-  import { newProject, project as projectRoute, projects } from '@/routes'
+  import { connectSlack, projects } from '@/routes'
   import type { Project } from '@/types'
+  import soup from '@/assets/hero/soup-falling.webp'
 
   let {
     projects: list,
     slack,
+    direct_upload_url,
     can,
-  }: { projects: Project[]; slack: SlackStatus; can: { create: boolean } } = $props()
+  }: {
+    projects?: Project[]
+    slack?: SlackStatus
+    direct_upload_url?: string
+    can?: { create: boolean }
+  } = $props()
+
+  let creating = $state(false)
 </script>
 
-<svelte:head><title>Projects · Fallen</title></svelte:head>
+<svelte:head><title>My Projects · Fallen</title></svelte:head>
 
-<div class="mx-auto max-w-3xl space-y-6">
-  <div class="flex items-end justify-between">
-    <h1 class="font-display text-3xl text-white">Projects</h1>
-    {#if can.create}
-      <Link href={newProject()} class="btn-sky-gold px-4 py-2">New project</Link>
+{#snippet createButton(extra = '')}
+  {#if can?.create}
+    <button type="button" class="btn-ink px-8 py-2.5 {extra}" onclick={() => (creating = true)}>
+      <span class="text-lg leading-none">+</span> Create Project
+    </button>
+  {:else if slack?.oauth_available}
+    <a
+      href={connectSlack({ query: { return_to: projects.index().url } }).url}
+      class="btn-ink px-8 py-2.5 {extra}">Connect Slack</a
+    >
+  {/if}
+{/snippet}
+
+<PageTitle title="My Projects" subtitle="What are you building?" />
+
+{#if !list || !slack}
+  <div class="grid auto-rows-fr grid-cols-1 gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-3" aria-busy="true">
+    {#each { length: 3 }, i (i)}
+      <div class="paper">
+        <div class="h-36 animate-pulse rounded-xl bg-ink/10 md:h-48"></div>
+        <div class="space-y-3 p-4 md:p-6">
+          <div class="skeleton-ink h-7 w-40"></div>
+          <div class="skeleton-ink h-4 w-full"></div>
+          <div class="skeleton-ink h-4 w-20"></div>
+        </div>
+      </div>
+    {/each}
+  </div>
+{:else if list.length === 0}
+  <div class="paper flex flex-col items-center p-6 md:p-10">
+    <img src={soup} alt="" class="mb-4 h-32 w-32 object-contain sm:mb-6 sm:h-48 sm:w-48" />
+    <p class="mb-6 max-w-xl text-center font-outfit text-lg text-ink sm:mb-8 sm:text-xl">
+      {#if slack.connected}
+        No projects yet! Create one here, or post about it in the journals channel and the bot will offer to
+        track it.
+      {:else}
+        Your project lives as a thread in the Slack journals channel, and every journal is a reply posted as
+        you. Connect Slack first so we can post for you.
+      {/if}
+    </p>
+    {@render createButton()}
+    {#if !slack.oauth_available && !slack.connected}
+      <p class="font-outfit text-xs text-red-700">Slack sign-in is not configured on this server yet.</p>
     {/if}
   </div>
+{:else}
+  <div class="grid auto-rows-fr grid-cols-1 gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-3">
+    {#each list as project (project.id)}
+      <ProjectCard {project} />
+    {/each}
+    <div
+      class="paper flex h-full min-h-48 flex-col items-center justify-center p-6 transition-transform duration-300 hover:scale-[1.02]"
+    >
+      {@render createButton()}
+    </div>
+  </div>
+{/if}
 
-  {#if !slack.connected}
-    <SlackConnect {slack} returnTo={projects.index().url} />
-  {/if}
+{#if slack?.connected}
+  <div class="mt-8"><SlackConnect {slack} returnTo={projects.index().url} /></div>
+{/if}
 
-  {#if list.length === 0}
-    {#if slack.connected}
-      <div class="paper px-6 py-5">
-        <p class="font-display text-xl text-ink">No project yet</p>
-        <p class="mt-1 max-w-md font-outfit text-sm text-ink-soft">
-          One big build for the next fifty days. Start it here, or post about it in the journals channel and
-          the bot will offer to track it.
-        </p>
-        <Link href={newProject()} class="btn-ink mt-4 px-5 py-2.5">Start a project</Link>
-      </div>
-    {/if}
-  {:else}
-    <ul class="space-y-3">
-      {#each list as project (project.id)}
-        <li>
-          <Link
-            href={projectRoute(project.id)}
-            class="paper block px-6 py-5 transition hover:-translate-y-px"
-          >
-            <div class="flex items-start justify-between gap-4">
-              <div class="min-w-0">
-                <h2 class="truncate font-display text-xl text-ink">{project.title}</h2>
-                {#if project.description}
-                  <p class="mt-1 line-clamp-2 font-outfit text-sm text-ink-soft">{project.description}</p>
-                {/if}
-              </div>
-              <div class="shrink-0 text-right font-outfit">
-                <p class="text-xs text-ink-soft">
-                  {project.journal_count}
-                  {project.journal_count === 1 ? 'journal' : 'journals'}
-                </p>
-              </div>
-            </div>
-            <p class="mt-3 font-outfit text-xs text-ink-soft">updated {timeAgo(project.updated_at)}</p>
-          </Link>
-        </li>
-      {/each}
-    </ul>
-  {/if}
-
-  {#if slack.connected}
-    <SlackConnect {slack} returnTo={projects.index().url} />
-  {/if}
-</div>
+{#if creating}
+  <CreateProjectModal directUploadUrl={direct_upload_url} onClose={() => (creating = false)} />
+{/if}

@@ -18,8 +18,7 @@ class ApplicationController < ActionController::Base
   inertia_share do
     {
       auth: { user: current_user && UserSerializer.render(current_user) },
-      impersonation: impersonating? ? { impersonator_name: true_user.display_name } : nil,
-      flash: flash.to_hash
+      impersonation: impersonating? ? { impersonator_name: true_user.display_name } : nil
     }
   end
 

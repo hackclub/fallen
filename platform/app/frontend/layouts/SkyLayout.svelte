@@ -1,63 +1,73 @@
 <script lang="ts">
-  import type { Snippet } from 'svelte'
-  import { Link, router } from '@inertiajs/svelte'
-  import Flash from '@/components/Flash.svelte'
+  import { onMount, type Snippet } from 'svelte'
+  import { Link } from '@inertiajs/svelte'
+  import Toasts from '@/components/Toasts.svelte'
   import ImpersonationBanner from '@/components/ImpersonationBanner.svelte'
-  import { adminRoot, home, projects, signOut } from '@/routes'
+  import NavRail from '@/components/NavRail.svelte'
+  import NameTag from '@/components/NameTag.svelte'
+  import { adminRoot, home } from '@/routes'
   import { shared } from '@/lib/shared.svelte'
-  import logo from '@/assets/sky/logo.png'
-  import flowers from '@/assets/sky/flowers.png'
+  import { pages, warmPages } from '@/lib/pages'
+  import sky from '@/assets/hero/starry-bg.webp'
+  import building from '@/assets/hero/building-1.webp'
+  import logo from '@/assets/shell/logo.svg'
 
   let { children }: { children?: Snippet } = $props()
 
   const user = $derived(shared().auth.user)
+
+  onMount(warmPages)
 </script>
 
-<div class="relative flex min-h-screen flex-col overflow-x-clip bg-sky-deep text-white">
-  <div class="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
-    <!-- Offset upward so the wordmark painted into the artwork sits above the viewport. -->
-    <img
-      src={flowers}
-      alt=""
-      class="absolute top-[-14vw] left-1/2 w-[160%] max-w-none -translate-x-1/2 opacity-30 sm:w-[120%]"
-    />
-    <div class="absolute inset-0 bg-linear-to-b from-transparent via-sky-deep/70 to-sky-night"></div>
-  </div>
+<div class="relative min-h-screen overflow-x-clip bg-sky-deep text-white">
+  <img
+    src={sky}
+    alt=""
+    aria-hidden="true"
+    class="pointer-events-none fixed inset-0 h-full w-full object-cover"
+  />
 
   <div class="relative z-10 flex min-h-screen flex-col">
     <ImpersonationBanner />
 
-    {#if user}
-      <header class="border-b border-white/10">
-        <nav class="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 sm:px-6">
-          <Link href={home.index()} class="flex items-center">
-            <img src={logo} alt="Fallen" class="h-8 w-auto" />
-          </Link>
+    <div class="relative flex flex-1 flex-col md:flex-row">
+      <!-- Rail: logo, nav and the name tag, pinned while the page scrolls. Offsets are the Figma frame's. -->
+      <aside
+        class="relative flex flex-col gap-6 px-4 pt-6 md:sticky md:top-0 md:h-dvh md:w-[300px] md:shrink-0 md:gap-0 md:px-0 md:pt-[37px] md:pb-[42px]"
+      >
+        <img
+          src={building}
+          alt=""
+          aria-hidden="true"
+          class="pointer-events-none absolute -top-[88px] -left-[167px] w-[403px] max-w-none md:-top-[136px] md:-left-[257px] md:w-[620px]"
+        />
 
-          <div class="flex items-center gap-3 font-outfit text-sm">
-            <Link href={projects.index()} class="text-sky-ice/70 hover:text-white">Projects</Link>
-            {#if user.is_admin}
-              <Link href={adminRoot()} class="text-sky-ice/70 hover:text-white">Admin</Link>
-            {/if}
-            <span class="hidden items-center gap-2 sm:flex">
-              <img src={user.avatar} alt="" class="h-7 w-7 rounded-full bg-sky-night object-cover" />
-              <span class="font-medium">{user.display_name}</span>
-            </span>
-            <button type="button" onclick={() => router.visit(signOut())} class="btn-sky px-3 py-1.5">
-              Sign out
-            </button>
+        <Link href={home.index()} component={pages.home} class="relative w-fit md:ml-[53px]">
+          <img src={logo} alt="Hack Club Fallen" class="h-auto w-[150px] md:w-[204px]" />
+        </Link>
+
+        {#if user}
+          <NavRail class="relative w-fit md:mt-10 md:ml-[53px] md:w-[204px]" />
+          <NameTag {user} class="mt-auto ml-[67px] hidden md:block" />
+        {/if}
+      </aside>
+
+      <div class="flex min-w-0 flex-1 flex-col">
+        {#if user?.is_admin}
+          <div class="absolute top-6 right-4 md:static md:flex md:justify-end md:pt-[51px] md:pr-[59px]">
+            <Link href={adminRoot()} class="pill-cream">Admin</Link>
           </div>
-        </nav>
-      </header>
-    {/if}
+        {/if}
 
-    <main class="mx-auto w-full max-w-5xl flex-1 px-4 py-8 sm:px-6">
-      <Flash />
-      {@render children?.()}
-    </main>
+        <main class="mx-auto w-full max-w-5xl flex-1 px-4 py-8 md:pr-[59px] md:pl-0">
+          <Toasts />
+          {@render children?.()}
+        </main>
 
-    <footer class="py-6 text-center font-outfit text-xs text-sky-ice/50">
-      <a href="https://hackclub.com" class="hover:text-white">Hack Club</a>
-    </footer>
+        {#if user}
+          <NameTag {user} class="mx-4 mb-8 md:hidden" />
+        {/if}
+      </div>
+    </div>
   </div>
 </div>

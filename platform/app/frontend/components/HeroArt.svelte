@@ -18,6 +18,7 @@
   // frame's order (Fallen, node 214:118), already rotated the way it places them, and each one higher in the stack is
   // nearer and moves more. The sky barely moves, and neither do the flowers, which are drawn over everything.
   const shift = 32
+  const art = [1920, 1334] // every backdrop layer's size in pixels
   const backdrop = [
     { src: sky, depth: 0.05 },
     { src: building1, depth: 0.35 },
@@ -30,6 +31,20 @@
   ]
 
   let root: HTMLDivElement
+  let stage: HTMLDivElement
+
+  // The backdrop is laid out once at the art's own size and scaled to cover the hero, cropped from the top right,
+  // with room for the parallax shift on every side. Resizing the window then only changes a scale the GPU applies
+  // to images it already has; fitting each one with object-cover re-rasterised all of them every frame and flickered.
+  onMount(() => {
+    const cover = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect
+      const scale = Math.max((width + shift * 2) / art[0], (height + shift * 2) / art[1])
+      root.style.setProperty('--hero-scale', `${scale}`)
+    })
+    cover.observe(stage)
+    return () => cover.disconnect()
+  })
 
   onMount(() => {
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) return
@@ -76,21 +91,35 @@
 
   const parallax = (depth: number) =>
     `transform: translate3d(calc(var(--parallax-x, 0px) * ${depth}), calc(var(--parallax-y, 0px) * ${depth}), 0)`
+  // inside the scaled backdrop a pixel is scaled too, so the shift is divided back out to stay in screen pixels
+  const backdropParallax = (depth: number) =>
+    `transform: translate3d(calc(var(--parallax-x, 0px) * ${depth} / var(--hero-scale, 1)), calc(var(--parallax-y, 0px) * ${depth} / var(--hero-scale, 1)), 0)`
 </script>
 
 <!-- display: contents so the offsets reach both the backdrop and the soup without adding a box -->
 <div bind:this={root} class="contents" aria-hidden="true">
-  <div class="absolute inset-0 -z-1 overflow-hidden bg-[#0b0f4a] pointer-events-none select-none">
-    {#each backdrop as layer (layer.src)}
-      <!-- bleeds past the edges by the full shift so moving never uncovers them -->
-      <img
-        src={layer.src}
-        alt=""
-        decoding="async"
-        class="absolute -inset-8 h-[calc(100%+4rem)] w-[calc(100%+4rem)] max-w-none object-cover object-right-top will-change-transform"
-        style={parallax(layer.depth)}
-      />
-    {/each}
+  <div
+    bind:this={stage}
+    class="absolute inset-0 -z-1 overflow-hidden bg-[#0b0f4a] pointer-events-none select-none"
+  >
+    <!-- bleeds past the edges by the full shift so moving never uncovers them -->
+    <div
+      class="absolute -top-8 -right-8 origin-top-right"
+      style:width="{art[0]}px"
+      style:height="{art[1]}px"
+      style:transform="scale(var(--hero-scale, 1))"
+    >
+      {#each backdrop as layer (layer.src)}
+        <img
+          src={layer.src}
+          alt=""
+          width={art[0]}
+          height={art[1]}
+          class="absolute inset-0 max-w-none will-change-transform"
+          style={backdropParallax(layer.depth)}
+        />
+      {/each}
+    </div>
   </div>
 
   <!-- the sparkles image is 359x467 and sits 90px above the 369x390 soup, in a 375x480 box -->

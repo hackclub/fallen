@@ -28,6 +28,20 @@ class PagesTest < ActionDispatch::IntegrationTest
     assert_response :not_found
   end
 
+  test "home streams in my projects, totals and daily activity" do
+    sign_in_as users(:member)
+    props = inertia_props(home_path, "Home/Index")
+    assert props["slack"]["connected"]
+    assert_nil props["stats"]
+
+    props = load_deferred(home_path, "Home/Index", "projects", "stats", "activity")
+    assert_equal [ projects(:station), projects(:unlinked) ].map(&:public_id).sort, props["projects"].pluck("id").sort
+    assert_equal({ "minutes" => 150, "journals" => 3, "missing_hours" => 1 }, props["stats"].except("last_journal_at"))
+    assert_equal HomeController::ACTIVITY_DAYS, props["activity"].size
+    assert_equal Time.current.in_time_zone(users(:member).timezone).to_date.iso8601, props["activity"].last["date"]
+    assert_equal 150, props["activity"].last["minutes"]
+  end
+
   test "banned users are sent to /sorry" do
     sign_in_as users(:banned)
     get home_path
