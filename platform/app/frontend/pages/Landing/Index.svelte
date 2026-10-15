@@ -149,11 +149,11 @@
   <h1><Wordmark onDark class="z-10 -mt-10 h-60 drop-shadow-[0_0_4px_rgb(255_255_255/0.6)]" /></h1>
 
   <!-- <p class="absolute top-10 mx-auto z-3 text-2xl text-light-blue px-2 py-1 bg-navy rounded-xs">December 11–14, 2026</p> -->
-  <!-- <h2
+  <h2
     class="text-4xl font-lora font-bold max-w-2xl leading-10 text-shadow-md text-shadow-purple/20 text-cream"
   >
     Build a hardware project for free, <span class="text-green"> present it in Shenzhen, China</span>
-  </h2> -->
+  </h2>
 
   <OrnamentNav items={navItems} />
   <!--
