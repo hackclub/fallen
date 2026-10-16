@@ -93,7 +93,7 @@
             : 'text-shadow-md text-shadow-black/20',
           // the navy outline lifts the text off the hero's art, but would dim the glow
           !glow && (small ? '[-webkit-text-stroke:5px_#162C8640]' : '[-webkit-text-stroke:6px_#162C8640]'),
-          on ? 'font-bold text-cream' : 'text-green',
+          on ? 'font-bold text-cream' : 'text-parchment',
           glow && !on && 'opacity-80',
           small
             ? on

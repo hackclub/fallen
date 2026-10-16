@@ -1,12 +1,22 @@
 <script lang="ts">
   // The recap video in a gold frame. Until someone presses play it is only the thumbnail washed in the hero's
   // blue, so the page doesn't load YouTube's player for people who never watch.
+  import { starPath } from '@/components/GoldFrame.svelte'
 
   let { id, title, class: className = '' }: { id: string; title: string; class?: string } = $props()
 
   const maxTilt = 6 // degrees at the frame's edge
   const follow = 8 // how quickly the play badge catches up with the cursor, 1/s
   const ease = 10 // how quickly the frame tilts towards the cursor, 1/s
+  const scoop = 28
+  const line = 2
+
+  const mask = ['0 0', '100% 0', '0 100%', '100% 100%']
+    .map(
+      (at) =>
+        `radial-gradient(${scoop}px at ${at}, #0000 calc(100% - 0.5px), #000) ${at} / 51% 51% no-repeat`,
+    )
+    .join(', ')
 
   let playing = $state(false)
   let tilt = $state([0, 0]) // degrees round the x and y axes
@@ -80,12 +90,10 @@
   onpointerleave={onPointerLeave}
 >
   <div
-    class="absolute inset-0 will-change-transform"
+    class="absolute inset-0 will-change-transform [filter:drop-shadow(0_24px_28px_rgb(2_2_4/0.7))_drop-shadow(0_0_24px_color-mix(in_srgb,var(--color-bright-blue)_30%,transparent))]"
     style:transform="rotateX({playing ? 0 : tilt[0]}deg) rotateY({playing ? 0 : tilt[1]}deg)"
   >
-    <div
-      class="absolute inset-0 overflow-hidden rounded-lg border border-gold bg-dark-purple shadow-[0_24px_60px_-12px_rgb(2_2_4/0.9),0_0_60px_-10px_color-mix(in_srgb,var(--color-bright-blue)_40%,transparent)]"
-    >
+    <div class="absolute inset-0 overflow-hidden bg-dark-purple" style:mask>
       {#if playing}
         <iframe
           class="size-full"
@@ -108,16 +116,31 @@
             src="https://i.ytimg.com/vi/{id}/maxresdefault.jpg"
             alt=""
             loading="lazy"
-            class="absolute inset-0 size-full object-cover transition duration-700 group-hover:scale-[1.03]"
+            class="absolute inset-0 size-full scale-[1.045] object-cover transition duration-700 group-hover:scale-[1.055]"
           />
-          <div class="absolute inset-0 bg-bright-blue/40 mix-blend-multiply"></div>
+          <div class="absolute inset-0 bg-vivid-blue/10"></div>
           <div
-            class="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_45%,transparent_20%,rgb(21_17_58/0.85)_90%)] transition-opacity duration-500 group-hover:opacity-70"
+            class="absolute inset-0 bg-[radial-gradient(ellipse_75%_75%_at_50%_45%,transparent_35%,color-mix(in_oklab,var(--color-twilight)_80%,transparent))]"
           ></div>
-          <div class="absolute inset-2.5 rounded-sm border border-gold/35"></div>
         </button>
       {/if}
     </div>
+    {#if width}
+      {@const [i, r, w, h] = [line / 2, scoop + line / 2, width, height]}
+      <svg
+        class="pointer-events-none absolute inset-0 size-full"
+        viewBox="0 0 {w} {h}"
+        fill="none"
+        aria-hidden="true"
+      >
+        <path
+          d="M{r} {i}H{w - r}A{r} {r} 0 0 0 {w - i} {r}V{h - r}A{r} {r} 0 0 0 {w - r} {h -
+            i}H{r}A{r} {r} 0 0 0 {i} {h - r}V{r}A{r} {r} 0 0 0 {r} {i}Z"
+          class="stroke-gold"
+          stroke-width={line}
+        />
+      </svg>
+    {/if}
   </div>
 
   <!-- outside the tilting plane, so it stays by the cursor; off to the lower right so the cursor doesn't cover it -->
@@ -134,14 +157,26 @@
       aria-hidden="true"
     >
       <span
-        class="flex {centred
+        class="flex h-10 {centred
           ? '-translate-1/2'
-          : 'translate-x-4 translate-y-5'} items-center justify-between gap-2 rounded-full border-2 border-dark-purple bg-gold py-2 pr-4 pl-2 font-sans text-base font-bold text-dark-purple uppercase transition-transform duration-200 {shown
+          : 'translate-x-4 translate-y-5'} bg-mint p-[1.5px] [clip-path:polygon(12px_0,calc(100%-12px)_0,100%_50%,calc(100%-12px)_100%,12px_100%,0_50%)] transition-transform duration-200 {shown
           ? 'scale-100'
           : 'scale-50'}"
       >
-        <span class="size-6 rounded-full bg-dark-purple"></span>
-        Play
+        <span
+          class="flex items-center gap-2 bg-royal-blue pr-6 pl-5 font-lora text-xl font-semibold text-mint [clip-path:polygon(11px_0,calc(100%-11px)_0,100%_50%,calc(100%-11px)_100%,11px_100%,0_50%)]"
+        >
+          <svg class="size-3 shrink-0 overflow-visible" viewBox="0 0 29.1 29.1">
+            <path
+              d={starPath}
+              transform="rotate(45 14.55 14.55)"
+              class="fill-cornflower stroke-mint"
+              stroke-width="3"
+              stroke-linejoin="round"
+            />
+          </svg>
+          Play
+        </span>
       </span>
     </span>
   {/if}

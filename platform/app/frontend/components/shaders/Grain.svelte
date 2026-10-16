@@ -1,7 +1,7 @@
 <script lang="ts">
   // Film grain over the whole page: one tile of noise, one grain per CSS pixel, jumped to a random offset a
   // few times a second like film running through a projector. Each grain is white or black at a small alpha, so it
-  // lightens or darkens whatever is under it, text included. That is exactly hard-light blending at 10% opacity
+  // lightens or darkens whatever is under it, text included. That is exactly hard-light blending at `strength` opacity
   // without a mix-blend-mode, which would make the browser re-render the whole page beneath it on every resize.
   import { onMount } from 'svelte'
   import { prefersReducedMotion } from 'svelte/motion'
@@ -9,8 +9,8 @@
   import { cubicOut } from 'svelte/easing'
 
   const tile = 256 // CSS pixels; big enough that the repeat doesn't show through the noise
-  const strength = 0.1
-  const fps = 18
+  const strength = 0.05
+  const fps = 10
   const fadeIn = 2000 // ms, as long as the slowest particles take to appear
 
   let layer: HTMLDivElement | undefined = $state()

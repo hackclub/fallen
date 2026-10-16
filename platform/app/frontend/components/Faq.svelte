@@ -4,20 +4,8 @@
   // highlight, the gold question and the ornament parting the line above follow `shown`, which changes on the click
   // rather than when the closing animation finishes.
   import DiamondOrnament from '@/components/DiamondOrnament.svelte'
-  import PhotoCard from '@/components/PhotoCard.svelte'
 
-  import type { ComponentProps, Snippet } from 'svelte'
-
-  // shift is in % of the card's own size
-  const leftPhotos: ComponentProps<typeof PhotoCard>[] = [
-    { class: 'aspect-4/3 w-60', rotate: 5 },
-    { class: 'aspect-4/3 w-70', rotate: -2 },
-  ]
-  const rightPhotos: ComponentProps<typeof PhotoCard>[] = [
-    { class: 'aspect-6/5 w-40 z-30', rotate: 7, shift: [25, 0] },
-    { class: 'aspect-4/3 w-70', rotate: -4, shift: [0, -25] },
-    { class: 'aspect-4/3 w-80', rotate: 4, shift: [0, 33.33] },
-  ]
+  import type { Snippet } from 'svelte'
 
   const opening = { duration: 450, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }
   const closing = { duration: 280, easing: 'cubic-bezier(0.4, 0, 0.6, 1)' }
@@ -60,10 +48,17 @@
     }
   }
 
+  const qualifyingHours = '90–110'
+
   const faqs: { question: string; answer: Snippet }[] = [
     { question: 'Who can join?', answer: whoCanJoin },
-    { question: 'Is this free/legit?', answer: isItLegit },
+    { question: 'Is this legit?', answer: isItLegit },
+    { question: "Is this really free? What's the catch?", answer: isItFree },
+    { question: 'Why Shenzhen, China?', answer: whyShenzhen },
     { question: 'What do I build?', answer: whatToBuild },
+    { question: 'Can I follow a tutorial?', answer: tutorials },
+    { question: 'Can I work in teams?', answer: teams },
+    { question: 'How long do I need to spend on my project?', answer: howLong },
     { question: "What if I can't go to Shenzhen?", answer: cantTravel },
     { question: "I've got more questions...", answer: moreQuestions },
   ]
@@ -91,19 +86,43 @@
   {@render link('https://outpost.hackclub.com', 'Outpost')} before.
 {/snippet}
 
+{#snippet isItFree()}
+  Yes, no catch! Fallen funds your project and the trip to the in-person event.
+{/snippet}
+
+{#snippet whyShenzhen()}
+  We'll be demoing our projects at Maker Faire Shenzhen, in the manufacturing capital of the world. While
+  we're there, we'll visit local hardware spots like the world's largest electronics market.
+{/snippet}
+
 {#snippet whatToBuild()}
   One large hardware project (think ~7 weeks of dedicated work!). Keep in mind you'll be demoing this project
   in Shenzhen!
 {/snippet}
 
+{#snippet tutorials()}
+  You can learn from tutorials, but your project must be your own.
+{/snippet}
+
+{#snippet teams()}
+  Yes! Each teammate needs their own clear part of the project, and journals their own hours to level up their
+  own character.
+{/snippet}
+
+{#snippet howLong()}
+  Your character levels up with the hours you put in, and you qualify once it reaches its final form.
+  Journaling every day builds a streak that speeds up its progress, so qualifying takes about {qualifyingHours}
+  hours depending on how well you keep your streak.
+{/snippet}
+
 {#snippet cantTravel()}
-  You can still take part level up your character to purchase 3D printers, CNC Mills - OR receive custom
-  Fallen merchandise.
+  You can still take part! Level up your character to earn prizes like 3D printers and CNC mills, or custom
+  Fallen merch.
 {/snippet}
 
 {#snippet moreQuestions()}
-  Ask in the {@render link('https://hackclub.enterprise.slack.com/archives/C0C9JQEPFL6', '#fallen-help')} on Slack
-  and we'll be happy to help.
+  Ask in {@render link('https://hackclub.enterprise.slack.com/archives/C0C9JQEPFL6', '#fallen-help')} on Slack or
+  email us at {@render link('mailto:fallen@hackclub.com', 'fallen@hackclub.com')}!
 {/snippet}
 
 <section
@@ -111,18 +130,11 @@
   class="flex flex-col justify-center gap-10 overflow-clip px-6 py-20 text-pale-blue md:px-20"
 >
   <h2
-    class="mx-auto font-lora text-6xl font-bold text-green text-shadow-md text-shadow-dark-purple/40 md:text-7xl"
+    class="mx-auto font-lora text-6xl font-bold text-parchment text-shadow-md text-shadow-dark-purple/40 md:text-7xl"
   >
     FAQ
   </h2>
   <div class="place-down-stage flex justify-center gap-10">
-    <!--
-    <div class="place-down z-20 hidden shrink-0 flex-col justify-center gap-40 xl:flex">
-      {#each leftPhotos as photo, i (i)}
-        <PhotoCard {...photo} />
-      {/each}
-    </div>
-    -->
     <div class="place-down place-down-stage mx-auto max-w-215 min-w-0 flex-1 py-12 md:px-8">
       {#each faqs as faq, i (faq.question)}
         <details
@@ -170,13 +182,5 @@
         </details>
       {/each}
     </div>
-
-    <!--
-    <div class="place-down z-20 hidden shrink-0 flex-col justify-between pb-24 xl:flex">
-      {#each rightPhotos as photo, i (i)}
-        <PhotoCard {...photo} />
-      {/each}
-    </div>
-    -->
   </div>
 </section>

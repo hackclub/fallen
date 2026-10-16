@@ -16,7 +16,9 @@
 
 <section id="store" class="px-6 py-24 md:px-10">
   <hgroup class="flex flex-col items-center gap-4 text-center">
-    <h2 class="font-lora text-6xl font-bold text-green text-shadow-md text-shadow-dark-purple/40 md:text-7xl">
+    <h2
+      class="font-lora text-6xl font-bold text-parchment text-shadow-md text-shadow-dark-purple/40 md:text-7xl"
+    >
       Store
     </h2>
     <p class="max-w-lg font-lora text-xl text-pale-blue italic">

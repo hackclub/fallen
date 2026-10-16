@@ -17,23 +17,32 @@
 
   /* The landing page's palette, every colour sampled from the hero art so the page below reads as more of the same
      night: the sky's cobalt darkening to blue-black, the flowers' icy periwinkles, and the
-     buildings' ivory and sandstone as the only warm colours, used sparingly. Some names predate it (green and
-     purple) and no longer describe the colour; they say where it's used. */
+     buildings' ivory and sandstone as the only warm colours, used sparingly. Purple predates it and no longer
+     describes the colour; it says where it's used. */
+  --color-vivid-blue: #3f5bfd;
+  --color-bright-blue: #5164d3; /* the sky's brightest blue: FAQ dividers, the recap's glows */
+  --color-cornflower: #5b6fc4;
   --color-blue: #2a48b5; /* the sky's mid cobalt: the hero's rings and text outlines */
+  --color-royal-blue: #263da8;
   --color-indigo: #1c369b; /* the sky's deep cobalt */
   --color-purple: #172064; /* the sky's darkest blue: the middle of the page's fade from the FAQ to the footer */
-  --color-dark-purple: #11163f; /* the recap video's backing, the play badge's text and dark text on light panels */
+  --color-navy: #161c58;
+  --color-dark-purple: #11163f; /* the recap video's backing and dark text on light panels */
   --color-dark-blue: #0c1238; /* the cards' backing, the unlit path stops and the vignette */
-  --color-black: #04060f; /* not really black: the bottom of the footer */
-  --color-bright-blue: #5164d3; /* the sky's brightest blue: FAQ dividers, the recap's glows */
-  --color-pale-blue: #d6dcfb; /* body text */
-  --color-light-blue: #9cabf7; /* the recap's subtitle */
-  --color-beige: #fbf7ee; /* the How It Works panel */
-  --color-cream: #fcf9ef; /* the buildings' ivory: the hero's text, FAQ questions and selected links */
-  --color-green: #f7dda6; /* the buildings' parchment: section headings and unselected nav links */
-  --color-gold: #dab771; /* the buildings' sandstone: frame lines, ornaments, card outlines, the open FAQ question */
-  --color-amber: #c9a462; /* a How It Works stop once the line reaches it */
   --color-twilight: #262056; /* the page's colour behind How It Works: the sky turned to lavender dusk */
+  --color-black: #000105; /* not really black: the bottom of the footer */
+  --color-light-blue: #9cabf7; /* past projects' captions */
+  --color-periwinkle: #90a8f6;
+  --color-pale-blue: #d6dcfb; /* body text */
+  --color-mint: #c7e1b8;
+  --color-mist: #ebece7;
+  --color-linen: #fcfbf8;
+  --color-cream: #fcf9ef; /* the buildings' ivory: the hero's text, FAQ questions and selected links */
+  --color-parchment: #f7dda6; /* the buildings' parchment: section headings and unselected nav links */
+  --color-sand: #e6d3a3;
+  --color-gold: #dab771; /* the buildings' sandstone: frame lines, ornaments, card outlines, the open FAQ question */
+  --color-saffron: #f9af3f;
+  --color-tangerine: #f09834;
 
   /* Still used by the buttons, the impersonation banner and the Home/Projects pages. */
   --color-hc-red: #ec3750;
@@ -170,7 +179,6 @@
 /* Paper: the journal composer and journal cards, a notebook page over the dark sky. */
 @theme {
   --color-paper: #f5eddc;
-  --color-paper-edge: #d8c7a6;
   --color-paper-rim: #e9dfc8;
   --color-paper-well: #fbf3e3;
   --color-ink: #221b17;

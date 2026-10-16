@@ -63,6 +63,16 @@
     ['inset-y-[21px] right-0 w-[21px]', 'left'],
   ]
 
+  // bind:value selects the first option and fills this in when it starts out undefined.
+  let devUserUrl: string | undefined = $state()
+
+  // Without Hack Club Auth (local development), getting started opens the dev login picker instead.
+  let showDevLogin = $state(false)
+  const openDevLogin = (event: MouseEvent) => {
+    event.preventDefault()
+    showDevLogin = true
+  }
+
   const navItems = $derived([
     shared().auth.user
       ? { label: 'DASHBOARD', href: home.index().url }
@@ -142,14 +152,15 @@
       class="col-start-1 row-start-1 size-170 rounded-full border-linear-to-b bg-linear-to-b from-blue/30 to-transparent bg-clip-padding"
     ></div>
   </div>
+  <div class="flex flex-col -space-y-8">
+    <h1><Wordmark onDark class="z-10 -mt-10 h-60 drop-shadow-[0_0_4px_rgb(255_255_255/0.6)]" /></h1>
+    <p class="text-2xl text-cream px-2 py-1 rounded-xs">December 11–14, 2026</p>
+  </div>
 
-  <h1><Wordmark onDark class="z-10 -mt-10 h-60 drop-shadow-[0_0_4px_rgb(255_255_255/0.6)]" /></h1>
-
-  <!-- <p class="absolute top-10 mx-auto z-3 text-2xl text-light-blue px-2 py-1 bg-navy rounded-xs">December 11–14, 2026</p> -->
   <h2
-    class="text-4xl font-lora font-bold max-w-2xl leading-10 text-shadow-md text-shadow-purple/20 text-cream"
+    class="-mt-4 text-3xl font-lora font-semibold max-w-lg leading-8 text-shadow-md text-shadow-purple/20 text-saffron"
   >
-    Build a hardware project for free, <span class="text-green"> present it in Shenzhen, China</span>
+    Build a hardware project for free, present it in Shenzhen, China.
   </h2>
 
   <OrnamentNav items={navItems} />
@@ -172,16 +183,16 @@
 
 <!-- relative z-1: over the fixed hero scene (also z-1, but earlier), so its shards pass behind the video and text -->
 <div class="relative z-1">
-  <!-- one gradient behind all the sections: clear at the top so the sky shows through, then the sky's darkest blue,
-       and black at the bottom of the footer -->
-  <div
-    class="absolute inset-0 -z-1 bg-linear-to-b from-transparent via-purple via-60% to-black"
-    aria-hidden="true"
-  ></div>
-  <HowItWorks />
-  <PastProjects />
-  <!-- <Store /> -->
-  <Faq />
-  <Recap />
-  <Footer />
+  <div class="relative">
+    <div
+      class="absolute inset-0 -z-1 bg-linear-to-b from-transparent via-purple via-60% to-black"
+      aria-hidden="true"
+    ></div>
+    <HowItWorks />
+    <PastProjects />
+    <!-- <Store /> -->
+    <Faq />
+    <Recap />
+  </div>
+  <Footer nav={navItems} />
 </div>

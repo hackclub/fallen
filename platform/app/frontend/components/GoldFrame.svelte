@@ -79,7 +79,7 @@
         <path
           transform="translate({x - 14.55 * size} {y - 14.55 * size}) scale({size})"
           d={starPath}
-          fill="#F9AF3F"
+          class="fill-saffron"
         />
       {/each}
     </svg>

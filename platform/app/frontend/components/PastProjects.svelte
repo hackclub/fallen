@@ -189,7 +189,7 @@
   <!-- a gold line running out from the heading that fades to the right, starting from the star in the frame's corners -->
   <div class="mx-auto flex w-[calc(100%-3rem)] max-w-6xl items-center gap-4 md:w-[calc(100%-5rem)]">
     <h2
-      class="shrink-0 font-lora text-4xl font-bold text-green text-shadow-md text-shadow-dark-purple/40 md:text-5xl"
+      class="shrink-0 font-lora text-4xl font-bold text-parchment text-shadow-md text-shadow-dark-purple/40 md:text-5xl"
     >
       Past projects
     </h2>
@@ -280,7 +280,7 @@
         <!-- the old lines fade quickly; the new ones rise in one after another, overshooting a little and settling -->
         <div class="col-start-1 row-start-1" out:fade={{ duration: 150 }}>
           <p
-            class="font-lora text-xl leading-tight font-bold text-green text-shadow-md text-shadow-dark-purple/50 sm:text-2xl"
+            class="font-lora text-xl leading-tight font-bold text-parchment text-shadow-md text-shadow-dark-purple/50 sm:text-2xl"
             in:fly={rise(0)}
           >
             {project.name}
