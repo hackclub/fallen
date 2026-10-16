@@ -18,11 +18,26 @@ class ApplicationController < ActionController::Base
   inertia_share do
     {
       auth: { user: current_user && UserSerializer.render(current_user) },
-      impersonation: impersonating? ? { impersonator_name: true_user.display_name } : nil
+      impersonation: impersonating? ? { impersonator_name: true_user.display_name } : nil,
+      setup: setup_props
     }
   end
 
   private
+
+  # What someone has left to do before the rest of the site: the onboarding, which picking a pet finishes, then
+  # connecting Slack. Where the onboarding resumes comes from here rather than the browser, so leaving halfway
+  # (closing the tab, another device) picks up at the same place. Costs one query, and only while onboarding.
+  # Never while impersonating: the admin would be picking a pet or linking Slack for someone else.
+  def setup_props
+    return if current_user.nil? || current_user.is_banned? || impersonating?
+
+    if current_user.pet.nil?
+      { step: "onboarding", project: current_user.projects.kept.order(:created_at).pick(:title) }
+    elsif !current_user.slack_connected? && SlackMessaging.oauth_configured?
+      { step: "slack" }
+    end
+  end
 
   # PaperTrail records the real admin while impersonating, not the impersonated user.
   def user_for_paper_trail = true_user&.id

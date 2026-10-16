@@ -13,7 +13,7 @@ Typelizer.configure do |config|
   config.routes.output_dir = Rails.root.join("app/frontend/routes")
   config.routes.exclude = ->(route) {
     route[:controller].to_s.match?(%r{\A(rails/|active_storage/|action_mailbox/|mission_control/|turbo/)}) ||
-      route[:controller].to_s.in?(%w[slack dev]) ||
+      route[:controller].to_s == "slack" ||
       route[:path].start_with?("/rails", "/up")
   }
 end

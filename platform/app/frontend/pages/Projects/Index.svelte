@@ -6,7 +6,7 @@
   import CreateProjectModal from '@/components/CreateProjectModal.svelte'
   import PageTitle from '@/components/PageTitle.svelte'
   import ProjectCard from '@/components/ProjectCard.svelte'
-  import SlackConnect, { type SlackStatus } from '@/components/SlackConnect.svelte'
+  import type { SlackStatus } from '@/components/SlackConnect.svelte'
   import { connectSlack, projects } from '@/routes'
   import type { Project } from '@/types'
   import soup from '@/assets/hero/soup-falling.webp'
@@ -30,13 +30,19 @@
 
 {#snippet createButton(extra = '')}
   {#if can?.create}
-    <button type="button" class="btn-ink px-8 py-2.5 {extra}" onclick={() => (creating = true)}>
+    <button
+      type="button"
+      class="btn-ink px-8 py-2.5 {extra}"
+      data-tour="new-project"
+      onclick={() => (creating = true)}
+    >
       <span class="text-lg leading-none">+</span> Create Project
     </button>
   {:else if slack?.oauth_available}
     <a
       href={connectSlack({ query: { return_to: projects.index().url } }).url}
-      class="btn-ink px-8 py-2.5 {extra}">Connect Slack</a
+      class="btn-ink px-8 py-2.5 {extra}"
+      data-tour="new-project">Connect Slack</a
     >
   {/if}
 {/snippet}
@@ -61,8 +67,7 @@
     <img src={soup} alt="" class="mb-4 h-32 w-32 object-contain sm:mb-6 sm:h-48 sm:w-48" />
     <p class="mb-6 max-w-xl text-center font-outfit text-lg text-ink sm:mb-8 sm:text-xl">
       {#if slack.connected}
-        No projects yet! Create one here, or post about it in the journals channel and the bot will offer to
-        track it.
+        No projects yet, Create one here!
       {:else}
         Your project lives as a thread in the Slack journals channel, and every journal is a reply posted as
         you. Connect Slack first so we can post for you.
@@ -84,10 +89,6 @@
       {@render createButton()}
     </div>
   </div>
-{/if}
-
-{#if slack?.connected}
-  <div class="mt-8"><SlackConnect {slack} returnTo={projects.index().url} /></div>
 {/if}
 
 {#if creating}

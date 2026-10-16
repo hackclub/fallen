@@ -13,6 +13,8 @@ declare module '@inertiajs/core' {
 export interface SharedProps {
   auth: { user: User | null }
   impersonation: { impersonator_name: string } | null
+  // ApplicationController#setup_props. `project` is the title of one made during the onboarding, if any.
+  setup: { step: 'onboarding'; project: string | null } | { step: 'slack' } | null
   errors: Record<string, string[]>
   [key: string]: unknown
 }

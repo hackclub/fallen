@@ -41,14 +41,9 @@
       novalidate
       class="max-h-[calc(90vh-100px)] overflow-x-hidden overflow-y-auto p-3 md:p-6"
     >
-      <ProjectFields {form} {directUploadUrl} />
+      <ProjectFields {form} {directUploadUrl} brief />
 
-      <p class="mt-4 border-t border-ink/10 pt-3 font-outfit text-xs text-ink-soft md:text-sm">
-        Only the title is required. Everything else can be added later. Creating it posts a thread for it in
-        the journals channel, as you.
-      </p>
-
-      <div class="mt-3 flex justify-end gap-2 md:mt-4 md:gap-3">
+      <div class="mt-4 flex justify-end gap-2 md:mt-6 md:gap-3">
         <button type="button" class="btn-paper px-5 py-2" onclick={onClose}>Cancel</button>
         <button
           type="submit"

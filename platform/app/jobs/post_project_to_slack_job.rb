@@ -1,10 +1,11 @@
-# Posts the top-level message that becomes a web-started project's Slack thread.
+# Posts the top-level message that becomes a web-started project's Slack thread. A project made before its owner
+# connected Slack waits for SlackAuthController#create to enqueue this again.
 class PostProjectToSlackJob < ApplicationJob
   queue_as :slack
   retry_on Slack::Web::Api::Errors::TooManyRequestsError, wait: :polynomially_longer, attempts: 5
 
   def perform(project)
-    return if project.discarded? || project.slack_linked? || !SlackMessaging.configured?
+    return if project.discarded? || project.slack_linked? || !SlackMessaging.configured? || !project.user.slack_connected?
 
     channel = SlackMessaging.journals_channel_id
     ts = SlackMessaging.post(project.user, channel: channel, **SlackMessages.project_anchor(project))

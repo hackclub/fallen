@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Snippet } from 'svelte'
   import Toasts from '@/components/Toasts.svelte'
+  import OnboardingOverlay from '@/components/onboarding/OnboardingOverlay.svelte'
   import ImpersonationBanner from '@/components/ImpersonationBanner.svelte'
 
   let { children }: { children?: Snippet } = $props()
@@ -10,5 +11,6 @@
 <ImpersonationBanner />
 <main>
   <Toasts />
+  <OnboardingOverlay />
   {@render children?.()}
 </main>

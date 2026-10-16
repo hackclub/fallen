@@ -11,11 +11,10 @@ class ProjectPolicyTest < ActiveSupport::TestCase
     assert_equal [ projects(:station), projects(:unlinked) ].sort, ProjectPolicy::Scope.new(member, Project).resolve.sort
   end
 
-  test "creating anything needs slack connected" do
+  test "journals need slack connected, projects do not" do
     member = users(:member)
-    assert ProjectPolicy.new(member, Project).create?
     member.disconnect_slack!
-    assert_not ProjectPolicy.new(member, Project).create?
+    assert ProjectPolicy.new(member, Project).create?
     assert_not JournalPolicy.new(member, projects(:station).journals.build(user: member)).create?
     assert JournalPolicy.new(member, journals(:first)).update?
   end

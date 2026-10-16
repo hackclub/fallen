@@ -31,7 +31,7 @@
     <p class="font-display text-xl text-ink">Connect Slack to start</p>
     <p class="mt-1 max-w-md font-outfit text-sm text-ink-soft">
       Your project lives as a thread in the journals channel and every journal is a reply in it, posted as
-      you. That needs your say-so once.
+      you.
     </p>
     {#if slack.oauth_available}
       <a href={connectSlack({ query: { return_to: returnTo } }).url} class="btn-ink mt-4 px-5 py-2.5"

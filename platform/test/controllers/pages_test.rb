@@ -14,13 +14,6 @@ class PagesTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "Landing/Index"
   end
 
-  test "landing offers a dev sign in dropdown outside production" do
-    get root_path
-    assert_includes response.body, users(:member).email
-    assert_includes response.body, dev_sign_in_as_path(users(:member).public_id)
-    assert_not_includes response.body, users(:member).hca_id
-  end
-
   test "home requires sign in" do
     get home_path
     assert_redirected_to root_path

@@ -11,6 +11,7 @@
 #  is_adult                :boolean          default(FALSE), not null
 #  is_banned               :boolean          default(FALSE), not null
 #  last_seen_at            :datetime
+#  pet                     :string
 #  roles                   :string           default([]), not null, is an Array
 #  slack_user_token        :text
 #  slack_user_token_scopes :string
@@ -34,6 +35,8 @@
 class User < ApplicationRecord
   ROLES = %w[user reviewer admin].freeze
   FALLBACK_AVATAR = "/static-assets/pfp_fallback.webp"
+  # The desktop pet picked during onboarding, as an egg until it hatches.
+  PETS = %w[lulu sami].freeze
 
   include PublicIdentifiable
   include Discardable
@@ -53,6 +56,7 @@ class User < ApplicationRecord
   validates :hca_id, uniqueness: true
   validates :email, format: { with: URI::MailTo::EMAIL_REGEXP }
   validates :roles, presence: true
+  validates :pet, inclusion: { in: PETS }, allow_nil: true
   validate :roles_are_known
 
   scope :admins, -> { where("roles @> ARRAY[?]::varchar[]", "admin") }

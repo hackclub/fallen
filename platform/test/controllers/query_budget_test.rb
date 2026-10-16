@@ -6,6 +6,7 @@ require "test_helper"
 class QueryBudgetTest < ActionDispatch::IntegrationTest
   test "guest pages" do
     assert_query_budget(2) { get root_path }
+    assert_query_budget(1) { get dev_path }
   end
 
   test "member pages" do
@@ -17,6 +18,11 @@ class QueryBudgetTest < ActionDispatch::IntegrationTest
     assert_query_budget(9) { get project_path(projects(:station)) }
     assert_query_budget(2) { get new_project_path }
     assert_query_budget(3) { get edit_project_path(projects(:station)) }
+  end
+
+  test "onboarding pages" do
+    sign_in_as users(:newcomer)
+    assert_query_budget(5) { get home_path }
   end
 
   test "banned page" do

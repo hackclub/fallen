@@ -16,4 +16,11 @@ class UserPolicyTest < ActiveSupport::TestCase
     assert_not UserPolicy.new(member, users(:admin)).update?
     assert_equal [ member ], UserPolicy::Scope.new(member, User).resolve.to_a
   end
+
+  test "people choose only their own pet" do
+    member = users(:member)
+    assert UserPolicy.new(member, member).choose_pet?
+    assert_not UserPolicy.new(member, users(:admin)).choose_pet?
+    assert_not UserPolicy.new(users(:admin), member).choose_pet?
+  end
 end

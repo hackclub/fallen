@@ -8,6 +8,7 @@ class AuthController < ApplicationController
   rate_limit to: 10, within: 3.minutes, only: :create, with: -> { redirect_to root_path, alert: "Too many attempts, try again in a few minutes." }
 
   def new
+    return redirect_to dev_path if !HCA.configured? && Rails.env.local?
     return redirect_to root_path, alert: "Hack Club Auth is not configured (HCA_CLIENT_ID / HCA_CLIENT_SECRET)." unless HCA.configured?
 
     redirect_to HCA.authorize_url(hca_callback_url, issue_oauth_state), allow_other_host: true

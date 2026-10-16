@@ -3,7 +3,12 @@
   import HelpTip from '@/components/HelpTip.svelte'
   import type { ProjectForm } from '@/lib/projectForm'
 
-  let { form, directUploadUrl }: { form: ProjectForm; directUploadUrl: string | undefined } = $props()
+  // `brief` is the create form: just what the project is. The banner and links wait for the edit page.
+  let {
+    form,
+    directUploadUrl,
+    brief = false,
+  }: { form: ProjectForm; directUploadUrl: string | undefined; brief?: boolean } = $props()
 
   const links = [
     {
@@ -64,27 +69,29 @@
     {@render foot(false, form.errors.description)}
   </div>
 
-  <div>
-    <div class="mb-1 flex items-center gap-1.5">
-      <span class="font-outfit text-sm text-ink">Banner</span>
-      <HelpTip text="A photo or sketch of what you're building." />
-    </div>
-    <BannerPicker bind:value={form.banner} {directUploadUrl} />
-    {@render foot(false, form.errors.banner)}
-  </div>
-
-  {#each links as link (link.key)}
+  {#if !brief}
     <div>
-      {@render head(`project-${link.key}`, link.label, link.help)}
-      <input
-        id="project-{link.key}"
-        name={link.key}
-        type="url"
-        placeholder={link.placeholder}
-        bind:value={form[link.key]}
-        class="paper-input"
-      />
-      {@render foot(false, form.errors[link.key])}
+      <div class="mb-1 flex items-center gap-1.5">
+        <span class="font-outfit text-sm text-ink">Banner</span>
+        <HelpTip text="A photo or sketch of what you're building." />
+      </div>
+      <BannerPicker bind:value={form.banner} {directUploadUrl} />
+      {@render foot(false, form.errors.banner)}
     </div>
-  {/each}
+
+    {#each links as link (link.key)}
+      <div>
+        {@render head(`project-${link.key}`, link.label, link.help)}
+        <input
+          id="project-{link.key}"
+          name={link.key}
+          type="url"
+          placeholder={link.placeholder}
+          bind:value={form[link.key]}
+          class="paper-input"
+        />
+        {@render foot(false, form.errors[link.key])}
+      </div>
+    {/each}
+  {/if}
 </div>

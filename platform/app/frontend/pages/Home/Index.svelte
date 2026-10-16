@@ -97,7 +97,7 @@
         <div class="font-outfit md:ml-12">
           <p class="mb-4">
             Your project lives as a thread in the journals channel, and every journal is a reply in it, posted
-            as you. That needs your say-so once.
+            as you.
           </p>
           {#if slack.connected}
             {@render pill('Slack is connected!')}
@@ -127,8 +127,11 @@
           {#if current}
             {@render pill(`Created ${current.title}!`)}
           {:else if can?.create_project}
-            <button type="button" class="btn-ink px-5 py-2" onclick={() => (creating = true)}
-              >Create Project</button
+            <button
+              type="button"
+              class="btn-ink px-5 py-2"
+              data-tour="new-project"
+              onclick={() => (creating = true)}>Create Project</button
             >
           {/if}
         </div>

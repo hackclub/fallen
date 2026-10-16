@@ -12,11 +12,13 @@ bin/setup                        # bundle + npm install, copies .env.development
 `bin/dev` starts Rails on 3000, Vite on 3036, the Solid Queue worker, and the Slack Socket Mode bridge (idle until
 Slack tokens are set).
 
-To sign in without Hack Club Auth:
+To sign in without Hack Club Auth, open http://localhost:3000/dev (Get started goes there when HCA isn't
+configured). It lists accounts to sign in as and makes new ones with whatever roles, pet and flags you need.
+From a script or bookmark:
 
 ```sh
-bin/rails db:seed
-open http://localhost:3000/dev/sign_in_as/admin@example.com
+open http://localhost:3000/dev/sign_in_as/admin@example.com     # an existing account (email, usr_ id or id)
+open "http://localhost:3000/dev/sign_in_as/new?roles[]=admin"   # a brand new one
 ```
 
 ### Hack Club Auth

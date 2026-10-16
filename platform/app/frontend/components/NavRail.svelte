@@ -83,6 +83,7 @@
           href={item.href}
           component={item.component}
           class="rail-item md:w-full"
+          data-tour={item.component === pages.projects ? 'projects-tab' : undefined}
           aria-current={current(item.href.url) ? 'page' : undefined}
         >
           <span

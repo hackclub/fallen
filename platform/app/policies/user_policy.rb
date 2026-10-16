@@ -5,6 +5,7 @@ class UserPolicy < ApplicationPolicy
   def show? = admin? || record == user
   def update? = admin? && record != user
   def destroy? = admin? && record != user
+  def choose_pet? = record == user
 
   # Admins can browse as regular, active users only; never as other staff or while already impersonating.
   def impersonate?

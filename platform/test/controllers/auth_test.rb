@@ -1,10 +1,9 @@
 require "test_helper"
 
 class AuthTest < ActionDispatch::IntegrationTest
-  test "sign in start explains when HCA is not configured" do
+  test "sign in start falls back to the dev login when HCA is not configured" do
     get sign_in_path
-    assert_redirected_to root_path
-    assert_match(/not configured/, flash[:alert])
+    assert_redirected_to dev_path
   end
 
   test "sign in start redirects to HCA with a state stored in a cookie" do

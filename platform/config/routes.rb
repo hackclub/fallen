@@ -21,6 +21,8 @@ Rails.application.routes.draw do
   get "auth/slack/callback" => "slack_auth#create", as: :slack_callback
   delete "auth/slack" => "slack_auth#destroy", as: :disconnect_slack
 
+  resource :pet, only: :update
+
   resources :projects do
     resources :journals, only: %i[create update destroy], shallow: true
   end
@@ -49,8 +51,11 @@ Rails.application.routes.draw do
     end
   end
 
-  # Development/test only: sign in without Hack Club Auth (see db/seeds.rb).
+  # Development/test only: sign in without Hack Club Auth (see DevController and db/seeds.rb).
   if Rails.env.local?
+    get "dev" => "dev#index", as: :dev
+    post "dev/users" => "dev#create", as: :dev_users
+    get "dev/sign_in_as/new" => "dev#create", as: :dev_sign_in_as_new
     get "dev/sign_in_as/:id" => "dev#sign_in_as", as: :dev_sign_in_as, constraints: { id: %r{[^/]+} } # ids, public ids or emails
   end
 end

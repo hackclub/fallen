@@ -15,12 +15,9 @@
   import Wordmark from '@/components/Wordmark.svelte'
   import { home, root, signIn } from '@/routes'
   import { shared } from '@/lib/shared.svelte'
-  import type { DevUser } from '@/types'
 
   import { onMount } from 'svelte'
   import type { Component } from 'svelte'
-
-  let { hca_configured, dev_users }: { hca_configured: boolean; dev_users: DevUser[] | null } = $props()
 
   // Everything that follows the scroll is plain arithmetic on scrollY, so a scroll costs no layout: the only
   // measurement is How It Works' place on the page, taken again whenever the page changes height.
@@ -66,22 +63,10 @@
     ['inset-y-[21px] right-0 w-[21px]', 'left'],
   ]
 
-  // bind:value selects the first option and fills this in when it starts out undefined.
-  let devUserUrl: string | undefined = $state()
-
-  // Without Hack Club Auth (local development), getting started opens the dev login picker instead.
-  let showDevLogin = $state(false)
-  const openDevLogin = (event: MouseEvent) => {
-    event.preventDefault()
-    showDevLogin = true
-  }
-
   const navItems = $derived([
     shared().auth.user
       ? { label: 'DASHBOARD', href: home.index().url }
-      : hca_configured || !dev_users
-        ? { label: 'GET STARTED', href: signIn().url }
-        : { label: 'GET STARTED', href: signIn().url, onclick: openDevLogin },
+      : { label: 'GET STARTED', href: signIn().url },
     { label: 'View Stats', href: root().url },
   ])
 
@@ -168,34 +153,6 @@
   </h2>
 
   <OrnamentNav items={navItems} />
-  {#if showDevLogin && dev_users}
-    <div class="relative z-10">
-      {#if dev_users.length > 0}
-        <form
-          class="flex items-center gap-2"
-          onsubmit={(event) => {
-            event.preventDefault()
-            if (devUserUrl) window.location.assign(devUserUrl)
-          }}
-        >
-          <select
-            bind:value={devUserUrl}
-            class="input w-auto border-white/20 bg-black text-white"
-            aria-label="Dev user"
-          >
-            {#each dev_users as devUser (devUser.id)}
-              <option value={devUser.sign_in_url}>
-                {devUser.display_name} ({devUser.roles.join(', ')})
-              </option>
-            {/each}
-          </select>
-          <button type="submit" class="btn border-white/20 text-white hover:bg-white/10">Dev login</button>
-        </form>
-      {:else}
-        <p class="text-sm opacity-70">No users to dev login as yet. Run <code>bin/rails db:seed</code>.</p>
-      {/if}
-    </div>
-  {/if}
 
   <!-- <div class="mt-8 flex justify-center gap-3">
     {#if hca_configured}

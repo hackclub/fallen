@@ -8,6 +8,7 @@ class PrivacyRequest
     email: "deleted@users.invalid",
     display_name: "Deleted user",
     avatar: nil,
+    pet: nil,
     slack_id: nil,
     hca_token: nil,
     slack_user_token: nil,
@@ -69,7 +70,7 @@ class PrivacyRequest
     if banned.any?
       User.where(id: banned.map(&:id)).update_all(BANNED_PLACEHOLDER.merge(updated_at: Time.current))
       retained << { type: "banned users", count: banned.size,
-                    reason: "kept as an anonymous placeholder holding only the Hack Club Auth id and ban flag, so the ban still applies if they sign in again; name, email, avatar, Slack id and tokens are wiped" }
+                    reason: "kept as an anonymous placeholder holding only the Hack Club Auth id and ban flag, so the ban still applies if they sign in again; name, email, avatar, pet, Slack id and tokens are wiped" }
     end
 
     { found: true, deleted: deleted.select { |_, count| count.positive? }, retained: retained }

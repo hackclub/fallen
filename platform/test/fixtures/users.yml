@@ -11,6 +11,7 @@
 #  is_adult                :boolean          default(FALSE), not null
 #  is_banned               :boolean          default(FALSE), not null
 #  last_seen_at            :datetime
+#  pet                     :string
 #  roles                   :string           default([]), not null, is an Array
 #  slack_user_token        :text
 #  slack_user_token_scopes :string
@@ -37,6 +38,7 @@ admin:
   display_name: Admin Person
   slack_id: U0ADMIN
   roles: ["admin", "user"]
+  pet: sami
 
 member:
   hca_id: hca_member
@@ -44,6 +46,14 @@ member:
   display_name: Member Person
   slack_id: U0MEMBER
   slack_user_token: xoxp-member
+  roles: ["user"]
+  pet: lulu
+
+# Signed in for the first time: no pet yet (so mid-onboarding), no Slack.
+newcomer:
+  hca_id: hca_newcomer
+  email: newcomer@example.com
+  display_name: New Person
   roles: ["user"]
 
 banned:

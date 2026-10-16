@@ -13,6 +13,7 @@ require "test_helper"
 #  is_adult                :boolean          default(FALSE), not null
 #  is_banned               :boolean          default(FALSE), not null
 #  last_seen_at            :datetime
+#  pet                     :string
 #  roles                   :string           default([]), not null, is an Array
 #  slack_user_token        :text
 #  slack_user_token_scopes :string

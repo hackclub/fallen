@@ -8,6 +8,12 @@ class SlackAuthTest < ActionDispatch::IntegrationTest
     assert_equal "U0FRESH", user.reload.slack_id
   end
 
+  test "posts the threads of projects made before connecting" do
+    user = User.create!(hca_id: "hca_fresh", email: "fresh@example.com", display_name: "Fresh", roles: [ "user" ])
+    project = user.projects.create!(title: "Made during onboarding")
+    assert_enqueued_with(job: PostProjectToSlackJob, args: [ project ]) { connect(user, slack_id: "U0FRESH") }
+  end
+
   test "refuses a Slack account already connected to someone else" do
     user = User.create!(hca_id: "hca_fresh", email: "fresh@example.com", display_name: "Fresh", roles: [ "user" ])
     connect(user, slack_id: users(:member).slack_id)

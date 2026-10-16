@@ -14,6 +14,7 @@
 #  is_adult                :boolean          default(FALSE), not null
 #  is_banned               :boolean          default(FALSE), not null
 #  last_seen_at            :datetime
+#  pet                     :string
 #  roles                   :string           default([]), not null, is an Array
 #  slack_user_token        :text
 #  slack_user_token_scopes :string
@@ -37,7 +38,7 @@
 class UserSerializer < ApplicationSerializer
   typelize_from User
   typelize id: :string, avatar: :string, is_admin: :boolean, is_staff: :boolean
-  attributes :display_name, :email, :roles, :is_banned
+  attributes :display_name, :email, :roles, :is_banned, :pet
   attribute(:id) { |user| user.public_id }
   attribute(:avatar) { |user| user.avatar_url }
   attribute(:is_admin, &:admin?)

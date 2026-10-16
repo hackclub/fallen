@@ -99,7 +99,7 @@ class ProjectsTest < ActionDispatch::IntegrationTest
     assert_equal 0, journal.reload.images.count
   end
 
-  test "nothing can be written until slack is connected" do
+  test "journals wait for slack, projects do not" do
     users(:member).disconnect_slack!
     get project_path(projects(:station))
     assert_response :success
@@ -107,9 +107,8 @@ class ProjectsTest < ActionDispatch::IntegrationTest
 
     post project_journals_path(projects(:station)), params: { journal: { body: "hi" } }
     assert_redirected_to root_path
-    post projects_path, params: { project: { title: "Nope" } }
-    assert_redirected_to root_path
-    assert_not Project.exists?(title: "Nope")
+    post projects_path, params: { project: { title: "Made while onboarding" } }
+    assert Project.exists?(title: "Made while onboarding")
   end
 
   test "cannot journal on someone else's project" do

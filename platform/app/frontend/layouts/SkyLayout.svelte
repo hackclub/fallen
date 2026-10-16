@@ -2,6 +2,9 @@
   import { onMount, type Snippet } from 'svelte'
   import { Link } from '@inertiajs/svelte'
   import Toasts from '@/components/Toasts.svelte'
+  import OnboardingOverlay from '@/components/onboarding/OnboardingOverlay.svelte'
+  import SlackGate from '@/components/onboarding/SlackGate.svelte'
+  import DesktopPet from '@/components/DesktopPet.svelte'
   import ImpersonationBanner from '@/components/ImpersonationBanner.svelte'
   import NavRail from '@/components/NavRail.svelte'
   import NameTag from '@/components/NameTag.svelte'
@@ -61,6 +64,9 @@
 
         <main class="mx-auto w-full max-w-5xl flex-1 px-4 py-8 md:pr-[59px] md:pl-0">
           <Toasts />
+          <DesktopPet />
+          <OnboardingOverlay greet />
+          <SlackGate />
           {@render children?.()}
         </main>
 

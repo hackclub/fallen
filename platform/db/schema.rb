@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_14_010100) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_16_022445) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -284,6 +284,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_14_010100) do
     t.datetime "updated_at", null: false
     t.text "slack_user_token"
     t.string "slack_user_token_scopes"
+    t.string "pet"
     t.index ["created_at"], name: "index_users_on_created_at"
     t.index ["discarded_at"], name: "index_users_on_discarded_at"
     t.index ["email"], name: "index_users_on_email"

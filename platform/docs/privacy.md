@@ -20,7 +20,7 @@ Only from the token's `subject`: any `emails` (case-insensitive against `users.e
 
 | What | Where |
 | --- | --- |
-| The account: name, email, avatar, Slack id, timezone, roles, HCA token, Slack user token, verification status | `users` |
+| The account: name, email, avatar, Slack id, timezone, roles, HCA token, Slack user token, verification status, pet | `users` |
 | Their projects and journals (text, hours, Lapse links, Slack message ids and text), project banners and journal photos | `projects`, `journals`, Active Storage |
 | Slack thread replies not yet made into a journal (text, Slack message ids, photo names and links) | `journal_drafts` |
 | Change history of the account, projects and journals (PaperTrail copies of the rows) | `versions` |
@@ -32,7 +32,7 @@ Sessions are signed cookies holding the user id, so they stop working once the r
 | What | Why |
 | --- | --- |
 | History of changes the person made to other accounts as staff | Belongs to those accounts. `whodunnit` is set to null so it no longer points at the person. |
-| Banned accounts | Kept as a placeholder with only the HCA id and ban flag, so the ban still applies if they sign in again. Name, email, avatar, Slack id and tokens are wiped and the account's history is deleted. |
+| Banned accounts | Kept as a placeholder with only the HCA id and ban flag, so the ban still applies if they sign in again. Name, email, avatar, pet, Slack id and tokens are wiped and the account's history is deleted. |
 
 ## Not covered
 

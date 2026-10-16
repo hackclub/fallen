@@ -30,6 +30,7 @@ class SlackAuthController < ApplicationController
 
     current_user.update!(slack_id: authed["id"], slack_user_token: authed["access_token"], slack_user_token_scopes: authed["scope"])
     SyncSlackProfileJob.perform_later(current_user)
+    current_user.projects.kept.where(slack_thread_ts: nil).find_each { |project| PostProjectToSlackJob.perform_later(project) }
     redirect_to return_path, notice: "Slack connected. Journals you write here now post as you."
   rescue Slack::Web::Api::Errors::SlackError, Faraday::Error => e
     Sentry.capture_exception(e)

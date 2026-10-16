@@ -1,10 +1,9 @@
 # frozen_string_literal: true
 
-# Users offered by the development-only sign-in dropdown on the landing page (LandingController).
+# Accounts offered by the development-only sign in page (DevController).
 class DevUserSerializer < ApplicationSerializer
   typelize_from User
-  typelize id: :string, sign_in_url: :string
-  attributes :display_name, :email, :roles
+  typelize id: :string
+  attributes :display_name, :email, :roles, :is_banned, :is_adult, :pet, :last_seen_at, :created_at
   attribute(:id) { |user| user.public_id }
-  attribute(:sign_in_url) { |user| Rails.application.routes.url_helpers.dev_sign_in_as_path(user.public_id) }
 end
