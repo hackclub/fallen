@@ -48,6 +48,17 @@ class ProjectTest < ActiveSupport::TestCase
     assert journals(:pending_hours).reload.discarded?
   end
 
+  test "destroy only discards, for the project, its journals and its owner" do
+    assert_no_difference -> { Project.count + Journal.count + User.count + ActiveStorage::Attachment.count } do
+      projects(:station).destroy
+      users(:member).destroy!
+      Project.where(id: projects(:station).id).destroy_all
+    end
+    assert projects(:station).reload.discarded?
+    assert journals(:first).reload.discarded?
+    assert users(:member).reload.discarded?
+  end
+
   test "links must be urls" do
     project = users(:member).projects.build(title: "x", repo_url: "github.com/x")
     assert_not project.valid?
