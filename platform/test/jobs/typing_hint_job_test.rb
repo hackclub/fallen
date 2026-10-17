@@ -6,6 +6,7 @@ class TypingHintJobTest < ActiveJob::TestCase
       TypingHintJob.perform_now("U0NEWBIE", "CJOURNALS")
       hint = slack.calls_to(:chat_postEphemeral).first
       assert_equal "U0NEWBIE", hint[:user]
+      assert hint[:text].start_with?("<@U0NEWBIE>\n")
       assert_nil hint[:thread_ts]
       assert_includes hint[:blocks].last[:elements].first[:url], "/projects/new"
     end

@@ -107,10 +107,10 @@ module SlackMessages
   def quote(text, limit) = text.strip.truncate(limit).gsub(/^/, "> ")
 
   # Ephemeral, shown while someone types a top-level post in the journals channel (TypingHintJob).
-  def typing_hint(projects)
+  def typing_hint(projects, slack_user_id)
     start = SlackBot::Blocks.actions(SlackBot::Blocks.button("Start a project", "open_fallen", url: new_project_url, style: projects.empty? ? "primary" : nil))
     if projects.empty?
-      text = ":bangbang: DO :bangbang: NOT :bangbang: SEND :bangbang: A :bangbang: MESSAGE :bangbang: HERE!\n\nYou don't have a project yet!! To create a project, head to fallen.hackclub.com before coming back!!\n\n:blob_hype: SEE YOU SOON :blob_hype:"
+      text = "<@#{slack_user_id}>\n:bangbang: DO :bangbang: NOT :bangbang: SEND :bangbang: A :bangbang: MESSAGE :bangbang: HERE!\nYou don't have a project yet!! To create a project, head to fallen.hackclub.com before coming back!!\n:blob_hype: SEE YOU SOON :blob_hype:"
       return { text: text, blocks: [ SlackBot::Blocks.section(text), start ] }
     end
 

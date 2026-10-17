@@ -12,7 +12,7 @@ class TypingHintJob < ApplicationJob
   def self.hint(slack_user_id, channel_id)
     user = User.kept.find_by(slack_id: slack_user_id)
     projects = threads_for(user, channel_id)
-    state = Digest::SHA256.hexdigest(SlackMessages.typing_hint(projects).merge(latest: latest_post(channel_id)).to_json)
+    state = Digest::SHA256.hexdigest(SlackMessages.typing_hint(projects, slack_user_id).merge(latest: latest_post(channel_id)).to_json)
     key = "typing_hint/#{channel_id}/#{slack_user_id}/#{state}"
     return if Rails.cache.exist?(key)
 
@@ -36,7 +36,7 @@ class TypingHintJob < ApplicationJob
 
   def perform(slack_user_id, channel_id)
     projects = self.class.threads_for(User.kept.find_by(slack_id: slack_user_id), channel_id)
-    SlackBot.client.chat_postEphemeral(channel: channel_id, user: slack_user_id, **SlackMessages.typing_hint(projects))
+    SlackBot.client.chat_postEphemeral(channel: channel_id, user: slack_user_id, **SlackMessages.typing_hint(projects, slack_user_id))
   rescue Slack::Web::Api::Errors::SlackError
     nil
   end
