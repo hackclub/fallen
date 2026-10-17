@@ -30,9 +30,7 @@ class PagesTest < ActionDispatch::IntegrationTest
 
   test "home streams in my projects, totals and daily activity" do
     sign_in_as users(:member)
-    props = inertia_props(home_path, "Home/Index")
-    assert props["slack"]["connected"]
-    assert_nil props["stats"]
+    assert_nil inertia_props(home_path, "Home/Index")["stats"]
 
     props = load_deferred(home_path, "Home/Index", "projects", "stats", "activity")
     assert_equal [ projects(:station), projects(:unlinked) ].map(&:public_id).sort, props["projects"].pluck("id").sort

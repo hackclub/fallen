@@ -34,7 +34,7 @@
   {/if}
 
   <!-- Figma "name tag", stretched to fit the name: the ribbon's two ragged ends are windows onto the original SVG and
-       a plain white band (its flat middle, x 65 to 150 and y 6.8 to 46.5) grows between them. The avatar overlaps the left end. -->
+       a plain cream band (its flat middle, x 65 to 150 and y 6.8 to 46.5) grows between them. The avatar overlaps the left end. -->
   <button
     type="button"
     onclick={() => (open = !open)}
@@ -47,7 +47,7 @@
         <img src={ribbon} alt="" class="absolute top-0 left-0 max-w-none" />
       </span>
       <span
-        class="-mx-px mt-[6.8px] mb-[3.9px] flex max-w-48 items-center bg-white pl-0.5 font-lora text-base font-medium text-black"
+        class="-mx-px mt-[6.8px] mb-[3.9px] flex max-w-48 items-center bg-cream pl-0.5 font-lora text-base font-medium text-black"
       >
         <span class="truncate">{user.display_name}</span>
       </span>

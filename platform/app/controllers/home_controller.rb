@@ -1,6 +1,4 @@
 class HomeController < ApplicationController
-  include SlackStatus
-
   skip_after_action :verify_authorized # Shows only the current user's own data
   skip_after_action :verify_policy_scoped # Projects go through policy_scope, but only in the deferred request
 
@@ -8,9 +6,6 @@ class HomeController < ApplicationController
 
   def index
     render inertia: "Home/Index", props: {
-      slack: slack_props,
-      can: { create_project: policy(Project).create? },
-      direct_upload_url: rails_direct_uploads_path,
       projects: InertiaRails.defer { projects },
       stats: InertiaRails.defer { stats },
       activity: InertiaRails.defer { activity }
