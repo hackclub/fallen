@@ -137,8 +137,13 @@
     class="absolute -inset-x-[12vw] -top-[30vh] bottom-[10vh] rounded-[min(22vw,30vh)] shadow-[0_0_0_100vmax_color-mix(in_oklab,var(--color-dark-blue)_55%,transparent)] blur-[6vw]"
   ></div>
 </div>
-<!-- the frame is its own layer above the sections, so their darkening gradient never covers it as it fades -->
-<div class="pointer-events-none fixed inset-0 z-3" style:opacity={1 - leaving} aria-hidden="true">
+<!-- the frame is its own layer above the sections, so their darkening gradient never covers it as it fades. Hidden on
+     phones for now -->
+<div
+  class="pointer-events-none fixed inset-0 z-3 max-sm:hidden"
+  style:opacity={1 - leaving}
+  aria-hidden="true"
+>
   <!-- the frame's border, from the screen edge to its inner line (GoldFrame's innerInset, 21px), lightly blurs
        everything scrolling under it: most at the screen edge, fading to none by the inner line. Four strips rather
        than one full-screen layer, so only that border is ever blurred; each one's mask fades it inwards. -->
@@ -204,8 +209,9 @@
   </div> -->
 </section>
 
-<!-- relative z-1: over the fixed hero scene (also z-1, but earlier), so its shards pass behind the video and text -->
-<div class="relative z-1">
+<!-- relative z-1: over the fixed hero scene (also z-1, but earlier), so its shards pass behind the video and text.
+     overflow-x-clip: tilted cards and wide companions stick out past the screen edge, and mustn't scroll it sideways -->
+<div class="relative z-1 overflow-x-clip">
   <div class="relative">
     <div
       class="absolute inset-0 -z-1 bg-linear-to-b from-transparent via-purple via-60% to-dark-purple"
