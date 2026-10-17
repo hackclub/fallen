@@ -222,7 +222,7 @@
       class="px-10 sm:px-16 md:px-24 lg:px-32 mx-auto flex max-w-6xl flex-col items-center gap-12 text-xl/relaxed text-cream md:text-2xl lg:flex-row lg:justify-between lg:gap-16"
     >
       <div class="max-w-2xl space-y-5 font-lora md:space-y-6">
-        <p>Welcome to Fallen!</p>
+        <p class="font-bold">Welcome to Fallen!</p>
         <p>
           This December you & {travellers} teens will travel to China, to showcase your projects at
           <a class="text-periwinkle underline" href="https://makerfaire.com/">Maker Faire Shenzhen!</a>
