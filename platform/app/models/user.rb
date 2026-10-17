@@ -35,6 +35,8 @@
 class User < ApplicationRecord
   ROLES = %w[user reviewer admin].freeze
   FALLBACK_AVATAR = "/static-assets/pfp_fallback.webp"
+  # Cachet redirects to the current Slack profile picture, so stored Slack image URLs never go stale.
+  CACHET_URL = "https://cachet.hackclub.com"
   # The desktop pet picked during onboarding, as an egg until it hatches.
   PETS = %w[lulu sami].freeze
 
@@ -78,7 +80,11 @@ class User < ApplicationRecord
     update(roles: roles - [ role.to_s ])
   end
 
-  def avatar_url = avatar.presence || FALLBACK_AVATAR
+  def avatar_url
+    return "#{CACHET_URL}/users/#{slack_id}/r" if slack_id.present?
+
+    avatar.presence || FALLBACK_AVATAR
+  end
 
   def slack_mention = slack_id.present? ? "<@#{slack_id}>" : display_name
 
@@ -119,7 +125,7 @@ class User < ApplicationRecord
     self.roles = [ "user" ] if roles.blank?
   end
 
-  # Pulls display name, avatar and timezone from the Slack workspace. Needs SLACK_BOT_TOKEN with users:read.
+  # Pulls display name and timezone from the Slack workspace. Needs SLACK_BOT_TOKEN with users:read.
   def sync_slack_profile!
     return if slack_id.blank?
 
@@ -127,7 +133,6 @@ class User < ApplicationRecord
     profile = info.user.profile
     updates = {}
     updates[:display_name] = profile.display_name.presence || profile.real_name.presence || display_name
-    updates[:avatar] = profile.image_192.presence || profile.image_512.presence || profile.image_72.presence || avatar
     updates[:timezone] = info.user.tz.presence || timezone
     update!(updates)
   end

@@ -52,6 +52,18 @@ class UserTest < ActiveSupport::TestCase
     assert_not user.reload.admin?
   end
 
+  test "avatar comes from Cachet when the user has a Slack id" do
+    user = users(:member)
+    assert_equal "https://cachet.hackclub.com/users/U0MEMBER/r", user.avatar_url
+
+    user.slack_id = nil
+    user.avatar = "https://example.com/me.png"
+    assert_equal "https://example.com/me.png", user.avatar_url
+
+    user.avatar = nil
+    assert_equal User::FALLBACK_AVATAR, user.avatar_url
+  end
+
   test "rejects unknown roles" do
     user = users(:member)
     user.roles = [ "superuser" ]
