@@ -88,8 +88,8 @@ message is the project; each reply by the owner is a journal. Both sides stay in
 - Before that happens: `bin/slack-typing` watches who starts typing a top-level post and `TypingHintJob` sends them
   a hidden hint, with a "Start a project" button or links to the threads of projects they already have. Slack only
   reports typing to its own clients, so it signs in as an account in the channel (`SLACK_BROWSER_TOKEN`, an `xoxc-`
-  token, and `SLACK_BROWSER_COOKIE`, its `d` cookie; `SlackBot::BrowserSocket`). In production it runs as its own
-  process from the web image.
+  token, and `SLACK_BROWSER_COOKIE`, its `d` cookie; `SlackBot::BrowserSocket`). In production it runs next to
+  Solid Queue in the worker container (`bin/worker`).
 - Web -> Slack: `PostProjectToSlackJob` posts the thread anchor, `SyncJournalToSlackJob` posts, edits and deletes
   journal replies. Messages go out as the person when they have connected Slack (`SlackAuthController`, user scope
   `chat:write`, needs `SLACK_CLIENT_ID` / `SLACK_CLIENT_SECRET` and the redirect URL from the manifest); otherwise the

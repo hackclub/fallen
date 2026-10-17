@@ -158,16 +158,9 @@ class JournalFlowTest < ActiveSupport::TestCase
   end
 
   test "a project anchor posted as the person is kept" do
-    project = users(:member).projects.create!(title: "Drone")
     with_fake_slack do |slack|
-      deletes = stub_prometheus do
-        handle_message(user: "U0MEMBER", ts: "1700000009.000100", text: "Drone")
-        assert_equal MessageEvent::ANCHOR_GRACE.from_now.to_i, enqueued_jobs.last["scheduled_at"].to_time.to_i
-        project.update_columns(slack_channel_id: CHANNEL, slack_thread_ts: "1700000009.000100")
-        perform_enqueued_jobs
-      end
-      assert_empty deletes
-      assert_empty slack.calls_to(:chat_postEphemeral)
+      assert_no_enqueued_jobs { handle_message(user: "U0MEMBER", ts: "1700000009.000100", text: "Drone", bot_id: "B0FALLEN") }
+      assert_empty slack.calls
     end
   end
 
@@ -212,8 +205,8 @@ class JournalFlowTest < ActiveSupport::TestCase
 
   private
 
-  def handle_message(user:, ts:, text:, thread_ts: nil, channel: CHANNEL, files: nil)
-    event = { "type" => "message", "user" => user, "channel" => channel, "ts" => ts, "text" => text, "thread_ts" => thread_ts, "files" => files }.compact
+  def handle_message(user:, ts:, text:, thread_ts: nil, channel: CHANNEL, files: nil, bot_id: nil)
+    event = { "type" => "message", "user" => user, "channel" => channel, "ts" => ts, "text" => text, "thread_ts" => thread_ts, "files" => files, "bot_id" => bot_id }.compact
     SlackBot.handle(:event, { "type" => "event_callback", "event" => event })
   end
 

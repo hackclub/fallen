@@ -79,6 +79,6 @@ COPY --chown=rails:rails --from=build /rails /rails
 # Entrypoint prepares the database.
 ENTRYPOINT ["/rails/bin/docker-entrypoint"]
 
-# Run the Solid Queue supervisor (web image is built from ./Dockerfile)
+# Run Solid Queue and the Slack typing watcher (bin/worker; web image is built from ./Dockerfile)
 
-CMD ["./bin/jobs"]
+CMD ["./bin/worker"]

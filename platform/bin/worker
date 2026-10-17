@@ -1,0 +1,16 @@
+#!/bin/bash
+# The worker container (Dockerfile.worker): Solid Queue plus the Slack typing watcher, which needs the same secrets.
+# If either stops, the other is stopped too so the container exits and gets restarted.
+
+./bin/jobs &
+jobs=$!
+./bin/slack-typing &
+typing=$!
+
+trap 'kill -TERM $jobs $typing 2>/dev/null; wait' TERM INT
+
+wait -n
+status=$?
+kill -TERM $jobs $typing 2>/dev/null
+wait
+exit $status

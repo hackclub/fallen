@@ -7,9 +7,6 @@ class MessageEvent < SlackBot::Event
   subscribes_to "message.channels", "message.groups"
 
   SAVED_EMOJI = "notebook_with_decorative_cover"
-  # A post by someone with an unposted project may be its anchor: PostProjectToSlackJob records the ts right
-  # after posting, and this event can arrive first.
-  ANCHOR_GRACE = 1.minute
 
   def call
     case subtype
@@ -58,13 +55,9 @@ class MessageEvent < SlackBot::Event
     project.journals.kept.where(user: user, slack_ts: nil, body: text).where(created_at: 10.minutes.ago..).exists?
   end
 
+  # Project anchors are posted as the person but carry Fallen's bot_id, so from_bot? has already let them through.
   def remove_stray_post
-    wait = may_be_web_anchor? ? ANCHOR_GRACE : 0
-    RemoveStrayPostJob.set(wait: wait).perform_later(channel_id, ts, slack_user_id, text)
-  end
-
-  def may_be_web_anchor?
-    user.present? && user.projects.kept.where(slack_thread_ts: nil).exists?
+    RemoveStrayPostJob.perform_later(channel_id, ts, slack_user_id, text)
   end
 
   def message_changed

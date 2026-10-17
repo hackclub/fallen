@@ -115,7 +115,7 @@ module SlackMessages
     end
 
     threads = projects.map { |project| "• <#{project.slack_url}|#{escape(project.title)}>" }
-    text = ":notebook_with_decorative_cover: Writing a journal? Reply in your project's thread:\n#{threads.join("\n")}"
+    text = ":notebook_with_decorative_cover: Writing a journal? Reply in your project's thread: (do NOT send a new message here!)\n#{threads.join("\n")}"
     { text: text, blocks: [ SlackBot::Blocks.section(text), SlackBot::Blocks.context("If you want to start a new project, click the button below."), start ] }
   end
 
