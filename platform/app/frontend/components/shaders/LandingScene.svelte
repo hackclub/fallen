@@ -5,7 +5,7 @@
   // everything; the dust scene is a fainter, sparser field of particles in front of them, so a few drift over every
   // section. Imported dynamically from the page so it starts after the page has painted.
   import { onMount } from 'svelte'
-  import Grain from './Grain.svelte'
+  // import Grain from './Grain.svelte'
   import { clamp, perspective, spring, type Layer, type View } from './webgl'
   import { createParticles } from './particles'
   import { createShards } from './shards'
@@ -93,9 +93,11 @@
 <svelte:window onpointermove={onPointerMove} />
 <svelte:document onmouseleave={onPointerLeave} />
 
+<!-- grain hidden for now
 {#if scene === 'hero'}
   <Grain />
 {/if}
+-->
 
 <!-- z-1 is under the page's sections (also z-1, but later); the dust's z-2 is over them, under the frame -->
 <div class={['pointer-events-none fixed inset-0', scene === 'hero' ? 'z-1' : 'z-2']} aria-hidden="true">
