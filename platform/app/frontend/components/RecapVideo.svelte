@@ -122,6 +122,21 @@
           <div
             class="absolute inset-0 bg-[radial-gradient(ellipse_75%_75%_at_50%_45%,transparent_35%,color-mix(in_oklab,var(--color-twilight)_80%,transparent))]"
           ></div>
+          <!-- a play button in the middle, coloured like the stops in "How this works" (HowItWorks.svelte) -->
+          <span
+            class="absolute top-1/2 left-1/2 grid size-14 -translate-1/2 place-items-center rounded-full border-2 border-gold bg-blue text-gold md:size-16"
+          >
+            <!-- nudged right, as a triangle's weight sits left of its box's middle -->
+            <svg class="ml-1 size-7 md:size-8" viewBox="0 0 24 24" aria-hidden="true"
+              ><path
+                d="M6 3.5 21 12 6 20.5Z"
+                fill="currentColor"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linejoin="round"
+              /></svg
+            >
+          </span>
         </button>
       {/if}
     </div>

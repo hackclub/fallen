@@ -148,6 +148,38 @@
   }
 }
 
+/* A faint white light round the pointer, only on the letters under it: on a copy of a link's label, laid over it,
+   with lib/glimmer.ts moving the light. The position is registered so it can ease after the pointer, just behind it. */
+@property --glimmer-x {
+  syntax: '<length-percentage>';
+  inherits: true;
+  initial-value: 50%;
+}
+
+@property --glimmer-y {
+  syntax: '<length-percentage>';
+  inherits: true;
+  initial-value: 50%;
+}
+
+@utility glimmer {
+  -webkit-text-stroke: 0;
+  text-shadow: none;
+  color: transparent;
+  background: radial-gradient(
+      circle 40px at var(--glimmer-x) var(--glimmer-y),
+      rgb(255 255 255 / 0.85),
+      transparent
+    )
+    no-repeat;
+  background-clip: text;
+  /* custom properties need naming: transition-all leaves them out */
+  transition:
+    opacity 150ms,
+    --glimmer-x 150ms ease-out,
+    --glimmer-y 150ms ease-out;
+}
+
 /* The landing sections' entrance: each `place-down` element tilts in as it comes up from the bottom of the screen,
    its top edge leaning away, and lies flat by the time it's partway up, like a sheet being laid down. Its parent
    is a `place-down-stage`, whose close perspective exaggerates the foreshortening. Scroll-driven and only rotate and

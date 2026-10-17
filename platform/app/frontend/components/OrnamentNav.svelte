@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { followPointer } from '@/lib/glimmer'
+
   // A stacked list of links with a line-and-diamonds ornament either side of the active one. The first link stays
   // active until another is hovered or focused, and again once the pointer leaves. small is the footer's size; glow
   // gives the links and ornaments a white glow, like the footer's wordmark. class goes on the nav, itemClass on each
@@ -23,14 +25,6 @@
     '[filter:drop-shadow(0_0_6px_rgb(255_255_255/0.25))_drop-shadow(0_0_20px_rgb(255_255_255/0.1))]'
 
   let active = $state(0)
-
-  // where a glimmer link's light is, in px from its top left
-  function followPointer(event: PointerEvent) {
-    const link = event.currentTarget as HTMLElement
-    const box = link.getBoundingClientRect()
-    link.style.setProperty('--glimmer-x', `${event.clientX - box.left}px`)
-    link.style.setProperty('--glimmer-y', `${event.clientY - box.top}px`)
-  }
 </script>
 
 {#snippet ornament(visible: boolean, extra = '')}
@@ -147,37 +141,3 @@
     </div>
   {/each}
 </nav>
-
-<style>
-  /* registered so the light's position can ease after the pointer, just behind it */
-  @property --glimmer-x {
-    syntax: '<length-percentage>';
-    inherits: true;
-    initial-value: 50%;
-  }
-
-  @property --glimmer-y {
-    syntax: '<length-percentage>';
-    inherits: true;
-    initial-value: 50%;
-  }
-
-  /* a faint white light round the pointer, only on the letters under it */
-  .glimmer {
-    -webkit-text-stroke: 0;
-    text-shadow: none;
-    color: transparent;
-    background: radial-gradient(
-        circle 40px at var(--glimmer-x) var(--glimmer-y),
-        rgb(255 255 255 / 0.85),
-        transparent
-      )
-      no-repeat;
-    background-clip: text;
-    /* custom properties need naming: transition-all leaves them out */
-    transition:
-      opacity 150ms,
-      --glimmer-x 150ms ease-out,
-      --glimmer-y 150ms ease-out;
-  }
-</style>
