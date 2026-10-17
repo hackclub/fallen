@@ -88,7 +88,7 @@
 {/snippet}
 
 {#snippet isItFree()}
-  Yes, no catch! Fallen funds your project and the in-person event.
+  No catch! Fallen funds your project and the in-person event.
 {/snippet}
 
 {#snippet whyShenzhen()}
@@ -112,12 +112,12 @@
 
 {#snippet howLong()}
   Your character levels up with the hours you put in, and you qualify once it reaches its final form.
-  Journaling every day builds a streak that speeds up its progress, so qualifying takes about {qualifyingHours}
-  hours depending on how well you keep your streak.
+  Journaling every day builds a streak that speeds up its progress, so qualifying takes about 80-120 hours
+ depending on how well you keep your streak & your character's bonus!
 {/snippet}
 
 {#snippet cantTravel()}
-  You can still take part! Level up your character to earn prizes like 3D printers and CNC mills, or custom
+  You can still be a faller! Level up your character to earn prizes like 3D printers and CNC mills, or
   Fallen merch.
 {/snippet}
 
