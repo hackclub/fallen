@@ -22,8 +22,6 @@
   let tilt = $state([0, 0]) // degrees round the x and y axes
   const reducedMotion =
     typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches
-  // with no cursor (touch) or from the keyboard, the badge rests in the middle so it's still clear this plays
-  const noHover = typeof matchMedia !== 'undefined' && matchMedia('(hover: none)').matches
 
   let hovering = $state(false)
   let focused = $state(false)
@@ -158,10 +156,12 @@
     {/if}
   </div>
 
-  <!-- outside the tilting plane, so it stays by the cursor; off to the lower right so the cursor doesn't cover it -->
+  <!-- outside the tilting plane, so it stays by the cursor; off to the lower right so the cursor doesn't cover it.
+       Focused from the keyboard, it rests in the middle. On touch screens there's no cursor, so it's left out and the
+       play button alone shows this plays -->
   {#if !playing}
-    {@const shown = hovering || focused || noHover}
-    {@const centred = !hovering && (focused || noHover)}
+    {@const shown = hovering || focused}
+    {@const centred = !hovering && focused}
     <span
       class="pointer-events-none absolute top-0 left-0 z-10 transition-opacity duration-200 will-change-transform {shown
         ? 'opacity-100'
