@@ -2,9 +2,11 @@
   // Past projects, fanned out on a great wheel (lib/projectWheel.ts) with the middle card lit from behind and named
   // underneath. The wheel drifts round on its own; the first time it comes on screen it spins in fast and slows into
   // that drift. Under the pointer it settles on the nearest card with a slight sway. It can be dragged and flicked,
-  // carrying on with the flick's speed before easing back into the drift. A side card turns to that project, and the
-  // middle card opens its source. The list is drawn twice round the rim so the edges are never short of cards. Only
-  // transforms, opacity and a mask change each frame, and the frames stop while it's off screen or held still.
+  // carrying on with the flick's speed before easing back into the drift. A sideways scroll (a trackpad swipe, or shift
+  // and the mouse wheel) turns it too, easing after the scroll and settling on a card once it stops. A side card turns
+  // to that project, and the middle card opens its source. The list is drawn twice round the rim so the edges are never
+  // short of cards. Only transforms, opacity and a mask change each frame, and the frames stop while it's off screen or
+  // held still.
   import PastProjectCard from '@/components/PastProjectCard.svelte'
   import { starPath } from '@/components/GoldFrame.svelte'
   import { pastProjects as projects } from '@/lib/pastProjects'
@@ -26,6 +28,7 @@
   const wheel = $derived(wheelFor(stageWidth < 640 ? 150 : stageWidth < 1280 ? 180 : 200))
 
   const slotsEl: HTMLElement[] = $state([])
+  let stage: HTMLElement
   let offset = 0 // cards the wheel has turned
   let velocity = 0 // cards/s
   let target: number | null = null // the card it's settling on, while held
@@ -40,6 +43,8 @@
   let lastUse = -Infinity
   let frame = 0
   let last = 0
+  let scrollTo: number | null = null // where a sideways scroll has turned it to, while it's being scrolled
+  let lastScroll = 0
 
   const wrap = (s: number, period = slots) => s - period * Math.round(s / period) // into -period/2 to period/2
   const held = () => {
@@ -48,7 +53,9 @@
   }
 
   function place() {
-    slotsEl.forEach((el, i) => placeCard(el, wrap(i - offset), wheel))
+    const places = slotsEl.map((_, i) => wrap(i - offset))
+    const order = places.map((_, i) => i).sort((a, b) => Math.abs(places[a]) - Math.abs(places[b]))
+    order.forEach((i, rank) => placeCard(slotsEl[i], places[i], rank, wheel))
     // too quick to read: the name hides until the wheel slows, then shows the card it slowed on
     fast = Math.abs(velocity) > 4
     if (!fast) active = ((Math.round(offset) % projects.length) + projects.length) % projects.length
@@ -65,6 +72,19 @@
     last = now
     frame = requestAnimationFrame(tick)
     if (dragging) return place()
+    if (scrollTo !== null) {
+      // scroll events come in steps and not in time with the frames, so it chases them rather than jumping
+      const next = offset + (scrollTo - offset) * (1 - Math.exp(-delta * 18))
+      velocity = (next - offset) / Math.max(delta, 0.001)
+      offset = next
+      // stopped scrolling: settle on the card nearest where the scroll got to
+      if (now - lastScroll > 140) {
+        target = Math.round(scrollTo)
+        scrollTo = null
+        lastUse = performance.now()
+      }
+      return place()
+    }
     if (!held()) {
       target = null
       velocity += (drift - velocity) * (1 - Math.exp(-delta * ease))
@@ -105,6 +125,8 @@
     const visibility = new IntersectionObserver(
       ([entry]) => {
         onScreen = entry.isIntersecting
+        // the rays behind the middle card only turn while they can be seen
+        stage.parentElement!.style.setProperty('--spin', onScreen ? 'running' : 'paused')
         if (!onScreen) {
           cancelAnimationFrame(frame)
           frame = 0
@@ -125,6 +147,22 @@
       visibility.disconnect()
       cancelAnimationFrame(frame)
     }
+  })
+
+  function onWheel(event: WheelEvent) {
+    // up and down still scroll the page
+    if (dragging || Math.abs(event.deltaX) <= Math.abs(event.deltaY)) return
+    event.preventDefault()
+    const px = event.deltaX * (event.deltaMode === WheelEvent.DOM_DELTA_LINE ? 40 : 1)
+    scrollTo = (scrollTo ?? offset) + px / wheel.spacing
+    lastScroll = lastUse = performance.now()
+    start()
+  }
+
+  $effect(() => {
+    // not through onwheel, which Svelte makes passive, so it couldn't stop the browser going back a page
+    stage.addEventListener('wheel', onWheel, { passive: false })
+    return () => stage.removeEventListener('wheel', onWheel)
   })
 
   // a press only becomes a drag once it has moved, so a click still reaches the card under it
@@ -224,6 +262,7 @@
 
     <!-- the cards, faded out towards the screen's sides and the bottom of the wheel -->
     <div
+      bind:this={stage}
       role="presentation"
       class={[
         'absolute inset-0 touch-pan-y overflow-hidden select-none mask-x-from-85% mask-b-from-70%',
@@ -296,6 +335,7 @@
 <style>
   .rays {
     animation: spin 90s linear infinite;
+    animation-play-state: var(--spin, running);
   }
 
   @keyframes spin {

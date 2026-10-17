@@ -22,13 +22,27 @@ export const smoothstep = (a: number, b: number, v: number) => {
 const crossfade = 0.05 // cards of turning over which two overlapping cards trade places
 const soft = 10 // px of the overlap's fade, so its edge isn't a hard line
 
-// Puts a card s places from the middle (fractional while the wheel turns; negative to the left).
-//
-// The card nearer the middle goes on top, and the two either side of the middle trade places as they pass it. A
-// swap of z-index alone would flick the overlap from one card to the other in a frame, so for a moment either side
+// What was last written to each card, so a frame only writes what changed. Every write costs a style recalc, and the
+// custom properties are inherited, so changing one recalculates the whole card beneath it. Cards far out on the rim
+// barely change at all.
+const written = new WeakMap<HTMLElement, Map<string, string>>()
+
+function write(el: HTMLElement, property: string, value: string) {
+  let values = written.get(el)
+  if (!values) written.set(el, (values = new Map()))
+  if (values.get(property) === value) return
+  values.set(property, value)
+  if (value) el.style.setProperty(property, value)
+  else el.style.removeProperty(property)
+}
+
+// Puts a card s places from the middle (fractional while the wheel turns; negative to the left) and `rank` places
+// from the front. The card nearer the middle goes on top, so the order only changes as the two either side of the
+// middle trade places as they pass it; a z-index that changed every frame would have the browser rebuild its layers
+// every frame. A swap of z-index alone would flick the overlap from one card to the other in a frame, so for a moment either side
 // of the swap the front card's overlapping edge turns half see-through, through a mask along the edge of the card
 // behind (tilted with it, as the cards fan out). At the swap both show at half, so it crossfades instead.
-export function placeCard(el: HTMLElement, s: number, wheel: Wheel) {
+export function placeCard(el: HTMLElement, s: number, rank: number, wheel: Wheel) {
   const { width, height, spacing, radius, lift } = wheel
   const away = Math.abs(s)
   const near = Math.max(0, 1 - away)
@@ -36,13 +50,17 @@ export function placeCard(el: HTMLElement, s: number, wheel: Wheel) {
   const angle = s * step
   const x = radius * Math.sin(angle)
   const y = radius * (1 - Math.cos(angle)) - near * lift
-  el.style.transform = `translate3d(${x}px, ${y}px, 0) rotate(${angle}rad) scale(${1 + near * 0.05})`
-  el.style.opacity = String(1 - smoothstep(3.6, 5.6, away))
-  // finer than the swaps, so two cards only ever tie at the moment they cross
-  el.style.zIndex = String(1000 - Math.floor(away * 100))
-  el.style.setProperty('--near', String(near))
-  el.style.setProperty('--shade', String(smoothstep(0, 2.5, away)))
-  el.style.visibility = away > 5.7 ? 'hidden' : ''
+  const hidden = away > 5.7
+  write(el, 'visibility', hidden ? 'hidden' : '')
+  if (hidden) return
+  write(el, 'transform', `translate3d(${x}px, ${y}px, 0) rotate(${angle}rad) scale(${1 + near * 0.05})`)
+  // to a thousandth, finer than can be seen, so a card that has stopped changing stops being written
+  write(el, 'opacity', (1 - smoothstep(3.6, 5.6, away)).toFixed(3))
+  write(el, 'z-index', String(1000 - rank))
+  write(el, '--near', near.toFixed(3))
+  write(el, '--shade', smoothstep(0, 2.5, away).toFixed(3))
+  // the sparkles only twinkle on a card that shows them
+  write(el, '--twinkle', near > 0 ? 'running' : 'paused')
 
   const edge = away < 0.5 ? 0.5 + 0.5 * smoothstep(0.5, 0.5 - crossfade, away) : 1
   if (edge < 1) {
@@ -51,9 +69,6 @@ export function placeCard(el: HTMLElement, s: number, wheel: Wheel) {
     const radians = (direction * Math.PI) / 180
     const line = width * Math.abs(Math.sin(radians)) + height * Math.abs(Math.cos(radians))
     const at = line / 2 + spacing - width / 2
-    el.style.setProperty(
-      '--mask',
-      `linear-gradient(${direction}deg, #000 ${at - soft}px, rgb(0 0 0 / ${edge}) ${at}px)`,
-    )
-  } else el.style.removeProperty('--mask')
+    write(el, '--mask', `linear-gradient(${direction}deg, #000 ${at - soft}px, rgb(0 0 0 / ${edge}) ${at}px)`)
+  } else write(el, '--mask', '')
 }

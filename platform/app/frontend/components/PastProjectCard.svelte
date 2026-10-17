@@ -2,7 +2,7 @@
   // One card in the Past projects arc: the photo in a gilded frame with a gold hairline and diamonds inside it, and the
   // project's name over a dusk gradient at the bottom. The wheel sets custom properties on a card's slot each frame
   // (lib/projectWheel.ts): --near, 1 for the card in the middle and 0 from one place away, which lights its sparkles;
-  // --shade, which dims the cards further out; and --mask, which fades its edge as it trades places with the card
+  // --shade, which dims the cards further out; --twinkle, which runs the sparkles only while they show; and --mask, which fades its edge as it trades places with the card
   // behind. The shadow and sparkles sit outside the mask so it never cuts them. Hovering tilts it towards the cursor
   // (lib/holo.ts).
   import HoloShine from '@/components/HoloShine.svelte'
@@ -57,6 +57,7 @@
   /* a slow twinkle, each star on its own beat */
   .sparkle {
     animation: twinkle 2.4s ease-in-out infinite;
+    animation-play-state: var(--twinkle, paused);
   }
 
   @keyframes twinkle {
