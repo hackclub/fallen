@@ -1,10 +1,10 @@
 <script lang="ts">
   import { page, router } from '@inertiajs/svelte'
-  import { fade } from 'svelte/transition'
-  import SlackConnect from '@/components/SlackConnect.svelte'
+  import OrnateButton from '@/components/OrnateButton.svelte'
+  import OrnateModal from '@/components/OrnateModal.svelte'
   import { shared } from '@/lib/shared.svelte'
   import { tour } from '@/lib/tour.svelte'
-  import { signOut } from '@/routes'
+  import { connectSlack, signOut } from '@/routes'
 
   // After the onboarding, Slack: journals are posted as the person, so until it is connected there is nothing else
   // to do. The server only asks for this when Slack sign-in is set up (ApplicationController#setup_props). Comes
@@ -22,21 +22,29 @@
 </script>
 
 {#if due}
-  <div
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4"
-    transition:fade={{ duration: 200 }}
-    {@attach portal}
-  >
-    <div class="w-full max-w-md" role="dialog" aria-modal="true" aria-label="Connect Slack">
-      <SlackConnect
-        slack={{ configured: true, oauth_available: true, connected: false, linked: false }}
-        returnTo={page.url}
-      />
-      <button
-        type="button"
-        class="mt-3 w-full text-center font-outfit text-xs text-white/70 underline hover:text-white"
-        onclick={() => router.visit(signOut())}>Sign out</button
-      >
-    </div>
+  <div {@attach portal}>
+    <OrnateModal
+      titleId="slack-gate-title"
+      title="Connect Slack to start"
+      eyebrow="One more step"
+      class="max-w-lg"
+    >
+      <div class="px-6 pt-1 pb-6 text-center md:px-9 md:pb-8">
+        <p class="font-outfit text-sm text-ink-soft">
+          Your project lives as a thread in the journals channel and every journal is a reply in it, posted as
+          you.
+        </p>
+        <div class="mt-6 flex justify-center">
+          <OrnateButton kind="confirm" href={connectSlack({ query: { return_to: page.url } }).url}>
+            Connect Slack
+          </OrnateButton>
+        </div>
+        <button
+          type="button"
+          class="mt-4 font-outfit text-xs text-ink-soft underline hover:text-ink"
+          onclick={() => router.visit(signOut())}>Sign out</button
+        >
+      </div>
+    </OrnateModal>
   </div>
 {/if}

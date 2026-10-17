@@ -2,6 +2,8 @@
   import { useForm } from '@inertiajs/svelte'
   import { onMount } from 'svelte'
   import MarkdownEditor from '@/components/MarkdownEditor.svelte'
+  import OrnateButton from '@/components/OrnateButton.svelte'
+  import OrnateModal from '@/components/OrnateModal.svelte'
   import { countWords } from '@/lib/markdown'
   import type { UploadedImage } from '@/lib/uploads'
   import { journals, projectJournals } from '@/routes'
@@ -116,30 +118,19 @@
 
 <svelte:window onkeydown={onKeydown} />
 
-<div
-  class="fixed inset-0 z-50 flex items-center justify-center bg-sky-night/80 p-3 backdrop-blur-sm sm:p-6"
-  role="dialog"
-  aria-modal="true"
+<OrnateModal
+  titleId="composer-title"
+  title={project.title}
+  eyebrow={editing ? 'Editing a journal for' : 'Journaling for'}
+  {onClose}
+  class="max-w-5xl lg:h-[min(760px,100%)]"
 >
-  <button type="button" class="absolute inset-0 cursor-default" aria-label="Close" onclick={onClose}></button>
-
   <form
     onsubmit={submit}
-    class="paper relative flex max-h-full w-full max-w-5xl flex-col overflow-hidden lg:h-[min(760px,100%)]"
-    aria-labelledby="composer-title"
+    class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-b-[20px] border-t-2 border-[#070b24]"
   >
-    <div class="flex items-start justify-between gap-4 border-b border-ink/10 px-5 py-4 sm:px-7">
-      <div>
-        <p class="font-outfit text-xs tracking-wide text-ink-soft uppercase">
-          {editing ? 'Editing a journal for' : 'Journaling for'}
-        </p>
-        <h2 id="composer-title" class="font-display text-2xl text-ink">{project.title}</h2>
-      </div>
-      <button type="button" onclick={onClose} class="btn-paper px-3 py-1.5 text-xs">Close</button>
-    </div>
-
     <div class="grid min-h-0 flex-1 overflow-y-auto lg:grid-cols-[1fr_300px] lg:overflow-hidden">
-      <section class="flex min-h-0 flex-col gap-2 px-5 py-4 sm:px-7 lg:border-r lg:border-ink/10">
+      <section class="flex min-h-0 flex-col gap-2 px-5 py-4 sm:px-7 lg:border-r-2 lg:border-[#070b24]">
         <label for="journal-body" class="font-display text-lg text-ink">What did you do?</label>
         <MarkdownEditor
           bind:this={editor}
@@ -159,7 +150,7 @@
         </div>
       </section>
 
-      <aside class="flex flex-col gap-5 bg-ink/[0.04] px-5 py-4 sm:px-7 lg:overflow-y-auto">
+      <aside class="flex flex-col gap-5 bg-black/15 px-5 py-4 sm:px-7 lg:overflow-y-auto">
         <div>
           <p class="font-display text-lg text-ink">Time spent</p>
           <p class="mb-2 font-outfit text-xs text-ink-soft">
@@ -220,12 +211,12 @@
         </div>
 
         <div class="mt-auto flex items-center gap-3 pt-2">
-          <button type="submit" class="btn-ink flex-1 py-2.5" disabled={!canSubmit}>
+          <OrnateButton kind="confirm" type="submit" class="flex-1" disabled={!canSubmit}>
             {form.processing ? 'Logging…' : editing ? 'Save journal' : 'Log journal'}
-          </button>
+          </OrnateButton>
         </div>
         <p class="font-outfit text-xs text-ink-soft">Posts to your project thread in Slack as you.</p>
       </aside>
     </div>
   </form>
-</div>
+</OrnateModal>
