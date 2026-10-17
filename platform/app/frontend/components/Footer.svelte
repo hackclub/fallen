@@ -57,10 +57,14 @@
         <a class="transition-colors hover:text-cream" href="https://slack.hackclub.com">Join our Slack</a>
       </li>
       <li>
-        <a class="transition-colors hover:text-cream" href="https://hackclub.com/privacy-and-terms">Privacy Policy</a>
+        <a class="transition-colors hover:text-cream" href="https://hackclub.com/privacy-and-terms"
+          >Privacy Policy</a
+        >
       </li>
       <li>
-        <a class="transition-colors hover:text-cream" href="https://forms.hackclub.com/bounty">Fulfilment Bounty</a>
+        <a class="transition-colors hover:text-cream" href="https://forms.hackclub.com/bounty"
+          >Fulfilment Bounty</a
+        >
       </li>
     </ul>
     <div class="flex flex-wrap items-center gap-x-12 gap-y-4 font-lora text-2xl text-mint italic">
