@@ -177,7 +177,7 @@
     <h1>
       <Wordmark onDark class="z-10 -mt-6 h-32 sm:-mt-10 sm:h-60 drop-shadow-[0_0_4px_rgb(255_255_255/0.6)]" />
     </h1>
-    <p class="text-lg md:text-2xl text-cream px-2 py-1 rounded-xs">December 11–14, 2026</p>
+    <p class="text-lg md:text-2xl text-cream px-2 py-1 rounded-xs font-lora">December 11–14, 2026</p>
   </div>
 
   <h2
@@ -213,20 +213,21 @@
     ></div>
     <div
       bind:this={intro}
-      class="px-6 sm:px-12 mx-auto flex max-w-6xl flex-col items-center gap-12 text-xl/relaxed text-cream md:px-10 md:text-2xl lg:flex-row lg:justify-between lg:gap-16"
+      class="px-10 sm:px-16 md:px-24 lg:px-32 mx-auto flex max-w-6xl flex-col items-center gap-12 text-xl/relaxed text-cream md:text-2xl lg:flex-row lg:justify-between lg:gap-16"
     >
       <div class="max-w-2xl space-y-5 font-lora md:space-y-6">
         <p>Welcome to Fallen!</p>
         <p>
           This December you & {travellers} teens will travel to China, to showcase your projects at
           <a class="text-periwinkle underline" href="https://makerfaire.com/">Maker Faire Shenzhen!</a>
-          For the next {buildTime}, you, other fallers, and us work together to
+          For the next {buildTime}, you, other fallers, and we will work together to
           <span class="text-periwinkle underline">build our own interactive hardware projects!</span>
         </p>
         <p>
           Then, we'll meet up with our projects in Shenzhen, China to demo at Maker Faire's flagship
           convention and go on a hardware adventure.
         </p>
+        <p>Hope to see you there!</p>
         <p class="italic text-mint">- Katie, Anson & Sophia</p>
       </div>
       <PastEvents />

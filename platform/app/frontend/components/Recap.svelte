@@ -3,18 +3,54 @@
   // mint subtitle, with gold framing the video.
   import PhotoCard from '@/components/PhotoCard.svelte'
   import RecapVideo from '@/components/RecapVideo.svelte'
+  import demo from '@/assets/past/02.webp'
+  import fallout from '@/assets/past/21.webp'
+  import group from '@/assets/past/22.webp'
+  import piggyback from '@/assets/past/23.webp'
+  import shark from '@/assets/past/24.webp'
 
   import type { ComponentProps } from 'svelte'
 
-  // shift is in % of the card's own size
-  const leftPhotos: ComponentProps<typeof PhotoCard>[] = [
-    { class: 'aspect-4/3 w-60', rotate: 5 },
-    { class: 'aspect-4/3 w-70', rotate: -2 },
+  // Photos from the hackathon, each card shaped to its photo. shift is in % of the card's own size; at, where needed,
+  // keeps the faces in a crop. Each is washed in the same blue as the video's thumbnail (RecapVideo.svelte)
+  type Photo = ComponentProps<typeof PhotoCard> & { src: string; alt: string; at?: string }
+  const leftPhotos: Photo[] = [
+    {
+      class: 'aspect-4/3 w-60',
+      rotate: 5,
+      src: shark,
+      alt: 'Two hackers giving a thumbs up, one hugging a toy shark',
+      at: 'object-[50%_30%]',
+    },
+    {
+      class: 'aspect-3/2 w-70',
+      rotate: -2,
+      src: fallout,
+      alt: 'Three hackers posing outside the Fallout space',
+    },
   ]
-  const rightPhotos: ComponentProps<typeof PhotoCard>[] = [
-    { class: 'aspect-6/5 w-40 z-30', rotate: 7, shift: [25, 0] },
-    { class: 'aspect-4/3 w-70', rotate: -4, shift: [0, -25] },
-    { class: 'aspect-4/3 w-80', rotate: 4, shift: [0, 33.33] },
+  const rightPhotos: Photo[] = [
+    {
+      class: 'aspect-3/4 w-40 z-30',
+      rotate: 7,
+      shift: [25, 0],
+      src: piggyback,
+      alt: 'One hacker carrying another on their shoulders',
+    },
+    {
+      class: 'aspect-4/3 w-70',
+      rotate: -4,
+      shift: [0, -25],
+      src: demo,
+      alt: 'Hackers watching a demo on the big screen',
+    },
+    {
+      class: 'aspect-4/3 w-80',
+      rotate: 4,
+      shift: [0, 33.33],
+      src: group,
+      alt: 'A group of hackers taking a selfie in a tea shop',
+    },
   ]
 </script>
 
@@ -31,8 +67,11 @@
 
   <div class="place-down-stage relative mt-6 flex h-full w-full items-center justify-center gap-10 md:mt-0">
     <div class="place-down z-20 hidden shrink-0 flex-col justify-center gap-40 xl:-mr-8 xl:flex">
-      {#each leftPhotos as photo, i (i)}
-        <PhotoCard {...photo} />
+      {#each leftPhotos as { src, alt, at, ...card } (src)}
+        <PhotoCard {...card} tone="text-saffron">
+          <img {src} {alt} loading="lazy" class="size-full object-cover {at ?? ''}" />
+          <div class="absolute inset-0 bg-vivid-blue/10"></div>
+        </PhotoCard>
       {/each}
     </div>
     <RecapVideo
@@ -41,8 +80,11 @@
       class="place-down aspect-video w-full max-w-full md:h-[85%] md:w-auto xl:h-auto xl:min-w-0 xl:flex-1"
     />
     <div class="place-down z-20 hidden shrink-0 flex-col justify-between pb-24 xl:-ml-8 xl:flex">
-      {#each rightPhotos as photo, i (i)}
-        <PhotoCard {...photo} />
+      {#each rightPhotos as { src, alt, at, ...card } (src)}
+        <PhotoCard {...card} tone="text-saffron">
+          <img {src} {alt} loading="lazy" class="size-full object-cover {at ?? ''}" />
+          <div class="absolute inset-0 bg-vivid-blue/10"></div>
+        </PhotoCard>
       {/each}
     </div>
   </div>

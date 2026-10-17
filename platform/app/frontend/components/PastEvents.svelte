@@ -1,6 +1,6 @@
 <script lang="ts">
   // Beside the landing page's intro: two cards dealt one over the other, the back one leaning right and the front one
-  // left. The cards are blank until there are photos of past events, and their caption is hidden for now.
+  // left, each with a photo from a past event inside its inner line. Their caption is hidden for now.
   //
   // A hand of cards after crescent.hackclub.com's: the card under the pointer lifts, straightens and grows while the
   // other slides aside, and it stays in front, the larger of the two, once the pointer leaves. Each card is hovered
@@ -9,10 +9,13 @@
   // Each corner is scooped out by a quarter circle, like the recap video's (RecapVideo.svelte), and the card's edge
   // and its inner hairline both follow the scoops, with a dot between them in each corner.
 
-  const [width, height] = [216, 288] // px of each card
-  const scoop = 14 // px radius of the corner notches, centred on the card's corners
+  import huddle from '@/assets/past/18.webp'
+  import lanternAlley from '@/assets/past/19.webp'
+
+  const [width, height] = [272, 360] // px of each card
+  const scoop = 18 // px radius of the corner notches, centred on the card's corners
   const edge = 2 // px of the tangerine edge
-  const hairline = 8 // px from the card's edge in to the inner line
+  const hairline = 10 // px from the card's edge in to the inner line
 
   // the card's outline inset by `inset`, its corners cut by circles of `radius` centred on the card's corners
   function notched(inset: number, radius: number) {
@@ -31,6 +34,8 @@
         `radial-gradient(${scoop}px at ${at}, #0000 calc(100% - 0.5px), #000) ${at} / 51% 51% no-repeat`,
     )
     .join(', ')
+  // the photo fills the card up to the inner line's inside edge, notched like it
+  const photoEdge = notched(hairline + 0.5, scoop + hairline + 0.5)
   // the dots, on each corner's diagonal halfway between the notch and the inner line's
   const dot = ((scoop + scoop + hairline) / 2) * Math.SQRT1_2
   const dots = [
@@ -42,8 +47,8 @@
 
   // where each card rests: px from the left, and its lean in degrees
   const hand = [
-    { x: 0, lean: -12 },
-    { x: 34, lean: 7 },
+    { x: 0, lean: -12, photo: huddle },
+    { x: 42, lean: 7, photo: lanternAlley },
   ]
   let active = $state(0) // the card in front
   let hovered: number | null = $state(null)
@@ -51,15 +56,15 @@
   function place(i: number) {
     const lifted = hovered === i
     // the other card slides away from the lifted one
-    const aside = hovered === null || lifted ? 0 : Math.sign(hand[i].x - hand[hovered].x) * 16
+    const aside = hovered === null || lifted ? 0 : Math.sign(hand[i].x - hand[hovered].x) * 20
     const scale = (active === i ? 1 : 0.92) * (lifted ? 1.05 : 1)
     const lean = lifted ? hand[i].lean / 3 : hand[i].lean
-    return `translate(${hand[i].x + aside}px, ${lifted ? -14 : 0}px) rotate(${lean}deg) scale(${scale})`
+    return `translate(${hand[i].x + aside}px, ${lifted ? -18 : 0}px) rotate(${lean}deg) scale(${scale})`
   }
 </script>
 
 <figure class="flex shrink-0 flex-col items-center gap-8">
-  <div class="relative h-76 w-64" aria-hidden="true">
+  <div class="relative h-94 w-78 max-sm:[zoom:0.8]" aria-hidden="true">
     {#each hand as _, i (i)}
       <!-- z-index moves with the card, so the two trade places halfway through rather than at the start. The shadow is
            on this wrapper because the notches' mask would cut it off -->
@@ -82,6 +87,13 @@
             <circle cx={x} cy={y} r="2" class="fill-sand/80" />
           {/each}
         </svg>
+        <img
+          src={hand[i].photo}
+          alt=""
+          loading="lazy"
+          class="absolute inset-0 size-full object-cover"
+          style:clip-path="path('{photoEdge}')"
+        />
       </div>
       <!-- the card's resting shape, which takes the pointer; the front card's is on top, like the card itself -->
       <div

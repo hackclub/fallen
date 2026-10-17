@@ -10,11 +10,13 @@
 
   let {
     class: className = '',
+    tone = 'text-sand',
     rotate = 0,
     shift = [0, 0],
     children,
   }: {
     class?: string // size, aspect ratio and stacking
+    tone?: string // text colour class for the borders and corner dots
     rotate?: number // resting angle in degrees
     shift?: [number, number] // offset from its place in the layout, in % of its own size
     children?: Snippet
@@ -107,7 +109,7 @@
 <div
   bind:this={card}
   role="presentation"
-  class="relative cursor-grab touch-none rounded-sm border border-sand bg-linen shadow-xs select-none active:cursor-grabbing {className}"
+  class="relative cursor-grab touch-none rounded-sm border border-current bg-linen shadow-xs select-none active:cursor-grabbing {tone} {className}"
   style:z-index={z}
   style:transform-origin={origin ? `${origin[0]}px ${origin[1]}px` : undefined}
   style:transform="translate(calc({shift[0]}% + {x}px), calc({shift[1]}% + {y}px)) rotate({rotate}deg) rotate({swing}rad)"
@@ -117,11 +119,12 @@
   onpointercancel={onPointerUp}
 >
   {#if children}
-    <div class="pointer-events-none absolute inset-4 overflow-hidden">{@render children()}</div>
+    <!-- the photo fills the card up to the inside of its inner border -->
+    <div class="pointer-events-none absolute inset-2 overflow-hidden rounded-sm">{@render children()}</div>
   {/if}
-  <div class="pointer-events-none absolute inset-1.5 rounded-md border-2 border-sand" aria-hidden="true">
+  <div class="pointer-events-none absolute inset-1.5 rounded-md border-2 border-current" aria-hidden="true">
     {#each ['top-1.5 left-1.5', 'top-1.5 right-1.5', 'bottom-1.5 left-1.5', 'bottom-1.5 right-1.5'] as corner (corner)}
-      <span class="absolute {corner} size-1.5 rounded-full bg-sand"></span>
+      <span class="absolute {corner} size-1.5 rounded-full bg-current"></span>
     {/each}
   </div>
 </div>

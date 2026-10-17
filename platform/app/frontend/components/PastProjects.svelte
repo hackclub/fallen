@@ -361,8 +361,8 @@
           >
             {project.name}
           </p>
-          <p class="mt-1 text-sm text-pale-blue/85 sm:text-base" in:fly={rise(1)}>{project.about}</p>
-          <p class="mt-0.5 text-sm text-light-blue/80" in:fly={rise(2)}>by {project.by}</p>
+          <p class="mt-1 text-base text-pale-blue/85 sm:text-lg" in:fly={rise(1)}>{project.about}</p>
+          <p class="mt-0.5 text-base text-light-blue/80" in:fly={rise(2)}>by {project.by}</p>
         </div>
       {/key}
     </div>

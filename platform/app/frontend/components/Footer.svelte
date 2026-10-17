@@ -39,19 +39,20 @@
 {/snippet}
 
 <footer
-  class="relative flex flex-col-reverse md:flex-row h-fit items-center justify-center gap-10 bg-navy/90 py-10 px-6 md:px-10 lg:px-16 pt-40 border-t-2 border-mint"
+  class="relative flex flex-col-reverse md:flex-row h-fit items-center justify-center gap-10 bg-linear-to-b from-dark-purple to-black py-10 px-6 md:px-10 lg:px-16 pt-32"
 >
-  <div class="absolute top-0 left-1/2 flex w-max -translate-1/2 items-center gap-6 text-mint">
+  <!-- the top border and its stars, hidden for now. To bring them back, add border-t-2 border-gold to the footer
+  <div class="absolute top-0 left-1/2 flex w-max -translate-1/2 items-center gap-6 text-gold">
     {@render star()}
-    <!-- a four-pointed star on the border, outlined in mint as thick as the border inside its edge: the stroke is twice
-         that, kept to that width whatever the star's size, and clipped to the star so only its inner half shows -->
+    a four-pointed star on the border, outlined in gold as thick as the border inside its edge: the stroke is twice
+    that, kept to that width whatever the star's size, and clipped to the star so only its inner half shows
     <svg class="size-18 shrink-0" viewBox="0 0 117 117" aria-hidden="true">
       <clipPath id="footer-star">
         <path d={bigStar} />
       </clipPath>
       <path
         d={bigStar}
-        class="fill-cornflower stroke-mint"
+        class="fill-blue stroke-gold"
         stroke-width="4"
         vector-effect="non-scaling-stroke"
         clip-path="url(#footer-star)"
@@ -59,31 +60,40 @@
     </svg>
     {@render star()}
   </div>
+  -->
 
-  <div class="flex flex-col justify-end w-full mt-auto gap-8">
-    <ul class="font-lora text-base md:text-xl lg:text-2xl text-periwinkle flex justify-center whitespace-nowrap gap-1 md:flex-col [text-shadow:0_0_4px_color-mix(in_srgb,var(--color-periwinkle)_45%,transparent),0_0_16px_color-mix(in_srgb,var(--color-periwinkle)_30%,transparent)]">
+  <div class="flex flex-col justify-end w-full mt-auto gap-8 mb-6">
+    <ul
+      class="font-lora text-base md:text-xl lg:text-2xl text-periwinkle [text-shadow:0_0_4px_color-mix(in_srgb,var(--color-periwinkle)_45%,transparent),0_0_16px_color-mix(in_srgb,var(--color-periwinkle)_30%,transparent)] flex flex-wrap justify-center whitespace-nowrap gap-x-1.5 gap-y-1 md:flex-col"
+    >
       {#each links as link, i (link.href)}
-        <li class={[i > 0 && 'ml-3 list-disc md:ml-0 md:list-none']}>
+        <li class="flex items-center gap-1.5">
+          {#if i > 0}<span class="size-1 rounded-full bg-gold md:hidden" aria-hidden="true"></span>{/if}
           <a
-            class="group relative transition-colors hover:text-mint"
+            class="group relative transition-colors hover:text-parchment"
             href={link.href}
             onpointermove={followPointer}
           >
             {link.label}
-            <span class="glimmer pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100" aria-hidden="true"
-              >{link.label}</span
+            <span
+              class="glimmer pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100"
+              aria-hidden="true">{link.label}</span
             >
           </a>
         </li>
       {/each}
     </ul>
-    <div class="justify-center md:justify-start flex flex-wrap items-center gap-x-12 gap-y-4 font-lora text-xl lg:text-2xl text-mint italic">
+    <div
+      class="justify-center md:justify-start flex flex-wrap items-center gap-x-12 gap-y-4 font-lora text-xl lg:text-2xl text-mint italic"
+    >
       <button
         type="button"
         class="flex cursor-pointer items-center gap-4 whitespace-nowrap transition-colors hover:text-cream"
         onclick={toTop}
       >
-        <span class="flex size-8 md:size-10 items-center justify-center rounded-full bg-indigo p-1.5 md:p-2.5">
+        <span
+          class="flex size-8 md:size-10 items-center justify-center rounded-full border-2 border-gold bg-blue p-1.5 md:p-2"
+        >
           <svg
             aria-hidden="true"
             width="100%"
@@ -94,8 +104,7 @@
           >
             <path
               d="M14.4583 26.4167V2.5M26.4167 14.4583L14.4583 2.5L2.5 14.4583"
-              class="stroke-mist"
-              stroke-opacity="0.6"
+              class="stroke-gold"
               stroke-width="5"
               stroke-linecap="round"
               stroke-linejoin="round"
@@ -108,7 +117,7 @@
   </div>
 
   <Wordmark
-    class="w-full md:w-200 h-fit mt-auto -mb-6 min-w-64 [filter:drop-shadow(0_0_6px_color-mix(in_srgb,var(--color-periwinkle)_45%,transparent))_drop-shadow(0_0_28px_color-mix(in_srgb,var(--color-periwinkle)_30%,transparent))]"
+    class="w-full md:w-200 h-fit mt-auto -mb-2 min-w-64 [filter:drop-shadow(0_0_6px_color-mix(in_srgb,var(--color-periwinkle)_45%,transparent))_drop-shadow(0_0_28px_color-mix(in_srgb,var(--color-periwinkle)_30%,transparent))]"
     fill="bg-periwinkle"
   />
 </footer>

@@ -44,11 +44,11 @@
     },
     {
       title: 'Level up',
-      text: 'Every journal earns you XP, and your character will give you bonuses! Keep going until your character has fully evolved!',
+      text: 'Every journal earns you XP, and your character will give you bonuses! Keep earning XP until your character has fully evolved!',
       form: 2,
     },
   ]
-  const goal = { title: 'Visit Shenzhen!', text: 'Come to Shenzhen, or spend your XP in the shop!' }
+  const goal = { title: 'Visit Shenzhen!', text: 'Come to Shenzhen, or receive Fallen swag' }
   // each form's height
   const heights = ['h-32 lg:h-48', 'h-40 lg:h-60', 'h-48 lg:h-72', 'h-56 lg:h-88']
 
@@ -81,13 +81,33 @@
       })
       .join(''),
   )
+
+  // A stop is lit once it has scrolled above 60% of the way down the screen, and stays lit above the top. The
+  // browser watches that line, so scrolling runs no script here.
+  let lit: boolean[] = $state([])
+  $effect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const { target, isIntersecting, boundingClientRect } of entries)
+          lit[nodes.indexOf(target as HTMLElement)] = isIntersecting || boundingClientRect.top < 0
+      },
+      { rootMargin: '0px 0px -40% 0px' },
+    )
+    for (const node of nodes) if (node) observer.observe(node)
+    return () => observer.disconnect()
+  })
 </script>
 
 {#snippet stop(i: number)}
-  <!-- a blue circle ringed in gold, with a gold star in it -->
+  <!-- a blue circle ringed in gold, with a gold star in it, turning tangerine once lit -->
   <span
     bind:this={nodes[i]}
-    class="relative z-1 grid size-14 place-items-center rounded-full border-2 border-gold bg-blue text-gold"
+    class={[
+      'relative z-1 grid size-14 place-items-center rounded-full border-2 border-gold transition duration-500 motion-reduce:transition-none',
+      lit[i]
+        ? 'bg-tangerine text-cream shadow-[0_0_10px_color-mix(in_oklab,var(--color-tangerine)_45%,transparent)]'
+        : 'bg-blue text-gold',
+    ]}
   >
     <svg class="size-6 rotate-45" viewBox="0 0 29.1 29.1" aria-hidden="true"
       ><path d={starPath} fill="currentColor" /></svg
@@ -117,7 +137,7 @@
   {/if}
 {/snippet}
 
-<section id="how-it-works" class="relative overflow-x-clip px-6 pt-32 pb-24 md:px-10">
+<section id="how-it-works" class="relative overflow-x-clip px-8 pt-32 pb-24 sm:px-12 md:px-16 lg:px-20">
   <hgroup class="relative flex flex-col items-center gap-4 text-center">
     <h2
       class="font-lora text-4xl font-semibold text-tangerine text-shadow-md text-shadow-dark-purple/40 md:text-5xl lg:text-6xl"
@@ -163,7 +183,7 @@
             {@render stop(i)}
           </div>
           <div class={['lg:row-start-1', left ? 'lg:col-start-1 lg:text-right' : 'lg:col-start-3']}>
-            <h3 class="font-lora text-3xl font-medium text-cream text-shadow-md text-shadow-dark-purple/40">
+            <h3 class="font-lora text-3xl font-bold text-cream text-shadow-md text-shadow-dark-purple/40">
               {step.title}
             </h3>
             <p
@@ -187,14 +207,15 @@
         <div class="flex justify-center pt-1">{@render stop(steps.length)}</div>
         <div class="mt-4 min-w-0 lg:mt-12">
           <h3
-            class="font-lora text-3xl font-medium text-tangerine text-shadow-md text-shadow-dark-purple/40 lg:text-4xl"
+            class="font-lora text-3xl font-bold text-tangerine text-shadow-md text-shadow-dark-purple/40 lg:text-4xl"
           >
             {goal.title}
           </h3>
           <p class="mt-2 text-lg font-semibold text-pale-blue/80">{goal.text}</p>
           <!-- both, side by side: Sami, a little larger, then Lulu. They never wrap; on a narrow screen they keep their
-               size and the sides are cut off -->
-          <div class="mt-12 flex justify-center gap-x-10 overflow-hidden">
+               size and the sides are cut off. Only sideways, and with room either side, so their halos and shadows
+               aren't -->
+          <div class="-mx-24 mt-12 flex justify-center gap-x-10 overflow-x-clip px-24">
             {@render standing(3, 'shrink-0', 0, 'h-64 lg:h-96')}
             {@render standing(3, 'shrink-0', 1)}
           </div>
