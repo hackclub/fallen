@@ -110,7 +110,7 @@ module SlackMessages
   def typing_hint(projects)
     start = SlackBot::Blocks.actions(SlackBot::Blocks.button("Start a project", "open_fallen", url: new_project_url, style: projects.empty? ? "primary" : nil))
     if projects.empty?
-      text = ":wave: Projects start on Fallen, not with a post here. Once you create one, its thread shows up in this channel and every reply you post in it is a journal."
+      text = ":bangbang: DO :bangbang: NOT :bangbang: SEND :bangbang: A :bangbang: MESSAGE :bangbang: HERE!\n\nYou don't have a project yet!! To create a project, head to fallen.hackclub.com before coming back!!\n\n:blob_hype: SEE YOU SOON :blob_hype:"
       return { text: text, blocks: [ SlackBot::Blocks.section(text), start ] }
     end
 
