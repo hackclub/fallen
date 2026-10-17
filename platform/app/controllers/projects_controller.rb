@@ -18,7 +18,7 @@ class ProjectsController < ApplicationController
 
   def show
     authorize @project
-    pagy, journals = pagy(@project.journals.kept.newest_first.includes(images_attachments: :blob), limit: JOURNALS_PER_PAGE)
+    pagy, journals = pagy(@project.journals.kept.newest_first.includes(:xp_entry, images_attachments: :blob), limit: JOURNALS_PER_PAGE)
 
     render inertia: "Projects/Show", props: {
       project: ProjectSerializer.render(@project, covers: Project.journal_covers([ @project ])),

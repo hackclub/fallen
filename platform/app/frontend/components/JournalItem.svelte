@@ -45,6 +45,10 @@
       <p class="text-sm text-ink-soft">
         {#if journal.duration_text}
           <span>{journal.duration_text}</span>
+          {#if journal.xp != null}
+            <span> • </span>
+            <span class="text-ink">+{journal.xp} XP</span>
+          {/if}
         {:else}
           <span class="text-amber-700">no hours yet</span>
         {/if}

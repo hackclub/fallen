@@ -8,3 +8,8 @@ production:
   clear_solid_cable_messages:
     command: "SolidCable::Message.trim"
     schedule: every hour at minute 42
+
+  close_week:
+    class: CloseWeekJob
+    queue: background
+    schedule: "0 12 * * 1"

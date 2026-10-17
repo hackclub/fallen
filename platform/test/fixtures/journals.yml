@@ -31,6 +31,8 @@
 #  fk_rails_...  (project_id => projects.id)
 #  fk_rails_...  (user_id => users.id)
 #
+# Dated, so "the last journal" (JournalDraft#previous_journal) is always this one and never a tie decided by the
+# database's row order.
 first:
   project: station
   user: member
@@ -39,6 +41,7 @@ first:
   source: slack
   slack_channel_id: CJOURNALS
   slack_ts: "1700000001.000100"
+  created_at: <%= 1.minute.ago %>
 
 pending_hours:
   project: station
@@ -47,6 +50,7 @@ pending_hours:
   source: slack
   slack_channel_id: CJOURNALS
   slack_ts: "1700000002.000100"
+  created_at: <%= 2.minutes.ago %>
 
 web_only:
   project: unlinked

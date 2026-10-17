@@ -53,6 +53,11 @@
     { label: 'Timezone', value: user.timezone },
     { label: 'Verification', value: user.verification_status ?? 'unknown' },
     { label: 'Adult', value: user.is_adult ? 'Yes' : 'No' },
+    {
+      label: 'XP',
+      value: `${user.xp} (stage ${Math.max(user.pet_form, 1)}${user.pet ? `, ${user.pet}` : ''})`,
+    },
+    { label: 'Multiplier', value: `${user.xp_multiplier}x, ${user.streak_freezes} freezes left` },
     { label: 'Last seen', value: formatDateTime(user.last_seen_at) },
     { label: 'Joined', value: formatDate(user.created_at) },
   ])

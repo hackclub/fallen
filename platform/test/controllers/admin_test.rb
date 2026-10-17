@@ -60,6 +60,17 @@ class AdminTest < ActionDispatch::IntegrationTest
     assert_equal Pagy::OPTIONS[:limit] + 1, props["missing_hours"]
   end
 
+  test "admins approve a finished project and can take it back" do
+    sign_in_as users(:admin)
+    patch admin_project_path(projects(:station)), params: { project: { approved: true } }
+    assert_redirected_to admin_project_path(projects(:station))
+    assert projects(:station).reload.approved?
+    assert_equal true, inertia_props(admin_project_path(projects(:station)), "Admin/Projects/Show")["can"]["update"]
+
+    patch admin_project_path(projects(:station)), params: { project: { approved: false } }
+    assert_not projects(:station).reload.approved?
+  end
+
   test "members get a 404 on admin projects" do
     sign_in_as users(:member)
     get admin_projects_path

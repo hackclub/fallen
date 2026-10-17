@@ -181,6 +181,7 @@
         <div>
           <p class="font-display text-lg text-ink">Photos</p>
           <p class="mb-2 font-outfit text-xs text-ink-soft">
+            One for every 2 hours logged.
             {form.images.length === 0
               ? 'None yet. Drop them in the editor or'
               : `${form.images.length} attached.`}

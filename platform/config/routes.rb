@@ -46,7 +46,7 @@ Rails.application.routes.draw do
       resources :users, only: %i[index show update] do
         post :impersonate, on: :member
       end
-      resources :projects, only: %i[index show]
+      resources :projects, only: %i[index show update]
       mount MissionControl::Jobs::Engine, at: "jobs"
     end
   end
@@ -56,6 +56,7 @@ Rails.application.routes.draw do
     get "dev" => "dev#index", as: :dev
     post "dev/users" => "dev#create", as: :dev_users
     get "dev/sign_in_as/new" => "dev#create", as: :dev_sign_in_as_new
+    post "dev/skip_slack" => "dev#skip_slack", as: :dev_skip_slack
     get "dev/sign_in_as/:id" => "dev#sign_in_as", as: :dev_sign_in_as, constraints: { id: %r{[^/]+} } # ids, public ids or emails
   end
 end

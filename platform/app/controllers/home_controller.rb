@@ -8,6 +8,7 @@ class HomeController < ApplicationController
     render inertia: "Home/Index", props: {
       projects: InertiaRails.defer { projects },
       stats: InertiaRails.defer { stats },
+      xp: InertiaRails.defer { xp },
       activity: InertiaRails.defer { activity }
     }
   end
@@ -24,6 +25,24 @@ class HomeController < ApplicationController
       Arel.sql("COALESCE(SUM(duration_minutes), 0), COUNT(*), COUNT(*) FILTER (WHERE duration_minutes IS NULL), MAX(created_at)")
     )
     { minutes: minutes, journals: count, missing_hours: missing, last_journal_at: last_at }
+  end
+
+  # Where the person stands: XP and form, their team's week so far, and the race between the teams.
+  def xp
+    today = current_user.local_date
+    week = Week.of(today)
+    team = current_user.team
+    {
+      total: current_user.xp, form: current_user.pet_form, next_stage_xp: current_user.next_stage_xp, progress: current_user.stage_progress,
+      team: team&.name, multiplier: current_user.xp_multiplier.to_f, freezes: current_user.streak_freezes,
+      rules: { lulu_days: Team::Lulu::DAYS_FOR_BONUS, lulu_bonus: Team::Lulu::WEEKLY_BONUS, sami_step: Team::Sami::STEP, sami_max: Team::Sami::MAX_MULTIPLIER, win_bonus: Team::WIN_BONUS, xp_per_hour: XpEntry::PER_HOUR },
+      week: {
+        start: week.start.iso8601, today: today.iso8601,
+        days: team ? team.journal_days(week).map(&:iso8601) : [],
+        since: team&.first_journal_day&.iso8601,
+        totals: XpEntry.team_totals(week)
+      }
+    }
   end
 
   # Minutes logged per day in the person's own timezone, oldest first.

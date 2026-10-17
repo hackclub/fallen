@@ -1,0 +1,158 @@
+require "test_helper"
+
+# XP: the ledger (XpEntry), the pet's growth (Evolution) and the teams' weeks (Team, closed by CloseWeekJob).
+class XpTest < ActiveSupport::TestCase
+  test "a journal's entry follows its hours and is worth at least 1 xp" do
+    user = users(:member)
+    journal = projects(:station).journals.create!(user: user, body: "x", duration: "1h 30m", images: [ photo ])
+    assert_equal 12, journal.xp
+    assert_equal 32, user.reload.xp
+
+    journal.update!(duration: "3m")
+    assert_equal 1, journal.reload.xp
+    journal.update!(duration: "3h", images: [ photo, photo ])
+    assert_equal 24, journal.reload.xp
+    assert_equal 44, user.reload.xp
+
+    journal.discard
+    assert_nil journal.reload.xp_entry
+    assert_equal 20, user.reload.xp
+    journal.undiscard
+    assert_equal 44, user.reload.xp
+  end
+
+  test "a journal keeps the multiplier it was saved with" do
+    user = users(:admin)
+    user.update!(xp_multiplier: 1.5)
+    journal = projects(:admins).journals.create!(user: user, body: "x", duration: "1h", images: [ photo ])
+    assert_equal 12, journal.xp
+
+    user.update!(xp_multiplier: 1.0)
+    journal.update!(duration: "2h")
+    assert_equal 24, journal.reload.xp
+    assert_equal 1.5, journal.xp_entry.multiplier
+  end
+
+  test "the entry's day is the person's own calendar day" do
+    user = users(:member)
+    user.update!(timezone: "Pacific/Auckland")
+    travel_to Time.utc(2026, 10, 20, 13, 0) do
+      journal = projects(:station).journals.create!(user: user, body: "x", duration: "1h", images: [ photo ])
+      assert_equal Date.new(2026, 10, 21), journal.xp_entry.day
+    end
+  end
+
+  test "pets hatch with the first journal and evolve with xp, the last form needing an approved project" do
+    user = users(:newcomer)
+    user.update!(pet: "lulu")
+    assert_equal 0, user.pet_form
+    assert_equal 1, user.stage
+
+    user.update_column(:xp, 1)
+    assert_equal 1, user.pet_form
+    assert_equal 200, user.next_stage_xp
+    user.update_column(:xp, 200)
+    assert_equal 2, user.pet_form
+    user.update_column(:xp, 999)
+    assert_equal 3, user.pet_form
+    assert_equal 1000, user.next_stage_xp
+
+    user.update_column(:xp, 1000)
+    assert_equal 3, user.pet_form
+    assert_nil user.next_stage_xp
+    user.projects.create!(title: "Done", approved: true)
+    assert_equal 4, user.pet_form
+  end
+
+  test "approval is a timestamp that stays put" do
+    project = projects(:station)
+    project.update!(approved: "1")
+    at = project.approved_at
+    project.update!(approved: true)
+    assert_equal at, project.approved_at
+    project.update!(approved: "0")
+    assert_nil project.approved_at
+  end
+
+  test "a first project started before the deadline earns the early bird bonus once" do
+    user = users(:newcomer)
+    travel_to Project::EARLY_BIRD_UNTIL - 1.hour do
+      user.projects.create!(title: "One")
+      user.projects.create!(title: "Two")
+    end
+    assert_equal [ Project::EARLY_BIRD_BONUS ], user.xp_entries.where(kind: "early_bird").pluck(:amount)
+    assert_equal Project::EARLY_BIRD_BONUS, user.reload.xp
+
+    late = users(:admin)
+    travel_to Project::EARLY_BIRD_UNTIL + 1.minute do
+      late.projects.create!(title: "Late")
+    end
+    assert_not late.xp_entries.exists?(kind: "early_bird")
+  end
+
+  test "lulu pays a weekly bonus for five journal days, once" do
+    user = users(:member)
+    week = Week.of(Date.new(2026, 9, 7))
+    journal_on(user, week.days.first(4))
+    user.team.close_week(week)
+    assert_not user.xp_entries.exists?(kind: "weekly_bonus")
+
+    journal_on(user, [ week.finish ])
+    2.times { user.team.close_week(week) }
+    assert_equal [ Team::Lulu::WEEKLY_BONUS ], user.xp_entries.where(kind: "weekly_bonus").pluck(:amount)
+    assert_equal week.finish, user.xp_entries.find_by(kind: "weekly_bonus").day
+  end
+
+  test "sami raises the multiplier for a week without gaps, spends freezes on missed days and resets after them" do
+    user = users(:admin)
+    week = Week.of(Date.new(2026, 9, 7))
+    user.team.close_week(week)
+    assert_equal 1.0, user.reload.xp_multiplier, "nothing happens before the first journal"
+
+    journal_on(user, week.days.to_a - [ week.start ])
+    2.times { user.team.close_week(week) }
+    assert_equal 1.1, user.reload.xp_multiplier, "the streak starts with the first journal"
+    assert_equal 3, user.streak_freezes
+    assert_equal 1, user.xp_entries.where(kind: "streak").count
+
+    journal_on(user, week.days.map { |day| day + 7 }.first(5))
+    user.team.close_week(Week.of(week.start + 7))
+    assert_equal 1.2, user.reload.xp_multiplier
+    assert_equal 1, user.streak_freezes
+
+    journal_on(user, [ week.start + 14 ])
+    user.team.close_week(Week.of(week.start + 14))
+    assert_equal 1.0, user.reload.xp_multiplier
+    assert_equal 0, user.streak_freezes
+
+    user.update!(xp_multiplier: 1.5)
+    journal_on(user, week.days.map { |day| day + 21 })
+    user.team.close_week(Week.of(week.start + 21))
+    assert_equal Team::Sami::MAX_MULTIPLIER, user.reload.xp_multiplier
+  end
+
+  test "closing a week pays the winning team's contributors" do
+    week = Week.of(Date.new(2026, 9, 7))
+    journal_on(users(:member), [ week.start ], hours: "5h")
+    journal_on(users(:admin), [ week.start ], hours: "1h")
+    users(:newcomer).update!(pet: "lulu")
+
+    assert_equal({ "lulu" => 40, "sami" => 8 }, XpEntry.team_totals(week))
+    2.times { CloseWeekJob.perform_now(week.finish) }
+    assert_equal [ Team::WIN_BONUS ], users(:member).xp_entries.where(kind: "team_win").pluck(:amount)
+    assert_not users(:newcomer).xp_entries.exists?(kind: "team_win"), "only members who earned xp that week"
+    assert_not users(:admin).xp_entries.exists?(kind: "team_win")
+    assert_equal 20 + 40 + Team::WIN_BONUS, users(:member).reload.xp
+  end
+
+  private
+
+  def journal_on(user, days, hours: "1h")
+    project = user.projects.first || user.projects.create!(title: "Thing")
+    days.each do |day|
+      travel_to day.in_time_zone(user.timezone).change(hour: 12) do
+        project.journals.create!(user: user, body: "on #{day}", duration: hours, images: Array.new(Journal.new(duration: hours).images_needed) { photo })
+      end
+    end
+  end
+end

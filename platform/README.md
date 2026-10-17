@@ -96,6 +96,15 @@ message is the project; each reply by the owner is a journal. Both sides stay in
   bot posts under their name and avatar (`chat:write.customize`).
 
 Every journal has a time. It is typed, never picked from presets ("1.5", "1h 30m", `Duration.parse`), and stored as minutes.
+It also needs a photo for every two hours of it (`Journal::MINUTES_PER_IMAGE`).
+
+## XP, teams and pets
+
+Every journal with hours earns XP (`XpEntry::PER_HOUR`) into a ledger, `xp_entries`; `users.xp` is its sum. The pet
+picked in onboarding is also the team (`Team::Lulu`, `Team::Sami`), and `CloseWeekJob` settles each week on the
+Monday after it: the team that earned the most XP pays its contributors, Lulu pays for enough journal days, Sami
+raises or resets the multiplier that applies to new journals. The pet's form follows XP (`Evolution`); the final
+form also needs a project approved on its admin page. Run a week again with `CloseWeekJob.perform_now(date)`.
 
 ## Privacy requests
 

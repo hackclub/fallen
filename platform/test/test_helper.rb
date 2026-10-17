@@ -48,6 +48,9 @@ module ActiveSupport
 end
 
 module FixtureHelper
+  # A photo for a journal, since every one needs at least one for its hours (Journal::MINUTES_PER_IMAGE).
+  def photo(name = "photo.png") = ActiveStorage::Blob.create_and_upload!(io: StringIO.new("png"), filename: name, content_type: "image/png")
+
   # Adds `count` journals without hours to a project, newer than the fixtures, so pagination has something to do.
   def pad_journals(project, count)
     now = Time.current

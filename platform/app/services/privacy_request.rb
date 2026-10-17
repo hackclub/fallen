@@ -16,7 +16,8 @@ class PrivacyRequest
     timezone: "UTC",
     verification_status: nil,
     is_adult: false,
-    last_seen_at: nil
+    last_seen_at: nil,
+    xp: 0
   }.freeze
 
   def initialize(subject)
@@ -57,6 +58,7 @@ class PrivacyRequest
     ActiveStorage::Attachment.where(record_type: "Journal", record_id: journal_ids).delete_all
     deleted["journal_drafts"] = JournalDraft.where(user_id: ids).or(JournalDraft.where(project_id: project_ids)).delete_all
     ActiveStorage::Attachment.where(record_type: "Project", record_id: project_ids).delete_all
+    deleted["xp_entries"] = XpEntry.where(user_id: ids).delete_all
     deleted["journals"] = Journal.where(id: journal_ids).delete_all
     deleted["projects"] = Project.where(id: project_ids).delete_all
     deleted["users"] = User.where(id: removable.map(&:id)).delete_all

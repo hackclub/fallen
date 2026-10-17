@@ -18,8 +18,11 @@
 #  roles                   :string           default([]), not null, is an Array
 #  slack_user_token        :text
 #  slack_user_token_scopes :string
+#  streak_freezes          :integer          default(3), not null
 #  timezone                :string           default("UTC"), not null
 #  verification_status     :string
+#  xp                      :integer          default(0), not null
+#  xp_multiplier           :decimal(2, 1)    default(1.0), not null
 #  created_at              :datetime         not null
 #  updated_at              :datetime         not null
 #  hca_id                  :string           not null
@@ -37,10 +40,13 @@
 #
 class UserSerializer < ApplicationSerializer
   typelize_from User
-  typelize id: :string, avatar: :string, is_admin: :boolean, is_staff: :boolean
-  attributes :display_name, :email, :roles, :is_banned, :pet
+  typelize id: :string, avatar: :string, is_admin: :boolean, is_staff: :boolean, pet_form: :number, next_stage_xp: [ :number, nullable: true ], stage_progress: :number
+  attributes :display_name, :email, :roles, :is_banned, :pet, :xp
   attribute(:id) { |user| user.public_id }
   attribute(:avatar) { |user| user.avatar_url }
   attribute(:is_admin, &:admin?)
   attribute(:is_staff, &:staff?)
+  attribute(:pet_form, &:pet_form)
+  attribute(:next_stage_xp, &:next_stage_xp)
+  attribute(:stage_progress, &:stage_progress)
 end

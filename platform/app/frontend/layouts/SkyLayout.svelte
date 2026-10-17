@@ -8,12 +8,12 @@
   import ImpersonationBanner from '@/components/ImpersonationBanner.svelte'
   import NavRail from '@/components/NavRail.svelte'
   import NameTag from '@/components/NameTag.svelte'
+  import Wordmark from '@/components/Wordmark.svelte'
   import { adminRoot, home } from '@/routes'
   import { shared } from '@/lib/shared.svelte'
   import { pages, warmPages } from '@/lib/pages'
   import sky from '@/assets/hero/starry-bg.webp'
   import building from '@/assets/hero/building-1.webp'
-  import logo from '@/assets/shell/logo.svg'
 
   let { children }: { children?: Snippet } = $props()
 
@@ -46,7 +46,7 @@
         />
 
         <Link href={home.index()} component={pages.home} class="relative w-fit md:ml-[53px]">
-          <img src={logo} alt="Hack Club Fallen" class="h-auto w-[150px] md:w-[204px]" />
+          <Wordmark onDark class="h-[65px] md:h-[89px]" />
         </Link>
 
         {#if user}

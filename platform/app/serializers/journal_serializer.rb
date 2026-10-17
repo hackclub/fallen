@@ -35,12 +35,13 @@
 #
 class JournalSerializer < ApplicationSerializer
   typelize_from Journal
-  typelize id: :string, slack_url: [ :string, nullable: true ], duration_text: [ :string, nullable: true ],
+  typelize id: :string, slack_url: [ :string, nullable: true ], duration_text: [ :string, nullable: true ], xp: [ :number, nullable: true ],
            images: "Array<{ id: string; url: string; filename: string }>"
   attributes :body, :duration_minutes, :lapse_url, :source, :created_at, :updated_at
   attribute(:id) { |journal| journal.public_id }
   attribute(:slack_url, &:slack_url)
   attribute(:duration_text, &:duration_text)
+  attribute(:xp, &:xp)
   attribute(:images) do |journal|
     journal.images.map do |image|
       { id: image.signed_id, url: Rails.application.routes.url_helpers.rails_blob_path(image, only_path: true), filename: image.filename.to_s }

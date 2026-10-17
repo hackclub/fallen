@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_16_022445) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_17_025034) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -90,6 +90,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_16_022445) do
     t.datetime "discarded_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.datetime "approved_at"
     t.index ["discarded_at"], name: "index_projects_on_discarded_at"
     t.index ["slack_channel_id", "slack_thread_ts"], name: "index_projects_on_slack_channel_id_and_slack_thread_ts", unique: true, where: "(slack_thread_ts IS NOT NULL)"
     t.index ["updated_at"], name: "index_projects_on_updated_at"
@@ -285,6 +286,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_16_022445) do
     t.text "slack_user_token"
     t.string "slack_user_token_scopes"
     t.string "pet"
+    t.integer "xp", default: 0, null: false
+    t.decimal "xp_multiplier", precision: 2, scale: 1, default: "1.0", null: false
+    t.integer "streak_freezes", default: 3, null: false
     t.index ["created_at"], name: "index_users_on_created_at"
     t.index ["discarded_at"], name: "index_users_on_discarded_at"
     t.index ["email"], name: "index_users_on_email"
@@ -304,6 +308,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_16_022445) do
     t.index ["item_type", "item_id"], name: "index_versions_on_item_type_and_item_id"
   end
 
+  create_table "xp_entries", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "kind", null: false
+    t.integer "amount", null: false
+    t.decimal "multiplier", precision: 2, scale: 1
+    t.date "day", null: false
+    t.string "source_type"
+    t.bigint "source_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["source_type", "source_id"], name: "index_xp_entries_on_source_type_and_source_id", unique: true, where: "(source_id IS NOT NULL)"
+    t.index ["user_id", "day"], name: "index_xp_entries_on_user_id_and_day"
+    t.index ["user_id", "kind", "day"], name: "index_xp_entries_on_user_id_and_kind_and_day", unique: true, where: "(source_id IS NULL)"
+    t.index ["user_id"], name: "index_xp_entries_on_user_id"
+  end
+
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "journal_drafts", "projects"
@@ -319,4 +339,5 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_16_022445) do
   add_foreign_key "solid_queue_ready_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_recurring_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_scheduled_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
+  add_foreign_key "xp_entries", "users"
 end

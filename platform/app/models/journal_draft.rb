@@ -63,7 +63,7 @@ class JournalDraft < ApplicationRecord
   # Returns the journal, saved or holding the errors to show.
   def journal!(duration:, lapse_url: nil)
     journal = project.journals.build(
-      user: user, body: text, duration: duration, lapse_url: lapse_url, source: "slack",
+      user: user, body: text, duration: duration, lapse_url: lapse_url, source: "slack", incoming_images: files.size,
       slack_channel_id: project.slack_channel_id, slack_ts: parts.first["ts"], slack_parts: parts.map { |part| part.slice("ts", "text") }
     )
     transaction { destroy! if journal.save }

@@ -23,6 +23,7 @@ Only from the token's `subject`: any `emails` (case-insensitive against `users.e
 | The account: name, email, avatar, Slack id, timezone, roles, HCA token, Slack user token, verification status, pet | `users` |
 | Their projects and journals (text, hours, Lapse links, Slack message ids and text), project banners and journal photos | `projects`, `journals`, Active Storage |
 | Slack thread replies not yet made into a journal (text, Slack message ids, photo names and links) | `journal_drafts` |
+| XP earned, line by line (journal XP, bonuses, streak checks) | `xp_entries`, `users.xp` |
 | Change history of the account, projects and journals (PaperTrail copies of the rows) | `versions` |
 
 Sessions are signed cookies holding the user id, so they stop working once the row is gone.

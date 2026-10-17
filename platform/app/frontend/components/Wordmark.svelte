@@ -9,7 +9,7 @@
 </script>
 
 {#if fill}
-  <span role="img" aria-label="Fallen" class="block {className}">
+  <span role="img" aria-label="Hack Club Fallen" class="block {className}">
     <span
       class="block aspect-1066/465 w-full mask-contain mask-center mask-no-repeat {fill}"
       style:mask-image="url({wordmark})"
@@ -19,7 +19,7 @@
   <!-- The source is white on transparent; brightness-0 turns it black for light mode unless it sits on a dark background. -->
   <img
     src={wordmark}
-    alt="Fallen"
+    alt="Hack Club Fallen"
     class="w-auto {onDark ? '' : 'brightness-0 dark:brightness-100'} {className}"
   />
 {/if}

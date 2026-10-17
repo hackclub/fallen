@@ -2,7 +2,7 @@
   
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset=".github/wordmark-dark.png">
-  <img src=".github/wordmark-light.png" width="400" alt="Fallen">
+  <img src=".github/wordmark-light.png" width="400" alt="Hack Club Fallen">
 </picture>
 
 ### A 4-day hardware adventure in Shenzhen, China!

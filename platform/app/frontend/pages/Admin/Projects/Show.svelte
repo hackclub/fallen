@@ -3,8 +3,9 @@
 </script>
 
 <script lang="ts">
-  import { Link } from '@inertiajs/svelte'
+  import { Link, router } from '@inertiajs/svelte'
   import ArrowLeft from '@lucide/svelte/icons/arrow-left'
+  import BadgeCheck from '@lucide/svelte/icons/badge-check'
   import ExternalLink from '@lucide/svelte/icons/external-link'
   import NumberPopIn from '@/components/admin/NumberPopIn.svelte'
   import Pagination from '@/components/Pagination.svelte'
@@ -14,6 +15,7 @@
   import * as Card from '@/components/admin/ui/card'
   import { formatDate, formatDateTime, formatMinutes, timeAgo } from '@/lib/format'
   import { adminProjects } from '@/routes'
+  import * as AlertDialog from '@/components/admin/ui/alert-dialog'
   import type { AdminProject, Journal, Pagy } from '@/types'
 
   let {
@@ -21,7 +23,27 @@
     journals,
     pagy,
     missing_hours,
-  }: { project: AdminProject; journals: Journal[]; pagy: Pagy; missing_hours: number } = $props()
+    can,
+  }: {
+    project: AdminProject
+    journals: Journal[]
+    pagy: Pagy
+    missing_hours: number
+    can: { update: boolean }
+  } = $props()
+
+  let confirmApproval = $state(false)
+  let approving = $state(false)
+
+  // The final evolution needs a finished, working project. Approving it is the staff's call (Project#approved=).
+  function setApproved(approved: boolean) {
+    approving = true
+    router.patch(
+      adminProjects.update(project.id).url,
+      { project: { approved } },
+      { preserveScroll: true, onFinish: () => ((approving = false), (confirmApproval = false)) },
+    )
+  }
 
   const links = $derived(
     [
@@ -52,6 +74,7 @@
     <div class="flex items-center gap-2">
       <h1 class="text-2xl font-semibold tracking-tight">{project.title}</h1>
       {#if project.discarded_at}<Badge variant="destructive">Deleted</Badge>{/if}
+      {#if project.approved_at}<Badge><BadgeCheck data-icon="inline-start" /> Approved</Badge>{/if}
     </div>
     {#if project.description}
       <p class="mt-1 max-w-2xl text-sm whitespace-pre-line text-muted-foreground">{project.description}</p>
@@ -59,6 +82,37 @@
     <div class="mt-3"><UserCell user={project.user} /></div>
   </div>
   <div class="flex flex-wrap gap-2">
+    {#if can.update}
+      <AlertDialog.Root bind:open={confirmApproval}>
+        <AlertDialog.Trigger>
+          {#snippet child({ props })}
+            <Button {...props} size="sm" variant={project.approved_at ? 'outline' : 'default'}>
+              <BadgeCheck data-icon="inline-start" />
+              {project.approved_at ? 'Remove approval' : 'Approve finished project'}
+            </Button>
+          {/snippet}
+        </AlertDialog.Trigger>
+        <AlertDialog.Content>
+          <AlertDialog.Header>
+            <AlertDialog.Title>
+              {project.approved_at ? 'Remove approval from' : 'Approve'}
+              {project.title}?
+            </AlertDialog.Title>
+            <AlertDialog.Description>
+              {project.approved_at
+                ? `${project.user.display_name}'s pet drops back from its final form until it is approved again.`
+                : `Approving says the project is finished and works. Once ${project.user.display_name} has the XP for it, their pet reaches its final form and they qualify.`}
+            </AlertDialog.Description>
+          </AlertDialog.Header>
+          <AlertDialog.Footer>
+            <AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+            <AlertDialog.Action onclick={() => setApproved(!project.approved_at)} disabled={approving}>
+              {project.approved_at ? 'Remove approval' : 'Approve'}
+            </AlertDialog.Action>
+          </AlertDialog.Footer>
+        </AlertDialog.Content>
+      </AlertDialog.Root>
+    {/if}
     {#each links as link (link.label)}
       <Button variant="outline" size="sm" href={link.href} target="_blank" rel="noreferrer">
         {link.label}

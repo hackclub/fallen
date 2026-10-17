@@ -6,6 +6,7 @@
 # Table name: projects
 #
 #  id               :bigint           not null, primary key
+#  approved_at      :datetime
 #  demo_url         :string
 #  description      :text
 #  discarded_at     :datetime
@@ -42,6 +43,9 @@ class Project < ApplicationRecord
 
   BANNER_TYPES = Journal::IMAGE_TYPES
   MAX_BANNER_BYTES = Journal::MAX_IMAGE_BYTES
+  # A first project started before this earns a bonus.
+  EARLY_BIRD_UNTIL = ActiveSupport::TimeZone["America/New_York"].local(2026, 10, 17, 11, 59)
+  EARLY_BIRD_BONUS = 20
 
   validates :title, presence: true, length: { maximum: 120 }
   validates :description, length: { maximum: 5_000 }
@@ -49,7 +53,10 @@ class Project < ApplicationRecord
   validates :slack_thread_ts, uniqueness: { scope: :slack_channel_id }, allow_nil: true
   validate :banner_is_an_image
 
+  after_create :grant_early_bird
+
   scope :recent, -> { order(updated_at: :desc) }
+  scope :approved, -> { where.not(approved_at: nil) }
 
   def self.find_by_slack_thread(channel_id, thread_ts)
     return nil if channel_id.blank? || thread_ts.blank?
@@ -76,6 +83,13 @@ class Project < ApplicationRecord
 
   def slack_linked? = slack_channel_id.present? && slack_thread_ts.present?
 
+  # Staff mark the finished project as working (Admin::ProjectsController), which the final evolution needs.
+  def approved? = approved_at.present?
+
+  def approved=(value)
+    self.approved_at = ActiveModel::Type::Boolean.new.cast(value) ? (approved_at || Time.current) : nil
+  end
+
   def slack_url = slack_linked? ? SlackMessaging.permalink(slack_channel_id, slack_thread_ts) : nil
 
   def total_minutes = journals.kept.sum(:duration_minutes)
@@ -90,6 +104,12 @@ class Project < ApplicationRecord
   end
 
   private
+
+  def grant_early_bird
+    return if created_at > EARLY_BIRD_UNTIL || user.xp_entries.exists?(kind: "early_bird")
+
+    user.xp_entries.create!(kind: "early_bird", amount: EARLY_BIRD_BONUS, day: user.local_date(created_at), source: self)
+  end
 
   def banner_is_an_image
     blob = banner.attachment&.blob

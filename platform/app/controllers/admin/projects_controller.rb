@@ -17,14 +17,22 @@ class Admin::ProjectsController < Admin::ApplicationController
     authorize [ :admin, project ]
 
     journals = project.journals.kept
-    pagy, page = pagy(journals.newest_first.includes(images_attachments: :blob))
+    pagy, page = pagy(journals.newest_first.includes(:xp_entry, images_attachments: :blob))
 
     render inertia: "Admin/Projects/Show", props: {
       project: AdminProjectSerializer.render(project),
       missing_hours: journals.needing_hours.count,
       journals: JournalSerializer.render(page),
-      pagy: pagy_props(pagy)
+      pagy: pagy_props(pagy),
+      can: { update: policy([ :admin, project ]).update? }
     }
+  end
+
+  def update
+    project = Project.find_by_public_id!(params[:id])
+    authorize [ :admin, project ]
+    project.update!(params.expect(project: [ :approved ]))
+    redirect_to admin_project_path(project), notice: project.approved? ? "Project approved." : "Approval removed."
   end
 
   private

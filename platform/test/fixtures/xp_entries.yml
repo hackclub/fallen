@@ -1,0 +1,42 @@
+# The member's journals with hours, in step with journals.yml and users.yml (xp: 20).
+# == Schema Information
+#
+# Table name: xp_entries
+#
+#  id          :bigint           not null, primary key
+#  amount      :integer          not null
+#  day         :date             not null
+#  kind        :string           not null
+#  multiplier  :decimal(2, 1)
+#  source_type :string
+#  created_at  :datetime         not null
+#  updated_at  :datetime         not null
+#  source_id   :bigint
+#  user_id     :bigint           not null
+#
+# Indexes
+#
+#  index_xp_entries_on_source_type_and_source_id  (source_type,source_id) UNIQUE WHERE (source_id IS NOT NULL)
+#  index_xp_entries_on_user_id                    (user_id)
+#  index_xp_entries_on_user_id_and_day            (user_id,day)
+#  index_xp_entries_on_user_id_and_kind_and_day   (user_id,kind,day) UNIQUE WHERE (source_id IS NULL)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (user_id => users.id)
+#
+first:
+  user: member
+  kind: journal
+  amount: 12
+  multiplier: 1.0
+  day: <%= Date.current.iso8601 %>
+  source: first (Journal)
+
+web_only:
+  user: member
+  kind: journal
+  amount: 8
+  multiplier: 1.0
+  day: <%= Date.current.iso8601 %>
+  source: web_only (Journal)

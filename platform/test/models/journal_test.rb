@@ -50,7 +50,7 @@ class JournalTest < ActiveSupport::TestCase
   end
 
   test "typed duration sets minutes or an error" do
-    journal = projects(:station).journals.build(user: users(:member), body: "x", duration: "2h")
+    journal = projects(:station).journals.build(user: users(:member), body: "x", duration: "2h", images: [ photo ])
     assert journal.valid?
     assert_equal 120, journal.duration_minutes
     journal.duration = "a while"
@@ -59,11 +59,33 @@ class JournalTest < ActiveSupport::TestCase
   end
 
   test "every journal needs a time" do
-    journal = projects(:station).journals.build(user: users(:member), body: "x")
+    journal = projects(:station).journals.build(user: users(:member), body: "x", images: [ photo ])
     assert_not journal.valid?
     assert journal.errors[:duration].any?
     journal.duration = "45m"
     assert journal.valid?
+  end
+
+  test "every two hours logged need a photo" do
+    journal = projects(:station).journals.build(user: users(:member), body: "x", duration: "2h")
+    assert_not journal.valid?
+    assert_equal [ "at least 1 for 2h, one per 2 hours" ], journal.errors[:images]
+    journal.images = [ photo ]
+    assert journal.valid?
+    journal.duration = "2h 1m"
+    assert_not journal.valid?
+    assert_equal 2, journal.images_needed
+
+    journal.incoming_images = 1
+    assert journal.valid?, "photos still on their way from Slack count"
+  end
+
+  test "an older journal keeps editable without photos but cannot lose the ones it has" do
+    journal = journals(:first)
+    assert journal.update(body: "edited", images: [])
+    journal.update!(images: [ photo ])
+    assert_not journal.update(body: "edited", images: [])
+    assert journal.reload.update(body: "edited", images: journal.images.map(&:signed_id))
   end
 
   test "author must own the project" do

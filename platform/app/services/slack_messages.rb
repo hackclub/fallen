@@ -38,7 +38,7 @@ module SlackMessages
 
     blocks = [ SlackBot::Blocks.section(":notebook_with_decorative_cover: Is this a journal for *#{escape(draft.project.title)}*?\n#{quote(draft.text, 1500)}") ]
     blocks += photo_blocks(draft)
-    blocks << SlackBot::Blocks.input("Time spent", SlackBot::Blocks.plain_text_input("duration", placeholder: "1h 45m, 2.5, 50m…", initial_value: duration.presence), block_id: "duration", hint: "Every journal needs one. However you'd write it.")
+    blocks << SlackBot::Blocks.input("Time spent", SlackBot::Blocks.plain_text_input("duration", placeholder: "1h 45m, 2.5, 50m…", initial_value: duration.presence), block_id: "duration", hint: "Every journal needs one, and a photo for every #{Journal::MINUTES_PER_IMAGE / 60} hours of it. Post photos in the thread to add them.")
     blocks << SlackBot::Blocks.input("Timelapse", SlackBot::Blocks.plain_text_input("lapse_url", placeholder: "https://lapse.hackclub.com/...", initial_value: lapse_url.presence), block_id: "lapse_url", optional: true)
     blocks << SlackBot::Blocks.context(":warning: #{escape(error)}") if error
     blocks << SlackBot::Blocks.actions(

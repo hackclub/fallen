@@ -5,11 +5,11 @@
   // 70% of the onboarding's talking egg. The dialog fills the window and scales its 1185 x 541 scene to fit 94% of
   // its width and half its height (DialogStage's default `fit`), so the same sum gives the egg's size there.
   const SHARE_OF_DIALOG_EGG = 0.7
-  const ASPECT = 550 / 736 // the egg drawings
-  function size() {
+  const EGG_ASPECT = 550 / 736 // the egg drawings; the hatched forms are measured when they load
+  function size(aspect: number) {
     const unit = Math.min((window.innerWidth * 0.94) / SCENE.width, (window.innerHeight * 0.5) / SCENE.height)
     const h = Math.round(DIALOG_EGG.height * unit * SHARE_OF_DIALOG_EGG)
-    return { w: Math.round(h * ASPECT), h }
+    return { w: Math.round(h * aspect), h }
   }
 
   const GROUND = 10 // px between the egg and the bottom of the window
@@ -37,13 +37,18 @@
   import { untrack } from 'svelte'
   import { starPath } from '@/components/GoldFrame.svelte'
   import { enter, exit, prefersReducedMotion, styler } from '@/components/dialog/motion'
-  import { PET_EGGS, petState } from '@/lib/pet.svelte'
+  import { FINAL_FORM, PET_FORMS, petState } from '@/lib/pet.svelte'
   import { shared } from '@/lib/shared.svelte'
 
   // A desktop pet for the signed-in site: the egg picked in onboarding sits on the bottom of the window, hops about
-  // now and then, wobbles, can be picked up and dropped, and jumps when poked. Where it stands is remembered.
-  const pet = $derived(petState.picked ?? shared().auth.user?.pet ?? null)
-  const src = $derived(pet ? PET_EGGS[pet] : undefined)
+  // now and then, wobbles, can be picked up and dropped, and jumps when poked. Where it stands is remembered. It
+  // shows its current form (User#pet_form) and bursts into the next one when that changes.
+  const user = $derived(shared().auth.user)
+  const pet = $derived(petState.picked ?? user?.pet ?? null)
+  const form = $derived(user?.pet_form ?? 0)
+  // svelte-ignore state_referenced_locally
+  let shown = $state(form)
+  const src = $derived(pet ? PET_FORMS[pet][shown] : undefined)
   const visible = $derived(!!src && !petState.onboarding)
 
   let root: HTMLButtonElement
@@ -51,10 +56,22 @@
   let body: HTMLElement
   let flying = $state(false)
 
-  // Hovering shows a hint about hatching above the egg, kept inside the window (TIP_WIDTH px wide, its tail still
-  // pointing at the egg). The egg stays put while it shows.
-  const TIP = 'Your egg will hatch when you finish your first journal!'
-  const TIP_WIDTH = 240
+  // Hovering shows a little status card above the pet, kept inside the window (TIP_WIDTH px wide, its tail still
+  // pointing at the pet): its name and stage, how far it is to its next form, and what gets it there. The pet
+  // stays put while it shows.
+  const PET_NAMES: Record<string, string> = { lulu: 'Lulu', sami: 'Sami' }
+  const stageLabel = $derived(
+    shown === 0 ? 'Egg' : shown === FINAL_FORM ? 'Final form' : `Stage ${shown} of ${FINAL_FORM}`,
+  )
+  // What the bar says: the XP left to the next form (the bar fills across this stage only), or the one thing left to do.
+  const barText = $derived.by(() => {
+    if (shown === 0) return 'Hatches with your first journal'
+    if (user?.next_stage_xp != null) return `${user.next_stage_xp - user.xp} XP to stage ${shown + 1}`
+    if (shown < FINAL_FORM) return 'Awaiting project approval'
+    return `${user?.xp ?? 0} XP`
+  })
+  const TIP = $derived(`${pet ? PET_NAMES[pet] : 'Your pet'}, ${stageLabel.toLowerCase()}. ${barText}`)
+  const TIP_WIDTH = 250
   let hovered = $state(false)
   let tipShift = $state(0)
   const showTip = $derived(hovered && !flying)
@@ -66,7 +83,43 @@
     tipShift = left - (centre - TIP_WIDTH / 2)
     hovered = true
   }
-  let dims = $state(size())
+  let aspect = EGG_ASPECT
+  let dims = $state(size(aspect))
+
+  function measure(img: HTMLImageElement) {
+    if (!img.naturalHeight) return
+    aspect = img.naturalWidth / img.naturalHeight
+    dims = size(aspect)
+    x = clamp(x, EDGE, maxX())
+    if (root) styler(root).set({ x })
+  }
+
+  // A new form: squeeze down, swap at the smallest, and spring back out in a burst of stars.
+  $effect(() => {
+    if (form === shown) return
+    untrack(() => evolve(form))
+  })
+
+  async function evolve(to: number) {
+    if (!root) {
+      shown = to
+      return
+    }
+    busy = true
+    clearTimeout(timer)
+    hovered = false
+    sparkle()
+    await styler(body).animate(
+      { scaleY: [1, 1.15, 0.6], scaleX: [1, 0.9, 1.3] },
+      { duration: 0.45, ease: 'easeIn', times: [0, 0.4, 1] },
+    )
+    shown = to
+    sparkle()
+    sparkle()
+    await styler(body).animate({ scaleY: 1, scaleX: 1 }, { type: 'spring', stiffness: 260, damping: 9 })
+    busy = false
+    schedule()
+  }
 
   let x = 0
   let busy = false
@@ -95,7 +148,7 @@
 
     schedule()
     const onResize = () => {
-      dims = size()
+      dims = size(aspect)
       x = clamp(x, EDGE, maxX())
       styler(root).set({ x })
     }
@@ -354,7 +407,7 @@
 {#if visible}
   <button
     type="button"
-    aria-label="Your pet's egg. {TIP}"
+    aria-label="Your pet. {TIP}"
     class={[
       'fixed bottom-0 left-0 cursor-grab touch-none select-none outline-none active:cursor-grabbing',
       flying ? 'z-[60]' : 'z-40',
@@ -391,7 +444,8 @@
             {src}
             alt=""
             draggable="false"
-            class="pointer-events-none size-full object-contain drop-shadow-[0_4px_6px_rgba(0,0,0,0.35)]"
+            onload={(event) => measure(event.currentTarget as HTMLImageElement)}
+            class="pointer-events-none size-full object-contain object-bottom drop-shadow-[0_4px_6px_rgba(0,0,0,0.35)]"
           />
         </span>
       </span>
@@ -415,9 +469,23 @@
         }}
       >
         <span
-          class="block rounded-2xl border-2 border-gold bg-dark-blue px-4 py-2.5 text-center font-outfit text-sm leading-snug font-medium text-cream shadow-[0_10px_30px_-8px_rgba(0,0,0,0.7)]"
+          class="block rounded-2xl border-2 border-gold bg-dark-blue px-4 py-3 text-left font-outfit text-sm leading-snug text-cream shadow-[0_10px_30px_-8px_rgba(0,0,0,0.7)]"
         >
-          {TIP}
+          <span class="flex items-baseline justify-between gap-3">
+            <span class="font-lora text-base font-bold">{pet ? PET_NAMES[pet] : 'Your pet'}</span>
+            <span class="text-xs text-pale-blue/80">{stageLabel}</span>
+          </span>
+          <span class="relative mt-2 block h-6 overflow-hidden rounded-[5px] bg-white/10">
+            <span
+              class="absolute inset-y-0 left-0 bg-gold transition-[width] duration-700"
+              style:width="{(user?.stage_progress ?? 0) * 100}%"
+            ></span>
+            <span
+              class="relative flex h-full items-center justify-center text-xs font-semibold text-cream [text-shadow:0_1px_2px_rgba(0,0,0,0.6)]"
+            >
+              {barText}
+            </span>
+          </span>
         </span>
         <!-- the tail, pointing down at the egg -->
         <span

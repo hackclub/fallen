@@ -7,6 +7,7 @@
   import PageTitle from '@/components/PageTitle.svelte'
   import ProjectCard from '@/components/ProjectCard.svelte'
   import WriteJournalButton from '@/components/WriteJournalButton.svelte'
+  import XpCard, { type Standing } from '@/components/XpCard.svelte'
   import { formatMinutes } from '@/lib/format'
   import { shared } from '@/lib/shared.svelte'
   import type { Project } from '@/types'
@@ -22,10 +23,12 @@
     projects,
     stats,
     activity,
+    xp,
   }: {
     projects?: Project[]
     stats?: Stats
     activity?: { date: string; minutes: number }[]
+    xp?: Standing
   } = $props()
 
   const firstName = $derived(shared().auth.user?.display_name.split(' ')[0] ?? '')
@@ -47,6 +50,10 @@
     {/each}
   </div>
 {:else}
+  {#if xp}
+    <XpCard {xp} />
+  {/if}
+
   <div class="mb-8 paper p-4 md:p-6">
     <h3 class="mb-4 font-display text-xl">Your hours</h3>
     <div class="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">

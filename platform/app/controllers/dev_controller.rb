@@ -1,6 +1,6 @@
 # Development/test-only sign in, standing in for Hack Club Auth. Not routed in production (see config/routes.rb).
 class DevController < ApplicationController
-  allow_unauthenticated_access only: %i[index create sign_in_as] # Signing in is what these are for
+  allow_unauthenticated_access only: %i[index create sign_in_as] # Signing in is what these are for; skip_slack needs a session
   skip_before_action :redirect_banned_user!, only: %i[index create sign_in_as] # So a banned test account can switch away
   skip_after_action :verify_policy_scoped # Local-only: lists every account on purpose
   skip_after_action :verify_authorized # Local-only, no resource
@@ -33,6 +33,13 @@ class DevController < ApplicationController
     user = User.find_by(id: params[:id]) || User.find_by_public_id(params[:id]) || User.find_by!(email: params[:id])
     sign_in(user)
     redirect_to after_sign_in_path, notice: "Signed in as #{user.display_name} (dev only)."
+  end
+
+  # Past the Slack gate without Slack: a token that is not real, so posting as the person fails in a job and
+  # nothing reaches a workspace. The web side only checks that one is set (User#slack_connected?).
+  def skip_slack
+    current_user.update!(slack_user_token: "xoxp-dev-skipped", slack_user_token_scopes: "")
+    redirect_back fallback_location: home_path, notice: "Slack skipped (dev only). Journals will not reach Slack."
   end
 
   private

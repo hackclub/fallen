@@ -4,7 +4,7 @@
   import OrnateModal from '@/components/OrnateModal.svelte'
   import { shared } from '@/lib/shared.svelte'
   import { tour } from '@/lib/tour.svelte'
-  import { connectSlack, signOut } from '@/routes'
+  import { connectSlack, devSkipSlack, signOut } from '@/routes'
 
   // After the onboarding, Slack: journals are posted as the person, so until it is connected there is nothing else
   // to do. The server only asks for this when Slack sign-in is set up (ApplicationController#setup_props). Comes
@@ -39,11 +39,18 @@
             Connect Slack
           </OrnateButton>
         </div>
-        <button
-          type="button"
-          class="mt-4 font-outfit text-xs text-ink-soft underline hover:text-ink"
-          onclick={() => router.visit(signOut())}>Sign out</button
-        >
+        <div class="mt-4 flex justify-center gap-4 font-outfit text-xs text-ink-soft">
+          <button type="button" class="underline hover:text-ink" onclick={() => router.visit(signOut())}
+            >Sign out</button
+          >
+          {#if import.meta.env.DEV}
+            <button
+              type="button"
+              class="underline hover:text-ink"
+              onclick={() => router.post(devSkipSlack().url, {}, { preserveScroll: true })}>Skip (dev)</button
+            >
+          {/if}
+        </div>
       </div>
     </OrnateModal>
   </div>

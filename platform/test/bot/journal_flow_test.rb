@@ -24,7 +24,8 @@ class JournalFlowTest < ActiveSupport::TestCase
     end
   end
 
-  test "several replies become one journal, and only with a time" do
+  test "several replies become one journal, only with a time and a photo" do
+    photo = { "id" => "F1", "name" => "case.png", "mimetype" => "image/png", "url_private_download" => "https://files.slack.test/case.png", "size" => 3 }
     with_fake_slack do |slack|
       reply("Printed the case", ts: "1700000003.000100")
       reply("Then sanded it", ts: "1700000003.000200")
@@ -40,6 +41,12 @@ class JournalFlowTest < ActiveSupport::TestCase
       assert_equal "ages", shown["blocks"].find { |block| block["block_id"] == "duration" }.dig("element", "initial_value")
       assert shown["blocks"].any? { |block| block.dig("elements", 0, "text").to_s.include?("should look like") }
 
+      assert_no_difference -> { Journal.count } do
+        press("journal", draft, duration: "1h 15m")
+      end
+      assert slack.calls_to(:response_url).last[:body]["blocks"].any? { |block| block.dig("elements", 0, "text").to_s.include?("Images at least 1 for 1h 15m") }
+
+      reply("", ts: "1700000003.000300", files: [ photo ])
       assert_difference -> { Journal.count }, 1 do
         assert_enqueued_with(job: CollectSlackJournalJob) { press("journal", draft, duration: "1h 15m") }
       end
@@ -47,12 +54,15 @@ class JournalFlowTest < ActiveSupport::TestCase
       journal = Journal.last
       assert_equal "Printed the case\n\nThen sanded it", journal.body
       assert_equal 75, journal.duration_minutes
+      assert_equal 10, journal.xp
       assert_equal "1700000003.000100", journal.slack_ts
       assert_not JournalDraft.exists?(draft.id)
       assert_equal true, slack.calls_to(:response_url).last[:body]["replace_original"]
 
-      perform_enqueued_jobs
-      assert_equal %w[1700000003.000100 1700000003.000200], slack.calls_to(:reactions_add).pluck(:timestamp)
+      download = Faraday::Response.new(status: 200, body: "png", response_headers: { "content-type" => "image/png" })
+      stub_method(Faraday, :get, download) { perform_enqueued_jobs }
+      assert_equal [ "case.png" ], journal.images.map { |image| image.filename.to_s }
+      assert_equal %w[1700000003.000100 1700000003.000200 1700000003.000300], slack.calls_to(:reactions_add).pluck(:timestamp)
     end
   end
 
@@ -131,7 +141,7 @@ class JournalFlowTest < ActiveSupport::TestCase
   end
 
   test "a web journal echoed back from slack is not collected" do
-    projects(:station).journals.create!(user: users(:member), body: "Posted on the site", duration_minutes: 30, source: "web")
+    projects(:station).journals.create!(user: users(:member), body: "Posted on the site", duration_minutes: 30, source: "web", images: [ photo ])
     with_fake_slack do
       assert_no_difference -> { JournalDraft.count } do
         reply("Posted on the site", ts: "1700000006.000100")
@@ -164,7 +174,7 @@ class JournalFlowTest < ActiveSupport::TestCase
   end
 
   test "edits and deletions of one reply in a journal update its body" do
-    journal = projects(:station).journals.create!(user: users(:member), body: "one\n\ntwo", duration_minutes: 30, source: "slack", slack_channel_id: CHANNEL, slack_ts: "1700000010.000100",
+    journal = projects(:station).journals.create!(user: users(:member), body: "one\n\ntwo", duration_minutes: 30, source: "slack", slack_channel_id: CHANNEL, slack_ts: "1700000010.000100", images: [ photo ],
                                                   slack_parts: [ { ts: "1700000010.000100", text: "one" }, { ts: "1700000010.000200", text: "two" } ])
     with_fake_slack do
       SlackBot.handle(:event, { "event" => { "type" => "message", "subtype" => "message_changed", "channel" => CHANNEL, "message" => { "ts" => "1700000010.000200", "text" => "TWO" } } })

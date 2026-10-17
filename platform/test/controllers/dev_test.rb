@@ -48,4 +48,10 @@ class DevTest < ActionDispatch::IntegrationTest
     assert_redirected_to dev_path
     assert_match(/Pet/, flash[:alert])
   end
+  test "skip slack marks the account connected with a token that is not real" do
+    sign_in_as users(:newcomer)
+    post dev_skip_slack_path
+    assert_redirected_to home_path
+    assert users(:newcomer).reload.slack_connected?
+  end
 end

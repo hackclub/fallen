@@ -40,6 +40,19 @@ class PagesTest < ActionDispatch::IntegrationTest
     assert_equal 150, props["activity"].last["minutes"]
   end
 
+  test "home streams in where I stand" do
+    sign_in_as users(:member)
+    xp = load_deferred(home_path, "Home/Index", "xp")["xp"]
+    assert_equal 20, xp["total"]
+    assert_equal 1, xp["form"]
+    assert_equal 200, xp["next_stage_xp"]
+    assert_equal "lulu", xp["team"]
+    assert_equal 1.0, xp["multiplier"]
+    assert_equal 3, xp["freezes"]
+    assert_equal [ Date.current.iso8601 ], xp["week"]["days"]
+    assert_equal({ "lulu" => 20 }, xp["week"]["totals"])
+  end
+
   test "banned users are sent to /sorry" do
     sign_in_as users(:banned)
     get home_path

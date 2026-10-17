@@ -6,6 +6,7 @@
 # Table name: projects
 #
 #  id               :bigint           not null, primary key
+#  approved_at      :datetime
 #  demo_url         :string
 #  description      :text
 #  discarded_at     :datetime

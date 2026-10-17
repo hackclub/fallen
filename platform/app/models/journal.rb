@@ -41,13 +41,19 @@ class Journal < ApplicationRecord
 
   SOURCES = %w[web slack].freeze
   MAX_MINUTES = 24 * 60
+  # Every two hours logged need a photo to show for them.
+  MINUTES_PER_IMAGE = 120
 
   set_public_id_prefix :jrn
   has_paper_trail
 
   belongs_to :project
   belongs_to :user
+  has_one :xp_entry, as: :source
   has_many_attached :images
+
+  # Photos still being copied over from Slack (CollectSlackJournalJob), counted before they arrive.
+  attr_accessor :incoming_images
 
   IMAGE_TYPES = %w[image/png image/jpeg image/gif image/webp].freeze
   MAX_IMAGES = 10
@@ -60,9 +66,12 @@ class Journal < ApplicationRecord
   validates :lapse_url, format: { with: %r{\Ahttps://\S+\z}, message: "must be a link starting with https://" }, allow_blank: true
   validate :author_owns_project
   validate :images_are_images
+  validate :images_cover_hours, if: -> { new_record? || duration_minutes_changed? || attachment_changes.key?("images") }
   validate :duration_was_understood
 
-  scope :newest_first, -> { order(created_at: :desc) }
+  after_save :sync_xp, if: -> { saved_change_to_duration_minutes? || saved_change_to_discarded_at? }
+
+  scope :newest_first, -> { order(created_at: :desc, id: :desc) }
   scope :needing_hours, -> { where(duration_minutes: nil) }
 
   def self.find_by_slack_message(channel_id, ts)
@@ -78,6 +87,8 @@ class Journal < ApplicationRecord
   def on_slack? = slack_channel_id.present? && slack_ts.present?
   def slack_url = on_slack? ? SlackMessaging.permalink(slack_channel_id, slack_ts, thread_ts: project.slack_thread_ts) : nil
   def hours_logged? = duration_minutes.present?
+  def xp = xp_entry&.amount
+  def images_needed = (duration_minutes.to_f / MINUTES_PER_IMAGE).ceil
   def duration_text = Duration.format(duration_minutes)
   def multi_part? = slack_parts.size > 1
 
@@ -109,6 +120,18 @@ class Journal < ApplicationRecord
 
     errors.add(:duration, @duration_text_given.present? ? "should look like 1h 30m, 2.5 or 45m" : "is needed: how long did this take?")
   end
+
+  # New journals and changed hours need the full count. An older journal may keep the photos it has, but not lose any.
+  def images_cover_hours
+    return if duration_minutes.nil?
+
+    needed = images_needed
+    needed = [ needed, images_attachments.size ].min if persisted? && !duration_minutes_changed?
+    have = images.attachments.size + incoming_images.to_i
+    errors.add(:images, "at least #{needed} for #{duration_text}, one per #{MINUTES_PER_IMAGE / 60} hours") if have < needed
+  end
+
+  def sync_xp = XpEntry.sync(self)
 
   def images_are_images
     blobs = images.attachments.filter_map(&:blob)

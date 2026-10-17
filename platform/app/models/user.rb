@@ -15,8 +15,11 @@
 #  roles                   :string           default([]), not null, is an Array
 #  slack_user_token        :text
 #  slack_user_token_scopes :string
+#  streak_freezes          :integer          default(3), not null
 #  timezone                :string           default("UTC"), not null
 #  verification_status     :string
+#  xp                      :integer          default(0), not null
+#  xp_multiplier           :decimal(2, 1)    default(1.0), not null
 #  created_at              :datetime         not null
 #  updated_at              :datetime         not null
 #  hca_id                  :string           not null
@@ -37,7 +40,7 @@ class User < ApplicationRecord
   FALLBACK_AVATAR = "/static-assets/pfp_fallback.webp"
   # Cachet redirects to the current Slack profile picture, so stored Slack image URLs never go stale.
   CACHET_URL = "https://cachet.hackclub.com"
-  # The desktop pet picked during onboarding, as an egg until it hatches.
+  # The desktop pet picked during onboarding, an egg until the first journal (Evolution). It is also the team (Team).
   PETS = %w[lulu sami].freeze
 
   include PublicIdentifiable
@@ -53,6 +56,7 @@ class User < ApplicationRecord
 
   has_many :projects, dependent: :destroy
   has_many :journals, dependent: :destroy
+  has_many :xp_entries, dependent: :destroy
 
   validates :hca_id, :email, :display_name, :timezone, presence: true
   validates :hca_id, uniqueness: true
@@ -64,6 +68,7 @@ class User < ApplicationRecord
   scope :admins, -> { where("roles @> ARRAY[?]::varchar[]", "admin") }
   scope :with_role, ->(role) { where("roles @> ARRAY[?]::varchar[]", role.to_s) }
   scope :banned, -> { where(is_banned: true) }
+  scope :on_a_team, -> { kept.where(is_banned: false).where.not(pet: nil) }
 
   def has_role?(role) = roles.include?(role.to_s)
   def admin? = has_role?(:admin)
@@ -87,6 +92,22 @@ class User < ApplicationRecord
   end
 
   def slack_mention = slack_id.present? ? "<@#{slack_id}>" : display_name
+
+  def local_date(time = Time.current) = time.in_time_zone(timezone).to_date
+
+  def team = Team.for(self)
+  def hatched? = xp.positive?
+  def stage = Evolution.stage(xp) { projects.kept.approved.exists? }
+  def next_stage_xp = Evolution.next_stage_xp(xp)
+  def stage_progress = Evolution.progress(xp)
+
+  # What the pet looks like: 0 is the egg, then the stage.
+  def pet_form = hatched? ? stage : 0
+
+  # users.xp is the ledger's sum, kept by XpEntry after every change. Never incremented, so it cannot drift.
+  def self.recount_xp(ids)
+    where(id: ids).update_all("xp = (SELECT COALESCE(SUM(amount), 0) FROM xp_entries WHERE xp_entries.user_id = users.id)")
+  end
 
   # Journals posted from the web go to Slack as this person when they have connected Slack (SlackAuthController).
   def slack_connected? = slack_user_token.present?

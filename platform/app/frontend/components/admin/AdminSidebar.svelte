@@ -7,6 +7,7 @@
   import Search from '@lucide/svelte/icons/search'
   import Sun from '@lucide/svelte/icons/sun'
   import { Kbd } from '@/components/admin/ui/kbd'
+  import Wordmark from '@/components/Wordmark.svelte'
   import { adminDark, toggleAdminDark } from '@/lib/adminDark.svelte'
   import { adminNav, isActive } from '@/lib/adminNav'
   import { home, adminRoot } from '@/routes'
@@ -67,9 +68,10 @@
     {#if !collapsed}
       <Link
         href={adminRoot()}
-        class="min-w-0 flex-1 truncate text-sm font-semibold tracking-tight whitespace-nowrap"
+        class="flex min-w-0 flex-1 items-center gap-2 text-sm font-semibold tracking-tight whitespace-nowrap"
       >
-        Fallen Admin
+        <Wordmark class="h-9" />
+        Admin
       </Link>
     {/if}
     <button
