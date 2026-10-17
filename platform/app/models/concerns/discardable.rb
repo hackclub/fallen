@@ -15,6 +15,7 @@ module Discardable
   def discard = update(discarded_at: Time.current)
   def undiscard = update(discarded_at: nil)
   def discarded? = discarded_at.present?
+  def kept? = !discarded?
 
   def destroy = discard && self
   def destroy! = destroy || raise(ActiveRecord::RecordNotDestroyed.new("Failed to discard the record", self))

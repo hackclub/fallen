@@ -3,19 +3,21 @@
 #
 # Table name: xp_entries
 #
-#  id          :bigint           not null, primary key
-#  amount      :integer          not null
-#  day         :date             not null
-#  kind        :string           not null
-#  multiplier  :decimal(2, 1)
-#  source_type :string
-#  created_at  :datetime         not null
-#  updated_at  :datetime         not null
-#  source_id   :bigint
-#  user_id     :bigint           not null
+#  id           :bigint           not null, primary key
+#  amount       :integer          not null
+#  day          :date             not null
+#  discarded_at :datetime
+#  kind         :string           not null
+#  multiplier   :decimal(2, 1)
+#  source_type  :string
+#  created_at   :datetime         not null
+#  updated_at   :datetime         not null
+#  source_id    :bigint
+#  user_id      :bigint           not null
 #
 # Indexes
 #
+#  index_xp_entries_on_discarded_at               (discarded_at)
 #  index_xp_entries_on_source_type_and_source_id  (source_type,source_id) UNIQUE WHERE (source_id IS NOT NULL)
 #  index_xp_entries_on_user_id                    (user_id)
 #  index_xp_entries_on_user_id_and_day            (user_id,day)

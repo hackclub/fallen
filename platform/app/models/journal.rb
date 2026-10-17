@@ -87,7 +87,7 @@ class Journal < ApplicationRecord
   def on_slack? = slack_channel_id.present? && slack_ts.present?
   def slack_url = on_slack? ? SlackMessaging.permalink(slack_channel_id, slack_ts, thread_ts: project.slack_thread_ts) : nil
   def hours_logged? = duration_minutes.present?
-  def xp = xp_entry&.amount
+  def xp = xp_entry&.kept? ? xp_entry.amount : nil
   def images_needed = (duration_minutes.to_f / MINUTES_PER_IMAGE).ceil
   def duration_text = Duration.format(duration_minutes)
   def multi_part? = slack_parts.size > 1

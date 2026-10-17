@@ -41,7 +41,7 @@ class Team
   def journal_days(week) = user.xp_entries.journals.during(week).distinct.pluck(:day).sort
 
   # The streak starts with the first journal.
-  def first_journal_day = user.xp_entries.journals.minimum(:day)
+  def first_journal_day = user.xp_entries.kept.journals.minimum(:day)
 
   def close_week(week) = raise(NotImplementedError)
 

@@ -15,10 +15,28 @@ class XpTest < ActiveSupport::TestCase
     assert_equal 44, user.reload.xp
 
     journal.discard
-    assert_nil journal.reload.xp_entry
+    assert journal.reload.xp_entry.discarded?, "kept in the ledger, not removed"
+    assert_nil journal.xp
     assert_equal 20, user.reload.xp
     journal.undiscard
     assert_equal 44, user.reload.xp
+    assert_equal 24, journal.reload.xp
+  end
+
+  test "deleting a project takes back its journals' xp and the early-bird bonus, keeping the entries" do
+    user = users(:newcomer)
+    travel_to Project::EARLY_BIRD_UNTIL - 1.hour do
+      project = user.projects.create!(title: "First")
+      project.journals.create!(user: user, body: "x", duration: "1h", images: [ photo ])
+      assert_equal Project::EARLY_BIRD_BONUS + 8, user.reload.xp
+
+      assert_no_difference -> { XpEntry.count } do
+        project.discard
+      end
+      assert_equal 0, user.reload.xp
+      assert_equal 2, user.xp_entries.discarded.count
+      assert_equal 0, XpEntry.during(Week.of(user.local_date)).where(user: user).sum(:amount)
+    end
   end
 
   test "a journal keeps the multiplier it was saved with" do

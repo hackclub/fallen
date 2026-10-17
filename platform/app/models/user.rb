@@ -104,9 +104,9 @@ class User < ApplicationRecord
   # What the pet looks like: 0 is the egg, then the stage.
   def pet_form = hatched? ? stage : 0
 
-  # users.xp is the ledger's sum, kept by XpEntry after every change. Never incremented, so it cannot drift.
+  # users.xp is the sum of the ledger's kept entries, recounted by XpEntry after every change. Never incremented, so it cannot drift.
   def self.recount_xp(ids)
-    where(id: ids).update_all("xp = (SELECT COALESCE(SUM(amount), 0) FROM xp_entries WHERE xp_entries.user_id = users.id)")
+    where(id: ids).update_all("xp = (SELECT COALESCE(SUM(amount), 0) FROM xp_entries WHERE xp_entries.user_id = users.id AND xp_entries.discarded_at IS NULL)")
   end
 
   # Journals posted from the web go to Slack as this person when they have connected Slack (SlackAuthController).

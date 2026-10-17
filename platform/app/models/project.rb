@@ -96,9 +96,11 @@ class Project < ApplicationRecord
 
   def journal_count = journals.kept.count
 
+  # Takes back the XP it brought: its journals' and the early-bird bonus.
   def discard
     transaction do
       journals.kept.includes(images_attachments: :blob).find_each(&:discard)
+      XpEntry.kept.where(source: self).find_each(&:discard)
       super
     end
   end
@@ -106,7 +108,7 @@ class Project < ApplicationRecord
   private
 
   def grant_early_bird
-    return if created_at > EARLY_BIRD_UNTIL || user.xp_entries.exists?(kind: "early_bird")
+    return if created_at > EARLY_BIRD_UNTIL || user.xp_entries.kept.exists?(kind: "early_bird")
 
     user.xp_entries.create!(kind: "early_bird", amount: EARLY_BIRD_BONUS, day: user.local_date(created_at), source: self)
   end
