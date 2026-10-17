@@ -113,12 +113,12 @@
 {#snippet howLong()}
   Your character levels up with the hours you put in, and you qualify once it reaches its final form.
   Journaling every day builds a streak that speeds up its progress, so qualifying takes about 80-120 hours
- depending on how well you keep your streak & your character's bonus!
+  depending on how well you keep your streak & your character's bonus!
 {/snippet}
 
 {#snippet cantTravel()}
-  You can still be a faller! Level up your character to earn prizes like 3D printers and CNC mills, or
-  Fallen merch.
+  You can still be a faller! Level up your character to earn prizes like 3D printers and CNC mills, or Fallen
+  merch.
 {/snippet}
 
 {#snippet moreQuestions()}
