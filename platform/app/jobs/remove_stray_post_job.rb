@@ -8,7 +8,7 @@ class RemoveStrayPostJob < ApplicationJob
     return if Project.exists?(slack_channel_id: channel_id, slack_thread_ts: ts)
 
     removed = Prometheus.configured?
-    Prometheus.delete_thread(ts, reason: "Fallen: projects are started on the site, not by posting in the channel") if removed
+    Prometheus.delete_message(ts, reason: "Fallen: projects are started on the site, not by posting in the channel") if removed
     SlackBot.client.chat_postEphemeral(channel: channel_id, user: slack_user_id, **SlackMessages.stray_post(text, removed: removed))
   rescue Slack::Web::Api::Errors::SlackError
     nil

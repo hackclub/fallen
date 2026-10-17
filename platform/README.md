@@ -83,7 +83,7 @@ message is the project; each reply by the owner is a journal. Both sides stay in
   for my next one". `CollectSlackJournalJob` copies the photos onto the journal (bot scope `files:read`) and reacts to
   each reply. Edits and deletions of any reply in Slack update the draft or journal.
 - Projects are only started on the web; `/project` links there. Any other top-level post in the journals channel is
-  deleted with its thread through [Prometheus](https://github.com/hackclub/prometheus) (`RemoveStrayPostJob`,
+  deleted through [Prometheus](https://github.com/hackclub/prometheus) (`RemoveStrayPostJob`,
   `PROMETHEUS_API_KEY`, a key a channel manager makes for the journals channel), and the author gets their text back.
 - Before that happens: `bin/slack-typing` watches who starts typing a top-level post and `TypingHintJob` sends them
   a hidden hint, with a "Start a project" button or links to the threads of projects they already have. Slack only
