@@ -29,20 +29,20 @@
   --color-navy: #161c58;
   --color-dark-purple: #11163f; /* the recap video's backing and dark text on light panels */
   --color-dark-blue: #0c1238; /* the cards' backing, the unlit path stops and the vignette */
-  --color-twilight: #262056; /* the page's colour behind How It Works: the sky turned to lavender dusk */
+  --color-twilight: #262056; /* the sky turned to lavender dusk: the edge of the recap video */
   --color-black: #000105; /* not really black: the bottom of the footer */
   --color-light-blue: #9cabf7; /* past projects' captions */
   --color-periwinkle: #90a8f6;
   --color-pale-blue: #d6dcfb; /* body text */
-  --color-mint: #c7e1b8;
+  --color-mint: #cbe1b8;
   --color-mist: #ebece7;
   --color-linen: #fcfbf8;
   --color-cream: #fcf9ef; /* the buildings' ivory: the hero's text, FAQ questions and selected links */
   --color-parchment: #f7dda6; /* the buildings' parchment: section headings and unselected nav links */
   --color-sand: #e6d3a3;
-  --color-gold: #dab771; /* the buildings' sandstone: frame lines, ornaments, card outlines, the open FAQ question */
+  --color-gold: #dab771; /* the buildings' sandstone: frame lines, ornaments and card outlines */
   --color-saffron: #f9af3f;
-  --color-tangerine: #f09834;
+  --color-tangerine: #d69336;
 
   /* Still used by the buttons, the impersonation banner and the Home/Projects pages. */
   --color-hc-red: #ec3750;
@@ -124,10 +124,10 @@
 }
 
 /* The landing page cards' hover tilt (lib/holo.ts sets the angles, HoloShine.svelte draws the light). Every part of
-   it eases on the same quick-then-gentle curve; the card's other changes keep a plain 300ms. */
+   it eases on the same quick-then-gentle curve; the card's other changes keep a plain 300ms. The tilt only applies
+   while hovered: even at rest a perspective counts as 3D, which gives every card its own GPU layer. */
 @utility holo-card {
   --holo-ease: 0.4s cubic-bezier(0.03, 0.98, 0.52, 0.99);
-  transform: perspective(1000px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) scale(var(--scale, 1));
   transition:
     transform var(--holo-ease),
     translate 300ms,
@@ -136,8 +136,11 @@
     box-shadow 300ms,
     outline-color 300ms;
 
-  @media (prefers-reduced-motion: reduce) {
-    transform: none;
+  /* only with a real pointer: a tap on a touch screen leaves :hover stuck on the card */
+  @media (prefers-reduced-motion: no-preference) and (hover: hover) {
+    &:hover {
+      transform: perspective(1000px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) scale(var(--scale, 1));
+    }
   }
 }
 

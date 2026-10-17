@@ -17,18 +17,19 @@
   const copies = 2
   const slots = projects.length * copies
   const drift = 0.3 // cards/s it turns on its own
-  const entrance = 16 // cards/s it spins in at
+  const entrance = 8 // cards/s it spins in at
   const ease = 1.4 // how quickly the speed eases back to the drift, 1/s
   const idleAfterUse = 6000 // ms after the last drag or click before it drifts again
   const stiffness = 70
   const damping = 14 // a little under critical (2 * sqrt(stiffness)), so it sways once as it settles
-  const top = 64 // px of room above the cards for the lifted one and its sparkles
+  const top = 64 // px of room above the cards for the lifted one
 
   let stageWidth = $state(1024)
-  const wheel = $derived(wheelFor(stageWidth < 640 ? 150 : stageWidth < 1280 ? 180 : 200))
+  const wheel = $derived(wheelFor(stageWidth < 640 ? 165 : stageWidth < 1280 ? 200 : 225))
+  const stage = $derived({ width: stageWidth, height: top + wheel.height + wheel.width * 0.95, top })
 
   const slotsEl: HTMLElement[] = $state([])
-  let stage: HTMLElement
+  let stageEl: HTMLElement
   let offset = 0 // cards the wheel has turned
   let velocity = 0 // cards/s
   let target: number | null = null // the card it's settling on, while held
@@ -55,7 +56,7 @@
   function place() {
     const places = slotsEl.map((_, i) => wrap(i - offset))
     const order = places.map((_, i) => i).sort((a, b) => Math.abs(places[a]) - Math.abs(places[b]))
-    order.forEach((i, rank) => placeCard(slotsEl[i], places[i], rank, wheel))
+    order.forEach((i, rank) => placeCard(slotsEl[i], places[i], rank, wheel, stage))
     // too quick to read: the name hides until the wheel slows, then shows the card it slowed on
     fast = Math.abs(velocity) > 4
     if (!fast) active = ((Math.round(offset) % projects.length) + projects.length) % projects.length
@@ -116,7 +117,7 @@
   }
 
   $effect(() => {
-    void wheel
+    void stage
     place()
   })
 
@@ -126,7 +127,7 @@
       ([entry]) => {
         onScreen = entry.isIntersecting
         // the rays behind the middle card only turn while they can be seen
-        stage.parentElement!.style.setProperty('--spin', onScreen ? 'running' : 'paused')
+        stageEl.parentElement!.style.setProperty('--spin', onScreen ? 'running' : 'paused')
         if (!onScreen) {
           cancelAnimationFrame(frame)
           frame = 0
@@ -161,8 +162,8 @@
 
   $effect(() => {
     // not through onwheel, which Svelte makes passive, so it couldn't stop the browser going back a page
-    stage.addEventListener('wheel', onWheel, { passive: false })
-    return () => stage.removeEventListener('wheel', onWheel)
+    stageEl.addEventListener('wheel', onWheel, { passive: false })
+    return () => stageEl.removeEventListener('wheel', onWheel)
   })
 
   // a press only becomes a drag once it has moved, so a click still reaches the card under it
@@ -223,11 +224,12 @@
   const rise = (line: number) => ({ y: 12, duration: 360, delay: line * 40, easing: backOut })
 </script>
 
-<section id="projects" aria-label="Past projects" class="pt-16">
+<!-- clipped, as the light behind the middle card is wider than a phone -->
+<section id="projects" aria-label="Past projects" class="overflow-x-clip pt-16">
   <!-- a gold line running out from the heading that fades to the right, starting from the star in the frame's corners -->
   <div class="mx-auto flex w-[calc(100%-3rem)] max-w-6xl items-center gap-4 md:w-[calc(100%-5rem)]">
     <h2
-      class="shrink-0 font-lora text-4xl font-bold text-parchment text-shadow-md text-shadow-dark-purple/40 md:text-5xl"
+      class="shrink-0 font-lora text-4xl font-semibold text-parchment text-shadow-md text-shadow-dark-purple/40 md:text-5xl"
     >
       Past projects
     </h2>
@@ -239,11 +241,7 @@
     </span>
   </div>
 
-  <div
-    class="relative"
-    style:height="{top + wheel.height + wheel.width * 0.95}px"
-    bind:clientWidth={stageWidth}
-  >
+  <div class="relative" style:height="{stage.height}px" bind:clientWidth={stageWidth}>
     <!-- the light behind the middle card: a warm glow and slow turning rays, faded out towards their ends -->
     <div
       class="pointer-events-none absolute left-1/2 -translate-x-1/2 -translate-y-1/4"
@@ -260,12 +258,12 @@
       ></div>
     </div>
 
-    <!-- the cards, faded out towards the screen's sides and the bottom of the wheel -->
+    <!-- the cards, each faded out towards the screen's sides and the bottom of the wheel by placeCard -->
     <div
-      bind:this={stage}
+      bind:this={stageEl}
       role="presentation"
       class={[
-        'absolute inset-0 touch-pan-y overflow-hidden select-none mask-x-from-85% mask-b-from-70%',
+        'absolute inset-0 touch-pan-y overflow-hidden select-none',
         dragging ? 'cursor-grabbing' : 'cursor-grab',
       ]}
       onpointerdown={onPointerDown}
@@ -295,7 +293,7 @@
         >
           <button
             type="button"
-            class="block size-full rounded-2xl focus-visible:ring-2 focus-visible:ring-cream focus-visible:outline-none"
+            class="block size-full rounded-lg focus-visible:ring-2 focus-visible:ring-cream focus-visible:outline-none"
             tabindex={clone ? -1 : undefined}
             aria-label="{item.name}, by {item.by}"
             onfocus={(event) => event.currentTarget.matches(':focus-visible') && turnTo(slot)}

@@ -9,27 +9,37 @@
   import GoldFrame from '@/components/GoldFrame.svelte'
   import HowItWorks from '@/components/HowItWorks.svelte'
   import OrnamentNav from '@/components/OrnamentNav.svelte'
+  import PastEvents from '@/components/PastEvents.svelte'
   import PastProjects from '@/components/PastProjects.svelte'
   import Recap from '@/components/Recap.svelte'
   // import Store from '@/components/Store.svelte'
   import Wordmark from '@/components/Wordmark.svelte'
   import { home, root, signIn } from '@/routes'
+  import { buildTime, travellers } from '@/lib/program'
   import { shared } from '@/lib/shared.svelte'
 
   import { onMount } from 'svelte'
   import type { Component } from 'svelte'
 
   // Everything that follows the scroll is plain arithmetic on scrollY, so a scroll costs no layout: the only
-  // measurement is How It Works' place on the page, taken again whenever the page changes height.
+  // measurements are the intro's and How It Works' places on the page, taken again whenever the page changes height.
+  type Place = { top: number; bottom: number }
   let scrollY = $state(0)
   let innerHeight = $state(1)
   let pageHeight = $state(0)
-  let howItWorks: { top: number; bottom: number } | undefined = $state()
+  let intro: HTMLElement | undefined = $state()
+  let introPlace: Place | undefined = $state()
+  let howItWorks: Place | undefined = $state()
 
+  const placeOf = (el: Element | null | undefined) => {
+    const box = el?.getBoundingClientRect()
+    return box && { top: box.top + window.scrollY, bottom: box.bottom + window.scrollY }
+  }
   $effect(() => {
     void [pageHeight, innerHeight]
-    const box = document.getElementById('how-it-works')!.getBoundingClientRect()
-    howItWorks = { top: box.top + window.scrollY, bottom: box.bottom + window.scrollY }
+    introPlace = placeOf(intro)
+    // How It Works may be commented out, so there may be nothing to measure
+    howItWorks = placeOf(document.getElementById('how-it-works'))
   })
 
   const unit = (v: number) => Math.min(1, Math.max(0, v))
@@ -43,11 +53,16 @@
   // the sky they frame, and gone before the sections scroll in under them.
   const heroFade = $derived(unit(1 - scrollY / innerHeight))
 
-  // How It Works has its own colour: the whole page fades from the sky into twilight as the section comes up the
-  // screen, holds it while the section is read, and fades back to the sky as it leaves, taking the hero's frame with
-  // it.
+  // The hero's frame fades away as How It Works leaves the screen.
   const leaving = $derived(howItWorks ? passing(howItWorks.bottom, 0.75, 0.15) : 0)
-  const tint = $derived(howItWorks ? passing(howItWorks.top, 0.85, 0.25) * (1 - leaving) : 0)
+
+  // The page darkens to navy as the intro comes up the screen, keeps it through How It Works, and fades back to the
+  // sky as How It Works leaves (or the intro, if How It Works is commented out).
+  const tint = $derived.by(() => {
+    if (!introPlace) return 0
+    const last = howItWorks ?? introPlace
+    return passing(introPlace.top, 0.85, 0.35) * (1 - passing(last.bottom, 0.75, 0.15))
+  })
 
   // ...and the screen's edges are softly darkened with a multiplied vignette. Multiply only ever darkens, so a dark
   // card stays dark rather than turning see-through. It fades away over the last stretch of the page, so the footer
@@ -75,8 +90,8 @@
 
   const navItems = $derived([
     shared().auth.user
-      ? { label: 'DASHBOARD', href: home.index().url }
-      : { label: 'GET STARTED', href: signIn().url },
+      ? { label: 'DASHBOARD', href: home.index().url, glimmer: true }
+      : { label: 'GET STARTED', href: signIn().url, glimmer: true },
     { label: 'View Stats', href: root().url },
   ])
 
@@ -97,10 +112,10 @@
   class="fixed inset-0 -z-2 bg-[url('/assets/hero/background.webp')] bg-cover bg-center bg-no-repeat"
   aria-hidden="true"
 ></div>
-<!-- the page's colour while How It Works is on screen, over the sky (see tint above). Twilight, lit from the middle
-     by the sky's bright blue, like Lulu's card -->
+<!-- the page's colour from the intro through How It Works (see tint above): a deep navy, lit faintly from the
+     middle by the sky's cobalt -->
 <div
-  class="pointer-events-none fixed inset-0 -z-1 bg-twilight bg-[radial-gradient(ellipse_60%_55%_at_50%_45%,color-mix(in_oklab,var(--color-bright-blue)_45%,transparent),transparent)]"
+  class="pointer-events-none fixed inset-0 -z-1 bg-navy bg-[radial-gradient(ellipse_60%_55%_at_50%_45%,color-mix(in_oklab,var(--color-indigo)_45%,transparent),transparent)]"
   style:opacity={tint}
   aria-hidden="true"
 ></div>
@@ -114,6 +129,12 @@
 >
   <div
     class="absolute inset-x-[11vw] inset-y-[6vmin] rounded-[min(22vw,30vh)] shadow-[0_0_0_100vmax_color-mix(in_oklab,var(--color-dark-blue)_30%,transparent)] blur-[9vw]"
+  ></div>
+  <!-- and a deeper dark along the bottom, so what scrolls up fades in rather than appearing at the frame's edge: the
+       same blurred squircle, its window running off the top and sides and ending above the bottom, so the dark rises
+       softly and curves up into the bottom corners -->
+  <div
+    class="absolute -inset-x-[12vw] -top-[30vh] bottom-[10vh] rounded-[min(22vw,30vh)] shadow-[0_0_0_100vmax_color-mix(in_oklab,var(--color-dark-blue)_55%,transparent)] blur-[6vw]"
   ></div>
 </div>
 <!-- the frame is its own layer above the sections, so their darkening gradient never covers it as it fades -->
@@ -136,7 +157,7 @@
 {/if}
 
 <section
-  class="relative flex min-h-screen w-full flex-col items-center justify-center space-y-6 overflow-x-clip px-6 py-10 text-center text-stone-100 md:p-10 xl:p-20"
+  class="relative flex min-h-screen w-full flex-col items-center justify-center space-y-4 overflow-x-clip sm:space-y-6 px-6 py-10 text-center text-stone-100 md:p-10 xl:p-20"
 >
   <div class="fixed inset-0 -z-1 bg-black/10"></div>
   <div
@@ -152,13 +173,15 @@
       class="col-start-1 row-start-1 size-170 rounded-full border-linear-to-b bg-linear-to-b from-blue/30 to-transparent bg-clip-padding"
     ></div>
   </div>
-  <div class="flex flex-col -space-y-8">
-    <h1><Wordmark onDark class="z-10 -mt-10 h-60 drop-shadow-[0_0_4px_rgb(255_255_255/0.6)]" /></h1>
-    <p class="text-2xl text-cream px-2 py-1 rounded-xs">December 11–14, 2026</p>
+  <div class="flex flex-col -space-y-3 sm:-space-y-8">
+    <h1>
+      <Wordmark onDark class="z-10 -mt-6 h-32 sm:-mt-10 sm:h-60 drop-shadow-[0_0_4px_rgb(255_255_255/0.6)]" />
+    </h1>
+    <p class="text-lg md:text-2xl text-cream px-2 py-1 rounded-xs">December 11–14, 2026</p>
   </div>
 
   <h2
-    class="-mt-4 text-3xl font-lora font-semibold max-w-lg leading-8 text-shadow-md text-shadow-purple/20 text-saffron"
+    class="-mt-4 text-xl md:text-3xl font-lora font-semibold max-w-lg leading-6 md:leading-8 text-shadow-md text-shadow-purple/20 text-saffron drop-shadow-[0_0_10px_color-mix(in_oklab,var(--color-saffron)_35%,transparent)]"
   >
     Build a hardware project for free, present it in Shenzhen, China.
   </h2>
@@ -185,9 +208,29 @@
 <div class="relative z-1">
   <div class="relative">
     <div
-      class="absolute inset-0 -z-1 bg-linear-to-b from-transparent via-purple via-60% to-black"
+      class="absolute inset-0 -z-1 bg-linear-to-b from-transparent via-purple via-60% to-dark-purple"
       aria-hidden="true"
     ></div>
+    <div
+      bind:this={intro}
+      class="px-6 sm:px-12 mx-auto flex max-w-6xl flex-col items-center gap-12 text-xl/relaxed text-cream md:px-10 md:text-2xl lg:flex-row lg:justify-between lg:gap-16"
+    >
+      <div class="max-w-2xl space-y-5 font-lora md:space-y-6">
+        <p>Welcome to Fallen!</p>
+        <p>
+          This December you & {travellers} teens will travel to China, to showcase your projects at
+          <a class="text-periwinkle underline" href="https://makerfaire.com/">Maker Faire Shenzhen!</a>
+          For the next {buildTime}, you, other fallers, and us work together to
+          <span class="text-periwinkle underline">build our own interactive hardware projects!</span>
+        </p>
+        <p>
+          Then, we'll meet up with our projects in Shenzhen, China to demo at Maker Faire's flagship
+          convention and go on a hardware adventure.
+        </p>
+        <p class="italic text-mint">- Katie, Anson & Sophia</p>
+      </div>
+      <PastEvents />
+    </div>
     <HowItWorks />
     <PastProjects />
     <!-- <Store /> -->

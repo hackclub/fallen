@@ -2,7 +2,7 @@
   // A stacked list of links with a line-and-diamonds ornament either side of the active one. The first link stays
   // active until another is hovered or focused, and again once the pointer leaves. small is the footer's size; glow
   // gives the links and ornaments a white glow, like the footer's wordmark. class goes on the nav, itemClass on each
-  // link's row.
+  // link's row. A link with glimmer turns mint under the pointer, and the letters nearest it light up white.
   let {
     items,
     small = false,
@@ -11,7 +11,7 @@
     class: className = '',
     itemClass = '',
   }: {
-    items: { label: string; href: string; onclick?: (event: MouseEvent) => void }[]
+    items: { label: string; href: string; onclick?: (event: MouseEvent) => void; glimmer?: boolean }[]
     small?: boolean
     glow?: boolean
     label?: string
@@ -23,6 +23,14 @@
     '[filter:drop-shadow(0_0_6px_rgb(255_255_255/0.25))_drop-shadow(0_0_20px_rgb(255_255_255/0.1))]'
 
   let active = $state(0)
+
+  // where a glimmer link's light is, in px from its top left
+  function followPointer(event: PointerEvent) {
+    const link = event.currentTarget as HTMLElement
+    const box = link.getBoundingClientRect()
+    link.style.setProperty('--glimmer-x', `${event.clientX - box.left}px`)
+    link.style.setProperty('--glimmer-y', `${event.clientY - box.top}px`)
+  }
 </script>
 
 {#snippet ornament(visible: boolean, extra = '')}
@@ -77,7 +85,11 @@
 
 <nav
   aria-label={label}
-  class={['relative z-10 flex flex-col items-center', small ? 'space-y-3' : 'space-y-4', className]}
+  class={[
+    'relative z-10 flex flex-col items-center',
+    small ? 'space-y-3' : 'space-y-1 sm:space-y-4',
+    className,
+  ]}
   onmouseleave={() => (active = 0)}
 >
   {#each items as item, i (item.label)}
@@ -94,17 +106,19 @@
           // the navy outline lifts the text off the hero's art, but would dim the glow
           !glow && (small ? '[-webkit-text-stroke:5px_#162C8640]' : '[-webkit-text-stroke:6px_#162C8640]'),
           on ? 'font-bold text-cream' : 'text-parchment',
+          item.glimmer && 'group hover:text-mint',
           glow && !on && 'opacity-80',
           small
             ? on
               ? 'text-2xl sm:text-3xl'
               : 'text-xl sm:text-2xl'
             : on
-              ? 'text-3xl sm:text-4xl'
-              : 'text-2xl sm:text-3xl',
+              ? 'text-2xl sm:text-4xl'
+              : 'text-xl sm:text-3xl',
         ]}
         onclick={item.onclick}
         onmouseenter={() => (active = i)}
+        onpointermove={item.glimmer ? followPointer : undefined}
         onfocus={() => (active = i)}
       >
         <!-- the soft oval of light Genshin puts behind a selected menu item. It swells past its size and settles
@@ -121,8 +135,49 @@
           aria-hidden="true"
         ></span>
         {item.label}
+        {#if item.glimmer}
+          <!-- the light, on a copy of the label without the outline, so only the letters catch it -->
+          <span
+            class="glimmer pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100"
+            aria-hidden="true">{item.label}</span
+          >
+        {/if}
       </a>
       {@render ornament(on, 'rotate-180')}
     </div>
   {/each}
 </nav>
+
+<style>
+  /* registered so the light's position can ease after the pointer, just behind it */
+  @property --glimmer-x {
+    syntax: '<length-percentage>';
+    inherits: true;
+    initial-value: 50%;
+  }
+
+  @property --glimmer-y {
+    syntax: '<length-percentage>';
+    inherits: true;
+    initial-value: 50%;
+  }
+
+  /* a faint white light round the pointer, only on the letters under it */
+  .glimmer {
+    -webkit-text-stroke: 0;
+    text-shadow: none;
+    color: transparent;
+    background: radial-gradient(
+        circle 40px at var(--glimmer-x) var(--glimmer-y),
+        rgb(255 255 255 / 0.85),
+        transparent
+      )
+      no-repeat;
+    background-clip: text;
+    /* custom properties need naming: transition-all leaves them out */
+    transition:
+      opacity 150ms,
+      --glimmer-x 150ms ease-out,
+      --glimmer-y 150ms ease-out;
+  }
+</style>

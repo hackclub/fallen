@@ -3,6 +3,8 @@
 // of the one at the top, which is lifted and a little larger. Everything is in px and scales with the card.
 
 export type Wheel = { width: number; height: number; spacing: number; radius: number; lift: number }
+// the box the cards turn in; top is the room above the cards for the lifted one
+export type Stage = { width: number; height: number; top: number }
 
 export function wheelFor(width: number): Wheel {
   return {
@@ -19,12 +21,28 @@ export const smoothstep = (a: number, b: number, v: number) => {
   return t * t * (3 - 2 * t)
 }
 
+// A card's dimming layer and framed card (components/PastProjectCard.svelte), found once. Their opacity and mask are
+// set on them directly rather than through custom properties, which would restyle and repaint the whole card every
+// frame. Only a card that has rendered both is remembered; until then it goes undimmed and unmasked.
+type Parts = { shade: HTMLElement; card: HTMLElement }
+const parts = new WeakMap<HTMLElement, Parts>()
+function partsOf(el: HTMLElement): Parts | undefined {
+  let found = parts.get(el)
+  if (!found) {
+    const shade = el.querySelector<HTMLElement>('[data-shade]')
+    const card = el.querySelector<HTMLElement>('[data-card]')
+    if (!shade || !card) return undefined
+    found = { shade, card }
+    parts.set(el, found)
+  }
+  return found
+}
+
 const crossfade = 0.05 // cards of turning over which two overlapping cards trade places
 const soft = 10 // px of the overlap's fade, so its edge isn't a hard line
 
-// What was last written to each card, so a frame only writes what changed. Every write costs a style recalc, and the
-// custom properties are inherited, so changing one recalculates the whole card beneath it. Cards far out on the rim
-// barely change at all.
+// What was last written to each element, so a frame only writes what changed. Every write costs a style recalc, and
+// cards far out on the rim barely change at all.
 const written = new WeakMap<HTMLElement, Map<string, string>>()
 
 function write(el: HTMLElement, property: string, value: string) {
@@ -42,7 +60,11 @@ function write(el: HTMLElement, property: string, value: string) {
 // every frame. A swap of z-index alone would flick the overlap from one card to the other in a frame, so for a moment either side
 // of the swap the front card's overlapping edge turns half see-through, through a mask along the edge of the card
 // behind (tilted with it, as the cards fan out). At the swap both show at half, so it crossfades instead.
-export function placeCard(el: HTMLElement, s: number, rank: number, wheel: Wheel) {
+//
+// The cards also fade out towards the stage's sides and bottom, each as a whole: at the sides by where its outer edge
+// is, so it has gone before the stage clips it, and at the bottom by where its middle is. A mask over the stage would
+// fade them more evenly, but it redraws every card into it on every frame.
+export function placeCard(el: HTMLElement, s: number, rank: number, wheel: Wheel, stage: Stage) {
   const { width, height, spacing, radius, lift } = wheel
   const away = Math.abs(s)
   const near = Math.max(0, 1 - away)
@@ -50,17 +72,21 @@ export function placeCard(el: HTMLElement, s: number, rank: number, wheel: Wheel
   const angle = s * step
   const x = radius * Math.sin(angle)
   const y = radius * (1 - Math.cos(angle)) - near * lift
-  const hidden = away > 5.7
+  const outer = Math.abs(x) + width / 2
+  const sides = Math.min(1, (stage.width / 2 - outer) / (stage.width * 0.15)) // gone as it reaches the stage's edge
+  const bottom = Math.min(1, (stage.height - (stage.top + height / 2 + y)) / (stage.height * 0.3)) // the last 30%
+  // to a thousandth, finer than can be seen, so a card that has stopped changing stops being written
+  const opacity = Math.max(0, (1 - smoothstep(3.6, 5.6, away)) * Math.min(sides, bottom)).toFixed(3)
+  const hidden = Number(opacity) === 0
   write(el, 'visibility', hidden ? 'hidden' : '')
   if (hidden) return
   write(el, 'transform', `translate3d(${x}px, ${y}px, 0) rotate(${angle}rad) scale(${1 + near * 0.05})`)
-  // to a thousandth, finer than can be seen, so a card that has stopped changing stops being written
-  write(el, 'opacity', (1 - smoothstep(3.6, 5.6, away)).toFixed(3))
+  write(el, 'opacity', opacity)
   write(el, 'z-index', String(1000 - rank))
-  write(el, '--near', near.toFixed(3))
-  write(el, '--shade', smoothstep(0, 2.5, away).toFixed(3))
-  // the sparkles only twinkle on a card that shows them
-  write(el, '--twinkle', near > 0 ? 'running' : 'paused')
+  const found = partsOf(el)
+  if (!found) return
+  const { shade, card } = found
+  write(shade, 'opacity', (smoothstep(0, 2.5, away) * 0.6).toFixed(3))
 
   const edge = away < 0.5 ? 0.5 + 0.5 * smoothstep(0.5, 0.5 - crossfade, away) : 1
   if (edge < 1) {
@@ -69,6 +95,10 @@ export function placeCard(el: HTMLElement, s: number, rank: number, wheel: Wheel
     const radians = (direction * Math.PI) / 180
     const line = width * Math.abs(Math.sin(radians)) + height * Math.abs(Math.cos(radians))
     const at = line / 2 + spacing - width / 2
-    write(el, '--mask', `linear-gradient(${direction}deg, #000 ${at - soft}px, rgb(0 0 0 / ${edge}) ${at}px)`)
-  } else write(el, '--mask', '')
+    write(
+      card,
+      'mask-image',
+      `linear-gradient(${direction}deg, #000 ${at - soft}px, rgb(0 0 0 / ${edge}) ${at}px)`,
+    )
+  } else write(card, 'mask-image', '')
 }

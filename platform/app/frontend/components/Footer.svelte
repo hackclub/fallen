@@ -29,11 +29,12 @@
 {/snippet}
 
 <footer
-  class="relative flex h-fit items-center justify-center gap-10 bg-navy/90 py-10 px-10 lg:px-16 pt-40 border-t-2 border-mint"
+  class="relative flex flex-col-reverse md:flex-row h-fit items-center justify-center gap-10 bg-navy/90 py-10 px-6 md:px-10 lg:px-16 pt-40 border-t-2 border-mint"
 >
   <div class="absolute top-0 left-1/2 flex w-max -translate-1/2 items-center gap-6 text-mint">
     {@render star()}
-    <div class="w-lg max-w-80">
+    <!-- narrow, the banner shrinks so it and its stars fit the screen -->
+    <div class="w-lg max-w-[min(20rem,calc(100vw-8rem))]">
       <svg width="100%" height="auto" viewBox="0 0 522 55" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M484.96 0L522 27.5L484.96 55H37.04L0 27.5L37.04 0H484.96Z" class="fill-mint" />
         <mask id="path-2-inside-1_695_699" fill="white">
@@ -56,14 +57,14 @@
         <a class="transition-colors hover:text-cream" href="https://slack.hackclub.com">Join our Slack</a>
       </li>
       <li>
-        <a class="transition-colors hover:text-cream" href="https://slack.hackclub.com">Privacy Policy</a>
+        <a class="transition-colors hover:text-cream" href="https://hackclub.com/privacy-and-terms">Privacy Policy</a>
       </li>
       <li>
-        <a class="transition-colors hover:text-cream" href="https://slack.hackclub.com">Fulfilment Bounty</a>
+        <a class="transition-colors hover:text-cream" href="https://forms.hackclub.com/bounty">Fulfilment Bounty</a>
       </li>
     </ul>
-    <div class="flex items-center gap-12 font-lora text-2xl text-mint italic">
-      <a href="#watch" class="flex items-center gap-4 transition-colors hover:text-cream">
+    <div class="flex flex-wrap items-center gap-x-12 gap-y-4 font-lora text-2xl text-mint italic">
+      <a href="#watch" class="flex items-center gap-4 whitespace-nowrap transition-colors hover:text-cream">
         <span class="flex size-10 items-center justify-center rounded-full bg-indigo p-2.5">
           <svg
             aria-hidden="true"
@@ -89,7 +90,7 @@
       </a>
       <button
         type="button"
-        class="flex cursor-pointer items-center gap-4 transition-colors hover:text-cream"
+        class="flex cursor-pointer items-center gap-4 whitespace-nowrap transition-colors hover:text-cream"
         onclick={toTop}
       >
         <span class="flex size-10 items-center justify-center rounded-full bg-indigo p-2.5">
@@ -117,7 +118,7 @@
   </div>
 
   <Wordmark
-    class="w-200 h-fit mt-auto min-w-64 [filter:drop-shadow(0_0_6px_color-mix(in_srgb,var(--color-periwinkle)_45%,transparent))_drop-shadow(0_0_28px_color-mix(in_srgb,var(--color-periwinkle)_30%,transparent))]"
+    class="w-full md:w-200 h-fit mt-auto min-w-64 [filter:drop-shadow(0_0_6px_color-mix(in_srgb,var(--color-periwinkle)_45%,transparent))_drop-shadow(0_0_28px_color-mix(in_srgb,var(--color-periwinkle)_30%,transparent))]"
     fill="bg-periwinkle"
   />
 </footer>

@@ -1,16 +1,17 @@
 <script lang="ts">
   // The landing page's FAQ: native <details>, so it works without JS. With it, one is open at a time and opening and
   // closing are animated: the answer's height eases open while its text fades and drops into place, and the
-  // highlight, the gold question and the ornament parting the line above follow `shown`, which changes on the click
-  // rather than when the closing animation finishes.
+  // highlight and the ornament parting the line above follow `shown`, which changes on the click rather than when the
+  // closing animation finishes.
   import DiamondOrnament from '@/components/DiamondOrnament.svelte'
+  import { buildTime } from '@/lib/program'
 
   import type { Snippet } from 'svelte'
 
   const opening = { duration: 450, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }
   const closing = { duration: 280, easing: 'cubic-bezier(0.4, 0, 0.6, 1)' }
 
-  let shown = $state(0)
+  let shown = $state(-1) // the open item; none to start with
   const items: HTMLDetailsElement[] = $state([])
 
   function toggle(event: MouseEvent, i: number) {
@@ -87,7 +88,7 @@
 {/snippet}
 
 {#snippet isItFree()}
-  Yes, no catch! Fallen funds your project and the trip to the in-person event.
+  Yes, no catch! Fallen funds your project and the in-person event.
 {/snippet}
 
 {#snippet whyShenzhen()}
@@ -96,7 +97,7 @@
 {/snippet}
 
 {#snippet whatToBuild()}
-  One large hardware project (think ~7 weeks of dedicated work!). Keep in mind you'll be demoing this project
+  One large hardware project (think a {buildTime} of dedicated work!). Keep in mind you'll be demoing this project
   in Shenzhen!
 {/snippet}
 
@@ -155,7 +156,7 @@
             aria-hidden="true"
           ></div>
           <summary
-            class="relative flex cursor-pointer list-none items-center gap-4 px-4 py-5 font-lora text-xl font-bold text-cream transition-colors duration-500 group-data-shown:text-gold hover:text-gold [&::-webkit-details-marker]:hidden md:px-6 md:text-2xl"
+            class="relative flex cursor-pointer list-none items-center gap-4 px-4 py-5 font-lora text-xl font-semibold text-cream [&::-webkit-details-marker]:hidden md:px-6 md:text-2xl"
             onclick={(event) => toggle(event, i)}
           >
             {faq.question}
