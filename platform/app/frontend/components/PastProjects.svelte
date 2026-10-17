@@ -6,10 +6,12 @@
   // and the mouse wheel) turns it too, easing after the scroll and settling on a card once it stops. A side card turns
   // to that project, and the middle card opens its source. The list is drawn twice round the rim so the edges are never
   // short of cards. Only transforms, opacity and a mask change each frame, and the frames stop while it's off screen or
-  // held still.
+  // held still. Firefox redraws a moving card every frame rather than moving a layer, so there nothing here or in the
+  // card asks for an off-screen pass (a blur, a filter, a mask over a group, a 3D transform): see lib/browser.ts.
   import PastProjectCard from '@/components/PastProjectCard.svelte'
   import { starPath } from '@/components/GoldFrame.svelte'
   import { pastProjects as projects } from '@/lib/pastProjects'
+  import { firefox } from '@/lib/browser'
   import { placeCard, wheelFor } from '@/lib/projectWheel'
   import { backOut } from 'svelte/easing'
   import { fade, fly } from 'svelte/transition'
@@ -17,19 +19,21 @@
   const copies = 2
   const slots = projects.length * copies
   const drift = 0.3 // cards/s it turns on its own
-  const entrance = 8 // cards/s it spins in at
+  const entrance = 16 // cards/s it spins in at
   const ease = 1.4 // how quickly the speed eases back to the drift, 1/s
   const idleAfterUse = 6000 // ms after the last drag or click before it drifts again
   const stiffness = 70
   const damping = 14 // a little under critical (2 * sqrt(stiffness)), so it sways once as it settles
-  const top = 64 // px of room above the cards for the lifted one
+  const top = 64 // px of room above the cards for the lifted one and its sparkles
 
   let stageWidth = $state(1024)
-  const wheel = $derived(wheelFor(stageWidth < 640 ? 165 : stageWidth < 1280 ? 200 : 225))
-  const stage = $derived({ width: stageWidth, height: top + wheel.height + wheel.width * 0.95, top })
+  // in Firefox the cards fade out before the stage's sides themselves, in place of the mask over the stage
+  const wheel = $derived(
+    wheelFor(stageWidth < 640 ? 150 : stageWidth < 1280 ? 180 : 200, firefox ? stageWidth : undefined),
+  )
 
   const slotsEl: HTMLElement[] = $state([])
-  let stageEl: HTMLElement
+  let stage: HTMLElement
   let offset = 0 // cards the wheel has turned
   let velocity = 0 // cards/s
   let target: number | null = null // the card it's settling on, while held
@@ -56,7 +60,7 @@
   function place() {
     const places = slotsEl.map((_, i) => wrap(i - offset))
     const order = places.map((_, i) => i).sort((a, b) => Math.abs(places[a]) - Math.abs(places[b]))
-    order.forEach((i, rank) => placeCard(slotsEl[i], places[i], rank, wheel, stage))
+    order.forEach((i, rank) => placeCard(slotsEl[i], places[i], rank, wheel))
     // too quick to read: the name hides until the wheel slows, then shows the card it slowed on
     fast = Math.abs(velocity) > 4
     if (!fast) active = ((Math.round(offset) % projects.length) + projects.length) % projects.length
@@ -117,7 +121,7 @@
   }
 
   $effect(() => {
-    void stage
+    void wheel
     place()
   })
 
@@ -127,7 +131,7 @@
       ([entry]) => {
         onScreen = entry.isIntersecting
         // the rays behind the middle card only turn while they can be seen
-        stageEl.parentElement!.style.setProperty('--spin', onScreen ? 'running' : 'paused')
+        stage.parentElement!.style.setProperty('--spin', onScreen ? 'running' : 'paused')
         if (!onScreen) {
           cancelAnimationFrame(frame)
           frame = 0
@@ -162,8 +166,8 @@
 
   $effect(() => {
     // not through onwheel, which Svelte makes passive, so it couldn't stop the browser going back a page
-    stageEl.addEventListener('wheel', onWheel, { passive: false })
-    return () => stageEl.removeEventListener('wheel', onWheel)
+    stage.addEventListener('wheel', onWheel, { passive: false })
+    return () => stage.removeEventListener('wheel', onWheel)
   })
 
   // a press only becomes a drag once it has moved, so a click still reaches the card under it
@@ -222,14 +226,41 @@
 
   const project = $derived(projects[active])
   const rise = (line: number) => ({ y: 12, duration: 360, delay: line * 40, easing: backOut })
+
+  // In Firefox the rays behind the middle card are drawn once to a bitmap: 20 thin wedges of gold, faded out towards
+  // their ends. As the conic gradient under a radial mask that other browsers get, they would be two off-screen
+  // passes every frame they turn.
+  let rays = $state('')
+  $effect(() => {
+    if (!firefox) return
+    const size = 1024
+    const canvas = document.createElement('canvas')
+    canvas.width = canvas.height = size
+    const context = canvas.getContext('2d')!
+    const middle = size / 2
+    context.fillStyle = 'rgb(247 221 166 / 0.16)'
+    for (let i = 0; i < 20; i++) {
+      const from = (i * 18 * Math.PI) / 180
+      context.beginPath()
+      context.moveTo(middle, middle)
+      context.arc(middle, middle, middle, from, from + (5 * Math.PI) / 180)
+      context.fill()
+    }
+    const fade = context.createRadialGradient(middle, middle, middle * 0.15, middle, middle, middle)
+    fade.addColorStop(0, '#000')
+    fade.addColorStop(1, 'transparent')
+    context.globalCompositeOperation = 'destination-in'
+    context.fillStyle = fade
+    context.fillRect(0, 0, size, size)
+    rays = canvas.toDataURL()
+  })
 </script>
 
-<!-- clipped, as the light behind the middle card is wider than a phone -->
-<section id="projects" aria-label="Past projects" class="overflow-x-clip pt-16">
+<section id="projects" aria-label="Past projects" class="pt-16">
   <!-- a gold line running out from the heading that fades to the right, starting from the star in the frame's corners -->
   <div class="mx-auto flex w-[calc(100%-3rem)] max-w-6xl items-center gap-4 md:w-[calc(100%-5rem)]">
     <h2
-      class="shrink-0 font-lora text-4xl font-semibold text-parchment text-shadow-md text-shadow-dark-purple/40 md:text-5xl"
+      class="shrink-0 font-lora text-4xl font-bold text-parchment text-shadow-md text-shadow-dark-purple/40 firefox:text-shadow-2xs md:text-5xl"
     >
       Past projects
     </h2>
@@ -241,7 +272,11 @@
     </span>
   </div>
 
-  <div class="relative" style:height="{stage.height}px" bind:clientWidth={stageWidth}>
+  <div
+    class="relative"
+    style:height="{top + wheel.height + wheel.width * 0.95}px"
+    bind:clientWidth={stageWidth}
+  >
     <!-- the light behind the middle card: a warm glow and slow turning rays, faded out towards their ends -->
     <div
       class="pointer-events-none absolute left-1/2 -translate-x-1/2 -translate-y-1/4"
@@ -253,17 +288,21 @@
       <div
         class="absolute inset-0 rounded-full bg-[radial-gradient(closest-side,rgb(247_221_166/0.38),rgb(81_100_211/0.22)_45%,transparent)]"
       ></div>
-      <div
-        class="rays absolute inset-0 rounded-full bg-[repeating-conic-gradient(rgb(247_221_166/0.16)_0deg_5deg,transparent_5deg_18deg)] [mask-image:radial-gradient(closest-side,#000_15%,transparent)]"
-      ></div>
+      {#if rays}
+        <div class="rays absolute inset-0 bg-contain" style:background-image="url({rays})"></div>
+      {:else if !firefox}
+        <div
+          class="rays absolute inset-0 rounded-full bg-[repeating-conic-gradient(rgb(247_221_166/0.16)_0deg_5deg,transparent_5deg_18deg)] [mask-image:radial-gradient(closest-side,#000_15%,transparent)]"
+        ></div>
+      {/if}
     </div>
 
-    <!-- the cards, each faded out towards the screen's sides and the bottom of the wheel by placeCard -->
+    <!-- the cards, faded out towards the screen's sides and the bottom of the wheel -->
     <div
-      bind:this={stageEl}
+      bind:this={stage}
       role="presentation"
       class={[
-        'absolute inset-0 touch-pan-y overflow-hidden select-none',
+        'absolute inset-0 touch-pan-y overflow-hidden select-none mask-x-from-85% mask-b-from-70% firefox:mask-none',
         dragging ? 'cursor-grabbing' : 'cursor-grab',
       ]}
       onpointerdown={onPointerDown}
@@ -293,7 +332,7 @@
         >
           <button
             type="button"
-            class="block size-full rounded-lg focus-visible:ring-2 focus-visible:ring-cream focus-visible:outline-none"
+            class="block size-full rounded-2xl focus-visible:ring-2 focus-visible:ring-cream focus-visible:outline-none"
             tabindex={clone ? -1 : undefined}
             aria-label="{item.name}, by {item.by}"
             onfocus={(event) => event.currentTarget.matches(':focus-visible') && turnTo(slot)}
@@ -317,7 +356,7 @@
         <!-- the old lines fade quickly; the new ones rise in one after another, overshooting a little and settling -->
         <div class="col-start-1 row-start-1" out:fade={{ duration: 150 }}>
           <p
-            class="font-lora text-xl leading-tight font-bold text-parchment text-shadow-md text-shadow-dark-purple/50 sm:text-2xl"
+            class="font-lora text-xl leading-tight font-bold text-parchment text-shadow-md text-shadow-dark-purple/50 firefox:text-shadow-2xs sm:text-2xl"
             in:fly={rise(0)}
           >
             {project.name}

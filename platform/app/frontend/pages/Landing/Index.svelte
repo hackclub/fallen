@@ -144,7 +144,7 @@
        than one full-screen layer, so only that border is ever blurred; each one's mask fades it inwards. -->
   {#each blurEdges as [edge, inwards] (edge)}
     <div
-      class="absolute {edge} backdrop-blur-xs"
+      class="absolute {edge} backdrop-blur-xs firefox:backdrop-blur-none"
       style:mask-image="linear-gradient(to {inwards}, #000, transparent)"
     ></div>
   {/each}

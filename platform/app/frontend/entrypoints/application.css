@@ -11,6 +11,10 @@
 
 @source '../../../app/views';
 
+/* Firefox only (lib/browser.ts is the same test in script): it redraws a moving element every frame, so the landing
+   page's wheel gives it cheaper drawings there */
+@custom-variant firefox (@supports (-moz-appearance: none));
+
 @theme {
   --font-sans: 'Nunito Sans Variable', ui-sans-serif, system-ui, sans-serif;
   --font-lora: 'Lora Variable', Georgia, serif;
