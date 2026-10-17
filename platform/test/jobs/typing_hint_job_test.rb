@@ -26,33 +26,38 @@ class TypingHintJobTest < ActiveJob::TestCase
 
   test "hints once per person while they keep typing" do
     with_cache(ActiveSupport::Cache::MemoryStore.new) do
-      assert_enqueued_jobs(1, only: TypingHintJob) do
-        3.times { TypingHintJob.hint("U0MEMBER", "CJOURNALS") }
-      end
-      assert_enqueued_jobs(1, only: TypingHintJob) { TypingHintJob.hint("U0ADMIN", "CJOURNALS") }
+      assert_equal 1, hints { 3.times { TypingHintJob.hint("U0MEMBER", "CJOURNALS") } }
+      assert_equal 1, hints { TypingHintJob.hint("U0ADMIN", "CJOURNALS") }
     end
   end
 
   test "hints again once the hint would change" do
     with_cache(ActiveSupport::Cache::MemoryStore.new) do
-      TypingHintJob.hint("U0MEMBER", "CJOURNALS")
+      hints { TypingHintJob.hint("U0MEMBER", "CJOURNALS") }
       projects(:station).update!(title: "Weather station v2")
-      assert_enqueued_jobs(1, only: TypingHintJob) { TypingHintJob.hint("U0MEMBER", "CJOURNALS") }
+      assert_equal 1, hints { TypingHintJob.hint("U0MEMBER", "CJOURNALS") }
     end
   end
 
   test "hints again after anyone posts in the channel, and not after a post is deleted" do
     with_cache(ActiveSupport::Cache::MemoryStore.new) do
-      TypingHintJob.hint("U0NEWBIE", "CJOURNALS")
+      hints { TypingHintJob.hint("U0NEWBIE", "CJOURNALS") }
       journal = projects(:station).journals.create!(user: users(:member), body: "wired it up", duration_minutes: 30, source: "slack", slack_channel_id: "CJOURNALS", slack_ts: "9999999999.000100")
-      assert_enqueued_jobs(1, only: TypingHintJob) { TypingHintJob.hint("U0NEWBIE", "CJOURNALS") }
+      assert_equal 1, hints { TypingHintJob.hint("U0NEWBIE", "CJOURNALS") }
 
       journal.discard
-      assert_no_enqueued_jobs(only: TypingHintJob) { TypingHintJob.hint("U0NEWBIE", "CJOURNALS") }
+      assert_equal 0, hints { TypingHintJob.hint("U0NEWBIE", "CJOURNALS") }
     end
   end
 
   private
+
+  def hints(&block)
+    with_fake_slack do |slack|
+      block.call
+      slack.calls_to(:chat_postEphemeral).size
+    end
+  end
 
   def with_cache(store)
     original = Rails.cache

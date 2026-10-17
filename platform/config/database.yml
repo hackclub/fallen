@@ -21,3 +21,6 @@ test:
 production:
   <<: *default
   url: <%= ENV["DATABASE_URL"] %>
+  # Keep idle connections. Slack traffic comes in bursts minutes apart, and reconnecting after the default
+  # 5 minute reap added up to a second to the first job or hint after each quiet spell.
+  idle_timeout: 0

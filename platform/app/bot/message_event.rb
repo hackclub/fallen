@@ -56,8 +56,9 @@ class MessageEvent < SlackBot::Event
   end
 
   # Project anchors are posted as the person but carry Fallen's bot_id, so from_bot? has already let them through.
+  # Events are handled in SlackEventJob, so this runs inline: a second trip through the queue only delays it.
   def remove_stray_post
-    RemoveStrayPostJob.perform_later(channel_id, ts, slack_user_id, text)
+    RemoveStrayPostJob.perform_now(channel_id, ts, slack_user_id, text)
   end
 
   def message_changed

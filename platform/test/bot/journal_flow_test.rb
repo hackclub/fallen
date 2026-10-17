@@ -142,8 +142,7 @@ class JournalFlowTest < ActiveSupport::TestCase
   test "a top level message in the journals channel is deleted through prometheus" do
     with_fake_slack do |slack|
       deletes = stub_prometheus do
-        assert_enqueued_with(job: RemoveStrayPostJob) { handle_message(user: "U0MEMBER", ts: "1700000007.000100", text: "starting a drone") }
-        perform_enqueued_jobs
+        assert_no_enqueued_jobs { handle_message(user: "U0MEMBER", ts: "1700000007.000100", text: "starting a drone") }
       end
       assert_equal [ "1700000007.000100" ], deletes.map { |body| body["thread_ts"] }
       note = slack.calls_to(:chat_postEphemeral).first

@@ -1,5 +1,6 @@
 # A hidden hint for someone starting a top-level post in the journals channel (bin/slack-typing): projects start
-# on Fallen, and journals go in a project's thread, so it links the threads they already have.
+# on Fallen, and journals go in a project's thread, so it links the threads they already have. bin/slack-typing is
+# already a background process, so `hint` sends it inline; through the queue it arrived after they had posted.
 class TypingHintJob < ApplicationJob
   queue_as :realtime
 
@@ -16,7 +17,7 @@ class TypingHintJob < ApplicationJob
     return if Rails.cache.exist?(key)
 
     Rails.cache.write(key, true, expires_in: HINT_EVERY)
-    perform_later(slack_user_id, channel_id)
+    perform_now(slack_user_id, channel_id)
   end
 
   def self.threads_for(user, channel_id)
