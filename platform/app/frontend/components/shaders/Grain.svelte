@@ -9,7 +9,7 @@
   import { cubicOut } from 'svelte/easing'
 
   const tile = 256 // CSS pixels; big enough that the repeat doesn't show through the noise
-  const strength = 0.05
+  const strength = 0.03
   const fps = 10
   const fadeIn = 2000 // ms, as long as the slowest particles take to appear
 
