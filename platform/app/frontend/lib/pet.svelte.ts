@@ -21,6 +21,7 @@ export const PET_FORMS: Record<string, string[]> = {
   sami: [samiEgg, sami1, sami2, sami3, sami4],
 }
 export const FINAL_FORM = 4
+export const PET_NAMES: Record<string, string> = { lulu: 'Lulu', sami: 'Sami' }
 export const PET_EGGS: Record<string, string> = { lulu: luluEgg, sami: samiEgg }
 
 // The talking egg's pose in the onboarding dialog, in design units (components/dialog/geometry.ts). The desktop pet
@@ -31,7 +32,25 @@ export const petState = $state({
   picked: null as string | null,
   onboarding: false,
   handoff: null as DOMRect | null,
+  // Where the hatched pet stood when the hatch closed, for the desktop pet to fly out of.
+  hatched: null as DOMRect | null,
+  // The hatch playing over the window (components/hatch/HatchOverlay.svelte), and what to do when it ends.
+  hatching: null as { pet: string; teaser: boolean; done: () => void } | null,
 })
+
+// `teaser` (development only, for recording a clip) cracks it once and leaves it rattling, never opening.
+export function hatch(pet: string, { teaser = false } = {}) {
+  return new Promise<void>((resolve) => {
+    petState.hatching = {
+      pet,
+      teaser,
+      done: () => {
+        petState.hatching = null
+        resolve()
+      },
+    }
+  })
+}
 
 export function choosePet(value: string) {
   petState.picked = value

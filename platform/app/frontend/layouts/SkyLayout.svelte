@@ -3,6 +3,7 @@
   import { Link } from '@inertiajs/svelte'
   import Toasts from '@/components/Toasts.svelte'
   import OnboardingOverlay from '@/components/onboarding/OnboardingOverlay.svelte'
+  import HatchOverlay from '@/components/hatch/HatchOverlay.svelte'
   import SlackGate from '@/components/onboarding/SlackGate.svelte'
   import DesktopPet from '@/components/DesktopPet.svelte'
   import ImpersonationBanner from '@/components/ImpersonationBanner.svelte'
@@ -66,6 +67,7 @@
           <Toasts />
           <DesktopPet />
           <OnboardingOverlay greet />
+          <HatchOverlay />
           <SlackGate />
           {@render children?.()}
         </main>

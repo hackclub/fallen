@@ -3,6 +3,7 @@
   import Nav from '@/components/Nav.svelte'
   import Toasts from '@/components/Toasts.svelte'
   import OnboardingOverlay from '@/components/onboarding/OnboardingOverlay.svelte'
+  import HatchOverlay from '@/components/hatch/HatchOverlay.svelte'
   import DesktopPet from '@/components/DesktopPet.svelte'
   import ImpersonationBanner from '@/components/ImpersonationBanner.svelte'
 
@@ -16,6 +17,7 @@
     <Toasts />
     <DesktopPet />
     <OnboardingOverlay />
+    <HatchOverlay />
     {@render children?.()}
   </main>
   <footer class="border-t border-stone-200 py-6 text-center text-xs text-stone-500 dark:border-stone-800">

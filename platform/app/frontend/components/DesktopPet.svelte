@@ -37,7 +37,7 @@
   import { untrack } from 'svelte'
   import { starPath } from '@/components/GoldFrame.svelte'
   import { enter, exit, prefersReducedMotion, styler } from '@/components/dialog/motion'
-  import { FINAL_FORM, PET_FORMS, petState } from '@/lib/pet.svelte'
+  import { FINAL_FORM, PET_FORMS, PET_NAMES, hatch, petState } from '@/lib/pet.svelte'
   import { shared } from '@/lib/shared.svelte'
 
   // A desktop pet for the signed-in site: the egg picked in onboarding sits on the bottom of the window, hops about
@@ -48,7 +48,9 @@
   const form = $derived(user?.pet_form ?? 0)
   // svelte-ignore state_referenced_locally
   let shown = $state(form)
-  const src = $derived(pet ? PET_FORMS[pet][shown] : undefined)
+  // At least this form, whatever the server says: a hatch previewed in development (Shift+K) leaves the pet hatched.
+  let floor = $state(0)
+  const src = $derived(pet ? PET_FORMS[pet][Math.max(shown, floor)] : undefined)
   const visible = $derived(!!src && !petState.onboarding)
 
   let root: HTMLButtonElement
@@ -59,7 +61,6 @@
   // Hovering shows a little status card above the pet, kept inside the window (TIP_WIDTH px wide, its tail still
   // pointing at the pet): its name and stage, how far it is to its next form, and what gets it there. The pet
   // stays put while it shows.
-  const PET_NAMES: Record<string, string> = { lulu: 'Lulu', sami: 'Sami' }
   const stageLabel = $derived(
     shown === 0 ? 'Egg' : shown === FINAL_FORM ? 'Final form' : `Stage ${shown} of ${FINAL_FORM}`,
   )
@@ -108,6 +109,15 @@
     busy = true
     clearTimeout(timer)
     hovered = false
+    if (shown === 0 && pet) {
+      await hatch(pet)
+      shown = to
+      if (!flying) {
+        busy = false
+        schedule()
+      }
+      return
+    }
     sparkle()
     await styler(body).animate(
       { scaleY: [1, 1.15, 0.6], scaleX: [1, 0.9, 1.3] },
@@ -160,6 +170,25 @@
     }
   }
 
+  // Out of the hatch: the hatched pet flies down from where it stood, once its drawing is ready to measure.
+  $effect(() => {
+    const from = petState.hatched
+    if (!from || !root || !pet) return
+    untrack(async () => {
+      petState.hatched = null
+      floor = 1
+      busy = true
+      clearTimeout(timer)
+      hovered = false
+      styler(flight).set({ opacity: 0 })
+      const img = new Image()
+      img.src = PET_FORMS[pet][Math.max(shown, 1)]
+      await img.decode().catch(() => {})
+      measure(img)
+      flyIn(from)
+    })
+  })
+
   // Out of the dialog: from where the talking egg stood, arcing down into its spot and shrinking to size.
   async function flyIn(from: DOMRect) {
     busy = true
@@ -168,7 +197,7 @@
     const dx = from.left + from.width / 2 - (to.left + to.width / 2)
     const dy = from.bottom - to.bottom
     const f = styler(flight)
-    f.set({ x: dx, y: dy, scale: from.height / dims.h })
+    f.set({ x: dx, y: dy, scale: from.height / dims.h, opacity: 1 })
     const ease = [0.45, 0, 0.2, 1]
     await f.animate(
       { x: 0, y: [dy, Math.min(dy, 0) - 90, 0], scale: 1 },
@@ -181,6 +210,7 @@
     flying = false
     await land()
     busy = false
+    schedule()
   }
 
   function land() {
@@ -408,9 +438,10 @@
   <button
     type="button"
     aria-label="Your pet. {TIP}"
+    data-desktop-pet
     class={[
       'fixed bottom-0 left-0 cursor-grab touch-none select-none outline-none active:cursor-grabbing',
-      flying ? 'z-[60]' : 'z-40',
+      flying ? 'z-[80]' : 'z-40',
     ]}
     style:width="{dims.w}px"
     style:height="{dims.h}px"
