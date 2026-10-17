@@ -68,7 +68,7 @@
     >
       {#each links as link, i (link.href)}
         <li class="flex items-center gap-1.5">
-          {#if i > 0}<span class="size-1 rounded-full bg-gold md:hidden" aria-hidden="true"></span>{/if}
+          {#if i > 0}<span class="size-1 rounded-full bg-periwinkle md:hidden" aria-hidden="true"></span>{/if}
           <a
             class="group relative transition-colors hover:text-parchment"
             href={link.href}

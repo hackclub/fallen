@@ -5,6 +5,7 @@
   // The steps follow program/the-plan.md without its numbers, which aren't settled.
   import { starPath } from '@/components/GoldFrame.svelte'
   import { buildTime } from '@/lib/program'
+  import egg from '@/assets/pets/egg.webp'
   import lulu1 from '@/assets/pets/lulu/lulu-1.webp'
   import lulu2 from '@/assets/pets/lulu/lulu-2.webp'
   import lulu3 from '@/assets/pets/lulu/lulu-3.webp'
@@ -25,7 +26,7 @@
     'bg-[radial-gradient(closest-side,color-mix(in_oklab,var(--color-bright-blue)_55%,transparent),transparent)]',
   ]
 
-  // form: which of the companion's four forms stands by the stop; the first stop has none yet
+  // form: which of the companion's four forms stands by the stop; the first stop has the egg, not yet hatched
   const steps = [
     {
       title: 'Pick a project',
@@ -49,8 +50,9 @@
     },
   ]
   const goal = { title: 'Visit Shenzhen!', text: 'Come to Shenzhen, or receive Fallen swag' }
-  // each form's height
+  // each form's height, and the egg's
   const heights = ['h-32 lg:h-48', 'h-40 lg:h-60', 'h-48 lg:h-72', 'h-56 lg:h-88']
+  const eggHeight = 'h-28 lg:h-44'
 
   // The path joins the stops in straight lines, measured relative to the list whenever its size changes. Each line
   // stops short of the stops at its ends, by a stop's radius and `gap` px more.
@@ -117,24 +119,23 @@
 
 {#snippet standing(form: number | null, align: string, who?: number, height?: string)}
   <!-- the companion at this stage (who: 0 for Sami, 1 for Lulu, taking turns by form if not given; height in place
-       of the form's own), standing on a soft dark shadow; nothing before it has hatched -->
-  {#if form !== null}
-    {@const companion = who ?? form % 2}
-    <div class="flex items-end {align}" aria-hidden="true">
-      <!-- the halo and shadow sit in the companion's own box, so they stay centred on it whichever side it's on: lit
-           from behind (see halos), and standing on a soft dark shadow -->
-      <div class="relative max-w-full">
-        <div class="absolute -inset-x-[15%] -top-[5%] bottom-0 rounded-full {halos[companion]}"></div>
-        <div class="absolute inset-x-[10%] -bottom-1 h-6 rounded-[50%] bg-black/55 blur-md"></div>
-        <img
-          src={companions[companion][form]}
-          alt=""
-          loading="lazy"
-          class="relative {height ?? heights[form]} w-auto max-w-full object-contain object-bottom"
-        />
-      </div>
+       of the form's own), standing on a soft dark shadow; before any form, the egg, lit like dark Sami -->
+  {@const companion = who ?? (form === null ? 0 : form % 2)}
+  <div class="flex items-end {align}" aria-hidden="true">
+    <!-- the halo and shadow sit in the companion's own box, so they stay centred on it whichever side it's on: lit
+         from behind (see halos), and standing on a soft dark shadow -->
+    <div class="relative max-w-full">
+      <div class="absolute -inset-x-[15%] -top-[5%] bottom-0 rounded-full {halos[companion]}"></div>
+      <div class="absolute inset-x-[10%] -bottom-1 h-6 rounded-[50%] bg-black/55 blur-md"></div>
+      <img
+        src={form === null ? egg : companions[companion][form]}
+        alt=""
+        loading="lazy"
+        class="relative {height ??
+          (form === null ? eggHeight : heights[form])} w-auto max-w-full object-contain object-bottom"
+      />
     </div>
-  {/if}
+  </div>
 {/snippet}
 
 <section id="how-it-works" class="relative overflow-x-clip px-8 pt-32 pb-24 sm:px-12 md:px-16 lg:px-20">
