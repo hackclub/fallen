@@ -35,6 +35,7 @@ module SlackMessages
   # and what they typed when the time doesn't parse.
   def draft_prompt(draft, duration: nil, lapse_url: nil, error: nil)
     return photos_prompt(draft) unless draft.written?
+    return needs_photo_prompt(draft) if draft.files.empty?
 
     blocks = [ SlackBot::Blocks.section(":notebook_with_decorative_cover: Is this a journal for *#{escape(draft.project.title)}*?\n#{quote(draft.text, 1500)}") ]
     blocks += photo_blocks(draft)
@@ -48,6 +49,13 @@ module SlackMessages
     )
     blocks << SlackBot::Blocks.context("#{draft_counts(draft)}. Anything else you post here joins it until you pick.")
     { text: "Is this a journal for #{draft.project.title}?", blocks: blocks }
+  end
+
+  # Every journal needs a photo, so writing without one gets a reminder instead of the time box.
+  def needs_photo_prompt(draft)
+    intro = ":frame_with_picture: Journals need a photo, one for every #{Journal::MINUTES_PER_IMAGE / 60} hours. Post one in this thread and I'll ask you about the journal."
+    blocks = [ SlackBot::Blocks.section("#{intro}\n#{quote(draft.text, 1500)}"), SlackBot::Blocks.actions(draft_button("Not a journal", "skip", draft)) ]
+    { text: "Journals need a photo. Post one in this thread.", blocks: blocks }
   end
 
   def photos_prompt(draft)

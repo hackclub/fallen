@@ -4,11 +4,12 @@ class JournalFlowTest < ActiveSupport::TestCase
   include ActiveJob::TestHelper
 
   CHANNEL = "CJOURNALS"
+  PHOTO = { "id" => "F1", "name" => "case.png", "mimetype" => "image/png", "url_private_download" => "https://files.slack.test/case.png", "size" => 3 }.freeze
 
   test "a thread reply by the owner waits for them to say it is a journal" do
     with_fake_slack do |slack|
       assert_no_difference -> { Journal.count } do
-        assert_enqueued_with(job: JournalPromptJob, at: nil) { reply("Printed the case") }
+        assert_enqueued_with(job: JournalPromptJob, at: nil) { reply("Printed the case", files: [ PHOTO ]) }
       end
       assert_nil enqueued_jobs.last["scheduled_at"], "the first reply is asked about straight away"
       draft = JournalDraft.last
@@ -24,11 +25,30 @@ class JournalFlowTest < ActiveSupport::TestCase
     end
   end
 
-  test "several replies become one journal, only with a time and a photo" do
-    photo = { "id" => "F1", "name" => "case.png", "mimetype" => "image/png", "url_private_download" => "https://files.slack.test/case.png", "size" => 3 }
+  test "writing without a photo gets a reminder instead of the time box" do
+    with_fake_slack do |slack|
+      reply("Printed the case")
+      perform_enqueued_jobs
+      prompt = slack.calls_to(:chat_postEphemeral).last
+      assert_includes prompt[:text], "need a photo"
+      assert_empty prompt[:blocks].select { |block| block[:type] == "input" }
+      assert_equal %w[journal_draft:skip], prompt[:blocks].find { |block| block[:type] == "actions" }[:elements].pluck(:action_id)
+
+      assert_no_difference -> { Journal.count } do
+        press("journal", JournalDraft.last, duration: "1h")
+      end
+      assert_includes slack.calls_to(:response_url).last[:body]["text"], "need a photo"
+
+      reply("", ts: "1700000003.000200", files: [ PHOTO ])
+      perform_enqueued_jobs(only: JournalPromptJob)
+      assert_equal %w[duration lapse_url], slack.calls_to(:chat_postEphemeral).last[:blocks].select { |block| block[:type] == "input" }.pluck(:block_id)
+    end
+  end
+
+  test "several replies become one journal, only with a time and enough photos" do
     with_fake_slack do |slack|
       reply("Printed the case", ts: "1700000003.000100")
-      reply("Then sanded it", ts: "1700000003.000200")
+      reply("Then sanded it", ts: "1700000003.000200", files: [ PHOTO ])
       perform_enqueued_jobs
       assert_equal 1, slack.calls_to(:chat_postEphemeral).size, "only the last reply's prompt is sent"
 
@@ -42,11 +62,10 @@ class JournalFlowTest < ActiveSupport::TestCase
       assert shown["blocks"].any? { |block| block.dig("elements", 0, "text").to_s.include?("should look like") }
 
       assert_no_difference -> { Journal.count } do
-        press("journal", draft, duration: "1h 15m")
+        press("journal", draft, duration: "2h 15m")
       end
-      assert slack.calls_to(:response_url).last[:body]["blocks"].any? { |block| block.dig("elements", 0, "text").to_s.include?("Images at least 1 for 1h 15m") }
+      assert slack.calls_to(:response_url).last[:body]["blocks"].any? { |block| block.dig("elements", 0, "text").to_s.include?("Images at least 2 for 2h 15m") }
 
-      reply("", ts: "1700000003.000300", files: [ photo ])
       assert_difference -> { Journal.count }, 1 do
         assert_enqueued_with(job: CollectSlackJournalJob) { press("journal", draft, duration: "1h 15m") }
       end
@@ -62,7 +81,7 @@ class JournalFlowTest < ActiveSupport::TestCase
       download = Faraday::Response.new(status: 200, body: "png", response_headers: { "content-type" => "image/png" })
       stub_method(Faraday, :get, download) { perform_enqueued_jobs }
       assert_equal [ "case.png" ], journal.images.map { |image| image.filename.to_s }
-      assert_equal %w[1700000003.000100 1700000003.000200 1700000003.000300], slack.calls_to(:reactions_add).pluck(:timestamp)
+      assert_equal %w[1700000003.000100 1700000003.000200], slack.calls_to(:reactions_add).pluck(:timestamp)
     end
   end
 
@@ -100,7 +119,7 @@ class JournalFlowTest < ActiveSupport::TestCase
       reply("one more thing", ts: "1700000003.000400")
       pick(draft, %w[1700000003.000100 1700000003.000300], upto: "1700000003.000300")
       assert_equal [ "Printed the case", "Then sanded it", "one more thing" ], draft.reload.parts.pluck("text"), "unseen replies are kept"
-      assert slack.calls_to(:response_url).last[:body]["text"].start_with?("Is this a journal")
+      assert slack.calls_to(:response_url).last[:body]["text"].include?("need a photo")
 
       pick(draft, [], upto: "1700000003.000400")
       assert_not JournalDraft.exists?(draft.id)
@@ -113,9 +132,8 @@ class JournalFlowTest < ActiveSupport::TestCase
   end
 
   test "photos on their own can go on the last journal" do
-    photo = { "id" => "F1", "name" => "case.png", "mimetype" => "image/png", "url_private_download" => "https://files.slack.test/case.png", "size" => 3 }
     with_fake_slack do |slack|
-      reply("", files: [ photo ])
+      reply("", files: [ PHOTO ])
       perform_enqueued_jobs(only: JournalPromptJob)
       prompt = slack.calls_to(:chat_postEphemeral).first
       assert_equal({ id: "F1" }, prompt[:blocks].find { |block| block[:type] == "image" }[:slack_file])
@@ -154,7 +172,7 @@ class JournalFlowTest < ActiveSupport::TestCase
       deletes = stub_prometheus do
         assert_no_enqueued_jobs { handle_message(user: "U0MEMBER", ts: "1700000007.000100", text: "starting a drone") }
       end
-      assert_equal [ "1700000007.000100" ], deletes.map { |body| body["thread_ts"] }
+      assert_equal [ "1700000007.000100" ], deletes.map { |body| body["ts"] }
       note = slack.calls_to(:chat_postEphemeral).first
       assert_equal "U0MEMBER", note[:user]
       assert_includes note[:text], "starting a drone"
@@ -238,7 +256,7 @@ class JournalFlowTest < ActiveSupport::TestCase
 
   def stub_prometheus
     deletes = []
-    connection = Faraday.new { |f| f.adapter(:test) { |stub| stub.post("/api/v1/threads/delete") { |env| deletes << JSON.parse(env.body); [ 200, {}, '{"ok":true}' ] } } }
+    connection = Faraday.new { |f| f.adapter(:test) { |stub| stub.post("/api/v1/messages/delete") { |env| deletes << JSON.parse(env.body); [ 200, {}, '{"ok":true}' ] } } }
     original = Prometheus.method(:connection)
     Prometheus.define_singleton_method(:connection) { connection }
     with_env("PROMETHEUS_API_KEY" => "pk_test") { yield }
