@@ -14,10 +14,21 @@ export interface SharedProps {
   auth: { user: User | null }
   impersonation: { impersonator_name: string } | null
   // ApplicationController#setup_props. `project` is the title of one made during the onboarding, if any.
-  setup: { step: 'onboarding'; project: string | null } | { step: 'slack' } | null
+  setup: { step: 'onboarding'; project: string | null; rules: TeamRules } | { step: 'slack' } | null
   lapse_configured: boolean
   errors: Record<string, string[]>
   [key: string]: unknown
+}
+
+// Team.rules: the numbers behind each team's reward.
+export interface TeamRules {
+  lulu_days: number
+  lulu_bonus: number
+  sami_step: number
+  sami_max: number
+  sami_freezes: number
+  win_bonus: number
+  xp_per_hour: number
 }
 
 export interface Pagy {

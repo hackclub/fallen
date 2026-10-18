@@ -36,7 +36,7 @@ class HomeController < ApplicationController
     {
       total: current_user.xp, form: current_user.pet_form, next_stage_xp: current_user.next_stage_xp, progress: current_user.stage_progress,
       team: team&.name, multiplier: current_user.xp_multiplier.to_f, freezes: current_user.streak_freezes,
-      rules: { lulu_days: Team::Lulu::DAYS_FOR_BONUS, lulu_bonus: Team::Lulu::WEEKLY_BONUS, sami_step: Team::Sami::STEP, sami_max: Team::Sami::MAX_MULTIPLIER, win_bonus: Team::WIN_BONUS, xp_per_hour: XpEntry::PER_HOUR },
+      rules: Team.rules,
       week: {
         start: week.start.iso8601, today: today.iso8601,
         days: team ? team.journal_days(week).map(&:iso8601) : [],

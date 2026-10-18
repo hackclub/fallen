@@ -1,11 +1,31 @@
 <script module lang="ts">
   import luluEgg from '@/assets/onboarding/lulu-egg.png'
   import samiEgg from '@/assets/onboarding/sami-egg.png'
+  import type { TeamRules } from '@/types'
 
-  // The two eggs to choose from, one per pet.
+  // The two eggs to choose from, one per pet. The pet is also the team, and each rewards journaling its own way
+  // (app/models/team.rb); `perks` says how, with the numbers from the server.
   export const EGGS = [
-    { value: 'lulu', label: 'Lulu', src: luluEgg },
-    { value: 'sami', label: 'Sami', src: samiEgg },
+    {
+      value: 'lulu',
+      label: 'Lulu',
+      src: luluEgg,
+      tagline: 'Steady weeks',
+      perks: (r: TeamRules) => [
+        `+${r.lulu_bonus} XP for every week you journal on ${r.lulu_days} days`,
+        `${7 - r.lulu_days} days off a week, no penalty`,
+      ],
+    },
+    {
+      value: 'sami',
+      label: 'Sami',
+      src: samiEgg,
+      tagline: 'Daily streaks',
+      perks: (r: TeamRules) => [
+        `Each week you journal every day adds +${r.sami_step}x to all your XP, up to ${r.sami_max}x`,
+        `${r.sami_freezes} freezes cover missed days, then it drops back to 1x`,
+      ],
+    },
   ]
 
   // How far up the stage the picker stops, in design units: above the speech bubble's top edge, with a gap.
@@ -18,11 +38,20 @@
   import { u } from '@/components/dialog/geometry'
   import { gestures } from '@/components/dialog/gestures'
   import { enter, exit, styler } from '@/components/dialog/motion'
+  import { shared } from '@/lib/shared.svelte'
   import { launchEgg } from './eggLaunch'
 
   let { onpick }: { onpick: (value: string) => void } = $props()
 
   let pick = $state<string | null>(null)
+  // The egg under the pointer or keyboard focus, so the perks can be compared before picking.
+  let hover = $state<string | null>(null)
+  const shown = $derived(EGGS.find((e) => e.value === (hover ?? pick)))
+  // Only sent while onboarding; replaying it in development afterwards goes without the details.
+  const rules = $derived.by(() => {
+    const setup = shared().setup
+    return setup?.step === 'onboarding' ? setup.rules : null
+  })
   let launching = $state(false)
   let card: HTMLElement
   const eggs: Record<string, HTMLImageElement> = {}
@@ -130,6 +159,10 @@
             { type: 'spring', stiffness: 420, damping: 18, delay: 0.25 + i * 0.1 },
           )}
           onclick={() => !launching && (pick = option.value)}
+          onpointerenter={() => (hover = option.value)}
+          onpointerleave={() => hover === option.value && (hover = null)}
+          onfocus={() => (hover = option.value)}
+          onblur={() => hover === option.value && (hover = null)}
         >
           <!-- Lifts on hover and dips when pressed, on its own element so it composes with the entrance. -->
           <span
@@ -194,9 +227,55 @@
           >
             {option.label}
           </span>
+          <span
+            class={[
+              'text-sm transition-colors',
+              selected ? 'text-pale-blue' : 'text-pale-blue/50 group-hover:text-pale-blue/80',
+            ]}
+          >
+            {option.tagline}
+          </span>
+          {#if rules}
+            <span class="sr-only">{option.perks(rules).join('. ')}.</span>
+          {/if}
         </button>
       {/each}
     </div>
+
+    <!-- What the hovered or picked egg's team rewards. Its height is held so the button below never jumps. -->
+    {#if rules}
+      <div
+        aria-hidden="true"
+        class="relative z-4 flex min-h-[4.5rem] w-full max-w-md items-center justify-center text-pale-blue"
+        {@attach enter(
+          { opacity: 0, y: 12 },
+          { opacity: 1, y: 0 },
+          { type: 'spring', stiffness: 400, damping: 26, delay: 0.4 },
+        )}
+      >
+        {#key shown?.value}
+          <div
+            class="w-full"
+            {@attach enter({ opacity: 0, y: 6 }, { opacity: 1, y: 0 }, { duration: 0.2, ease: 'easeOut' })}
+          >
+            {#if shown}
+              <ul class="flex flex-col gap-1.5">
+                {#each shown.perks(rules) as perk (perk)}
+                  <li class="flex items-baseline gap-2.5">
+                    <span class="translate-y-[-1px] text-gold">{@render star()}</span>
+                    <span>{perk}</span>
+                  </li>
+                {/each}
+              </ul>
+            {:else}
+              <p class="text-center text-pale-blue/60">
+                Each one rewards journaling its own way. Tap one to see how.
+              </p>
+            {/if}
+          </div>
+        {/key}
+      </div>
+    {/if}
 
     <button
       type="button"

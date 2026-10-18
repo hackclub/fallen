@@ -4,13 +4,13 @@ require "test_helper"
 class SetupTest < ActionDispatch::IntegrationTest
   test "a newcomer starts the onboarding" do
     sign_in_as users(:newcomer)
-    assert_equal({ "step" => "onboarding", "project" => nil }, setup_prop)
+    assert_equal({ "step" => "onboarding", "project" => nil, "rules" => Team.rules.as_json }, setup_prop)
   end
 
   test "the onboarding resumes after the project it made" do
     users(:newcomer).projects.create!(title: "Hovercraft")
     sign_in_as users(:newcomer)
-    assert_equal({ "step" => "onboarding", "project" => "Hovercraft" }, setup_prop)
+    assert_equal({ "step" => "onboarding", "project" => "Hovercraft", "rules" => Team.rules.as_json }, setup_prop)
   end
 
   test "after the onboarding, Slack" do

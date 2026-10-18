@@ -1,4 +1,6 @@
 <script module lang="ts">
+  import type { TeamRules } from '@/types'
+
   // What HomeController#xp sends: XP and form, the person's team and its week so far, and the race between the teams.
   export interface Standing {
     total: number
@@ -8,14 +10,7 @@
     team: string | null
     multiplier: number
     freezes: number
-    rules: {
-      lulu_days: number
-      lulu_bonus: number
-      sami_step: number
-      sami_max: number
-      win_bonus: number
-      xp_per_hour: number
-    }
+    rules: TeamRules
     week: {
       start: string
       today: string

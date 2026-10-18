@@ -13,6 +13,15 @@ class Team
 
   def self.for(user) = (name = BY_PET[user.pet]) && name.constantize.new(user)
 
+  # The numbers the frontend explains the teams with, so its copy follows the constants.
+  def self.rules
+    {
+      lulu_days: Lulu::DAYS_FOR_BONUS, lulu_bonus: Lulu::WEEKLY_BONUS,
+      sami_step: Sami::STEP, sami_max: Sami::MAX_MULTIPLIER, sami_freezes: User.column_defaults["streak_freezes"],
+      win_bonus: WIN_BONUS, xp_per_hour: XpEntry::PER_HOUR
+    }
+  end
+
   def self.close_week(week)
     reward_winners(week)
     User.on_a_team.find_each { |user| user.team.close_week(week) }

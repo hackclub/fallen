@@ -30,12 +30,13 @@ class ApplicationController < ActionController::Base
   # What someone has left to do before the rest of the site: the onboarding, which picking a pet finishes, then
   # connecting Slack. Where the onboarding resumes comes from here rather than the browser, so leaving halfway
   # (closing the tab, another device) picks up at the same place. Costs one query, and only while onboarding.
-  # Never while impersonating: the admin would be picking a pet or linking Slack for someone else.
+  # Never while impersonating: the admin would be picking a pet or linking Slack for someone else. `rules` explain the
+  # teams at the egg picker.
   def setup_props
     return if current_user.nil? || current_user.is_banned? || impersonating?
 
     if current_user.pet.nil?
-      { step: "onboarding", project: current_user.projects.kept.order(:created_at).pick(:title) }
+      { step: "onboarding", project: current_user.projects.kept.order(:created_at).pick(:title), rules: Team.rules }
     elsif !current_user.slack_connected? && SlackMessaging.oauth_configured?
       { step: "slack" }
     end
