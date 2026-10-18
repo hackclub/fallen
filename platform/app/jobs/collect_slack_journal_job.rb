@@ -1,13 +1,12 @@
-# Finishes a journal made from Slack replies (JournalDraftAction): copies their photos onto it
-# and marks each reply as saved.
+# Finishes a journal made from Slack replies (JournalDraftAction): copies their photos onto it.
 class CollectSlackJournalJob < ApplicationJob
   queue_as :slack
   retry_on Slack::Web::Api::Errors::TooManyRequestsError, wait: :polynomially_longer, attempts: 5
 
-  def perform(journal, files, message_ts)
+  # The third argument was the replies to react to; jobs queued before that stopped still pass it.
+  def perform(journal, files, _message_ts = nil)
     room = Journal::MAX_IMAGES - journal.images.count
     files.first([ room, 0 ].max).each { |file| attach(journal, file) }
-    message_ts.each { |ts| SlackBot::Reactions.add(journal.project.slack_channel_id, ts, MessageEvent::SAVED_EMOJI) }
   end
 
   private

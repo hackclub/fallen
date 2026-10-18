@@ -36,7 +36,7 @@ class JournalDraftAction < SlackBot::Action
       return update_message(prompt[:text], blocks: prompt[:blocks])
     end
 
-    CollectSlackJournalJob.perform_later(journal, files, journal.slack_parts.pluck("ts"))
+    CollectSlackJournalJob.perform_later(journal, files)
     AddJournalFooterJob.perform_later(journal)
     if egg && user.reload.hatched?
       EggCrackingJob.perform_later(user)
@@ -57,7 +57,7 @@ class JournalDraftAction < SlackBot::Action
   def attach_to_previous(draft)
     journal = draft.previous_journal or return update_message("You don't have a journal on this project yet.")
 
-    CollectSlackJournalJob.perform_later(journal, draft.files, draft.parts.pluck("ts"))
+    CollectSlackJournalJob.perform_later(journal, draft.files)
     draft.destroy!
     update_message(":white_check_mark: Added to your last journal on *#{SlackMessages.escape(draft.project.title)}*. <#{SlackMessages.project_url(draft.project)}|Open on Fallen>")
   end

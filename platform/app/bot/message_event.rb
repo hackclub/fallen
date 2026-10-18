@@ -6,8 +6,6 @@
 class MessageEvent < SlackBot::Event
   subscribes_to "message.channels", "message.groups"
 
-  SAVED_EMOJI = "notebook_with_decorative_cover"
-
   def call
     case subtype
     when nil, "file_share", "thread_broadcast" then message_posted

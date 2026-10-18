@@ -84,7 +84,7 @@ class JournalFlowTest < ActiveSupport::TestCase
       download = Faraday::Response.new(status: 200, body: "png", response_headers: { "content-type" => "image/png" })
       stub_method(Faraday, :get, download) { perform_enqueued_jobs }
       assert_equal [ "case.png" ], journal.images.map { |image| image.filename.to_s }
-      assert_equal %w[1700000003.000100 1700000003.000200], slack.calls_to(:reactions_add).pluck(:timestamp)
+      assert_empty slack.calls_to(:reactions_add), "no reaction on the saved replies"
     end
   end
 
