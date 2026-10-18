@@ -68,7 +68,9 @@
 @layer base {
   html {
     color-scheme: light dark;
-    scroll-behavior: smooth;
+    @media (prefers-reduced-motion: no-preference) {
+      scroll-behavior: smooth;
+    }
   }
 }
 
