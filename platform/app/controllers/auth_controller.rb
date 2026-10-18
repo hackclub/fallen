@@ -5,7 +5,7 @@ class AuthController < ApplicationController
   skip_before_action :redirect_banned_user!, only: :destroy # Banned users must still be able to sign out
   skip_after_action :verify_policy_scoped # No index action (Rails raises on `only: :index` otherwise)
   skip_after_action :verify_authorized # Acts only on the current session
-  rate_limit to: 10, within: 3.minutes, only: :create, with: -> { redirect_to root_path, alert: "Too many attempts, try again in a few minutes." }
+  rate_limit to: 60, within: 3.minutes, only: :create, with: -> { redirect_to root_path, alert: "Too many attempts, try again in a few minutes." }
 
   def new
     return redirect_to dev_path if !HCA.configured? && Rails.env.local?

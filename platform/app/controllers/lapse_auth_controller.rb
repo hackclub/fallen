@@ -4,7 +4,7 @@ class LapseAuthController < ApplicationController
 
   skip_after_action :verify_policy_scoped # No index action (Rails raises on `only: :index` otherwise)
   skip_after_action :verify_authorized # Acts only on the current user
-  rate_limit to: 10, within: 3.minutes, only: :create, with: -> { redirect_to projects_path, alert: "Too many attempts, try again in a few minutes." }
+  rate_limit to: 10, within: 3.minutes, only: :create, by: -> { current_user.id }, with: -> { redirect_to projects_path, alert: "Too many attempts, try again in a few minutes." }
 
   def new
     return redirect_to return_path, alert: "Lapse sign-in is not configured (LAPSE_CLIENT_ID / LAPSE_CLIENT_SECRET)." unless Lapse.configured?

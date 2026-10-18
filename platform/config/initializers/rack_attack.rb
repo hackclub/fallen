@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
 class Rack::Attack
-  Rack::Attack.cache.store = ActiveSupport::Cache::MemoryStore.new
+  # Puma runs several workers (WEB_CONCURRENCY), so production counts in the shared Solid Cache; a per-process store
+  # would hand every worker its own allowance. Tests use the null store, so they get a MemoryStore.
+  Rack::Attack.cache.store = Rails.env.production? ? Rails.cache : ActiveSupport::Cache::MemoryStore.new
 
   # Slack webhooks are signature-verified in SlackController; never throttle them by IP.
   safelist("slack webhooks") { |req| req.path.start_with?("/slack/") }
@@ -10,13 +12,16 @@ class Rack::Attack
   # asset is proxied through Rails, plus the profiler's), so never throttle your own machine.
   safelist("local development") { |req| Rails.env.development? && %w[127.0.0.1 ::1].include?(req.ip) }
 
-  throttle("req/ip", limit: 300, period: 5.minutes, &:ip)
+  # A school or event puts a whole room behind one IP, so signed-in traffic counts per person (the session cookie is
+  # encrypted, so the id can't be forged) and only signed-out traffic counts per IP, with room for a classroom.
+  throttle("req/user", limit: 300, period: 5.minutes) { |req| req.session[:user_id] }
+  throttle("req/ip", limit: 1500, period: 5.minutes) { |req| req.ip if req.session[:user_id].blank? }
 
-  throttle("auth/start/ip", limit: 10, period: 1.minute) do |req|
+  throttle("auth/start/ip", limit: 60, period: 1.minute) do |req|
     req.ip if req.path == "/auth/hca/start"
   end
 
-  throttle("auth/callback/ip", limit: 20, period: 1.minute) do |req|
+  throttle("auth/callback/ip", limit: 60, period: 1.minute) do |req|
     req.ip if req.path == "/auth/hca/callback"
   end
 

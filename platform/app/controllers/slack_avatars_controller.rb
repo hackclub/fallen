@@ -5,7 +5,7 @@ class SlackAvatarsController < ApplicationController
   skip_forgery_protection only: :create # Changes nothing for the session
   skip_after_action :verify_authorized # Slack profile pictures are public to the workspace
   skip_after_action :verify_policy_scoped # No index action (Rails raises on `only: :index` otherwise)
-  rate_limit to: 30, within: 1.minute, only: :create, with: -> { head :too_many_requests }
+  rate_limit to: 120, within: 1.minute, only: :create, with: -> { head :too_many_requests }
 
   def create
     email = params[:email].to_s.strip.downcase
