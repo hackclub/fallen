@@ -11,7 +11,7 @@ Sentry.init do |config|
   traces_sample_rate = ENV.fetch("SENTRY_TRACES_SAMPLE_RATE", 1.0).to_f
   config.traces_sampler = lambda do |context|
     next context[:parent_sampled] unless context[:parent_sampled].nil?
-    next 0.0 if context.dig(:env, "PATH_INFO") == "/up"
+    next 0.0 if context.dig(:env, "PATH_INFO") == "/up" || context.dig(:env, "fallen.warmup")
 
     traces_sample_rate
   end

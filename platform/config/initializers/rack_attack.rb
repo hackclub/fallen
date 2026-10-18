@@ -8,6 +8,8 @@ class Rack::Attack
   # Slack webhooks are signature-verified in SlackController; never throttle them by IP.
   safelist("slack webhooks") { |req| req.path.start_with?("/slack/") }
   safelist("health check") { |req| req.path == "/up" }
+  # Puma's boot-time requests (config/warmup.rb); only an in-process request can carry this env key.
+  safelist("warmup") { |req| req.env["fallen.warmup"] }
   # In development there's nothing to protect locally, and one page load is hundreds of requests (every Vite module and
   # asset is proxied through Rails, plus the profiler's), so never throttle your own machine.
   safelist("local development") { |req| Rails.env.development? && %w[127.0.0.1 ::1].include?(req.ip) }
