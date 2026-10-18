@@ -17,6 +17,15 @@ class AirtableUsersTest < ActiveSupport::TestCase
     assert_empty row.values.grep(/secret/)
   end
 
+  test "trial accounts are uploaded and marked" do
+    trial = User.start_trial!(email: "trial@example.com")
+    row = AirtableUsers.rows([ trial, users(:member) ]).index_by { _1["ID"] }
+
+    assert row[trial.public_id]["Trial"]
+    assert_nil row[trial.public_id]["HCA ID"]
+    assert_not row[users(:member).public_id]["Trial"]
+  end
+
   test "every row has the same columns" do
     assert_equal 1, AirtableUsers.rows(User.all.to_a).map(&:keys).uniq.size
   end

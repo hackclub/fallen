@@ -5,4 +5,6 @@ class AdminUserDetailSerializer < AdminUserSerializer
   typelize xp_multiplier: :number
   attributes :hca_id, :timezone, :verification_status, :is_adult, :streak_freezes
   attribute(:xp_multiplier) { |user| user.xp_multiplier.to_f }
+  typelize signup_source: "Record<string, string>"
+  attributes :signup_source
 end

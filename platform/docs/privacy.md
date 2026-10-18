@@ -20,7 +20,7 @@ Only from the token's `subject`: any `emails` (case-insensitive against `users.e
 
 | What | Where |
 | --- | --- |
-| The account: name, email, avatar, Slack id, timezone, roles, HCA token, Slack user token, Lapse token, verification status, pet, when they first watched it hatch | `users` |
+| The account: name, email, avatar, Slack id, timezone, roles, HCA token, Slack user token, Lapse token, verification status, pet, when they first watched it hatch, where they came from when they signed up (UTM tags, `ref`, the referring page without its query string, the page they landed on) | `users` |
 | Their projects and journals (text, hours, the tracked time before each and whether the hours went over it, Lapse links, Slack message ids and text), project banners and journal photos | `projects`, `journals`, Active Storage |
 | Their Lapse timelapses as Fallen copied them (Lapse id, name, recorded time, visibility, video and thumbnail links). The videos stay on Lapse | `lapse_timelapses` |
 | Slack thread replies not yet made into a journal (text, Slack message ids, photo names and links) | `journal_drafts` |
@@ -29,7 +29,7 @@ Only from the token's `subject`: any `emails` (case-insensitive against `users.e
 | The pet's timer: when they started and stopped the site's timer, paused in the huddle, and which time milestones they were congratulated for | `timer_sessions`, `huddle_pauses`, `time_milestones` |
 | XP earned, line by line (journal XP, bonuses, streak checks) | `xp_entries`, `users.xp` |
 | Change history of everything above (PaperTrail copies of the rows) | `versions` |
-| The account's row in Airtable (name, email, HCA and Slack ids, XP, project, journal and hour counts). It drops out on the next upload, within 5 minutes, since every upload replaces the table | Airtable Users table (`AirtableUsers`) |
+| The account's row in Airtable (name, email, HCA and Slack ids, whether it is a trial account, XP, project, journal and hour counts, where they came from). It drops out on the next upload, within 5 minutes, since every upload replaces the table | Airtable Users table (`AirtableUsers`) |
 
 Sessions are signed cookies holding the user id, so they stop working once the row is gone.
 
@@ -47,6 +47,9 @@ Sessions are signed cookies holding the user id, so they stop working once the r
 - The landing page's "Get started as" picture: a `SlackAvatarJob` row holds the email someone is signed in to Hack
   Club Auth with until it is cleared, and the cache keeps the Slack picture URL under a digest of the email for a day.
   Neither is searched.
+- Getting started with just an email: the browser asks Hack Club Auth whether it has an account for the email before
+  anything is sent here. Trial accounts made from it are `users` rows like any other and are matched by email. One
+  that later signs in to a different HCA account is discarded, and still matched by its email.
 - Sentry events and application logs are not touched. They expire on their own retention.
 - Request timings for `/admin/insights` (`active_insights_requests`) keep the path, controller, status and timings,
   but no user, IP or user agent. They are deleted after 30 days.

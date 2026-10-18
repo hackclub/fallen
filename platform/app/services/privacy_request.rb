@@ -20,7 +20,8 @@ class PrivacyRequest
     is_adult: false,
     last_seen_at: nil,
     xp: 0,
-    hatch_seen_at: nil
+    hatch_seen_at: nil,
+    signup_source: {}
   }.freeze
 
   def initialize(subject)

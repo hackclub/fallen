@@ -16,6 +16,7 @@
 #  last_seen_at            :datetime
 #  pet                     :string
 #  roles                   :string           default([]), not null, is an Array
+#  signup_source           :jsonb            not null
 #  slack_user_token        :text
 #  slack_user_token_scopes :string
 #  streak_freezes          :integer          default(3), not null
@@ -25,7 +26,7 @@
 #  xp_multiplier           :decimal(2, 1)    default(1.0), not null
 #  created_at              :datetime         not null
 #  updated_at              :datetime         not null
-#  hca_id                  :string           not null
+#  hca_id                  :string
 #  slack_id                :string
 #
 # Indexes
@@ -69,8 +70,8 @@ class User < ApplicationRecord
   has_many :time_milestones, dependent: :delete_all
   has_many :lapse_timelapses, dependent: :destroy
 
-  validates :hca_id, :email, :display_name, :timezone, presence: true
-  validates :hca_id, uniqueness: true
+  validates :email, :display_name, :timezone, presence: true
+  validates :hca_id, uniqueness: true, allow_nil: true
   validates :email, format: { with: URI::MailTo::EMAIL_REGEXP }
   validates :roles, presence: true
   validates :pet, inclusion: { in: PETS }, allow_nil: true
@@ -85,12 +86,22 @@ class User < ApplicationRecord
   scope :admins, -> { where("roles @> ARRAY[?]::varchar[]", "admin") }
   scope :with_role, ->(role) { where("roles @> ARRAY[?]::varchar[]", role.to_s) }
   scope :banned, -> { where(is_banned: true) }
-  scope :on_a_team, -> { kept.where(is_banned: false).where.not(pet: nil) }
+  scope :verified, -> { where.not(hca_id: nil) }
+  scope :trial, -> { where(hca_id: nil) }
+  scope :on_a_team, -> { kept.verified.where(is_banned: false).where.not(pet: nil) }
 
   def has_role?(role) = roles.include?(role.to_s)
   def admin? = has_role?(:admin)
   def reviewer? = has_role?(:reviewer)
   def staff? = admin? || reviewer?
+
+  # Started with just an email (TrialSessionsController): can do the onboarding and make a project, nothing more,
+  # until they sign in with Hack Club Auth.
+  def trial? = hca_id.nil?
+
+  def self.start_trial!(email:, signup_source: {})
+    create!(email: email, display_name: email.split("@").first, roles: [ "user" ], signup_source: signup_source)
+  end
 
   def add_role(role)
     return true if has_role?(role)
@@ -153,7 +164,9 @@ class User < ApplicationRecord
 
   # Signs a user in from an HCA authorization code: exchanges the code, loads the identity,
   # then creates or updates the local user. Slack profile details are refreshed in a background job.
-  def self.from_hca_code!(code, redirect_uri)
+  # `signup_source` (SignupSource) is kept only when this sign-in creates the account. A `trial` account signing in
+  # becomes the HCA account: in place if it's new here, otherwise its projects and pet move over to the one there is.
+  def self.from_hca_code!(code, redirect_uri, signup_source: {}, trial: nil)
     token_data = HCA.exchange_code_for_token(code, redirect_uri)
     access_token = token_data&.dig("access_token")
     raise HCA::Error, "HCA did not return an access token" if access_token.blank?
@@ -161,9 +174,14 @@ class User < ApplicationRecord
     identity = HCA.identity(access_token)
     raise HCA::Error, "HCA did not return an identity" if identity.blank? || identity["id"].blank?
 
-    user = find_or_initialize_by(hca_id: identity["id"])
+    user = find_by(hca_id: identity["id"]) || trial || new
+    user.hca_id = identity["id"]
     user.assign_from_hca(identity, access_token)
-    user.save!
+    user.signup_source = signup_source if user.new_record?
+    transaction do
+      user.save!
+      trial.hand_over_to!(user) if trial && trial != user
+    end
     SyncSlackProfileJob.perform_later(user) if user.slack_id.present?
     user
   end
@@ -177,6 +195,12 @@ class User < ApplicationRecord
     self.verification_status = identity["verification_status"].presence || verification_status
     self.is_adult = HCA.adult?(identity) if identity.key?("birthday")
     self.roles = [ "user" ] if roles.blank?
+  end
+
+  def hand_over_to!(user)
+    projects.update_all(user_id: user.id)
+    user.update!(pet: pet) if user.pet.nil? && pet
+    discard
   end
 
   # Pulls display name and timezone from the Slack workspace. Needs SLACK_BOT_TOKEN with users:read.

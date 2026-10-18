@@ -28,6 +28,11 @@ class Rack::Attack
     req.ip if req.path == "/auth/hca/start"
   end
 
+  # Each one can make an account.
+  throttle("trial_session/ip", limit: 30, period: 10.minutes) do |req|
+    req.ip if req.post? && req.path == "/trial_session"
+  end
+
   throttle("auth/callback/ip", limit: 60, period: 1.minute) do |req|
     req.ip if req.path == "/auth/hca/callback"
   end

@@ -1,4 +1,5 @@
 class ProjectsController < ApplicationController
+  allow_trial_access only: %i[index show new create edit update destroy] # The onboarding makes a project
   include SlackStatus
   include LapseStatus
 

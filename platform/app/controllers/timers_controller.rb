@@ -2,6 +2,7 @@
 # for anyone who would rather not join the huddle. Answers JSON, since the pet asks for it on every page and
 # keeping it out of the shared props keeps it off every request. Only ever the signed-in user's own.
 class TimersController < ApplicationController
+  allow_trial_access only: :show # The desktop pet asks for it once there is a pet; starting needs HCA
   skip_after_action :verify_policy_scoped # No index action (Rails raises on `only: :index` otherwise)
   skip_after_action :verify_authorized # Same reason; every action authorizes explicitly
 

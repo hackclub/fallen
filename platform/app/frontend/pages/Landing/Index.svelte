@@ -6,6 +6,7 @@
   import CursorTrail from '@/components/CursorTrail.svelte'
   import Faq from '@/components/Faq.svelte'
   import Footer from '@/components/Footer.svelte'
+  import GetStartedDialog from '@/components/GetStartedDialog.svelte'
   import GoldFrame from '@/components/GoldFrame.svelte'
   import HowItWorks from '@/components/HowItWorks.svelte'
   import OrnamentNav from '@/components/OrnamentNav.svelte'
@@ -23,7 +24,7 @@
   import { onMount } from 'svelte'
   import type { Component } from 'svelte'
 
-  let { whoami_url }: { whoami_url: string } = $props()
+  let { whoami_url, check_email_url }: { whoami_url: string; check_email_url: string } = $props()
 
   // Everything that follows the scroll is plain arithmetic on scrollY, so a scroll costs no layout: the only
   // measurements are the intro's and How It Works' places on the page, taken again whenever the page changes height.
@@ -99,6 +100,16 @@
     showStats = true
   }
 
+  // Getting started goes straight to Hack Club Auth for someone signed in to it there, and asks anyone else for
+  // their email first (GetStartedDialog).
+  let hcaSignedIn = $state(false)
+  let showGetStarted = $state(false)
+  const getStarted = (event: MouseEvent) => {
+    if (hcaSignedIn) return
+    event.preventDefault()
+    showGetStarted = true
+  }
+
   // Someone signed in to Hack Club Auth but not here gets started as their Slack picture, if they've set one. HCA's
   // whoami says who they are; the picture is looked up in a job, so it is asked for again until it's ready.
   let avatar: { src: string; alt: string; before: string } | undefined = $state()
@@ -106,6 +117,7 @@
     if (shared().auth.user) return
     try {
       const me = await (await fetch(whoami_url, { credentials: 'include' })).json()
+      hcaSignedIn = !!me.signed_in
       if (!me.signed_in || !me.email) return
       for (let tries = 0; tries < 8; tries++) {
         const response = await fetch(slackAvatar().url, {
@@ -130,8 +142,8 @@
     shared().auth.user
       ? { label: 'DASHBOARD', href: home.index().url, glimmer: true }
       : avatar
-        ? { label: 'GET STARTED', href: signIn().url, glimmer: true, avatar }
-        : { label: 'GET STARTED', href: signIn().url, glimmer: true },
+        ? { label: 'GET STARTED', href: signIn().url, onclick: getStarted, glimmer: true, avatar }
+        : { label: 'GET STARTED', href: signIn().url, onclick: getStarted, glimmer: true },
     { label: 'View Stats', href: root().url, onclick: openStats },
   ])
 
@@ -153,6 +165,10 @@
 <svelte:body bind:clientHeight={pageHeight} />
 
 <CursorTrail />
+
+{#if showGetStarted}
+  <GetStartedDialog checkEmailUrl={check_email_url} onClose={() => (showGetStarted = false)} />
+{/if}
 
 {#if showStats}
   <OrnateModal titleId="stats-title" title="View Stats" class="max-w-md" onClose={() => (showStats = false)}>

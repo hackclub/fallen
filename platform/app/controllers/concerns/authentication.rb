@@ -7,6 +7,7 @@ module Authentication
     before_action :set_current_user
     before_action :authenticate_user!
     before_action :redirect_banned_user!
+    before_action :authenticate_verified_user!
     helper_method :current_user, :user_signed_in?, :true_user, :impersonating?
   end
 
@@ -14,6 +15,11 @@ module Authentication
     # Relaxing directive: always pass `only:` so a new action stays protected by default.
     def allow_unauthenticated_access(only:)
       skip_before_action :authenticate_user!, only: only
+    end
+
+    # Trial accounts (User#trial?) are sent to Hack Club Auth from everything that doesn't opt in with this.
+    def allow_trial_access(only:)
+      skip_before_action :authenticate_verified_user!, only: only
     end
   end
 
@@ -45,6 +51,14 @@ module Authentication
 
   def redirect_banned_user!
     redirect_to sorry_path if current_user&.is_banned?
+  end
+
+  def authenticate_verified_user!
+    return unless current_user&.trial?
+
+    session[:return_to] = request.fullpath if request.get? && !request.xhr?
+    url = sign_in_path(login_hint: current_user.email)
+    request.inertia? ? inertia_location(url) : redirect_to(url)
   end
 
   def sign_in(user)

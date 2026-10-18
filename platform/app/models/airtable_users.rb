@@ -3,7 +3,7 @@
 # Copies every user to the Users table in Airtable through the Sync API (Airtable.sync), keyed on ID, their public id.
 # The table is set up once in Airtable as a Sync API table (AIRTABLE_USERS_TABLE, AIRTABLE_USERS_SYNC_ID) with ID as
 # its unique field. A user deleted here, including by a privacy request, drops out of Airtable on the next upload.
-# Tokens never leave the app.
+# Trial accounts (User#trial?) go too, with no HCA ID until they sign in with it. Tokens never leave the app.
 module AirtableUsers
   module_function
 
@@ -34,6 +34,7 @@ module AirtableUsers
       "Name" => user.display_name,
       "Email" => user.email,
       "HCA ID" => user.hca_id,
+      "Trial" => user.trial?,
       "Slack ID" => user.slack_id,
       "Avatar" => user.avatar_url.start_with?("http") ? user.avatar_url : nil,
       "Verification Status" => user.verification_status,
@@ -55,6 +56,14 @@ module AirtableUsers
       "Last Journal At" => stats[:last_journal][user.id]&.iso8601,
       "Last Seen At" => user.last_seen_at&.iso8601,
       "Signed Up At" => user.created_at.iso8601,
+      "UTM Source" => user.signup_source["utm_source"],
+      "UTM Medium" => user.signup_source["utm_medium"],
+      "UTM Campaign" => user.signup_source["utm_campaign"],
+      "UTM Term" => user.signup_source["utm_term"],
+      "UTM Content" => user.signup_source["utm_content"],
+      "Ref" => user.signup_source["ref"],
+      "Referrer" => user.signup_source["referrer"],
+      "Landing Page" => user.signup_source["landing_path"],
       "Deleted At" => user.discarded_at&.iso8601
     }
   end

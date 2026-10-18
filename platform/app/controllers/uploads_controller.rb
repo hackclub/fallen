@@ -2,6 +2,7 @@
 # Storage's direct uploads until the bucket has a CORS rule; until then the browser can't PUT to it.
 # The type comes from the file's bytes, never the browser's say-so, and nothing decodes the image.
 class UploadsController < ApplicationController
+  allow_trial_access only: :create # Project banners, made during the onboarding
   skip_after_action :verify_policy_scoped # No index action (Rails raises on `only: :index` otherwise)
   skip_after_action :verify_authorized # Same reason; every action authorizes explicitly
 

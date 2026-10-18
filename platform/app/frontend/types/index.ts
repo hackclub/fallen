@@ -14,7 +14,11 @@ export interface SharedProps {
   auth: { user: User | null }
   impersonation: { impersonator_name: string } | null
   // ApplicationController#setup_props. `project` is the title of one made during the onboarding, if any.
-  setup: { step: 'onboarding'; project: string | null; rules: TeamRules } | { step: 'slack' } | null
+  setup:
+    | { step: 'onboarding'; project: string | null; rules: TeamRules }
+    | { step: 'verify'; email: string }
+    | { step: 'slack' }
+    | null
   lapse_configured: boolean
   // Development only, for replaying the onboarding after a pet is picked.
   team_rules: TeamRules | null

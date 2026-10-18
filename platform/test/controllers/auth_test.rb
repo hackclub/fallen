@@ -17,6 +17,13 @@ class AuthTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "sign in start passes the email to fill in on to HCA" do
+    with_env("HCA_CLIENT_ID" => "id", "HCA_CLIENT_SECRET" => "secret") do
+      get sign_in_path(login_hint: "someone@example.com")
+      assert_equal "someone@example.com", Rack::Utils.parse_query(URI(response.location).query)["login_hint"]
+    end
+  end
+
   test "callback rejects a state mismatch" do
     get hca_callback_path(code: "abc", state: "nope")
     assert_redirected_to root_path
@@ -52,11 +59,56 @@ class AuthTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "a new account keeps the UTM tags and referrer of its first visit" do
+    with_env("HCA_CLIENT_ID" => "id", "HCA_CLIENT_SECRET" => "secret") do
+      get root_path(utm_source: "reddit", utm_campaign: "launch", ref: "ysws", junk: "x"), headers: { "Referer" => "https://www.reddit.com/r/hackclub/comments/abc?share=me" }
+      get root_path(utm_source: "later")
+
+      sign_in_through_hca("hca_tagged")
+
+      source = User.find_by!(hca_id: "hca_tagged").signup_source
+      assert_equal "reddit", source["utm_source"]
+      assert_equal "launch", source["utm_campaign"]
+      assert_equal "ysws", source["ref"]
+      assert_equal "https://www.reddit.com/r/hackclub/comments/abc", source["referrer"]
+      assert_equal "/", source["landing_path"]
+      assert_not source.key?("junk")
+      assert cookies[:signup_source].blank?
+    end
+  end
+
+  test "signing in to an existing account leaves its signup source alone" do
+    with_env("HCA_CLIENT_ID" => "id", "HCA_CLIENT_SECRET" => "secret") do
+      member = users(:member)
+      get root_path(utm_source: "newsletter")
+      sign_in_through_hca(member.hca_id)
+
+      assert_equal({}, member.reload.signup_source)
+    end
+  end
+
+  test "visits without tags or another site's referrer remember nothing" do
+    get root_path, headers: { "Referer" => "http://www.example.com/somewhere" }
+    assert cookies[:signup_source].blank?
+  end
+
   test "sign out clears the session" do
     sign_in_as users(:member)
     delete sign_out_path
     assert_redirected_to root_path
     get home_path
     assert_redirected_to root_path
+  end
+
+  private
+
+  def sign_in_through_hca(hca_id)
+    get sign_in_path
+    state = Rack::Utils.parse_query(URI(response.location).query)["state"]
+    stub_method(HCA, :exchange_code_for_token, { "access_token" => "tok" }) do
+      stub_method(HCA, :identity, { "id" => hca_id, "primary_email" => "#{hca_id}@example.com" }) do
+        get hca_callback_path(code: "abc", state: state)
+      end
+    end
   end
 end

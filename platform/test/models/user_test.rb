@@ -18,6 +18,7 @@ require "test_helper"
 #  last_seen_at            :datetime
 #  pet                     :string
 #  roles                   :string           default([]), not null, is an Array
+#  signup_source           :jsonb            not null
 #  slack_user_token        :text
 #  slack_user_token_scopes :string
 #  streak_freezes          :integer          default(3), not null
@@ -27,7 +28,7 @@ require "test_helper"
 #  xp_multiplier           :decimal(2, 1)    default(1.0), not null
 #  created_at              :datetime         not null
 #  updated_at              :datetime         not null
-#  hca_id                  :string           not null
+#  hca_id                  :string
 #  slack_id                :string
 #
 # Indexes

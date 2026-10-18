@@ -2,7 +2,9 @@ class AuthController < ApplicationController
   include OauthState
 
   allow_unauthenticated_access only: %i[new create] # The OAuth flow runs before there is a session
+  allow_trial_access only: %i[new create destroy] # Signing in with HCA is how a trial account becomes a real one
   skip_before_action :redirect_banned_user!, only: :destroy # Banned users must still be able to sign out
+  skip_before_action :remember_signup_source, only: :create # The referrer here is HCA, not where the person came from
   skip_after_action :verify_policy_scoped # No index action (Rails raises on `only: :index` otherwise)
   skip_after_action :verify_authorized # Acts only on the current session
   rate_limit to: 60, within: 3.minutes, only: :create, with: -> { redirect_to root_path, alert: "Too many attempts, try again in a few minutes." }
@@ -11,7 +13,7 @@ class AuthController < ApplicationController
     return redirect_to dev_path if !HCA.configured? && Rails.env.local?
     return redirect_to root_path, alert: "Hack Club Auth is not configured (HCA_CLIENT_ID / HCA_CLIENT_SECRET)." unless HCA.configured?
 
-    redirect_to HCA.authorize_url(hca_callback_url, issue_oauth_state), allow_other_host: true
+    redirect_to HCA.authorize_url(hca_callback_url, issue_oauth_state, login_hint: params[:login_hint]), allow_other_host: true
   end
 
   def create
@@ -22,7 +24,8 @@ class AuthController < ApplicationController
 
     return redirect_to root_path, alert: "Sign in was cancelled." if params[:error].present?
 
-    user = User.from_hca_code!(params[:code], hca_callback_url)
+    user = User.from_hca_code!(params[:code], hca_callback_url, signup_source: take_signup_source, trial: (current_user if current_user&.trial?))
+    cookies.delete(TrialSessionsController::COOKIE)
     sign_in(user)
     Rails.logger.info({ event: "auth.signed_in", user_id: user.id }.to_json)
     redirect_to after_sign_in_path, notice: "Welcome back, #{user.display_name}!"

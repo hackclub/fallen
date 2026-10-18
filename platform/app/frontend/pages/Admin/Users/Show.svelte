@@ -60,7 +60,15 @@
     { label: 'Multiplier', value: `${user.xp_multiplier}x, ${user.streak_freezes} freezes left` },
     { label: 'Last seen', value: formatDateTime(user.last_seen_at) },
     { label: 'Joined', value: formatDate(user.created_at) },
+    { label: 'Came from', value: signupSource(user.signup_source) },
   ])
+
+  function signupSource(source: Record<string, string>) {
+    const tags = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'ref']
+      .filter((key) => source[key])
+      .map((key) => `${key.replace('utm_', '')}=${source[key]}`)
+    return [...tags, source.referrer].filter(Boolean).join(', ') || '—'
+  }
 
   function toggleRole(role: string, checked: boolean) {
     rolesForm.roles = checked ? [...rolesForm.roles, role] : rolesForm.roles.filter((r) => r !== role)

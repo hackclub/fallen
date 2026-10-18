@@ -1,4 +1,5 @@
 class HomeController < ApplicationController
+  allow_trial_access only: :index # Where the onboarding runs
   skip_after_action :verify_authorized # Shows only the current user's own data
   skip_after_action :verify_policy_scoped # Projects go through policy_scope, but only in the deferred request
 
