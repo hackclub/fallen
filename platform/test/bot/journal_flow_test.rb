@@ -153,7 +153,7 @@ class JournalFlowTest < ActiveSupport::TestCase
 
         toggle(first, button_in(first[:blocks], "Older ›"), ticked: [ lapse_timelapses(:desk), older[1] ])
         second = slack.calls_to(:views_update).last[:view]
-        assert_includes second[:blocks].map { |block| block.dig(:elements, 0, :text) }, "2 of up to 10 ticked · page 2 of 2"
+        assert_includes second[:blocks].map { |block| block.dig(:elements, 0, :text) }, "Page 2 of 2"
         assert button_in(second[:blocks], "‹ Newer")
 
         submit(second, ticked: [ older.last ])

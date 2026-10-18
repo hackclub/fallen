@@ -127,8 +127,8 @@ module SlackMessages
     picker = picker.with(page: page, page_ids: shown.reject { |timelapse| timelapse_blocked(timelapse) }.map(&:public_id))
 
     blocks = [ SlackBot::Blocks.context("Powered by :lapse: Lapse, select sessions that you want to attach to this journal!") ]
-    status = [ ("#{picker.selected.size} of up to #{Journal::MAX_TIMELAPSES} ticked" if picker.selected.any?), ("page #{page + 1} of #{pages}" if pages > 1) ].compact
-    blocks << SlackBot::Blocks.context(status.join(" · ").upcase_first) if status.any?
+    # No count of ticks: Slack doesn't redraw the modal on a tick, so it would go stale.
+    blocks << SlackBot::Blocks.context("Page #{page + 1} of #{pages}") if pages > 1
     blocks << SlackBot::Blocks.context(":warning: #{escape(error)}") if error
     shown.each do |timelapse|
       reason = timelapse_blocked(timelapse)
