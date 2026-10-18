@@ -40,8 +40,8 @@
   import { FINAL_FORM, PET_FORMS, PET_NAMES, hatch, petState } from '@/lib/pet.svelte'
   import { PET_HOME_EVENT, preferences } from '@/lib/preferences.svelte'
   import { shared } from '@/lib/shared.svelte'
-  import { watchTimer } from '@/lib/timer.svelte'
-  import TimerPrompt from '@/components/TimerPrompt.svelte'
+  import { timer as tracked, watchTimer } from '@/lib/timer.svelte'
+  import TimerPrompt, { PROMPT_WIDTH } from '@/components/TimerPrompt.svelte'
   import PetTimer from '@/components/PetTimer.svelte'
 
   // A desktop pet for the signed-in site: the egg picked in onboarding sits on the bottom of the window, hops about
@@ -80,15 +80,25 @@
   const TIP_WIDTH = 250
   let hovered = $state(false)
   let tipShift = $state(0)
-  const showTip = $derived(hovered && !flying)
+  const showTip = $derived(hovered && !flying && !tracked.prompt)
+
+  // How far a card `width` px wide, centred over the pet, moves sideways to stay inside the window.
+  function shiftFor(width: number) {
+    const centre = x + dims.w / 2
+    return clamp(centre - width / 2, 8, innerWidth - 8 - width) - (centre - width / 2)
+  }
 
   function onpointerenter(event: PointerEvent) {
     if (event.pointerType === 'touch' || drag?.moved) return
-    const centre = x + dims.w / 2
-    const left = clamp(centre - TIP_WIDTH / 2, 8, innerWidth - 8 - TIP_WIDTH)
-    tipShift = left - (centre - TIP_WIDTH / 2)
+    tipShift = shiftFor(TIP_WIDTH)
     hovered = true
   }
+
+  // The timer's prompts open in a bubble over the pet (TimerPrompt); it holds still while one is up.
+  let promptShift = $state(0)
+  $effect(() => {
+    if (tracked.prompt) untrack(() => (promptShift = shiftFor(PROMPT_WIDTH)))
+  })
   let aspect = EGG_ASPECT
   let dims = $state(size(aspect))
 
@@ -246,7 +256,7 @@
     clearTimeout(timer)
     timer = setTimeout(
       async () => {
-        if (!busy && !hovered && !document.hidden && !prefersReducedMotion()) {
+        if (!busy && !hovered && !tracked.prompt && !document.hidden && !prefersReducedMotion()) {
           if (Math.random() < 0.6) {
             const distance = between(80, 360) * (Math.random() < 0.5 ? -1 : 1)
             await hopTo(clamp(x + distance, EDGE, maxX()))
@@ -556,6 +566,8 @@
         ></span>
       </span>
     {/if}
+    {#if !flying}
+      <TimerPrompt shift={promptShift} />
+    {/if}
   </div>
-  <TimerPrompt />
 {/if}

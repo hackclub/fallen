@@ -119,6 +119,27 @@
   @apply animate-pulse rounded-sm bg-ink/10;
 }
 
+/* A band of light passing over something still loading (the pet's timer). Put it on an overlay inside a
+   `relative overflow-hidden` box. Held still for anyone who prefers less motion. */
+@keyframes sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@utility sweep {
+  background: linear-gradient(100deg, transparent 20%, rgb(255 255 255 / 0.32) 50%, transparent 80%);
+  animation: sweep 1.3s ease-in-out infinite;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+    background: rgb(255 255 255 / 0.06);
+  }
+}
+
 @utility btn-sky {
   @apply btn border-white/20 bg-transparent font-outfit text-white hover:bg-white/10 focus-visible:ring-white/40;
 }

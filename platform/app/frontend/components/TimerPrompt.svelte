@@ -1,14 +1,22 @@
+<script lang="ts" module>
+  // Wide enough for the pause prompt's two buttons side by side.
+  export const PROMPT_WIDTH = 320
+</script>
+
 <script lang="ts">
   import { enter, exit } from '@/components/dialog/motion'
   import { inviteToHuddle, pauseHuddle, startTimer, timer } from '@/lib/timer.svelte'
 
-  // Drops in from the top of the window for the pet's timer (PetTimer):
+  // A bubble above the desktop pet, pointing down at it, for the pet's timer (PetTimer):
   // - join: Start was pressed. Join the huddle, where time counts by itself, or "I'd prefer not" and count it on
   //   the site's timer.
   // - pause: Pause was pressed in the huddle. Stay and stop counting, or leave.
   // - leave: the site cannot take anyone out of a Slack huddle, so it says how; counting stops once Slack says
   //   they left.
-  // On <body>, so the pet's moving element does not carry it along.
+  // Lives inside the pet's moving element (DesktopPet), which holds still while it is open. `shift` moves it
+  // sideways to stay inside the window, the tail still over the pet.
+  let { shift = 0 }: { shift?: number } = $props()
+
   const close = () => (timer.prompt = null)
 
   function onkeydown(event: KeyboardEvent) {
@@ -23,23 +31,25 @@
 <svelte:window {onkeydown} />
 
 {#if timer.prompt}
+  <!-- Its own presses never pick the pet up. -->
   <div
     role="dialog"
+    tabindex="-1"
     aria-labelledby="timer-prompt-title"
-    class="fixed top-4 left-1/2 z-[90] w-[min(92vw,380px)] -translate-x-1/2"
-    {@attach (el) => {
-      document.body.append(el)
-      return () => el.remove()
-    }}
+    class="absolute bottom-full left-1/2 mb-14 cursor-default select-text"
+    style:width="{PROMPT_WIDTH}px"
+    style:margin-left="{-PROMPT_WIDTH / 2 + shift}px"
+    onpointerdown={(event) => event.stopPropagation()}
   >
     <div
-      class="rounded-2xl border-2 border-gold bg-dark-blue px-5 py-4 font-outfit text-cream shadow-[0_10px_30px_-8px_rgba(0,0,0,0.7)]"
+      class="relative rounded-2xl border-2 border-gold bg-dark-blue px-5 py-4 text-left font-outfit text-cream shadow-[0_10px_30px_-8px_rgba(0,0,0,0.7)]"
+      style:transform-origin="{PROMPT_WIDTH / 2 - shift}px 100%"
       {@attach enter(
-        { opacity: 0, y: -24, scale: 0.96 },
-        { opacity: 1, y: 0, scale: 1 },
-        { type: 'spring', stiffness: 420, damping: 26 },
+        { opacity: 0, scale: 0.6, y: 12 },
+        { opacity: 1, scale: 1, y: 0 },
+        { type: 'spring', stiffness: 500, damping: 24 },
       )}
-      out:exit={{ target: { opacity: 0, y: -16 }, transition: { duration: 0.14 }, duration: 0.14 }}
+      out:exit={{ target: { opacity: 0, scale: 0.85, y: 8 }, transition: { duration: 0.12 }, duration: 0.12 }}
     >
       <div class="flex items-start justify-between gap-3">
         <h2 id="timer-prompt-title" class="font-lora text-lg font-bold">{titles[timer.prompt]}</h2>
@@ -101,6 +111,11 @@
           <button type="button" class={primary} onclick={close}>Got it</button>
         </div>
       {/if}
+      <!-- the tail, pointing down at the pet -->
+      <span
+        class="absolute -bottom-[9px] size-4 rotate-45 border-r-2 border-b-2 border-gold bg-dark-blue"
+        style:left="{PROMPT_WIDTH / 2 - shift - 8}px"
+      ></span>
     </div>
   </div>
 {/if}

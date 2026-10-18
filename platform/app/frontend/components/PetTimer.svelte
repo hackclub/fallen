@@ -8,6 +8,7 @@
   // - Start: asks about the huddle first (TimerPrompt) unless they are in it.
   // - Pause in the huddle: asks whether to stay without counting or leave. Pause on the site timer stops it.
   // - Resume: back to counting in the huddle.
+  // Until the first answer arrives it shows no time at all, just a light sweeping over it.
   let now = $state(Date.now())
   $effect(() => {
     if (timer.running !== 'huddle' && timer.running !== 'timer') return
@@ -28,10 +29,11 @@
 
 <!-- Its own presses never pick the pet up. -->
 <div
-  class="flex items-center overflow-hidden rounded-full border-2 border-gold bg-dark-blue font-outfit text-sm text-cream shadow-[0_6px_16px_-6px_rgba(0,0,0,0.7)]"
+  class="relative flex items-center overflow-hidden rounded-full border-2 border-gold bg-dark-blue font-outfit text-sm text-cream shadow-[0_6px_16px_-6px_rgba(0,0,0,0.7)]"
   onpointerdown={(event) => event.stopPropagation()}
   role="group"
   aria-label="Time since your last journal"
+  aria-busy={!timer.loaded}
 >
   {#if timer.running === 'huddle'}
     <button
@@ -66,6 +68,18 @@
     class={[
       'border-l-2 border-gold/40 py-1 pr-3 pl-2.5 tabular-nums',
       timer.running === 'paused' && 'text-pale-blue/70',
-    ]}>{shown}</span
+    ]}
   >
+    {#if timer.loaded}
+      {shown}
+    {:else}
+      <!-- the width of "00:00", so the pill does not jump when the time arrives -->
+      <span class="relative block h-[1.25em] w-[5ch]">
+        <span class="absolute inset-x-0 top-1/2 h-2.5 -translate-y-1/2 rounded-full bg-white/10"></span>
+      </span>
+    {/if}
+  </span>
+  {#if !timer.loaded}
+    <span class="pointer-events-none absolute inset-0 sweep" aria-hidden="true"></span>
+  {/if}
 </div>

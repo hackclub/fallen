@@ -27,3 +27,8 @@ production:
     class: HuddleSyncJob
     queue: realtime
     schedule: every minute
+
+  time_milestones:
+    class: TimeMilestoneJob
+    queue: slack
+    schedule: every minute

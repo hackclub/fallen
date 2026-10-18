@@ -232,6 +232,20 @@ module SlackMessages
     { text: "<@#{session.slack_id}> is working on #{escape(session.goal)} today!!", **pet_persona(session.user&.pet) }
   end
 
+  # Only they see it, from their pet, each TimeMilestone::EVERY since their last journal (TimeMilestoneJob).
+  def time_milestone(user, minutes)
+    { text: "#{duration_words(minutes)} since your last journal :tada: keep going!", **pet_persona(user.pet) }
+  end
+
+  # "30 minutes", "1 hour", "1.5 hours".
+  def duration_words(minutes)
+    return "#{minutes} minutes" if minutes < 60
+
+    hours = (minutes / 60.0).round(1)
+    hours = hours.to_i if hours == hours.to_i
+    "#{hours} #{hours == 1 ? 'hour' : 'hours'}"
+  end
+
   # In the new huddle's thread, for the people Slack dropped when it ended the last one (HuddleHandoffJob).
   def huddle_handoff(huddle, slack_ids)
     text = "#{slack_ids.map { |id| "<@#{id}>" }.join(' ')} the huddle hit Slack's 24 hour limit, so there's a new one. Come back in!"

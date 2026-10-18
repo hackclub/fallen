@@ -66,6 +66,7 @@ class User < ApplicationRecord
   has_many :huddle_sessions, dependent: :destroy
   has_many :timer_sessions, dependent: :destroy
   has_many :huddle_pauses, dependent: :destroy
+  has_many :time_milestones, dependent: :delete_all
   has_many :lapse_timelapses, dependent: :destroy
 
   validates :hca_id, :email, :display_name, :timezone, presence: true
