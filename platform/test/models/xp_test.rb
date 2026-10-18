@@ -1,6 +1,6 @@
 require "test_helper"
 
-# XP: the ledger (XpEntry), the pet's growth (Evolution) and the teams' weeks (Team, closed by CloseWeekJob).
+# XP: the ledger (XpEntry), the pet's growth (Evolution) and the teams' weeks (Team, closed by CloseWeekJob and SettleLuluWeeksJob).
 class XpTest < ActiveSupport::TestCase
   test "a journal's entry follows its hours and is worth at least 1 xp" do
     user = users(:member)
@@ -108,17 +108,36 @@ class XpTest < ActiveSupport::TestCase
     assert_not late.xp_entries.exists?(kind: "early_bird")
   end
 
-  test "lulu pays a weekly bonus for five journal days, once" do
+  test "lulu's weeks start on the first journal and pay a bonus for five journal days, once, after the week ends" do
     user = users(:member)
-    week = Week.of(Date.new(2026, 9, 7))
-    journal_on(user, week.days.first(4))
-    user.team.close_week(week)
+    first = Date.new(2026, 9, 10) # a Thursday
+    journal_on(user, [ first, first + 1, first + 2, first + 3 ])
+    week = user.team.week(first + 6)
+    assert_equal first..first + 6, week.days
+    assert_equal first + 7, user.team.week(first + 7).start
+
+    user.team.settle(first + 7)
     assert_not user.xp_entries.exists?(kind: "weekly_bonus")
 
-    journal_on(user, [ week.finish ])
-    2.times { user.team.close_week(week) }
+    journal_on(user, [ first + 6 ])
+    user.team.settle(first + 6)
+    assert_not user.xp_entries.exists?(kind: "weekly_bonus"), "not until the week has ended"
+
+    (7..13).each { |n| user.team.settle(first + n) }
     assert_equal [ Team::Lulu::WEEKLY_BONUS ], user.xp_entries.where(kind: "weekly_bonus").pluck(:amount)
-    assert_equal week.finish, user.xp_entries.find_by(kind: "weekly_bonus").day
+    assert_equal first + 6, user.xp_entries.find_by(kind: "weekly_bonus").day
+  end
+
+  test "settling pays only team lulu" do
+    first = Date.new(2026, 9, 10)
+    journal_on(users(:member), (first..first + 4).to_a)
+    journal_on(users(:admin), (first..first + 4).to_a)
+
+    travel_to (first + 8).in_time_zone(users(:member).timezone).change(hour: 12) do
+      2.times { SettleLuluWeeksJob.perform_now }
+    end
+    assert_equal 1, users(:member).xp_entries.where(kind: "weekly_bonus").count
+    assert_not users(:admin).xp_entries.exists?(kind: "weekly_bonus")
   end
 
   test "sami raises the multiplier for a week without gaps, spends freezes on missed days and resets after them" do

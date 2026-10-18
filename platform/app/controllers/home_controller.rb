@@ -27,11 +27,12 @@ class HomeController < ApplicationController
     { minutes: minutes, journals: count, missing_hours: missing, last_journal_at: last_at }
   end
 
-  # Where the person stands: XP and form, their team's week so far, and the race between the teams.
+  # Where the person stands: XP and form, their team's week so far (Lulu's start on their first journal), and the
+  # race between the teams this Monday-to-Sunday week.
   def xp
     today = current_user.local_date
-    week = Week.of(today)
     team = current_user.team
+    week = team ? team.week(today) : Week.of(today)
     {
       total: current_user.xp, form: current_user.pet_form, next_stage_xp: current_user.next_stage_xp, progress: current_user.stage_progress,
       team: team&.name, multiplier: current_user.xp_multiplier.to_f, freezes: current_user.streak_freezes,
@@ -40,7 +41,7 @@ class HomeController < ApplicationController
         start: week.start.iso8601, today: today.iso8601,
         days: team ? team.journal_days(week).map(&:iso8601) : [],
         since: team&.first_journal_day&.iso8601,
-        totals: XpEntry.team_totals(week)
+        totals: XpEntry.team_totals(Week.of(today))
       }
     }
   end

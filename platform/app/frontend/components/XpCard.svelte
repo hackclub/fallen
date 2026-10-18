@@ -40,8 +40,9 @@
 <script lang="ts">
   import { FINAL_FORM } from '@/lib/pet.svelte'
 
-  // XP and the way to the next form on top; below, this week on the person's team (a dot per day, Monday to Sunday,
-  // with the goal in a line) beside the race between the teams. The pet itself is already on the page (DesktopPet).
+  // XP and the way to the next form on top; below, this week on the person's team (a dot per day: Monday to Sunday
+  // for Sami, from the weekday of the first journal for Lulu, with the goal in a line) beside the race between the
+  // teams. The pet itself is already on the page (DesktopPet).
   let { xp }: { xp: Standing } = $props()
 
   const stage = $derived(Math.max(xp.form, 1))
@@ -80,7 +81,7 @@
   )
   const rule = $derived(
     xp.team === 'lulu'
-      ? `Journal on ${xp.rules.lulu_days} days in a week, Monday to Sunday, and you get +${xp.rules.lulu_bonus} XP on Monday.`
+      ? `Journal on ${xp.rules.lulu_days} days in a week and you get +${xp.rules.lulu_bonus} XP the day after it ends. Your weeks start on the day of your first journal.`
       : `A week without a missed day adds ${xp.rules.sami_step}x, up to ${xp.rules.sami_max}x. A missed day spends a freeze; with none left the multiplier goes back to 1x. The streak starts with your first journal.`,
   )
 </script>

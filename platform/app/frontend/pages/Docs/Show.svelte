@@ -6,6 +6,8 @@
   import type { Component, Snippet } from 'svelte'
   import PageTitle from '@/components/PageTitle.svelte'
   import TabbedPanel from '@/components/TabbedPanel.svelte'
+  import SolarChat from '@/components/icons/SolarChat.svelte'
+  import SolarDocument from '@/components/icons/SolarDocument.svelte'
   import SolarPlane from '@/components/icons/SolarPlane.svelte'
   import SolarNotebook from '@/components/icons/SolarNotebook.svelte'
   import SolarRocket from '@/components/icons/SolarRocket.svelte'
@@ -14,6 +16,8 @@
   // One tab per file in app/frontend/docs, named by the file (journaling.mdx is /docs/journaling) and ordered, titled and
   // given an icon by its frontmatter.
   const icons: Record<string, Snippet> = {
+    start: startIcon,
+    note: noteIcon,
     journal: journalIcon,
     submit: submitIcon,
     travel: travelIcon,
@@ -35,6 +39,8 @@
   let current = $state(docs[0].id)
 </script>
 
+{#snippet startIcon()}<SolarDocument size={24} />{/snippet}
+{#snippet noteIcon()}<SolarChat size={24} />{/snippet}
 {#snippet journalIcon()}<SolarNotebook size={24} />{/snippet}
 {#snippet submitIcon()}<SolarRocket size={24} />{/snippet}
 {#snippet travelIcon()}<SolarPlane size={24} />{/snippet}

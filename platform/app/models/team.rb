@@ -1,10 +1,11 @@
 # frozen_string_literal: true
 
 # Lulu or Sami. The pet picked in onboarding is also the team, and each team rewards a week of journaling its own
-# way: Lulu pays a bonus for enough journal days, Sami raises the multiplier on every journal for each week without
-# a gap, with a few freezes (users.streak_freezes) to cover missed days. `Team.close_week` settles a week for everyone
-# (CloseWeekJob): the team that earned the most XP gets WIN_BONUS for each member who earned some, then each
-# person's own team judges their week.
+# way: Lulu pays a bonus for enough journal days in each week counted from the person's first journal, Sami raises
+# the multiplier on every journal for each Monday-to-Sunday week without a gap, with a few freezes
+# (users.streak_freezes) to cover missed days. `Team.close_week` settles a calendar week for everyone (CloseWeekJob):
+# the team that earned the most XP gets WIN_BONUS for each member who earned some, then Sami judges its members' week.
+# `Team.settle` pays Lulu's weeks as each person's ends (SettleLuluWeeksJob).
 class Team
   WIN_BONUS = 10
 
@@ -15,6 +16,10 @@ class Team
   def self.close_week(week)
     reward_winners(week)
     User.on_a_team.find_each { |user| user.team.close_week(week) }
+  end
+
+  def self.settle
+    User.on_a_team.where(pet: "lulu").find_each { |user| user.team.settle }
   end
 
   def self.reward_winners(week)
@@ -43,13 +48,31 @@ class Team
   # The streak starts with the first journal.
   def first_journal_day = user.xp_entries.kept.journals.minimum(:day)
 
-  def close_week(week) = raise(NotImplementedError)
+  # The week the person's team counts `day` in.
+  def week(day) = Week.of(day)
+
+  # Judges a Monday-to-Sunday week that has ended.
+  def close_week(week) = nil
 
   class Lulu < Team
     DAYS_FOR_BONUS = 5
     WEEKLY_BONUS = 30
 
-    def close_week(week)
+    # Seven days from the first journal, then the next seven, and so on. Before any journal, the week would start
+    # today. Discarded journals still count as the first, so deleting one never shifts weeks already paid.
+    def week(day)
+      first = user.xp_entries.journals.minimum(:day) || day
+      Week.new(start: first + (day - first).to_i / 7 * 7)
+    end
+
+    # Pays the last week that has ended on the person's calendar. Run daily; each week is checked seven times and
+    # paid once.
+    def settle(today = user.local_date)
+      last = week(today - 7)
+      pay_for(last) if last.finish < today
+    end
+
+    def pay_for(week)
       return if journal_days(week).size < DAYS_FOR_BONUS
 
       user.xp_entries.create_or_find_by!(kind: "weekly_bonus", day: week.finish) { |entry| entry.amount = WEEKLY_BONUS }

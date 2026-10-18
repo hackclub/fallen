@@ -18,6 +18,11 @@ production:
     queue: background
     schedule: "0 12 * * 1"
 
+  settle_lulu_weeks:
+    class: SettleLuluWeeksJob
+    queue: background
+    schedule: every day at 12pm
+
   sync_users_to_airtable:
     class: SyncUsersToAirtableJob
     queue: background

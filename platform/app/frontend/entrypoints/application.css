@@ -460,6 +460,9 @@
   & h2 {
     @apply pt-3 font-montserrat text-xl font-semibold tracking-[-0.02em] text-white;
   }
+  & h3 {
+    @apply font-montserrat text-lg font-semibold tracking-[-0.02em] text-white;
+  }
   & strong {
     @apply font-semibold text-cream;
   }
@@ -471,6 +474,12 @@
   }
   & ol {
     @apply list-decimal space-y-2 pl-5 marker:text-cream/50;
+  }
+  & li > ul {
+    @apply mt-2 list-[circle];
+  }
+  & blockquote {
+    @apply space-y-3 border-l-2 border-cream/40 pl-4 italic;
   }
   & code {
     @apply rounded bg-white/10 px-1 py-0.5 text-[0.9em] text-cream;
