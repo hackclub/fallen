@@ -13,3 +13,13 @@ production:
     class: CloseWeekJob
     queue: background
     schedule: "0 12 * * 1"
+
+  sync_users_to_airtable:
+    class: SyncUsersToAirtableJob
+    queue: background
+    schedule: every 5 minutes
+
+  sync_huddle:
+    class: HuddleSyncJob
+    queue: realtime
+    schedule: every minute

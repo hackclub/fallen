@@ -29,7 +29,7 @@
   // svelte-ignore state_referenced_locally
   const form = useForm({
     body: journal?.body ?? '',
-    duration: journal?.duration_text ?? '',
+    duration: journal?.duration_text?.replace(/h$/, '') ?? '',
     lapse_url: journal?.lapse_url ?? '',
     images: (journal?.images ?? []) as UploadedImage[],
   })
@@ -154,9 +154,16 @@
         <div>
           <p class="font-display text-lg text-ink">Time spent</p>
           <p class="mb-2 font-outfit text-xs text-ink-soft">
-            Every journal needs one. However you'd write it: 1h 30m, 2.5, 45m.
+            Every journal needs one, in hours: 1.5, 0.5, 0.1.
           </p>
-          <input type="text" bind:value={form.duration} placeholder="1h 30m" required class="paper-input" />
+          <input
+            type="text"
+            bind:value={form.duration}
+            placeholder="1.5"
+            inputmode="decimal"
+            required
+            class="paper-input"
+          />
           {#if form.errors.duration}<p class="mt-1 font-outfit text-xs text-red-700">
               {form.errors.duration}
             </p>{/if}

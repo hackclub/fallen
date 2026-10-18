@@ -1,31 +1,21 @@
 # frozen_string_literal: true
 
-# Minutes in, human text out, and back again. Accepts "1.5", "1h30m", "90m", "2 hours", "45 min".
+# Time is typed and shown as decimal hours, like a digital clock readout: "1.5", "0.5", "0.1".
 module Duration
   module_function
 
   def format(minutes)
     return nil if minutes.nil?
 
-    hours, mins = minutes.divmod(60)
-    parts = []
-    parts << "#{hours}h" if hours.positive?
-    parts << "#{mins}m" if mins.positive? || parts.empty?
-    parts.join(" ")
+    hours = (minutes / 60.0).round(2)
+    "#{hours == hours.to_i ? hours.to_i : hours}h"
   end
 
   def parse(text)
-    text = text.to_s.strip.downcase
-    return nil if text.blank?
+    m = text.to_s.strip.downcase.match(/\A(\d*\.?\d+)\s*h?\z/)
+    return nil unless m
 
-    if (m = text.match(/\A(\d+(?:\.\d+)?)\s*(h|hr|hrs|hour|hours)?\z/))
-      return (m[1].to_f * 60).round
-    end
-
-    hours = text[/(\d+(?:\.\d+)?)\s*(?:h|hr|hrs|hour|hours)/, 1].to_f
-    mins = (text[/(\d+)\s*(?:m|min|mins|minute|minutes)\b/, 1] || text[/(?:h|hr|hrs|hour|hours)\s*(\d+)\z/, 1]).to_i
-    return nil if hours.zero? && mins.zero?
-
-    (hours * 60).round + mins
+    minutes = (m[1].to_f * 60).round
+    minutes.positive? ? minutes : nil
   end
 end

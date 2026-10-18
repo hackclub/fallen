@@ -17,44 +17,19 @@ class AirtableUsersTest < ActiveSupport::TestCase
     assert_empty row.values.grep(/secret/)
   end
 
-  test "sync sends the users synced longest ago and marks them" do
-    synced = users(:admin)
-    synced.update_columns(airtable_synced_at: 1.minute.ago)
-    sent = capturing_upsert { assert_equal 2, AirtableUsers.sync(limit: 2) }
-
-    assert_equal 2, sent.size
-    assert_not_includes sent.pluck("ID"), synced.public_id
-    assert_equal 2, User.where.not(airtable_synced_at: nil).where.not(id: synced.id).count
+  test "every row has the same columns" do
+    assert_equal 1, AirtableUsers.rows(User.all.to_a).map(&:keys).uniq.size
   end
 
-  test "a change to the user or their XP puts them back at the front" do
-    member = users(:member)
-    member.update_columns(airtable_synced_at: Time.current)
+  test "sync uploads every user to the configured table" do
+    uploaded = nil
+    original = Airtable.method(:sync)
+    Airtable.define_singleton_method(:sync) { |table, sync_id, rows| uploaded = [ table, sync_id, rows ] }
 
-    member.update!(display_name: "Renamed")
-    assert_nil member.reload.airtable_synced_at
-
-    member.update_columns(airtable_synced_at: Time.current)
-    User.recount_xp([ member.id ])
-    assert_nil member.reload.airtable_synced_at
-  end
-
-  test "touching last seen does not resend the user" do
-    member = users(:member)
-    member.update_columns(airtable_synced_at: Time.current, last_seen_at: 1.hour.ago)
-    member.touch_last_seen
-    assert_not_nil member.reload.airtable_synced_at
-  end
-
-  private
-
-  def capturing_upsert
-    sent = []
-    original = Airtable.method(:upsert)
-    Airtable.define_singleton_method(:upsert) { |_table, rows, merge_on:| sent.concat(rows) }
-    yield
-    sent
+    with_env("AIRTABLE_USERS_TABLE" => nil, "AIRTABLE_USERS_SYNC_ID" => "sync1") { assert_equal User.count, AirtableUsers.sync }
+    assert_equal [ "Users", "sync1" ], uploaded.first(2)
+    assert_equal User.all.map(&:public_id).sort, uploaded.last.pluck("ID").sort
   ensure
-    Airtable.define_singleton_method(:upsert, original)
+    Airtable.define_singleton_method(:sync, original)
   end
 end

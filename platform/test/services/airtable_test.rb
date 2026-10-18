@@ -6,46 +6,30 @@ class AirtableTest < ActiveSupport::TestCase
     with_env("AIRTABLE_API_KEY" => nil, "AIRTABLE_BASE_ID" => "app1") { assert_not Airtable.configured? }
   end
 
-  test "upsert sends records in tens, merged on the given field" do
-    bodies = []
+  test "sync uploads the rows as one CSV with a header" do
     stubs = Faraday::Adapter::Test::Stubs.new
-    2.times { stubs.patch("/v0/app1/Users") { |env| bodies << JSON.parse(env.body); [ 200, {}, { records: [] }.to_json ] } }
-
-    with_airtable(stubs) do
-      stub_method(Airtable, :sleep, nil) do
-        Airtable.upsert("Users", Array.new(12) { |i| { "ID" => "usr_#{i}" } }, merge_on: "ID")
-      end
+    stubs.post("/v0/app1/Users/sync/sync1") do |env|
+      assert_equal "text/csv", env.request_headers["Content-Type"]
+      assert_equal "ID,Name,Roles\nusr_1,\"Ada, L\",\"user,admin\"\nusr_2,,user\n", env.body
+      [ 200, {}, { success: true }.to_json ]
     end
 
-    assert_equal [ 10, 2 ], bodies.map { |body| body["records"].size }
-    assert_equal({ "fieldsToMergeOn" => [ "ID" ] }, bodies.first["performUpsert"])
-    assert_equal({ "fields" => { "ID" => "usr_0" } }, bodies.first["records"].first)
+    rows = [ { "ID" => "usr_1", "Name" => "Ada, L", "Roles" => %w[user admin] }, { "ID" => "usr_2", "Name" => nil, "Roles" => %w[user] } ]
+    with_airtable(stubs) { Airtable.sync("Users", "sync1", rows) }
     stubs.verify_stubbed_calls
   end
 
-  test "a refused request raises" do
+  test "a refused upload raises" do
     stubs = Faraday::Adapter::Test::Stubs.new
-    stubs.patch("/v0/app1/Users") { [ 422, {}, { error: { type: "UNKNOWN_FIELD_NAME" } }.to_json ] }
+    stubs.post("/v0/app1/Users/sync/sync1") { [ 422, {}, { error: { type: "INVALID_REQUEST" } }.to_json ] }
 
-    error = with_airtable(stubs) { assert_raises(Airtable::Error) { Airtable.upsert("Users", [ { "Nope" => 1 } ], merge_on: "ID") } }
-    assert_includes error.message, "UNKNOWN_FIELD_NAME"
+    error = with_airtable(stubs) { assert_raises(Airtable::Error) { Airtable.sync("Users", "sync1", [ { "ID" => "usr_1" } ]) } }
+    assert_includes error.message, "INVALID_REQUEST"
   end
 
-  test "delete_where finds records by formula, escaping quotes, and deletes them" do
-    stubs = Faraday::Adapter::Test::Stubs.new
-    formula = nil
-    stubs.get("/v0/app1/Users") do |env|
-      formula = env.params["filterByFormula"]
-      [ 200, {}, { records: [ { id: "rec1" }, { id: "rec2" } ] }.to_json ]
-    end
-    stubs.delete("/v0/app1/Users") do |env|
-      assert_equal "records[]=rec1&records[]=rec2", CGI.unescape(env.url.query)
-      [ 200, {}, { records: [] }.to_json ]
-    end
-
-    assert_equal 2, with_airtable(stubs) { Airtable.delete_where("Users", "ID", [ "usr_1", "it's" ]) }
-    assert_equal "OR({ID} = 'usr_1', {ID} = 'it\\'s')", formula
-    stubs.verify_stubbed_calls
+  test "more rows than one upload takes are refused before sending" do
+    rows = Array.new(Airtable::MAX_ROWS + 1) { |i| { "ID" => i } }
+    with_airtable(Faraday::Adapter::Test::Stubs.new) { assert_raises(Airtable::Error) { Airtable.sync("Users", "sync1", rows) } }
   end
 
   private

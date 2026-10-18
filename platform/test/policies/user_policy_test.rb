@@ -23,4 +23,14 @@ class UserPolicyTest < ActiveSupport::TestCase
     assert_not UserPolicy.new(member, users(:admin)).choose_pet?
     assert_not UserPolicy.new(users(:admin), member).choose_pet?
   end
+
+  test "only the person themselves watching their hatch counts" do
+    member = users(:member)
+    assert UserPolicy.new(member, member).watch_hatch?
+    assert_not UserPolicy.new(users(:admin), member).watch_hatch?
+    Current.true_user = users(:admin)
+    assert_not UserPolicy.new(member, member).watch_hatch?
+  ensure
+    Current.true_user = nil
+  end
 end

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_17_200000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_18_040000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -40,6 +40,35 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_17_200000) do
     t.bigint "blob_id", null: false
     t.string "variation_digest", null: false
     t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
+  end
+
+  create_table "huddle_sessions", force: :cascade do |t|
+    t.bigint "huddle_id", null: false
+    t.bigint "user_id"
+    t.string "slack_id", null: false
+    t.datetime "joined_at", null: false
+    t.datetime "left_at"
+    t.string "mode"
+    t.text "goal"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["huddle_id", "slack_id"], name: "index_huddle_sessions_on_huddle_id_and_slack_id"
+    t.index ["huddle_id", "slack_id"], name: "index_huddle_sessions_one_open_per_person", unique: true, where: "(left_at IS NULL)"
+    t.index ["slack_id"], name: "index_huddle_sessions_on_slack_id"
+    t.index ["user_id"], name: "index_huddle_sessions_on_user_id"
+  end
+
+  create_table "huddles", force: :cascade do |t|
+    t.string "call_id", null: false
+    t.string "channel_id", null: false
+    t.string "thread_ts"
+    t.datetime "started_at", null: false
+    t.datetime "ended_at"
+    t.datetime "handed_off_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["call_id"], name: "index_huddles_on_call_id", unique: true
+    t.index ["ended_at"], name: "index_huddles_on_ended_at"
   end
 
   create_table "journal_drafts", force: :cascade do |t|
@@ -290,6 +319,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_17_200000) do
     t.decimal "xp_multiplier", precision: 2, scale: 1, default: "1.0", null: false
     t.integer "streak_freezes", default: 3, null: false
     t.datetime "airtable_synced_at"
+    t.datetime "hatch_seen_at"
     t.index ["airtable_synced_at"], name: "index_users_on_airtable_synced_at"
     t.index ["created_at"], name: "index_users_on_created_at"
     t.index ["discarded_at"], name: "index_users_on_discarded_at"
@@ -330,6 +360,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_17_200000) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "huddle_sessions", "huddles"
+  add_foreign_key "huddle_sessions", "users"
   add_foreign_key "journal_drafts", "projects"
   add_foreign_key "journal_drafts", "users"
   add_foreign_key "journals", "projects"

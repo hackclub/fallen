@@ -1,26 +1,16 @@
 # frozen_string_literal: true
 
-# Copies users to the Users table in Airtable (AIRTABLE_USERS_TABLE), matched on ID, their public id. Each run sends
-# the rows synced longest ago, never-synced first. A change to the user row (User) or their XP (User.recount_xp)
-# clears users.airtable_synced_at so it goes at the front of the next run; anything else is caught on the next lap.
+# Copies every user to the Users table in Airtable through the Sync API (Airtable.sync), keyed on ID, their public id.
+# The table is set up once in Airtable as a Sync API table (AIRTABLE_USERS_TABLE, AIRTABLE_USERS_SYNC_ID) with ID as
+# its unique field. A user deleted here, including by a privacy request, drops out of Airtable on the next upload.
 # Tokens never leave the app.
 module AirtableUsers
-  PER_RUN = 100
-  MERGE_ON = "ID"
-
   module_function
 
-  def table = ENV.fetch("AIRTABLE_USERS_TABLE", "Users")
-
-  def sync(limit: PER_RUN)
-    started = Time.current
-    users = User.order(Arel.sql("airtable_synced_at ASC NULLS FIRST"), :id).limit(limit).to_a
-    return 0 if users.empty?
-
-    Airtable.upsert(table, rows(users), merge_on: MERGE_ON)
-    # A user changed while this ran keeps the cleared timestamp and goes again next run.
-    User.where(id: users.map(&:id)).where(updated_at: ..started).update_all(airtable_synced_at: started)
-    users.size
+  def sync
+    rows = rows(User.order(:id).to_a)
+    Airtable.sync(ENV.fetch("AIRTABLE_USERS_TABLE", "Users"), ENV.fetch("AIRTABLE_USERS_SYNC_ID"), rows) if rows.any?
+    rows.size
   end
 
   def rows(users)

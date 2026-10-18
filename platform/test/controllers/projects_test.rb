@@ -90,9 +90,9 @@ class ProjectsTest < ActionDispatch::IntegrationTest
   test "journals carry images and a lapse link, one photo per two hours" do
     blob = photo("board.png")
     assert_no_difference -> { Journal.count } do
-      post project_journals_path(projects(:station)), params: { journal: { body: "no photo", duration: "45m" } }
+      post project_journals_path(projects(:station)), params: { journal: { body: "no photo", duration: "0.75" } }
     end
-    post project_journals_path(projects(:station)), params: { journal: { body: "![board](x)", duration: "45m", lapse_url: "https://lapse.hackclub.com/t/1", images: [ blob.signed_id ] } }
+    post project_journals_path(projects(:station)), params: { journal: { body: "![board](x)", duration: "0.75", lapse_url: "https://lapse.hackclub.com/t/1", images: [ blob.signed_id ] } }
     journal = Journal.last
     assert_equal 1, journal.images.count
     assert_equal "https://lapse.hackclub.com/t/1", journal.lapse_url

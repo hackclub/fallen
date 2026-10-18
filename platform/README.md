@@ -95,6 +95,11 @@ message is the project; each reply by the owner is a journal. Both sides stay in
   (`rooms.join`, as [huddlefm](https://github.com/ingoau/huddlefm) does) and then connects to the Amazon Chime
   meeting behind the huddle over WebRTC, since Slack only lists a participant whose audio is connected. It sends no
   sound. Slack stops every huddle after 24 hours; when that or anything else ends the connection, it joins again.
+- `bin/slack-typing` also hears people join and leave that huddle and runs `HuddleSyncJob` (and every minute in case it
+  missed one), which keeps `Huddle` and `HuddleSession` rows: who was in it and when, plus what they said they were
+  working on. Someone joining gets a hidden "What are you working on today?" in the huddle's thread, from their pet
+  (`HuddlePromptJob`, `HuddleGoalAction`). When Slack ends a huddle, the people still in it are mentioned in the new
+  huddle's thread (`HuddleHandoffJob`). The bot needs to be in the huddle channel.
 - Web -> Slack: `PostProjectToSlackJob` posts the thread anchor, `SyncJournalToSlackJob` posts, edits and deletes
   journal replies. Messages go out as the person when they have connected Slack (`SlackAuthController`, user scope
   `chat:write`, needs `SLACK_CLIENT_ID` / `SLACK_CLIENT_SECRET` and the redirect URL from the manifest); otherwise the

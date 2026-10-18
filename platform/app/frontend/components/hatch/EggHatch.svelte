@@ -44,13 +44,20 @@
   import { fade, fly } from 'svelte/transition'
   import { styler } from '@/components/dialog/motion'
   import plainEgg from '@/assets/onboarding/egg.png'
-  import { PET_FORMS, PET_NAMES, petState } from '@/lib/pet.svelte'
+  import { PET_FORMS, PET_NAMES } from '@/lib/pet.svelte'
   import { H, W, breakShell } from './shell'
   import * as sounds from './sounds'
 
   // The egg hatching, over the whole window: it drops in, cracks a little more with every click (or by itself if
   // left alone), shakes harder and harder, then bursts open and the pet's first form jumps out. Click to carry on.
-  let { pet, teaser = false, onclose }: { pet: string; teaser?: boolean; onclose: () => void } = $props()
+  // `handoff` is given where the hatched pet stood as the scene closes, and says whether something took it from there
+  // (so it is hidden here rather than fading out).
+  let {
+    pet,
+    teaser = false,
+    handoff,
+    onclose,
+  }: { pet: string; teaser?: boolean; handoff: (from: DOMRect) => boolean; onclose: () => void } = $props()
 
   // svelte-ignore state_referenced_locally
   // `egg` is the onboarding's egg before a pet is picked; it has no pet inside, so only the teaser plays it.
@@ -308,12 +315,7 @@
     phase = 'leaving'
     clearTimeout(auto)
     clearTimeout(idle)
-    // Like the end of the onboarding: when there is a desktop pet on the page, the pet is hidden where it stands
-    // and the desktop pet flies out of that spot down into its own (DesktopPet.svelte).
-    if (broken && document.querySelector('[data-desktop-pet]')) {
-      petState.hatched = petImg.getBoundingClientRect()
-      petEl.style.visibility = 'hidden'
-    }
+    if (broken && handoff(petImg.getBoundingClientRect())) petEl.style.visibility = 'hidden'
     await styler(root).animate({ opacity: 0 }, { duration: 0.25 })
     onclose()
   }

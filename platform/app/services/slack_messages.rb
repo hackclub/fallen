@@ -32,6 +32,23 @@ module SlackMessages
     { text: text, blocks: [ SlackBot::Blocks.section(text), SlackBot::Blocks.image(EGG_TEASERS.fetch(pet), "Your egg, cracking"), SlackBot::Blocks.actions(crack) ] }
   end
 
+  # Posted as the pet itself in the thread of the first journal, once its hatch has been watched on the site
+  # (HatchCelebrationJob). Needs the chat:write.customize scope for the name and picture.
+  def hatch_celebration(pet)
+    text = <<~TEXT.strip
+      :yay-cat: YAY YOU DID IT!! :yay-cat:
+
+      :bangbang: Congrats on finishing your first journal!! :pleading: in the future, journal in this thread! you can also chat with others in this thread - just click "not a journal" if i ask you if it's a journal.
+
+      Remember to attach images for each journal!!
+
+      - #{pet}
+
+      *p.s. check your mail! we have a note for you :3c:*
+    TEXT
+    { text: text, username: pet.capitalize, icon_url: "#{app_url}/static-assets/pets/#{pet}-pfp.png" }
+  end
+
   def stray_post(text, removed:)
     cta = "If you're looking to start a new project, visit the Fallen platform!"
     start = SlackBot::Blocks.actions(SlackBot::Blocks.button("Start a new project here", "open_fallen", url: new_project_url, style: "primary"))
@@ -51,7 +68,7 @@ module SlackMessages
 
     blocks = [ SlackBot::Blocks.section(":notebook_with_decorative_cover: Is this a journal for *#{escape(draft.project.title)}*?\n#{quote(draft.text, 1500)}") ]
     blocks += photo_blocks(draft)
-    blocks << SlackBot::Blocks.input("Time spent", SlackBot::Blocks.plain_text_input("duration", placeholder: "1h 45m, 2.5, 50m…", initial_value: duration.presence), block_id: "duration", hint: "Every journal needs one, and a photo for every #{Journal::MINUTES_PER_IMAGE / 60} hours of it. Post photos in the thread to add them.")
+    blocks << SlackBot::Blocks.input("Time spent", SlackBot::Blocks.plain_text_input("duration", placeholder: "Hours, like 1.5 or 0.5", initial_value: duration.presence), block_id: "duration", hint: "Every journal needs one, and a photo for every #{Journal::MINUTES_PER_IMAGE / 60} hours of it. Post photos in the thread to add them.")
     blocks << SlackBot::Blocks.input("Timelapse", SlackBot::Blocks.plain_text_input("lapse_url", placeholder: "https://lapse.hackclub.com/...", initial_value: lapse_url.presence), block_id: "lapse_url", optional: true)
     blocks << SlackBot::Blocks.context(":warning: #{escape(error)}") if error
     blocks << SlackBot::Blocks.actions(
@@ -139,6 +156,41 @@ module SlackMessages
     { text: text, blocks: [ SlackBot::Blocks.section(text), SlackBot::Blocks.context("If you want to start a new project, click the button below."), start ] }
   end
 
+  HUDDLE_GOAL_INPUT = "goal"
+
+  # Ephemeral in the huddle's thread when someone joins it (HuddlePromptJob). HuddleGoalAction re-renders it with
+  # `error` when "commit!" is pressed with nothing typed.
+  def huddle_prompt(session, error: nil)
+    question = "What are you working on today?"
+    blocks = [ SlackBot::Blocks.input(question, SlackBot::Blocks.plain_text_input(HUDDLE_GOAL_INPUT, max_length: 500), block_id: HUDDLE_GOAL_INPUT) ]
+    blocks << SlackBot::Blocks.context(":warning: #{escape(error)}") if error
+    blocks << SlackBot::Blocks.actions(
+      SlackBot::Blocks.button("commit!", "huddle_goal:commit", value: session.public_id, style: "primary"),
+      SlackBot::Blocks.button("i'm just chilling here rn!", "huddle_goal:chill", value: session.public_id)
+    )
+    { text: question, blocks: blocks, **pet_persona(session.user&.pet) }
+  end
+
+  def huddle_answer(session)
+    text = session.mode == "working" ? ":dart: Working on: #{escape(session.goal)}" : ":relaxed: Have fun hanging out!"
+    { text: text, blocks: [ SlackBot::Blocks.section(text) ] }
+  end
+
+  # In the new huddle's thread, for the people Slack dropped when it ended the last one (HuddleHandoffJob).
+  def huddle_handoff(huddle, slack_ids)
+    text = "#{slack_ids.map { |id| "<@#{id}>" }.join(' ')} the huddle hit Slack's 24 hour limit, so there's a new one. Come back in!"
+    blocks = [ SlackBot::Blocks.section(text) ]
+    blocks << SlackBot::Blocks.actions(SlackBot::Blocks.button("Join the huddle", "open_huddle", url: huddle.slack_url, style: "primary")) if huddle.slack_url
+    { text: text, blocks: blocks }
+  end
+
+  # Posts as the person's pet (needs chat:write.customize), or as the bot when they have none.
+  def pet_persona(pet)
+    return {} if pet.blank?
+
+    { username: pet.capitalize, icon_url: "#{app_url}/static-assets/pets/#{pet}-pfp.png" }
+  end
+
   # Enough of Markdown to read well in Slack: bold, italics, strike, code, links, images, headings, lists.
   def mrkdwn(markdown)
     text = escape(markdown)
@@ -159,6 +211,8 @@ module SlackMessages
   def hatch_url = Rails.application.routes.url_helpers.home_url(hatch: 1, host: ENV.fetch("APP_URL", "http://localhost:3000"))
 
   def new_project_url = Rails.application.routes.url_helpers.new_project_url(host: ENV.fetch("APP_URL", "http://localhost:3000"))
+
+  def app_url = ENV.fetch("APP_URL", "http://localhost:3000")
 
   def escape(text) = text.to_s.gsub("&", "&amp;").gsub("<", "&lt;").gsub(">", "&gt;")
 end

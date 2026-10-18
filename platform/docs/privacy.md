@@ -20,12 +20,13 @@ Only from the token's `subject`: any `emails` (case-insensitive against `users.e
 
 | What | Where |
 | --- | --- |
-| The account: name, email, avatar, Slack id, timezone, roles, HCA token, Slack user token, verification status, pet | `users` |
+| The account: name, email, avatar, Slack id, timezone, roles, HCA token, Slack user token, verification status, pet, when they first watched it hatch | `users` |
 | Their projects and journals (text, hours, Lapse links, Slack message ids and text), project banners and journal photos | `projects`, `journals`, Active Storage |
 | Slack thread replies not yet made into a journal (text, Slack message ids, photo names and links) | `journal_drafts` |
+| Time in the Slack huddle (when they joined and left, what they said they were working on), also rows from before they signed up that carry their Slack id | `huddle_sessions` |
 | XP earned, line by line (journal XP, bonuses, streak checks) | `xp_entries`, `users.xp` |
 | Change history of the account, projects and journals (PaperTrail copies of the rows) | `versions` |
-| The account's row in Airtable (name, email, HCA and Slack ids, XP, project, journal and hour counts), matched on the public id. Real runs only; if Airtable refuses, the whole request fails and nothing is deleted | Airtable Users table (`AirtableUsers`) |
+| The account's row in Airtable (name, email, HCA and Slack ids, XP, project, journal and hour counts). It drops out on the next upload, within 5 minutes, since every upload replaces the table | Airtable Users table (`AirtableUsers`) |
 
 Sessions are signed cookies holding the user id, so they stop working once the row is gone.
 
@@ -34,7 +35,7 @@ Sessions are signed cookies holding the user id, so they stop working once the r
 | What | Why |
 | --- | --- |
 | History of changes the person made to other accounts as staff | Belongs to those accounts. `whodunnit` is set to null so it no longer points at the person. |
-| Banned accounts | Kept as a placeholder with only the HCA id and ban flag, so the ban still applies if they sign in again. Name, email, avatar, pet, Slack id and tokens are wiped and the account's history is deleted. Its Airtable row is overwritten with the placeholder on the next sync. |
+| Banned accounts | Kept as a placeholder with only the HCA id and ban flag, so the ban still applies if they sign in again. Name, email, avatar, pet, Slack id and tokens are wiped and the account's history is deleted. Its Airtable row shows the placeholder after the next upload. |
 
 ## Not covered
 

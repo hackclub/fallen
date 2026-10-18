@@ -34,18 +34,21 @@ require "test_helper"
 #  fk_rails_...  (user_id => users.id)
 #
 class JournalTest < ActiveSupport::TestCase
-  test "duration parses and formats" do
+  test "duration is typed and shown as decimal hours" do
     assert_equal 90, Duration.parse("1.5")
-    assert_equal 90, Duration.parse("1h 30m")
-    assert_equal 90, Duration.parse("1h30")
-    assert_equal 45, Duration.parse("45m")
-    assert_equal 120, Duration.parse("2 hours")
-    assert_equal 50, Duration.parse("50 min")
+    assert_equal 30, Duration.parse("0.5")
+    assert_equal 30, Duration.parse(".5")
+    assert_equal 6, Duration.parse("0.1")
+    assert_equal 120, Duration.parse("2h")
+    assert_nil Duration.parse("1h 30m")
+    assert_nil Duration.parse("45m")
+    assert_nil Duration.parse("0")
     assert_nil Duration.parse("")
     assert_nil Duration.parse("lots")
-    assert_equal "1h 30m", Duration.format(90)
+    assert_equal "1.5h", Duration.format(90)
     assert_equal "2h", Duration.format(120)
-    assert_equal "45m", Duration.format(45)
+    assert_equal "0.75h", Duration.format(45)
+    assert_equal "0.83h", Duration.format(50)
     assert_nil Duration.format(nil)
   end
 
@@ -62,7 +65,7 @@ class JournalTest < ActiveSupport::TestCase
     journal = projects(:station).journals.build(user: users(:member), body: "x", images: [ photo ])
     assert_not journal.valid?
     assert journal.errors[:duration].any?
-    journal.duration = "45m"
+    journal.duration = "0.75"
     assert journal.valid?
   end
 
@@ -72,7 +75,7 @@ class JournalTest < ActiveSupport::TestCase
     assert_equal [ "at least 1 for 2h, one per 2 hours" ], journal.errors[:images]
     journal.images = [ photo ]
     assert journal.valid?
-    journal.duration = "2h 1m"
+    journal.duration = "2.1"
     assert_not journal.valid?
     assert_equal 2, journal.images_needed
 

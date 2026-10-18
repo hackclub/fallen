@@ -59,15 +59,15 @@ class JournalFlowTest < ActiveSupport::TestCase
       end
       shown = slack.calls_to(:response_url).last[:body]
       assert_equal "ages", shown["blocks"].find { |block| block["block_id"] == "duration" }.dig("element", "initial_value")
-      assert shown["blocks"].any? { |block| block.dig("elements", 0, "text").to_s.include?("should look like") }
+      assert shown["blocks"].any? { |block| block.dig("elements", 0, "text").to_s.include?("should be in hours") }
 
       assert_no_difference -> { Journal.count } do
-        press("journal", draft, duration: "2h 15m")
+        press("journal", draft, duration: "2.25")
       end
-      assert slack.calls_to(:response_url).last[:body]["blocks"].any? { |block| block.dig("elements", 0, "text").to_s.include?("Images at least 2 for 2h 15m") }
+      assert slack.calls_to(:response_url).last[:body]["blocks"].any? { |block| block.dig("elements", 0, "text").to_s.include?("Images at least 2 for 2.25h") }
 
       assert_difference -> { Journal.count }, 1 do
-        assert_enqueued_with(job: CollectSlackJournalJob) { press("journal", draft, duration: "1h 15m") }
+        assert_enqueued_with(job: CollectSlackJournalJob) { press("journal", draft, duration: "1.25") }
       end
 
       journal = Journal.last

@@ -111,7 +111,7 @@
     clearTimeout(timer)
     hovered = false
     if (shown === 0 && pet) {
-      await hatch(pet)
+      await hatch(pet, { welcome: true })
       shown = to
       if (!flying) {
         busy = false

@@ -106,7 +106,7 @@ class Journal < ApplicationRecord
     update(slack_parts: parts, slack_ts: parts.first["ts"], body: Journal.body_from(parts))
   end
 
-  # Typed time ("1.5", "1h 30m", "45m"), never picked from presets. Every journal needs one.
+  # Typed time in decimal hours ("1.5", "0.5"), never picked from presets. Every journal needs one.
   def duration=(text)
     @duration_text_given = text.to_s.strip
     self.duration_minutes = Duration.parse(@duration_text_given)
@@ -118,7 +118,7 @@ class Journal < ApplicationRecord
   def duration_was_understood
     return if duration_minutes.present? || (persisted? && @duration_text_given.nil?)
 
-    errors.add(:duration, @duration_text_given.present? ? "should look like 1h 30m, 2.5 or 45m" : "is needed: how long did this take?")
+    errors.add(:duration, @duration_text_given.present? ? "should be in hours, like 1.5 or 0.5" : "is needed: how long did this take?")
   end
 
   # New journals and changed hours need the full count. An older journal may keep the photos it has, but not lose any.

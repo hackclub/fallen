@@ -119,6 +119,26 @@ class FakeSlackClient
   def calls_to(name) = calls.select { |n, _| n == name }.map(&:last)
 end
 
+# Stands in for SlackBot::BrowserClient. Answers each method from `responses` (a value or a block taking the
+# fields); a value that is an exception is raised.
+class FakeBrowserClient
+  attr_reader :calls
+
+  def initialize(responses = {})
+    @responses = responses
+    @calls = []
+  end
+
+  def call(method, **fields)
+    @calls << [ method, fields ]
+    response = @responses.fetch(method) { raise SlackBot::BrowserClient::Error.new(method, "unexpected_call") }
+    response = response.call(fields) if response.respond_to?(:call)
+    raise response if response.is_a?(Exception)
+
+    response
+  end
+end
+
 module SlackStubHelper
   # Routes SlackBot.client (and user-token clients) to a FakeSlackClient for the block. response_url posts
   # (Faraday.post) are recorded on the fake as :response_url calls.

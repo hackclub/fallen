@@ -4,11 +4,11 @@ require "test_helper"
 class XpTest < ActiveSupport::TestCase
   test "a journal's entry follows its hours and is worth at least 1 xp" do
     user = users(:member)
-    journal = projects(:station).journals.create!(user: user, body: "x", duration: "1h 30m", images: [ photo ])
+    journal = projects(:station).journals.create!(user: user, body: "x", duration: "1.5", images: [ photo ])
     assert_equal 12, journal.xp
     assert_equal 32, user.reload.xp
 
-    journal.update!(duration: "3m")
+    journal.update!(duration: "0.05")
     assert_equal 1, journal.reload.xp
     journal.update!(duration: "3h", images: [ photo, photo ])
     assert_equal 24, journal.reload.xp

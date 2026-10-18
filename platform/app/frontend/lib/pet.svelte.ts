@@ -1,5 +1,5 @@
 import { router } from '@inertiajs/svelte'
-import { pet as petRoute } from '@/routes'
+import { hatch as hatchRoute, pet as petRoute } from '@/routes'
 import luluEgg from '@/assets/onboarding/lulu-egg.png'
 import samiEgg from '@/assets/onboarding/sami-egg.png'
 import lulu1 from '@/assets/pets/lulu/lulu-1.webp'
@@ -35,21 +35,36 @@ export const petState = $state({
   // Where the hatched pet stood when the hatch closed, for the desktop pet to fly out of.
   hatched: null as DOMRect | null,
   // The hatch playing over the window (components/hatch/HatchOverlay.svelte), and what to do when it ends.
-  hatching: null as { pet: string; teaser: boolean; done: () => void } | null,
+  hatching: null as {
+    pet: string
+    teaser: boolean
+    welcome: boolean
+    preview: boolean
+    done: () => void
+  } | null,
 })
 
-// `teaser` (development only, for recording a clip) cracks it once and leaves it rattling, never opening.
-export function hatch(pet: string, { teaser = false } = {}) {
+// `welcome` follows a real first hatch: the pet talks the person through what comes next (HatchWelcome) and, unless
+// it is a `preview` (development only), welcomes them in Slack too. `teaser` (development only, for recording a clip)
+// cracks it once and leaves it rattling, never opening.
+export function hatch(pet: string, { teaser = false, welcome = false, preview = false } = {}) {
   return new Promise<void>((resolve) => {
     petState.hatching = {
       pet,
       teaser,
+      welcome,
+      preview,
       done: () => {
         petState.hatching = null
         resolve()
       },
     }
   })
+}
+
+// The first welcome makes the pet post in the person's project's Slack thread (User#hatch_seen!).
+export function hatchSeen() {
+  router.post(hatchRoute(), {}, { preserveScroll: true, preserveState: true, only: ['auth'] })
 }
 
 export function choosePet(value: string) {

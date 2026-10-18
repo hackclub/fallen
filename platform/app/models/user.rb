@@ -3,11 +3,11 @@
 # Table name: users
 #
 #  id                      :bigint           not null, primary key
-#  airtable_synced_at      :datetime
 #  avatar                  :string
 #  discarded_at            :datetime
 #  display_name            :string           not null
 #  email                   :string           not null
+#  hatch_seen_at           :datetime
 #  hca_token               :text
 #  is_adult                :boolean          default(FALSE), not null
 #  is_banned               :boolean          default(FALSE), not null
@@ -50,6 +50,8 @@ class User < ApplicationRecord
   include PgSearch::Model
 
   set_public_id_prefix :usr
+  # Left from the per-record Airtable sync, which AirtableUsers replaced. Drop the column once this is deployed.
+  self.ignored_columns += %w[airtable_synced_at]
   has_paper_trail
 
   pg_search_scope :search, against: %i[display_name email slack_id], using: { tsearch: { prefix: true } }
@@ -59,6 +61,7 @@ class User < ApplicationRecord
   has_many :projects, dependent: :destroy
   has_many :journals, dependent: :destroy
   has_many :xp_entries, dependent: :destroy
+  has_many :huddle_sessions, dependent: :destroy
 
   validates :hca_id, :email, :display_name, :timezone, presence: true
   validates :hca_id, uniqueness: true
@@ -66,8 +69,6 @@ class User < ApplicationRecord
   validates :roles, presence: true
   validates :pet, inclusion: { in: PETS }, allow_nil: true
   validate :roles_are_known
-
-  before_update -> { self.airtable_synced_at = nil }, if: -> { changed? && !airtable_synced_at_changed? }
 
   scope :admins, -> { where("roles @> ARRAY[?]::varchar[]", "admin") }
   scope :with_role, ->(role) { where("roles @> ARRAY[?]::varchar[]", role.to_s) }
@@ -101,6 +102,17 @@ class User < ApplicationRecord
 
   def team = Team.for(self)
   def hatched? = xp.positive?
+
+  # The first time they watch their egg hatch on the site, their pet thanks them in their project's thread.
+  def hatch_seen!
+    return if hatch_seen_at? || !hatched?
+
+    update!(hatch_seen_at: Time.current)
+    HatchCelebrationJob.perform_later(self)
+  end
+
+  # The thread the first journal went to, where the pet's welcome is posted.
+  def first_journal_project = journals.kept.order(:created_at).first&.project
   def stage = Evolution.stage(xp) { projects.kept.approved.exists? }
   def next_stage_xp = Evolution.next_stage_xp(xp)
   def stage_progress = Evolution.progress(xp)
@@ -110,7 +122,7 @@ class User < ApplicationRecord
 
   # users.xp is the sum of the ledger's kept entries, recounted by XpEntry after every change. Never incremented, so it cannot drift.
   def self.recount_xp(ids)
-    where(id: ids).update_all("xp = (SELECT COALESCE(SUM(amount), 0) FROM xp_entries WHERE xp_entries.user_id = users.id AND xp_entries.discarded_at IS NULL), airtable_synced_at = NULL")
+    where(id: ids).update_all("xp = (SELECT COALESCE(SUM(amount), 0) FROM xp_entries WHERE xp_entries.user_id = users.id AND xp_entries.discarded_at IS NULL)")
   end
 
   # Journals posted from the web go to Slack as this person when they have connected Slack (SlackAuthController).

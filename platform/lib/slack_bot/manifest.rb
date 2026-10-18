@@ -11,6 +11,7 @@ module SlackBot
       app_mentions:read
       channels:history
       chat:write
+      chat:write.customize
       commands
       files:read
       groups:history

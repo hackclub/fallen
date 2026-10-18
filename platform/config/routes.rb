@@ -24,6 +24,7 @@ Rails.application.routes.draw do
   delete "auth/slack" => "slack_auth#destroy", as: :disconnect_slack
 
   resource :pet, only: :update
+  resource :hatch, only: :create
 
   resources :projects do
     resources :journals, only: %i[create update destroy], shallow: true
