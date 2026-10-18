@@ -62,6 +62,15 @@ async function call(route: RouteDefinition<'get' | 'post' | 'delete'>) {
 
 const refresh = () => call(timers.show()).catch(() => {})
 
+// The tracked time as hours for a journal ("1.7", the way Duration.format writes them), asked for fresh. Empty
+// when nothing was tracked or the server could not be reached.
+export async function trackedHours() {
+  await refresh()
+  if (!timer.loaded) return ''
+  const minutes = Math.floor(shownSeconds(Date.now()) / 60)
+  return minutes > 0 ? String(Math.round((minutes / 60) * 100) / 100) : ''
+}
+
 // --- Action Cable, just enough of it -------------------------------------------------------------------------
 // Subscribes to TimerChannel and refreshes on every message. Reconnects with backoff; every (re)connect
 // refreshes too, since messages sent while it was down are gone.

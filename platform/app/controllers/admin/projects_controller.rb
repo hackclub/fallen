@@ -22,7 +22,7 @@ class Admin::ProjectsController < Admin::ApplicationController
     render inertia: "Admin/Projects/Show", props: {
       project: AdminProjectSerializer.render(project),
       missing_hours: journals.needing_hours.count,
-      journals: JournalSerializer.render(page),
+      journals: AdminJournalSerializer.render(page),
       pagy: pagy_props(pagy),
       can: { update: policy([ :admin, project ]).update? }
     }

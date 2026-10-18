@@ -6,6 +6,7 @@
   import OrnateButton from '@/components/OrnateButton.svelte'
   import OrnateModal from '@/components/OrnateModal.svelte'
   import { countWords } from '@/lib/markdown'
+  import { trackedHours } from '@/lib/timer.svelte'
   import type { UploadedImage } from '@/lib/uploads'
   import { journals, project as projectRoute, projectJournals } from '@/routes'
   import type { Journal, Project } from '@/types'
@@ -40,9 +41,16 @@
   let editor: MarkdownEditor | undefined = $state()
   let uploadError: string | null = $state(null)
   let draftRestored = $state(false)
+  // The hours the huddle and site timer tracked since the last journal, put in the box for a new journal. The note
+  // saying so stays while the box still holds exactly that. The server decides what counts as self-claimed.
+  let prefilled = $state('')
+  const fromTracking = $derived(prefilled !== '' && form.duration.trim() === prefilled)
 
   onMount(() => {
     if (editing) return
+    trackedHours().then((hours) => {
+      if (hours && form.duration.trim() === '') form.duration = prefilled = hours
+    })
     try {
       const draft = localStorage.getItem(draftKey)
       if (draft) {
@@ -78,7 +86,7 @@
   })
 
   const words = $derived(countWords(form.body))
-  // Picked timelapses set the hours; the server ignores any typed time while there are any.
+  // Typed hours always count. With timelapses picked and nothing typed, the server takes their recorded time.
   const timelapsed = $derived(form.lapse_timelapses.length > 0)
   const canSubmit = $derived(
     form.body.trim().length > 0 && (timelapsed || form.duration.trim().length > 0) && !form.processing,
@@ -164,25 +172,31 @@
           error={form.errors.lapse_timelapses}
         />
 
-        {#if !timelapsed}
-          <div>
-            <p class="font-display text-lg text-ink">Time spent</p>
-            <p class="mb-2 font-outfit text-xs text-ink-soft">
-              Every journal needs one, in hours: 1.5, 0.5, 0.1.
+        <div>
+          <p class="font-display text-lg text-ink">Time spent</p>
+          <p class="mb-2 font-outfit text-xs text-ink-soft">
+            {timelapsed
+              ? 'In hours. Leave it empty to use your timelapses’ time.'
+              : 'Every journal needs one, in hours: 1.5, 0.5, 0.1.'}
+          </p>
+          <input
+            type="text"
+            bind:value={form.duration}
+            placeholder={timelapsed ? 'From your timelapses' : '1.5'}
+            inputmode="decimal"
+            required={!timelapsed}
+            aria-describedby={fromTracking ? 'duration-source' : undefined}
+            class="paper-input"
+          />
+          {#if fromTracking}
+            <p id="duration-source" class="mt-1 font-outfit text-xs text-ink-soft">
+              (based on tracked recorded hours)
             </p>
-            <input
-              type="text"
-              bind:value={form.duration}
-              placeholder="1.5"
-              inputmode="decimal"
-              required
-              class="paper-input"
-            />
-            {#if form.errors.duration}<p class="mt-1 font-outfit text-xs text-red-700">
-                {form.errors.duration}
-              </p>{/if}
-          </div>
-        {/if}
+          {/if}
+          {#if form.errors.duration}<p class="mt-1 font-outfit text-xs text-red-700">
+              {form.errors.duration}
+            </p>{/if}
+        </div>
         <p class="-mt-3 font-outfit text-xs text-ink-soft">
           If your journal isn't detailed enough, its hours might be deflated.
         </p>

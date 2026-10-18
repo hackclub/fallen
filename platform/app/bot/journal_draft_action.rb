@@ -23,11 +23,13 @@ class JournalDraftAction < SlackBot::Action
 
   def save_journal(draft)
     files = draft.files
-    duration, lapse_url = input_values.values_at("duration", "lapse_url")
+    # An older prompt may still carry a box for a Lapse link; it is ignored. Timelapses are only ever picked.
+    duration = input_values["duration"]
+    picked = Array(input_values["lapse_timelapses"]).first(Journal::MAX_TIMELAPSES + 1)
     egg = !user.hatched?
-    journal = draft.journal!(duration: duration, lapse_url: lapse_url)
+    journal = draft.journal!(duration: duration, timelapses: user.lapse_timelapses.where_public_ids(picked).to_a)
     unless journal.persisted?
-      prompt = SlackMessages.draft_prompt(draft, duration: duration, lapse_url: lapse_url, error: journal.errors.full_messages.first)
+      prompt = SlackMessages.draft_prompt(draft, duration: duration.to_s, timelapses: picked, error: journal.errors.full_messages.first)
       return update_message(prompt[:text], blocks: prompt[:blocks])
     end
 
@@ -74,7 +76,7 @@ class JournalDraftAction < SlackBot::Action
   end
 
   def show_prompt(draft)
-    prompt = SlackMessages.draft_prompt(draft)
+    prompt = SlackMessages.draft_prompt(draft, tracked: TrackedTime.new(user).seconds / 60)
     update_message(prompt[:text], blocks: prompt[:blocks])
   end
 end

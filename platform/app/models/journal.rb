@@ -6,19 +6,21 @@
 #
 # Table name: journals
 #
-#  id               :bigint           not null, primary key
-#  body             :text             not null
-#  discarded_at     :datetime
-#  duration_minutes :integer
-#  lapse_url        :string
-#  slack_parts      :jsonb            not null
-#  slack_ts         :string
-#  source           :string           default("web"), not null
-#  created_at       :datetime         not null
-#  updated_at       :datetime         not null
-#  project_id       :bigint           not null
-#  slack_channel_id :string
-#  user_id          :bigint           not null
+#  id                 :bigint           not null, primary key
+#  body               :text             not null
+#  discarded_at       :datetime
+#  duration_minutes   :integer
+#  hours_self_claimed :boolean
+#  lapse_url          :string
+#  slack_parts        :jsonb            not null
+#  slack_ts           :string
+#  source             :string           default("web"), not null
+#  tracked_minutes    :integer
+#  created_at         :datetime         not null
+#  updated_at         :datetime         not null
+#  project_id         :bigint           not null
+#  slack_channel_id   :string
+#  user_id            :bigint           not null
 #
 # Indexes
 #
@@ -44,6 +46,8 @@ class Journal < ApplicationRecord
   # Every two hours logged need a photo to show for them.
   MINUTES_PER_IMAGE = 120
   MAX_TIMELAPSES = 10
+  # Hours are typed to two decimals, so taking the tracked time as offered can land a minute over it.
+  CLAIM_LEEWAY = 1
 
   set_public_id_prefix :jrn
   # Replaced by lapse_timelapses.journal_id so a journal can have several. Drop the column once this is deployed.
@@ -69,6 +73,8 @@ class Journal < ApplicationRecord
   validates :source, inclusion: { in: SOURCES }
   validates :duration_minutes, numericality: { only_integer: true, greater_than: 0, less_than_or_equal_to: MAX_MINUTES }, allow_nil: true
   validates :slack_ts, uniqueness: { scope: :slack_channel_id }, allow_nil: true
+  # Only on journals from before timelapses were picked from Lapse; nothing sets it any more, since a typed link
+  # could point anywhere.
   validates :lapse_url, format: { with: %r{\Ahttps://\S+\z}, message: "must be a link starting with https://" }, allow_blank: true
   validate :author_owns_project
   validate :images_are_images
@@ -77,6 +83,8 @@ class Journal < ApplicationRecord
   validate :picked_timelapses_are_usable, if: -> { @picked_timelapses }
 
   before_validation :take_hours_from_lapse
+  before_validation :snapshot_tracked_time, on: :create
+  before_save :mark_self_claimed, if: -> { new_record? || duration_minutes_changed? || @picked_timelapses }
 
   after_save :claim_picked_timelapses, if: -> { @picked_timelapses }
   after_save :sync_xp, if: -> { saved_change_to_duration_minutes? || saved_change_to_discarded_at? }
@@ -151,12 +159,27 @@ class Journal < ApplicationRecord
 
   def sync_xp = XpEntry.sync(self)
 
-  # Hours come from the timelapses whenever they change, and win over any time typed later on a journal that has some.
+  # Picked timelapses fill in the hours only when none were typed. Typed hours always stand; reviewers compare them
+  # with the timelapses and the tracked time (hours_self_claimed).
   def take_hours_from_lapse
-    timelapses = @picked_timelapses || (lapse_timelapses if persisted? && duration_minutes_changed?)
-    return if timelapses.blank?
+    return if duration_minutes.present? || @picked_timelapses.blank?
 
-    self.duration_minutes = timelapses.sum(&:duration_minutes).nonzero?
+    self.duration_minutes = @picked_timelapses.sum(&:duration_minutes).nonzero?
+  end
+
+  # What the huddle and the site timer counted since the person's last journal, as it stood when this one was
+  # written. The form offers it as the hours.
+  def snapshot_tracked_time
+    self.tracked_minutes = TrackedTime.new(user).seconds / 60 if user
+  end
+
+  # Hours over both the tracked time and the picked timelapses' recorded time are the person's own claim. Claiming
+  # less is not. Unknown for journals from before tracking.
+  def mark_self_claimed
+    return self.hours_self_claimed = nil if duration_minutes.nil? || tracked_minutes.nil?
+
+    lapse_minutes = (@picked_timelapses || lapse_timelapses).sum(&:duration_minutes)
+    self.hours_self_claimed = duration_minutes > [ tracked_minutes, lapse_minutes ].max + CLAIM_LEEWAY
   end
 
   # Ones already on this journal stay even if Lapse has since changed them; newly picked ones must be watchable and free.

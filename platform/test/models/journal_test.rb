@@ -4,19 +4,21 @@ require "test_helper"
 #
 # Table name: journals
 #
-#  id               :bigint           not null, primary key
-#  body             :text             not null
-#  discarded_at     :datetime
-#  duration_minutes :integer
-#  lapse_url        :string
-#  slack_parts      :jsonb            not null
-#  slack_ts         :string
-#  source           :string           default("web"), not null
-#  created_at       :datetime         not null
-#  updated_at       :datetime         not null
-#  project_id       :bigint           not null
-#  slack_channel_id :string
-#  user_id          :bigint           not null
+#  id                 :bigint           not null, primary key
+#  body               :text             not null
+#  discarded_at       :datetime
+#  duration_minutes   :integer
+#  hours_self_claimed :boolean
+#  lapse_url          :string
+#  slack_parts        :jsonb            not null
+#  slack_ts           :string
+#  source             :string           default("web"), not null
+#  tracked_minutes    :integer
+#  created_at         :datetime         not null
+#  updated_at         :datetime         not null
+#  project_id         :bigint           not null
+#  slack_channel_id   :string
+#  user_id            :bigint           not null
 #
 # Indexes
 #
@@ -61,15 +63,15 @@ class JournalTest < ActiveSupport::TestCase
     assert journal.errors[:duration].any?
   end
 
-  test "picked timelapses add up to the hours, whatever was typed" do
+  test "picked timelapses fill in the hours only when none are typed" do
     second = users(:member).lapse_timelapses.create!(lapse_id: "lapse_second", name: "Wiring", duration_seconds: 1800, visibility: "PUBLIC", playback_url: "https://cdn.lapse.test/2.mp4")
-    journal = projects(:station).journals.build(user: users(:member), body: "x", duration: "nonsense", picked_timelapses: [ lapse_timelapses(:desk), second ], images: [ photo ])
+    journal = projects(:station).journals.build(user: users(:member), body: "x", duration: "", picked_timelapses: [ lapse_timelapses(:desk), second ], images: [ photo ])
     assert journal.save, journal.errors.full_messages.to_sentence
     assert_equal 120, journal.duration_minutes
     assert_equal [ journal.id ] * 2, [ lapse_timelapses(:desk), second ].map { |t| t.reload.journal_id }
 
-    journal.update!(duration: "5")
-    assert_equal 120, journal.reload.duration_minutes, "typed time never counts on a journal with timelapses"
+    journal.update!(duration: "1.5")
+    assert_equal 90, journal.reload.duration_minutes, "typed time stands, timelapses or not"
 
     journal.update!(picked_timelapses: [ second ], duration: "")
     assert_equal 30, journal.reload.duration_minutes
@@ -78,6 +80,25 @@ class JournalTest < ActiveSupport::TestCase
     journal.update!(picked_timelapses: [], duration: "1")
     assert_equal 60, journal.reload.duration_minutes
     assert_empty journal.lapse_timelapses
+  end
+
+  test "keeps the tracked time it was written after, and flags hours over it and over its timelapses" do
+    user = users(:member)
+    user.journals.update_all(created_at: 1.day.ago)
+    huddle = Huddle.create!(call_id: "R1", channel_id: "CHUDDLE", started_at: 1.day.ago)
+    huddle.sessions.create!(slack_id: user.slack_id, user: user, joined_at: 1.minute.ago - 1.hour, left_at: 1.minute.ago, mode: "working")
+
+    tracked = projects(:station).journals.create!(user: user, body: "x", duration: "1", images: [ photo ])
+    assert_equal [ 60, false ], [ tracked.tracked_minutes, tracked.hours_self_claimed ]
+
+    tracked.update!(duration: "1.5")
+    assert tracked.hours_self_claimed, "more than was tracked"
+
+    covered = projects(:station).journals.create!(user: user, body: "y", duration: "1.5", picked_timelapses: [ lapse_timelapses(:desk) ], images: [ photo ])
+    assert_equal [ 0, false ], [ covered.tracked_minutes, covered.hours_self_claimed ], "the timelapses cover it"
+
+    under = projects(:station).journals.create!(user: user, body: "z", duration: "0.5", images: [ photo ])
+    assert under.hours_self_claimed, "nothing tracked since the last journal"
   end
 
   test "picked timelapses must be watchable, yours, and on one journal at a time" do

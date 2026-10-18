@@ -16,7 +16,7 @@
   import { formatDate, formatDateTime, formatMinutes, timeAgo } from '@/lib/format'
   import { adminProjects } from '@/routes'
   import * as AlertDialog from '@/components/admin/ui/alert-dialog'
-  import type { AdminProject, Journal, Pagy } from '@/types'
+  import type { AdminJournal, AdminProject, Pagy } from '@/types'
 
   let {
     project,
@@ -26,7 +26,7 @@
     can,
   }: {
     project: AdminProject
-    journals: Journal[]
+    journals: AdminJournal[]
     pagy: Pagy
     missing_hours: number
     can: { update: boolean }
@@ -149,6 +149,16 @@
               <Badge variant="secondary">{journal.duration_text}</Badge>
             {:else}
               <Badge variant="outline" class="text-muted-foreground">no hours</Badge>
+            {/if}
+            {#if journal.hours_self_claimed}
+              <Badge variant="destructive" title="More than was tracked and more than its timelapses recorded"
+                >self-claimed</Badge
+              >
+            {/if}
+            {#if journal.tracked_text}
+              <span title="Huddle and site timer time before this journal"
+                >{journal.tracked_text} tracked</span
+              >
             {/if}
             <Badge variant="outline">{journal.source}</Badge>
             {#if journal.slack_url}

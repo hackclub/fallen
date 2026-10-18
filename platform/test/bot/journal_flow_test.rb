@@ -18,7 +18,7 @@ class JournalFlowTest < ActiveSupport::TestCase
       perform_enqueued_jobs
       prompt = slack.calls_to(:chat_postEphemeral).first
       assert_equal projects(:station).slack_thread_ts, prompt[:thread_ts]
-      assert_equal %w[duration lapse_url], prompt[:blocks].select { |block| block[:type] == "input" }.pluck(:block_id)
+      assert_equal %w[duration], prompt[:blocks].select { |block| block[:type] == "input" }.pluck(:block_id), "never a box for a Lapse link"
       buttons = prompt[:blocks].find { |block| block[:type] == "actions" }[:elements]
       assert_equal %w[journal_draft:journal journal_draft:more journal_draft:skip], buttons.pluck(:action_id)
       assert_equal [ draft.public_id ], buttons.pluck(:value).uniq
@@ -41,7 +41,7 @@ class JournalFlowTest < ActiveSupport::TestCase
 
       reply("", ts: "1700000003.000200", files: [ PHOTO ])
       perform_enqueued_jobs(only: JournalPromptJob)
-      assert_equal %w[duration lapse_url], slack.calls_to(:chat_postEphemeral).last[:blocks].select { |block| block[:type] == "input" }.pluck(:block_id)
+      assert_equal %w[duration], slack.calls_to(:chat_postEphemeral).last[:blocks].select { |block| block[:type] == "input" }.pluck(:block_id)
     end
   end
 
@@ -67,10 +67,12 @@ class JournalFlowTest < ActiveSupport::TestCase
       assert slack.calls_to(:response_url).last[:body]["blocks"].any? { |block| block.dig("elements", 0, "text").to_s.include?("Images at least 2 for 2.25h") }
 
       assert_difference -> { Journal.count }, 1 do
-        assert_enqueued_with(job: CollectSlackJournalJob) { press("journal", draft, duration: "1.25") }
+        # An older prompt still showing a box for a Lapse link: whatever is in it is ignored.
+        assert_enqueued_with(job: CollectSlackJournalJob) { press("journal", draft, duration: "1.25", lapse_url: "https://example.test/not-lapse") }
       end
 
       journal = Journal.last
+      assert_nil journal.lapse_url
       assert_enqueued_with(job: AddJournalFooterJob, args: [ journal ])
       assert_equal "Printed the case\n\nThen sanded it", journal.body
       assert_equal 75, journal.duration_minutes
@@ -83,6 +85,49 @@ class JournalFlowTest < ActiveSupport::TestCase
       stub_method(Faraday, :get, download) { perform_enqueued_jobs }
       assert_equal [ "case.png" ], journal.images.map { |image| image.filename.to_s }
       assert_equal %w[1700000003.000100 1700000003.000200], slack.calls_to(:reactions_add).pluck(:timestamp)
+    end
+  end
+
+  test "offers the tracked hours and a picker of Lapse timelapses, and saves the picked ones" do
+    user = users(:member)
+    user.update!(lapse_token: "lapse-token")
+    user.journals.update_all(created_at: 1.day.ago)
+    Huddle.create!(call_id: "R1", channel_id: "CHUDDLE", started_at: 1.day.ago)
+      .sessions.create!(slack_id: user.slack_id, user: user, joined_at: 61.minutes.ago, left_at: 1.minute.ago, mode: "working")
+
+    with_fake_slack do |slack|
+      reply("Soldered the board", files: [ PHOTO ])
+      with_env("LAPSE_CLIENT_ID" => "svc_test", "LAPSE_CLIENT_SECRET" => "scs_test") do
+        stub_method(LapseTimelapse, :sync, nil) { perform_enqueued_jobs(only: JournalPromptJob) }
+      end
+      inputs = slack.calls_to(:chat_postEphemeral).last[:blocks].select { |block| block[:type] == "input" }
+      assert_equal %w[duration lapse_timelapses], inputs.pluck(:block_id)
+      assert_equal "1", inputs.first.dig(:element, :initial_value)
+      assert inputs.first.dig(:hint, :text).start_with?("(based on tracked recorded hours)")
+      assert_equal SlackMessages::TIMELAPSE_LABEL, inputs.last.dig(:label, :text)
+      assert_includes inputs.last.dig(:element, :options).pluck(:value), lapse_timelapses(:desk).public_id
+
+      assert_difference -> { Journal.count }, 1 do
+        press("journal", JournalDraft.last, duration: "", timelapses: [ lapse_timelapses(:desk).public_id ])
+      end
+      journal = Journal.last
+      assert_equal [ 90, 60, false ], [ journal.duration_minutes, journal.tracked_minutes, journal.hours_self_claimed ]
+      assert_equal journal, lapse_timelapses(:desk).reload.journal
+    end
+  end
+
+  test "without Lapse connected the prompt offers to connect it, and says when nothing was tracked" do
+    with_env("LAPSE_CLIENT_ID" => "svc_test", "LAPSE_CLIENT_SECRET" => "scs_test") do
+      with_fake_slack do |slack|
+        reply("Soldered the board", files: [ PHOTO ])
+        perform_enqueued_jobs(only: JournalPromptJob)
+        blocks = slack.calls_to(:chat_postEphemeral).last[:blocks]
+        assert_equal %w[duration], blocks.select { |block| block[:type] == "input" }.pluck(:block_id)
+        assert_nil blocks.find { |block| block[:block_id] == "duration" }.dig(:element, :initial_value)
+        assert blocks.any? { |block| block[:type] == "context" && block.dig(:elements, 0, :text).to_s.start_with?("Nothing tracked") }
+        connect = blocks.find { |block| block.dig(:accessory, :text, :text) == "Connect Lapse" }
+        assert connect[:accessory][:url].end_with?("/settings#lapse")
+      end
     end
   end
 
@@ -271,8 +316,9 @@ class JournalFlowTest < ActiveSupport::TestCase
     handle_message(user: user, ts: ts, text: text, thread_ts: thread_ts, files: files)
   end
 
-  def press(choice, draft, duration: nil)
-    state = { "duration" => { "duration" => { "type" => "plain_text_input", "value" => duration } }, "lapse_url" => { "lapse_url" => { "type" => "plain_text_input", "value" => nil } } }
+  def press(choice, draft, duration: nil, timelapses: nil, lapse_url: nil)
+    state = { "duration" => { "duration" => { "type" => "plain_text_input", "value" => duration } }, "lapse_url" => { "lapse_url" => { "type" => "plain_text_input", "value" => lapse_url } } }
+    state["lapse_timelapses"] = { "lapse_timelapses" => { "type" => "multi_static_select", "selected_options" => timelapses.map { |id| { "value" => id } } } } if timelapses
     SlackBot.handle(:interaction, { "type" => "block_actions", "user" => { "id" => "U0MEMBER" }, "trigger_id" => "t", "response_url" => "https://hooks.slack.test/r",
                                     "state" => { "values" => state }, "actions" => [ { "action_id" => "journal_draft:#{choice}", "value" => draft.public_id } ] })
   end

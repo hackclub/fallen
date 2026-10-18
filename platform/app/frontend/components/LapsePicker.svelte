@@ -95,7 +95,9 @@
   <div>
     <div class="flex items-baseline justify-between gap-2">
       <p class="font-display text-lg text-ink">
-        Timelapses <span class="font-outfit text-xs text-ink-soft">optional</span>
+        Timelapses <span class="font-outfit text-xs whitespace-nowrap text-ink-soft"
+          >(helps you not get deflated)</span
+        >
       </p>
       {#if lapse.connected}
         <button
@@ -111,7 +113,7 @@
 
     {#if !lapse.connected}
       <p class="mb-2 font-outfit text-xs text-ink-soft">
-        Recorded the session on Lapse? Connect it and pick the timelapses: their time becomes your hours.
+        Recorded the session on Lapse? Connect it and pick the timelapses to back up your hours.
       </p>
       <a
         href={connectLapse({ query: { return_to: returnTo } }).url}
@@ -119,7 +121,7 @@
       >
     {:else}
       <p class="mb-2 font-outfit text-xs text-ink-soft">
-        Pick every one from this session. Their recorded time adds up to your hours.
+        Pick every one from this session. They back up the hours you log.
         {#if syncFailed}<span class="text-amber-700">Couldn't reach Lapse just now.</span>{/if}
       </p>
       {#if options.length === 0}

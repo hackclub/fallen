@@ -66,15 +66,21 @@ module SlackMessages
 
   # Ephemeral, asking a project's owner what their recent thread replies were (JournalPromptJob). Everything happens
   # in the message: the time box and buttons sit under the text, and JournalDraftAction re-renders it with `error`
-  # and what they typed when the time doesn't parse.
-  def draft_prompt(draft, duration: nil, lapse_url: nil, error: nil)
+  # and what they typed when the time doesn't parse. `tracked` is the hours the huddle and site timer counted since
+  # their last journal, offered in the time box the first time it is shown. `timelapses` are the public ids of
+  # the Lapse timelapses they picked.
+  def draft_prompt(draft, duration: nil, timelapses: [], tracked: nil, error: nil)
     return photos_prompt(draft) unless draft.written?
     return needs_photo_prompt(draft) if draft.files.empty?
 
     blocks = [ SlackBot::Blocks.section(":notebook_with_decorative_cover: Is this a journal for *#{escape(draft.project.title)}*?\n#{quote(draft.text, 1500)}") ]
     blocks += photo_blocks(draft)
-    blocks << SlackBot::Blocks.input("Time spent", SlackBot::Blocks.plain_text_input("duration", placeholder: "Hours, like 1.5 or 0.5", initial_value: duration.presence), block_id: "duration", hint: "Every journal needs one, and a photo for every #{Journal::MINUTES_PER_IMAGE / 60} hours of it. Post photos in the thread to add them.")
-    blocks << SlackBot::Blocks.input("Timelapse", SlackBot::Blocks.plain_text_input("lapse_url", placeholder: "https://lapse.hackclub.com/...", initial_value: lapse_url.presence), block_id: "lapse_url", optional: true)
+    offered = Duration.format(tracked)&.delete_suffix("h") if duration.nil? && tracked.to_i.positive?
+    hint = "Every journal needs one, and a photo for every #{Journal::MINUTES_PER_IMAGE / 60} hours of it. Post photos in the thread to add them."
+    hint = "(based on tracked recorded hours) #{hint}" if offered
+    blocks << SlackBot::Blocks.input("Time spent", SlackBot::Blocks.plain_text_input("duration", placeholder: "Hours, like 1.5 or 0.5", initial_value: duration.presence || offered), block_id: "duration", hint: hint)
+    blocks << SlackBot::Blocks.context("Nothing tracked since your last journal. Join the huddle or start the timer on your pet next time and the hours fill in.") if duration.nil? && !offered && tracked
+    blocks += timelapse_blocks(draft.user, timelapses)
     blocks << SlackBot::Blocks.context(":warning: #{escape(error)}") if error
     blocks << SlackBot::Blocks.actions(
       draft_button("Save journal", "journal", draft, style: "primary"),
@@ -83,6 +89,28 @@ module SlackMessages
     )
     blocks << SlackBot::Blocks.context("#{draft_counts(draft)}. Anything else you post here joins it until you pick.")
     { text: "Is this a journal for #{draft.project.title}?", blocks: blocks }
+  end
+
+  TIMELAPSE_LABEL = "Timelapses (helps you not get deflated)"
+  # Slack's limit for a select's options.
+  TIMELAPSE_OPTIONS = 100
+
+  # Their unused Lapse timelapses to pick from. Without Lapse connected, a button to connect it on Fallen; with
+  # nothing to pick, where to record one. Never a box for a link: timelapses only ever come from their own Lapse.
+  def timelapse_blocks(user, picked)
+    return [] unless Lapse.configured?
+    return [ timelapse_note("Connect Lapse on Fallen to pick your timelapses here.", "Connect Lapse", "#{settings_url}#lapse") ] unless user.lapse_connected?
+
+    options = user.lapse_timelapses.unclaimed.newest_first.limit(TIMELAPSE_OPTIONS).select(&:usable?)
+    return [ timelapse_note("No unused timelapses on Lapse yet. Make them unlisted so staff can watch them.", "Record one", Lapse.web_host) ] if options.empty?
+
+    choices = options.map { |timelapse| SlackBot::Blocks.option("#{(timelapse.name.presence || 'Untitled timelapse').truncate(50)} · #{timelapse.duration_text}", timelapse.public_id) }
+    [ SlackBot::Blocks.input(TIMELAPSE_LABEL, SlackBot::Blocks.multi_static_select("lapse_timelapses", choices, placeholder: "Pick this session's timelapses", initial: choices.select { |choice| picked.include?(choice[:value]) }),
+                             block_id: "lapse_timelapses", optional: true, hint: "They back up the hours you log.") ]
+  end
+
+  def timelapse_note(text, button, url)
+    SlackBot::Blocks.section("*#{TIMELAPSE_LABEL}*\n#{text}", accessory: SlackBot::Blocks.button(button, "open_fallen", url: url))
   end
 
   # Every journal needs a photo, so writing without one gets a reminder instead of the time box.
@@ -292,6 +320,7 @@ module SlackMessages
   def new_project_url = Rails.application.routes.url_helpers.new_project_url(host: ENV.fetch("APP_URL", "http://localhost:3000"))
 
   def app_url = ENV.fetch("APP_URL", "http://localhost:3000")
+  def settings_url = Rails.application.routes.url_helpers.settings_url(host: app_url)
 
   def escape(text) = text.to_s.gsub("&", "&amp;").gsub("<", "&lt;").gsub(">", "&gt;")
 end
