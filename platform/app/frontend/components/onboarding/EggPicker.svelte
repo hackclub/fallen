@@ -108,8 +108,9 @@
 
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 <div
-  class="absolute inset-x-0 top-0 z-[5] flex items-center justify-center p-6"
+  class="absolute inset-x-0 top-0 z-[5] flex items-center justify-center px-6 py-4"
   style:bottom={u(ABOVE_BUBBLE)}
+  style:container-type="size"
   onclick={(event) => event.stopPropagation()}
   out:exit|global={{
     target: { opacity: 0, y: -24, scale: 0.96 },
@@ -119,7 +120,7 @@
 >
   <div
     bind:this={card}
-    class="relative flex max-h-full w-full max-w-[640px] flex-col items-center gap-4 rounded-2xl bg-dark-blue/95 px-10 pt-10 pb-9 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.8)]"
+    class="relative flex max-h-full w-full max-w-[640px] flex-col items-center gap-4 rounded-2xl bg-dark-blue px-10 py-8 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.8)]"
     style:transform-origin="50% 100%"
     {@attach enter(
       { opacity: 0, scale: 0.85, y: 40 },
@@ -130,7 +131,7 @@
     <GoldFrame />
 
     <h2
-      class="relative z-4 font-lora text-3xl font-bold text-green text-shadow-md text-shadow-dark-purple/40"
+      class="relative z-4 font-lora text-3xl font-bold text-parchment text-shadow-md text-shadow-dark-purple/40"
       {@attach enter(
         { opacity: 0, y: 12 },
         { opacity: 1, y: 0 },
@@ -212,7 +213,8 @@
               alt=""
               draggable="false"
               class={[
-                'relative h-44 w-auto drop-shadow-[0_10px_18px_rgba(0,0,0,0.45)] transition-[opacity] duration-300 select-none',
+                // Shrinks on short screens so the card fits above the speech bubble: 22rem is everything else in it.
+                'relative h-[clamp(5rem,calc(100cqh-22rem),11rem)] w-auto drop-shadow-[0_10px_18px_rgba(0,0,0,0.45)] transition-[opacity] duration-300 select-none',
                 pick && !selected && 'opacity-55',
               ]}
               style:transform-origin="50% 90%"

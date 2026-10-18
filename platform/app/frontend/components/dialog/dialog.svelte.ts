@@ -111,6 +111,9 @@ export class Dialog {
     this.goTo(target ?? this.resolveNext(this.node.next))
   }
 
+  // From outside the script (a skip button): straight to `target`, whatever is happening on screen.
+  jump = (target: string) => this.goTo(target)
+
   closePopup = () => {
     if (this.state.phase !== 'popup') return
     this.goTo(this.resolveNext(this.node.next))

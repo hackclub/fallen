@@ -21,6 +21,8 @@
   }
 
   const PICKED = 'Great choice! It hatches when you finish your first journal.'
+  // Past these there is nothing left to skip but the egg, which everyone picks.
+  const UNSKIPPABLE = ['skip', 'made', 'choose', 'picked-lulu', 'picked-sami']
 </script>
 
 <script lang="ts">
@@ -108,9 +110,28 @@
         text: 'Every pet starts out as an egg, like me. [wobble]Pick yours![/wobble]',
         panel: eggPanel,
       },
+      // The skip button: everything but the egg, since picking one is what finishes the onboarding. Changing their
+      // mind goes back to the line they were on.
+      {
+        id: 'skip',
+        speaker: 'egg',
+        text: 'Skip everything? You’ll go straight to picking your egg. Everyone needs one!',
+        choices: [{ label: 'Yes, skip it', next: 'choose' }, { label: 'No, keep going' }],
+        next: () => skippedFrom,
+      },
       { id: 'picked-lulu', emotion: 'lulu', text: PICKED, choices: [{ label: 'Let’s go!' }] },
       { id: 'picked-sami', emotion: 'sami', text: PICKED, choices: [{ label: 'Let’s go!' }] },
     ],
+  }
+
+  let stage = $state<ReturnType<typeof DialogStage>>()
+  let skippedFrom = 'hi'
+  const canSkip = $derived(stage && !UNSKIPPABLE.includes(stage.nodeId()))
+
+  function skip() {
+    if (!stage) return
+    skippedFrom = stage.nodeId()
+    stage.jump('skip')
   }
 
   // svelte-ignore state_referenced_locally
@@ -155,6 +176,7 @@
 {/snippet}
 
 <DialogStage
+  bind:this={stage}
   class="size-full {tour.spotlight ? 'pointer-events-none' : ''}"
   script={SCRIPT}
   characters={[EGG]}
@@ -162,3 +184,15 @@
   bottom={24}
   onComplete={finish}
 />
+
+{#if canSkip}
+  <!-- Keydown stays here so Enter on the button does not also advance the dialog. -->
+  <button
+    type="button"
+    class="pointer-events-auto fixed top-4 right-4 z-10 cursor-pointer rounded-full bg-black/40 px-4 py-2 font-dialog text-sm font-semibold text-white/85 transition-colors hover:bg-black/60 hover:text-white"
+    onclick={skip}
+    onkeydown={(event) => event.stopPropagation()}
+  >
+    Skip intro
+  </button>
+{/if}

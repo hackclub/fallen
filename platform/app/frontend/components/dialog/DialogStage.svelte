@@ -67,6 +67,10 @@
     return () => window.clearTimeout(id)
   })
 
+  // For callers holding the stage with bind:this, such as a skip button outside the script.
+  export const nodeId = () => dialog.state.nodeId
+  export const jump = (target: string) => dialog.jump(target)
+
   function restart() {
     entered = null
     dialog.restart()
