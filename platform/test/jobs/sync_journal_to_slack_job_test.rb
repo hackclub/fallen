@@ -35,6 +35,7 @@ class SyncJournalToSlackJobTest < ActiveJob::TestCase
 
       PostProjectToSlackJob.perform_now(projects(:unlinked))
       assert projects(:unlinked).reload.slack_linked?
+      assert_equal [ "section" ], slack.calls_to(:chat_postMessage).sole[:blocks].map { |block| block[:type] }
       assert_enqueued_with(job: SyncJournalToSlackJob, args: [ journal, "create" ])
     end
   end

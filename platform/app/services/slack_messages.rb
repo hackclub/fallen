@@ -5,8 +5,8 @@ module SlackMessages
   module_function
 
   def project_anchor(project)
-    text = [ "Idea: #{escape(project.title)}", escape(project.description).presence ].compact.join("\n\n")
-    { text: text, blocks: [ SlackBot::Blocks.section(text), footer(project_url(project)) ] }
+    text = [ "Project name: #{escape(project.title)}", escape(project.description).presence ].compact.join("\n\n")
+    { text: text, blocks: [ SlackBot::Blocks.section(text) ] }
   end
 
   def journal(journal)
@@ -21,7 +21,7 @@ module SlackMessages
 
   FOOTER_BLOCK_ID = "fallen_footer"
 
-  # The small "fallen ↗" line under a project anchor or journal, linking to it on the site.
+  # The small "fallen ↗" line under a journal, linking to it on the site.
   def footer(url, *before) = SlackBot::Blocks.context(*before, "<#{url}|fallen ↗>").merge(block_id: FOOTER_BLOCK_ID)
   def footer?(blocks) = Array(blocks).any? { |block| block.to_h.with_indifferent_access[:block_id] == FOOTER_BLOCK_ID }
 
