@@ -22,7 +22,7 @@
     error,
   }: {
     lapse?: LapseStatus | null
-    // The timelapses already on the journal being edited, which the unclaimed list leaves out.
+    // The timelapses already on the journal being edited: selectable here though the list marks them as used.
     current?: LapseTimelapse[]
     selected: string[]
     returnTo: string
@@ -35,6 +35,14 @@
 
   let syncing = $state(false)
   let syncFailed = $state(false)
+
+  // Why a timelapse can't be picked here: Lapse's own state, or another journal already has it.
+  function blocked(timelapse: LapseTimelapse) {
+    if (timelapse.unusable_reason) return timelapse.unusable_reason
+    if (timelapse.claim_text && !current.some((c) => c.id === timelapse.id))
+      return `is ${timelapse.claim_text}`
+    return null
+  }
 
   const options = $derived([
     ...current,
@@ -79,7 +87,7 @@
   })
 
   function toggle(timelapse: LapseTimelapse) {
-    if (timelapse.unusable_reason) return
+    if (blocked(timelapse)) return
     selected = selected.includes(timelapse.id)
       ? selected.filter((id) => id !== timelapse.id)
       : [...selected, timelapse.id]
@@ -135,18 +143,19 @@
         <ul class="max-h-64 space-y-1.5 overflow-y-auto" aria-label="Timelapses">
           {#each options as timelapse (timelapse.id)}
             {@const active = selected.includes(timelapse.id)}
+            {@const reason = blocked(timelapse)}
             <li>
               <button
                 type="button"
                 role="checkbox"
                 aria-checked={active}
-                disabled={Boolean(timelapse.unusable_reason)}
-                title={timelapse.unusable_reason ? `This timelapse ${timelapse.unusable_reason}` : undefined}
+                disabled={Boolean(reason)}
+                title={reason ? `This timelapse ${reason}` : undefined}
                 onclick={() => toggle(timelapse)}
                 class={[
                   'flex w-full items-center gap-2.5 rounded-lg border-2 p-1.5 text-left transition-colors',
                   active ? 'border-ink bg-paper-well' : 'border-transparent hover:bg-paper-well/60',
-                  timelapse.unusable_reason && 'cursor-not-allowed opacity-50 hover:bg-transparent',
+                  reason && 'cursor-not-allowed opacity-50 hover:bg-transparent',
                 ]}
               >
                 <span class="aspect-video w-16 shrink-0 overflow-hidden rounded bg-ink/10">
@@ -163,9 +172,7 @@
                   <span class="block truncate text-sm text-ink">{timelapse.name || 'Untitled timelapse'}</span
                   >
                   <span class="text-ink-soft">
-                    {timelapse.unusable_reason
-                      ? timelapse.unusable_reason.replace(/^is /, '')
-                      : timelapse.duration_text}
+                    {reason ? reason.replace(/^is /, '') : timelapse.duration_text}
                   </span>
                 </span>
               </button>

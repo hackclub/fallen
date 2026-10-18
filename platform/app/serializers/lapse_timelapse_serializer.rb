@@ -29,10 +29,13 @@
 #
 class LapseTimelapseSerializer < ApplicationSerializer
   typelize_from LapseTimelapse
-  typelize id: :string, duration_minutes: :number, duration_text: [ :string, nullable: true ], url: :string, unusable_reason: [ :string, nullable: true ]
+  typelize id: :string, duration_minutes: :number, duration_text: [ :string, nullable: true ], url: :string, unusable_reason: [ :string, nullable: true ],
+           claim_text: [ :string, nullable: true ]
   attributes :name, :duration_minutes, :thumbnail_url, :recorded_at
   attribute(:id) { |timelapse| timelapse.public_id }
   attribute(:duration_text, &:duration_text)
   attribute(:url, &:url)
   attribute(:unusable_reason, &:unusable_reason)
+  # Only where a picker lists them (LapseStatus), which preloads the journals.
+  attribute(:claim_text) { |timelapse| timelapse.claim_text if params[:claims] }
 end

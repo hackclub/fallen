@@ -34,7 +34,6 @@ class LapseTimelapse < ApplicationRecord
 
   # Lapse also lists timelapses that are private, still rendering or failed; only ones a reviewer can watch count.
   WATCHABLE_VISIBILITIES = %w[PUBLIC UNLISTED].freeze
-  LISTED = 50
 
   set_public_id_prefix :lps
 
@@ -82,6 +81,12 @@ class LapseTimelapse < ApplicationRecord
   def duration_text = Duration.format(duration_minutes)
   def url = Lapse.timelapse_url(lapse_id)
   def usable? = unusable_reason.nil?
+
+  # The journal it already backs, unless that journal was deleted: a timelapse backs one journal at a time.
+  def claimed_by = (journal if journal&.kept?)
+
+  # "on your journal from October 18, 2026", for showing it greyed out in a picker.
+  def claim_text = claimed_by && "on your journal from #{claimed_by.created_at.in_time_zone(user.timezone).to_date.to_fs(:long)}"
 
   # Why it can't back a journal, or nil when it can.
   def unusable_reason

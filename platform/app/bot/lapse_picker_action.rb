@@ -1,13 +1,13 @@
-# "Select" on a timelapse in the Slack timelapse picker (SlackMessages.lapse_picker): toggles it and redraws the
-# modal. The picks so far ride in the modal's private_metadata until "Done" (LapsePickerView).
+# Inside the Slack timelapse picker (SlackMessages.lapse_picker). Ticking a box needs nothing: Slack keeps it until
+# the page changes or "Done" (LapsePickerView). "Newer" and "Older" fold this page's ticks in and show the next page.
 class LapsePickerAction < SlackBot::Action
   def call
-    picker = JSON.parse(payload.view&.private_metadata.presence || "{}")
-    draft = JournalDraft.find_by_public_id(picker["draft"])
+    return unless arg == "page"
+
+    picker = LapsePicker.from(payload.view).with_ticks(payload.view)
+    draft = picker.journal_draft
     return unless draft && user && draft.user_id == user.id
 
-    selected = Array(picker["selected"])
-    selected = selected.include?(value) ? selected - [ value ] : (selected + [ value ]).first(Journal::MAX_TIMELAPSES)
-    update_modal(SlackMessages.lapse_picker(draft, selected, duration: picker["duration"]))
+    update_modal(SlackMessages.lapse_picker(draft, picker.with(page: value.to_i)))
   end
 end

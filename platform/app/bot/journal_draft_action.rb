@@ -81,7 +81,7 @@ class JournalDraftAction < SlackBot::Action
   # The picker opens straight away, from what Fallen already has; the prompt is redrawn when it is closed with Done.
   def pick_lapse(draft)
     draft.remember_prompt!(response_url)
-    open_modal(SlackMessages.lapse_picker(draft, draft.timelapse_ids, duration: input_values["duration"]))
+    open_modal(SlackMessages.lapse_picker(draft, LapsePicker.start(draft, duration: input_values["duration"])))
   end
 
   # Asking Lapse takes a moment, so the prompt is redrawn from a job, keeping what is in the time box.

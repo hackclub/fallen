@@ -109,16 +109,13 @@ class JournalFlowTest < ActiveSupport::TestCase
 
         press_button(pick[:action_id], draft, duration: "1")
         modal = slack.calls_to(:views_open).last[:view]
-        assert_equal "lapse_picker", modal[:callback_id]
+        assert_equal [ "lapse_picker", "Timelapses Selection" ], [ modal[:callback_id], modal.dig(:title, :text) ]
+        assert modal[:blocks].first.dig(:elements, 0, :text).start_with?("Powered by :lapse: Lapse")
         row = modal[:blocks].find { |block| block.dig(:text, :text).to_s.include?(desk.name) }
         assert_equal desk.thumbnail_url, row.dig(:accessory, :image_url)
+        assert modal[:blocks].any? { |block| block[:block_id] == "lapse_pick_#{desk.public_id}" && block.dig(:elements, 0, :type) == "checkboxes" }
 
-        toggle(modal, button_in(modal[:blocks], "Select"))
-        modal = slack.calls_to(:views_update).last[:view]
-        assert button_in(modal[:blocks], "Selected ✓")
-        assert_equal [ desk.public_id ], JSON.parse(modal[:private_metadata])["selected"]
-
-        assert_enqueued_with(job: RefreshDraftPromptJob, args: [ draft, "1" ]) { submit(modal) }
+        assert_enqueued_with(job: RefreshDraftPromptJob, args: [ draft, "1" ]) { submit(modal, ticked: [ desk ]) }
         assert_equal [ desk.public_id ], draft.reload.timelapse_ids
         stub_method(LapseTimelapse, :sync, nil) { perform_enqueued_jobs(only: RefreshDraftPromptJob) }
         redrawn = slack.calls_to(:response_url).last[:body]["blocks"]
@@ -132,6 +129,47 @@ class JournalFlowTest < ActiveSupport::TestCase
         assert_equal [ 90, 60, false ], [ journal.duration_minutes, journal.tracked_minutes, journal.hours_self_claimed ]
         assert_equal journal, desk.reload.journal
       end
+    end
+  end
+
+  test "the picker pages through every timelapse, keeps ticks across pages, and shows used ones without a box" do
+    user = users(:member)
+    user.update!(lapse_token: "lapse-token")
+    older = 25.times.map { |i| user.lapse_timelapses.create!(lapse_id: "lapse_#{i}", name: "Session #{i}", duration_seconds: 600, visibility: "UNLISTED", playback_url: "https://cdn.lapse.test/#{i}.mp4", recorded_at: (i + 2).days.ago) }
+    used = projects(:station).journals.create!(user: user, body: "x", duration: "1", images: [ photo ])
+    older.first.update!(journal: used)
+    draft = JournalDraft.create!(project: projects(:station), user: user, parts: [ { "ts" => "1700000003.000100", "text" => "x" } ])
+
+    with_env("LAPSE_CLIENT_ID" => "svc_test", "LAPSE_CLIENT_SECRET" => "scs_test") do
+      with_fake_slack do |slack|
+        press_button("journal_draft:pick_lapse", draft)
+        first = slack.calls_to(:views_open).last[:view]
+        assert_equal 20, first[:blocks].count { |block| block[:type] == "section" }
+        assert first[:blocks].any? { |block| block.dig(:text, :text).to_s.include?("On your journal from") }
+        assert_not first[:blocks].any? { |block| block[:block_id] == "lapse_pick_#{older.first.public_id}" }, "a used one has no box"
+
+        toggle(first, button_in(first[:blocks], "Older ›"), ticked: [ lapse_timelapses(:desk), older[1] ])
+        second = slack.calls_to(:views_update).last[:view]
+        assert_includes second[:blocks].map { |block| block.dig(:elements, 0, :text) }, "2 of up to 10 ticked · page 2 of 2"
+        assert button_in(second[:blocks], "‹ Newer")
+
+        submit(second, ticked: [ older.last ])
+        assert_equal [ lapse_timelapses(:desk), older[1], older.last ].map(&:public_id).sort, draft.reload.timelapse_ids.sort
+      end
+    end
+  end
+
+  test "ticking more than a journal takes says so instead of saving" do
+    user = users(:member)
+    user.update!(lapse_token: "lapse-token")
+    many = 11.times.map { |i| user.lapse_timelapses.create!(lapse_id: "lapse_#{i}", name: "Session #{i}", duration_seconds: 600, visibility: "UNLISTED", playback_url: "https://cdn.lapse.test/#{i}.mp4") }
+    draft = JournalDraft.create!(project: projects(:station), user: user, parts: [ { "ts" => "1700000003.000100", "text" => "x" } ])
+    with_fake_slack do |slack|
+      press_button("journal_draft:pick_lapse", draft)
+      response = submit(slack.calls_to(:views_open).last[:view], ticked: many)
+      assert_equal "update", response[:response_action]
+      assert response[:view][:blocks].any? { |block| block.dig(:elements, 0, :text).to_s.include?("A journal takes up to 10") }
+      assert_empty draft.reload.timelapse_ids
     end
   end
 
@@ -382,16 +420,22 @@ class JournalFlowTest < ActiveSupport::TestCase
     blocks.flat_map { |block| [ block[:accessory], *Array(block[:elements]) ] }.compact.find { |element| element[:type] == "button" && element.dig(:text, :text) == label }
   end
 
-  # A button inside the open timelapse picker modal.
-  def toggle(modal, button)
-    view = { "id" => "V1", "callback_id" => modal[:callback_id], "private_metadata" => modal[:private_metadata] }
+  # A button inside the open timelapse picker modal, with these timelapses' boxes ticked on the page shown.
+  def toggle(modal, button, ticked: [])
+    view = { "id" => "V1", "callback_id" => modal[:callback_id], "private_metadata" => modal[:private_metadata], "state" => { "values" => ticks(ticked) } }
     SlackBot.handle(:interaction, { "type" => "block_actions", "user" => { "id" => "U0MEMBER" }, "trigger_id" => "t", "view" => view,
                                     "actions" => [ { "action_id" => button[:action_id], "value" => button[:value] } ] })
   end
 
-  def submit(modal)
-    view = { "id" => "V1", "callback_id" => modal[:callback_id], "private_metadata" => modal[:private_metadata], "state" => { "values" => {} } }
+  def submit(modal, ticked: [])
+    view = { "id" => "V1", "callback_id" => modal[:callback_id], "private_metadata" => modal[:private_metadata], "state" => { "values" => ticks(ticked) } }
     SlackBot.handle(:interaction, { "type" => "view_submission", "user" => { "id" => "U0MEMBER" }, "view" => view })
+  end
+
+  def ticks(timelapses)
+    timelapses.to_h do |timelapse|
+      [ "#{LapsePicker::CHECKBOX_BLOCK}#{timelapse.public_id}", { "lapse_picker:tick" => { "type" => "checkboxes", "selected_options" => [ { "value" => timelapse.public_id } ] } } ]
+    end
   end
 
   def pick(draft, kept, upto:)

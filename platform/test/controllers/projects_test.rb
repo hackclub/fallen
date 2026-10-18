@@ -127,10 +127,14 @@ class ProjectsTest < ActionDispatch::IntegrationTest
     assert_response :not_found
   end
 
-  test "the composer lists the owner's unclaimed timelapses" do
+  test "the composer lists all the owner's timelapses, saying which journal has one" do
+    journal = projects(:station).journals.create!(user: users(:member), body: "x", duration: "1", images: [ photo ])
+    lapse_timelapses(:hidden).update!(journal: journal)
     props = load_deferred(project_path(projects(:station)), "Projects/Show", "lapse")
     assert_equal [ lapse_timelapses(:desk).public_id, lapse_timelapses(:hidden).public_id ], props["lapse"]["timelapses"].pluck("id")
     assert_match(/private/, props["lapse"]["timelapses"].last["unusable_reason"])
+    assert_match(/\Aon your journal from /, props["lapse"]["timelapses"].last["claim_text"])
+    assert_nil props["lapse"]["timelapses"].first["claim_text"]
   end
 
   test "journals wait for slack, projects do not" do
