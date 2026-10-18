@@ -62,7 +62,7 @@
         <span class="min-w-0 overflow-clip [overflow-clip-margin:8px]">
           <span
             class={[
-              'flex items-center gap-[0.3em] ps-[0.3em] transition-[opacity,translate] duration-500 motion-reduce:transition-none',
+              'flex items-center gap-[0.3em] ps-[0.16em] transition-[opacity,translate] duration-500 motion-reduce:transition-none',
               shown ? 'opacity-100 delay-150' : '-translate-x-2 opacity-0',
             ]}
           >
