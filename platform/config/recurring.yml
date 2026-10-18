@@ -6,7 +6,7 @@ production:
     schedule: every hour at minute 12
 
   clear_solid_cable_messages:
-    command: "SolidCable::Message.trim"
+    command: "SolidCable::Message.trimmable.delete_all"
     schedule: every hour at minute 42
 
   close_week:
