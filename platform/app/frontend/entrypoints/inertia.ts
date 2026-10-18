@@ -7,6 +7,10 @@ import '@/entrypoints/application.css'
 // visited. Vite preloads a page's shared chunks with it.
 const pages = import.meta.glob<ResolvedComponent>('../pages/**/*.svelte')
 
+// Loaded on its own so the SDK stays out of the main bundle. The meta tag is only rendered when SENTRY_FRONTEND_DSN is set.
+const sentryDsn = document.querySelector<HTMLMetaElement>('meta[name="sentry-dsn"]')?.content
+if (sentryDsn) import('@/lib/sentry').then(({ initSentry }) => initSentry(sentryDsn))
+
 // Lets ApplicationController#sync_browser_timezone keep users' timezone current without asking.
 const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
 router.on('before', (event) => {
