@@ -39,6 +39,7 @@ Rails.application.routes.draw do
   resource :hatch, only: :create
   resource :timer, only: %i[show create destroy]
   resource :huddle_invite, only: :create
+  resource :huddle_prompt, only: :create
   resource :huddle_pause, only: %i[create destroy]
   resources :uploads, only: :create
 

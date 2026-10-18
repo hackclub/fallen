@@ -93,6 +93,13 @@ class HuddleSession < ApplicationRecord
     update!(changes) if changes.any?
   end
 
+  # Start on the pet while just chilling in the huddle: counts again, the way an unanswered session does, and asks
+  # what they are working on, in the thread and in a fresh DM.
+  def ask_again!
+    update!(mode: nil, prompt_dm_ts: nil, dm_channel_id: nil)
+    HuddlePromptJob.perform_later(self, dm: true)
+  end
+
   def leave!(at, source)
     at = [ at, joined_at ].max
     update!(left_at: at, leave_source: source, **stretch(:screenshare, false, at), **stretch(:camera, false, at))

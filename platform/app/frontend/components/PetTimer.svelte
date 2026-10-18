@@ -1,11 +1,12 @@
 <script lang="ts">
   import SolarPause from '@/components/icons/SolarPause.svelte'
   import SolarPlay from '@/components/icons/SolarPlay.svelte'
-  import { formatTracked, resumeHuddle, shownSeconds, startTimer, stopTimer, timer } from '@/lib/timer.svelte'
+  import { askGoal, formatTracked, resumeHuddle, shownSeconds, stopTimer, timer } from '@/lib/timer.svelte'
 
   // The pill above the desktop pet: the button for what can be done now, and the time put in since the last
   // journal (lib/timer.svelte.ts).
-  // - Start: asks about the huddle first (TimerPrompt) unless they are in it.
+  // - Start: asks them to join the huddle (TimerPrompt). Already in it just chilling, it counts again and Slack
+  //   asks what they are working on.
   // - Pause in the huddle: asks whether to stay without counting or leave. Pause on the site timer stops it.
   // - Resume: back to counting in the huddle.
   // Until the first answer arrives it shows no time at all, just a light sweeping over it.
@@ -17,9 +18,8 @@
   })
   const shown = $derived(formatTracked(shownSeconds(now)))
 
-  // Start always asks about the huddle first, unless they are already in it.
   function start() {
-    if (timer.inHuddle) startTimer()
+    if (timer.inHuddle) askGoal()
     else timer.prompt = 'join'
   }
 

@@ -10,6 +10,7 @@
   // A bubble above the desktop pet, pointing down at it, for the pet's timer (PetTimer):
   // - join: Start was pressed. Join the huddle, where time counts by itself, or "I'd prefer not" and count it on
   //   the site's timer.
+  // - goal: Start was pressed while chilling in the huddle. It counts now, and Slack asks what they are working on.
   // - pause: Pause was pressed in the huddle. Stay and stop counting, or leave.
   // - leave: the site cannot take anyone out of a Slack huddle, so it says how; counting stops once Slack says
   //   they left.
@@ -25,7 +26,12 @@
 
   const primary = 'rounded-full bg-gold px-4 py-1.5 text-sm font-semibold text-dark-blue hover:brightness-110'
   const secondary = 'text-xs text-pale-blue/80 underline-offset-2 hover:text-cream hover:underline'
-  const titles = { join: 'Join the huddle?', pause: 'Stop counting?', leave: 'Leave from Slack' }
+  const titles = {
+    join: 'Join the huddle?',
+    goal: 'What are you working on?',
+    pause: 'Stop counting?',
+    leave: 'Leave from Slack',
+  }
 </script>
 
 <svelte:window {onkeydown} />
@@ -80,6 +86,14 @@
               onclick={inviteToHuddle}>Invite me</button
             >
           {/if}
+        </div>
+      {:else if timer.prompt === 'goal'}
+        <p class="mt-1 text-sm leading-snug text-pale-blue">
+          Your time in the huddle is counting now. We asked in your Slack DMs what you're working on, so
+          answer there.
+        </p>
+        <div class="mt-4 flex items-center justify-end">
+          <button type="button" class={primary} onclick={close}>Got it</button>
         </div>
       {:else if timer.prompt === 'pause'}
         <p class="mt-1 text-sm leading-snug text-pale-blue">

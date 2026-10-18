@@ -52,12 +52,12 @@ class HuddleSyncJobTest < ActiveSupport::TestCase
     assert_equal "Case", huddle.sessions.ongoing.sole.goal
   end
 
-  test "someone who was chilling comes back still chilling, without being asked again" do
+  test "someone who was chilling is asked again when they come back, even straight away" do
     huddle = Huddle.create!(call_id: "R1", channel_id: CHANNEL, started_at: 1.hour.ago)
-    huddle.sessions.create!(slack_id: "U0MEMBER", joined_at: 30.minutes.ago, left_at: 10.minutes.ago, mode: "chilling")
+    huddle.sessions.create!(slack_id: "U0MEMBER", joined_at: 30.minutes.ago, left_at: 5.seconds.ago, mode: "chilling")
 
-    assert_no_enqueued_jobs(only: HuddlePromptJob) { sync(fake_browser(room: room("R1", %w[U0BOT U0MEMBER]))) }
-    assert_equal [ "chilling", nil ], huddle.sessions.ongoing.sole.slice(:mode, :goal).values
+    assert_enqueued_jobs(1, only: HuddlePromptJob) { sync(fake_browser(room: room("R1", %w[U0BOT U0MEMBER]))) }
+    assert_equal [ nil, nil ], huddle.sessions.ongoing.sole.slice(:mode, :goal).values
   end
 
   test "an empty participant list leaves everyone where they are" do

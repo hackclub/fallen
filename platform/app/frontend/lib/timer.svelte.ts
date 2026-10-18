@@ -1,5 +1,5 @@
 import { router } from '@inertiajs/svelte'
-import { huddleInvite, huddlePauses, timers } from '@/routes'
+import { huddleInvite, huddlePauses, huddlePrompt, timers } from '@/routes'
 import type { RouteDefinition } from '@/routes/runtime'
 import type { TrackedTime } from '@/types'
 
@@ -23,8 +23,8 @@ export const timer = $state({
   inHuddle: false,
   huddleUrl: null as string | null,
   canRing: false,
-  // Which prompt is open: joining the huddle (HuddlePrompt), or pausing while in it (PausePrompt).
-  prompt: null as 'join' | 'pause' | 'leave' | null,
+  // Which bubble TimerPrompt shows.
+  prompt: null as 'join' | 'goal' | 'pause' | 'leave' | null,
   // When `seconds` was last set, for ticking between answers.
   at: 0,
 })
@@ -166,6 +166,13 @@ export function pauseHuddle() {
 export function resumeHuddle() {
   guess('huddle')
   call(huddlePauses.destroy()).catch(refresh)
+}
+
+// Start while chilling in the huddle: counts again, and Slack asks them what they are working on.
+export function askGoal() {
+  timer.prompt = 'goal'
+  guess('huddle')
+  call(huddlePrompt()).catch(refresh)
 }
 
 // "Invite me": rings them into the huddle. The prompt's link opens it as well; the socket says when they are in.
