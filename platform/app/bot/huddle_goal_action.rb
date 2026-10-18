@@ -23,6 +23,7 @@ class HuddleGoalAction < SlackBot::Action
     end
 
     answer(session, mode: "working", goal: goal.truncate(500))
+    HuddleCommitJob.perform_later(session)
   end
 
   def answer(session, mode:, goal:)

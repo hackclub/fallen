@@ -4,7 +4,9 @@
 // token, and SLACK_BROWSER_COOKIE, its `d` cookie), joins the channel's huddle the way the desktop client does
 // (`rooms.join`, which also starts one when none is running) and then connects to the Amazon Chime meeting
 // behind it, because Slack only lists someone as a participant once their audio is connected. It sends no sound.
-// When the huddle ends (Slack stops every huddle after 24 hours) or the connection drops, it joins again.
+// When the huddle ends (Slack stops every huddle after 24 hours) or the connection drops, it joins again. A huddle
+// that has run for RESTART_ALONE_AFTER with nobody else in it is left so a fresh one starts, which puts Slack's
+// 24 hour cut at a quiet time instead of in the middle of someone's session.
 // The method shapes follow https://github.com/ingoau/huddlefm; the Chime protocol is chime/SignalingProtocol.proto.
 //
 // bin/worker and bin/dev start this; it idles quietly when the variables are missing.
@@ -47,15 +49,18 @@ async function joinRoom() {
   return { callId: body.call.call_id, ...body.call.free_willy }
 }
 
-// Whether Slack still lists this account in the huddle. Null when the huddle is gone.
-async function stillListed(callId, userId) {
+// The huddle as Slack sees it: null when it is gone, otherwise who is in it and how long it has run.
+async function roomState(callId) {
   const body = await slack('screenhero.rooms.info', {
     room: callId,
     _x_reason: 'all-calls-store/conditional-fetch',
   })
   const room = body.room
   if (room.has_ended || Number(room.date_end) > 0) return null
-  return (room.participants ?? []).some((p) => (typeof p === 'string' ? p : p?.user_id) === userId)
+  return {
+    participants: (room.participants ?? []).map((p) => (typeof p === 'string' ? p : p?.user_id)),
+    ageMs: Number(room.date_start) > 0 ? Date.now() - Number(room.date_start) * 1000 : 0,
+  }
 }
 
 // --- Chime signaling -----------------------------------------------------------------------------------------
@@ -334,6 +339,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 const CHECK_EVERY = 5 * 60_000
 const MAX_BACKOFF = 60_000
 const REMOVED_PAUSE = 5 * 60_000
+const RESTART_ALONE_AFTER = 12 * 60 * 60_000
 
 async function keepInHuddle() {
   const userId = (await slack('auth.test')).user_id
@@ -359,15 +365,21 @@ async function keepInHuddle() {
 
       // A connection that quietly stopped counting is caught by asking Slack now and then.
       const checks = setInterval(async () => {
-        const listed = await stillListed(room.callId, userId).catch(() => true)
-        if (listed === null) over.resolve({ reason: 'huddle ended', final: true })
-        else if (!listed) over.resolve({ reason: 'not listed as a participant', final: false })
+        const state = await roomState(room.callId).catch(() => undefined)
+        if (state === undefined) return
+        if (state === null) over.resolve({ reason: 'huddle ended', final: true })
+        else if (!state.participants.includes(userId))
+          over.resolve({ reason: 'not listed as a participant', final: false })
+        else if (state.participants.length === 1 && state.ageMs > RESTART_ALONE_AFTER)
+          over.resolve({ reason: 'restarting a quiet huddle', final: true, restart: true })
       }, CHECK_EVERY)
-      const { reason, final } = await over.promise
+      const { reason, final, restart } = await over.promise
       clearInterval(checks)
       leave = undefined
       media.leave()
       log('left', { call_id: room.callId, reason })
+      // Slack ends a huddle once its last person leaves; joining before then would land back in the old one.
+      if (restart) await waitForEnd(room.callId)
       wait = reason.includes('removed') ? REMOVED_PAUSE : final ? 2_000 : 1_000
     } catch (error) {
       failures += 1
@@ -375,6 +387,14 @@ async function keepInHuddle() {
     }
     await sleep(wait)
   }
+}
+
+async function waitForEnd(callId) {
+  for (let i = 0; i < 12; i++) {
+    await sleep(5_000)
+    if ((await roomState(callId).catch(() => undefined)) === null) return
+  }
+  log('still_running', { call_id: callId })
 }
 
 if (!token || !cookie || !channel) {

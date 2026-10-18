@@ -62,6 +62,28 @@ class HuddleSyncJobTest < ActiveSupport::TestCase
     assert_no_enqueued_jobs(only: HuddleHandoffJob) { sync(fake_browser(room: room("R2", %w[U0BOT U0BACK]))) }
   end
 
+  test "an answer from the last huddle carries over for someone back within 15 minutes of the restart" do
+    old = Huddle.create!(call_id: "R1", channel_id: CHANNEL, started_at: 1.day.ago, ended_at: 10.minutes.ago, handed_off_at: 9.minutes.ago)
+    old.sessions.create!(slack_id: "U0MEMBER", joined_at: 2.hours.ago, left_at: 10.minutes.ago, mode: "working", goal: "Case")
+    old.sessions.create!(slack_id: "U0ADMIN", joined_at: 2.hours.ago, left_at: 10.minutes.ago)
+    Huddle.create!(call_id: "R2", channel_id: CHANNEL, thread_ts: "1700090000.000100", started_at: 9.minutes.ago)
+
+    assert_enqueued_jobs 1, only: HuddlePromptJob do
+      sync(fake_browser(room: room("R2", %w[U0BOT U0MEMBER U0ADMIN])))
+    end
+    carried = Huddle.find_by!(call_id: "R2").sessions.find_by!(slack_id: "U0MEMBER")
+    assert_equal [ "working", "Case" ], [ carried.mode, carried.goal ]
+  end
+
+  test "after 15 minutes everyone is asked fresh" do
+    old = Huddle.create!(call_id: "R1", channel_id: CHANNEL, started_at: 1.day.ago, ended_at: 20.minutes.ago, handed_off_at: 19.minutes.ago)
+    old.sessions.create!(slack_id: "U0MEMBER", joined_at: 2.hours.ago, left_at: 20.minutes.ago, mode: "working", goal: "Case")
+    Huddle.create!(call_id: "R2", channel_id: CHANNEL, started_at: 19.minutes.ago)
+
+    assert_enqueued_jobs(1, only: HuddlePromptJob) { sync(fake_browser(room: room("R2", %w[U0BOT U0MEMBER]))) }
+    assert_nil Huddle.find_by!(call_id: "R2").sessions.sole.mode
+  end
+
   test "does nothing until the huddle is configured" do
     with_env("SLACK_HUDDLE_CHANNEL_ID" => nil) { HuddleSyncJob.perform_now }
     assert_equal 0, Huddle.count

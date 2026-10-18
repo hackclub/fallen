@@ -12,11 +12,11 @@ class HuddleSyncJob < ApplicationJob
     return unless SlackHuddle.configured?
 
     connection = ActiveRecord::Base.connection
-    connection.select_value("SELECT pg_advisory_lock(#{LOCK})")
+    connection.execute("SELECT pg_advisory_lock(#{LOCK})")
     begin
       sync
     ensure
-      connection.select_value("SELECT pg_advisory_unlock(#{LOCK})")
+      connection.execute("SELECT pg_advisory_unlock(#{LOCK})")
     end
   rescue ActiveRecord::QueryCanceled
     # Another sync held the lock past statement_timeout; the next event or the minute's run catches up.
@@ -61,15 +61,20 @@ class HuddleSyncJob < ApplicationJob
 
     users = User.kept.where(slack_id: arrived).index_by(&:slack_id)
     earlier = huddle.sessions.where(slack_id: arrived).order(:joined_at).index_by(&:slack_id)
+    carried = huddle.carried_over(arrived - earlier.keys, at: now)
     arrived.each do |slack_id|
-      before = earlier[slack_id]
-      session = huddle.sessions.create!(slack_id: slack_id, user: users[slack_id], joined_at: now, mode: before&.mode, goal: before&.goal)
-      HuddlePromptJob.perform_later(session) unless before
+      before = earlier[slack_id] || carried[slack_id]
+      # Asked once per huddle, unless they already answered in the last one.
+      ask = earlier[slack_id].nil? && before&.mode.nil?
+      session = huddle.sessions.create!(slack_id: slack_id, user: users[slack_id], joined_at: now, mode: before&.mode, goal: before&.goal,
+                                        prompted_at_count: ask ? huddle.message_count : earlier[slack_id]&.prompted_at_count)
+      HuddlePromptJob.perform_later(session) if ask
     end
   end
 
   def hand_off(huddle)
-    previous = huddle.previous_for_handoff or return
+    previous = huddle.previous
+    return if previous.nil? || previous.handed_off_at
     previous.update!(handed_off_at: Time.current)
 
     missing = previous.present_at_end - huddle.sessions.ongoing.pluck(:slack_id)

@@ -46,7 +46,7 @@ module SlackMessages
 
       *p.s. check your mail! we have a note for you :3c:*
     TEXT
-    { text: text, username: pet.capitalize, icon_url: "#{app_url}/static-assets/pets/#{pet}-pfp.png" }
+    { text: text, **pet_persona(pet) }
   end
 
   def stray_post(text, removed:)
@@ -158,11 +158,13 @@ module SlackMessages
 
   HUDDLE_GOAL_INPUT = "goal"
 
-  # Ephemeral in the huddle's thread when someone joins it (HuddlePromptJob). HuddleGoalAction re-renders it with
-  # `error` when "commit!" is pressed with nothing typed.
+  # Ephemeral in the huddle's thread when someone joins it, and again every Huddle::REPROMPT_EVERY messages until
+  # they answer (HuddlePromptJob). HuddleGoalAction re-renders it with `error` when "commit!" is pressed with
+  # nothing typed.
   def huddle_prompt(session, error: nil)
-    question = "What are you working on today?"
-    blocks = [ SlackBot::Blocks.input(question, SlackBot::Blocks.plain_text_input(HUDDLE_GOAL_INPUT, max_length: 500), block_id: HUDDLE_GOAL_INPUT) ]
+    question = "<@#{session.slack_id}> what are you working on today?"
+    blocks = [ SlackBot::Blocks.section(question),
+               SlackBot::Blocks.input("Today I'm working on", SlackBot::Blocks.plain_text_input(HUDDLE_GOAL_INPUT, max_length: 500), block_id: HUDDLE_GOAL_INPUT) ]
     blocks << SlackBot::Blocks.context(":warning: #{escape(error)}") if error
     blocks << SlackBot::Blocks.actions(
       SlackBot::Blocks.button("commit!", "huddle_goal:commit", value: session.public_id, style: "primary"),
@@ -176,6 +178,11 @@ module SlackMessages
     { text: text, blocks: [ SlackBot::Blocks.section(text) ] }
   end
 
+  # Posted in the huddle's thread, as their pet, once someone commits to a goal (HuddleCommitJob).
+  def huddle_commit(session)
+    { text: "<@#{session.slack_id}> is working on #{escape(session.goal)} today!!", **pet_persona(session.user&.pet) }
+  end
+
   # In the new huddle's thread, for the people Slack dropped when it ended the last one (HuddleHandoffJob).
   def huddle_handoff(huddle, slack_ids)
     text = "#{slack_ids.map { |id| "<@#{id}>" }.join(' ')} the huddle hit Slack's 24 hour limit, so there's a new one. Come back in!"
@@ -184,11 +191,18 @@ module SlackMessages
     { text: text, blocks: blocks }
   end
 
-  # Posts as the person's pet (needs chat:write.customize), or as the bot when they have none.
+  # Slack fetches icon_url itself, and fallen.hackclub.com sits behind Orchard's login, so the pictures can't be
+  # served from the app.
+  PET_PFPS = {
+    "lulu" => "https://raw.githubusercontent.com/hackclub/fallen/main/platform/public/static-assets/pets/lulu-pfp.png",
+    "sami" => "https://raw.githubusercontent.com/hackclub/fallen/main/platform/public/static-assets/pets/sami-pfp.png"
+  }.freeze
+
+  # Posts as the pet (needs chat:write.customize), or as the bot when there is none.
   def pet_persona(pet)
     return {} if pet.blank?
 
-    { username: pet.capitalize, icon_url: "#{app_url}/static-assets/pets/#{pet}-pfp.png" }
+    { username: pet.capitalize, icon_url: PET_PFPS.fetch(pet) }
   end
 
   # Enough of Markdown to read well in Slack: bold, italics, strike, code, links, images, headings, lists.

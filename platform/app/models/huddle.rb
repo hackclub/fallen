@@ -8,6 +8,7 @@
 #  id            :bigint           not null, primary key
 #  ended_at      :datetime
 #  handed_off_at :datetime
+#  message_count :integer          default(0), not null
 #  started_at    :datetime         not null
 #  thread_ts     :string
 #  created_at    :datetime         not null
@@ -26,6 +27,10 @@ class Huddle < ApplicationRecord
   END_GRACE = 1.minute
   # Past this, a restart is no longer worth pinging anyone about.
   HANDOFF_WITHIN = 1.hour
+  # Someone who was in the last huddle when it ended and joins this one this soon after it started keeps their answer.
+  CARRY_OVER = 15.minutes
+  # Someone who has not answered is asked again after this many messages in the huddle's thread.
+  REPROMPT_EVERY = 10
 
   has_many :sessions, class_name: "HuddleSession", dependent: :destroy
 
@@ -50,9 +55,29 @@ class Huddle < ApplicationRecord
     sessions.where(left_at: (ended_at - END_GRACE)..).distinct.pluck(:slack_id)
   end
 
-  # The ended huddle whose people should be asked to join this one, if it has not been done yet.
-  def previous_for_handoff
-    Huddle.where(channel_id: channel_id, handed_off_at: nil, ended_at: (started_at - HANDOFF_WITHIN)..).where.not(id: id).order(ended_at: :desc).first
+  # The huddle that ended just before this one started, if there was one.
+  def previous
+    return @previous if defined?(@previous)
+
+    @previous = Huddle.where(channel_id: channel_id, ended_at: (started_at - HANDOFF_WITHIN)..).where.not(id: id).order(ended_at: :desc).first
+  end
+
+  # The sessions, by Slack id, that these people had in the previous huddle when it ended, as long as they are
+  # arriving within CARRY_OVER of this one starting.
+  def carried_over(slack_ids, at:)
+    return {} if slack_ids.empty? || at > started_at + CARRY_OVER || previous.nil?
+
+    previous.sessions.where(slack_id: slack_ids, left_at: (previous.ended_at - END_GRACE)..).order(:joined_at).index_by(&:slack_id)
+  end
+
+  # A message in the huddle's thread. Returns the open sessions of people who still have not answered and have
+  # had REPROMPT_EVERY messages go by since they were last asked, marked as asked now.
+  def message_posted!
+    Huddle.update_counters(id, message_count: 1)
+    count = Huddle.where(id: id).pick(:message_count)
+    due = sessions.ongoing.where(mode: nil).where(prompted_at_count: ..(count - REPROMPT_EVERY)).to_a
+    HuddleSession.where(id: due.map(&:id)).update_all(prompted_at_count: count)
+    due
   end
 
   # The message Slack posts for the huddle, which carries its Join button.

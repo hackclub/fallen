@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_18_040000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_18_050000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -52,6 +52,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_18_040000) do
     t.text "goal"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "prompted_at_count"
     t.index ["huddle_id", "slack_id"], name: "index_huddle_sessions_on_huddle_id_and_slack_id"
     t.index ["huddle_id", "slack_id"], name: "index_huddle_sessions_one_open_per_person", unique: true, where: "(left_at IS NULL)"
     t.index ["slack_id"], name: "index_huddle_sessions_on_slack_id"
@@ -67,6 +68,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_18_040000) do
     t.datetime "handed_off_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "message_count", default: 0, null: false
     t.index ["call_id"], name: "index_huddles_on_call_id", unique: true
     t.index ["ended_at"], name: "index_huddles_on_ended_at"
   end

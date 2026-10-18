@@ -1,6 +1,8 @@
 require "test_helper"
 
 class HuddleFlowTest < ActiveSupport::TestCase
+  include ActiveJob::TestHelper
+
   setup do
     @huddle = Huddle.create!(call_id: "R1", channel_id: "CHUDDLE", thread_ts: "1700000000.000100", started_at: 1.hour.ago)
     @session = @huddle.sessions.create!(slack_id: "U0MEMBER", user: users(:member), joined_at: 5.minutes.ago)
@@ -13,8 +15,8 @@ class HuddleFlowTest < ActiveSupport::TestCase
       prompt = slack.calls_to(:chat_postEphemeral).sole
       assert_equal [ "CHUDDLE", "U0MEMBER", "1700000000.000100" ], prompt.values_at(:channel, :user, :thread_ts)
       assert_equal "Lulu", prompt[:username]
-      assert_match %r{/static-assets/pets/lulu-pfp.png\z}, prompt[:icon_url]
-      assert_equal "What are you working on today?", prompt[:blocks].first[:label][:text]
+      assert_equal SlackMessages::PET_PFPS["lulu"], prompt[:icon_url]
+      assert_equal "<@U0MEMBER> what are you working on today?", prompt[:blocks].first[:text][:text]
       assert_equal %w[huddle_goal:commit huddle_goal:chill], prompt[:blocks].last[:elements].pluck(:action_id)
     end
   end
@@ -34,6 +36,27 @@ class HuddleFlowTest < ActiveSupport::TestCase
 
       assert_equal [ [ "working", "Soldering the keyboard" ] ], [ @session.reload, earlier.reload ].map { |s| [ s.mode, s.goal ] }.uniq
       assert_match "Soldering the keyboard", slack.calls_to(:response_url).sole[:body]["text"]
+
+      perform_enqueued_jobs
+      post = slack.calls_to(:chat_postMessage).sole
+      assert_equal [ "CHUDDLE", "1700000000.000100", "Lulu" ], post.values_at(:channel, :thread_ts, :username)
+      assert_equal "<@U0MEMBER> is working on Soldering the keyboard today!!", post[:text]
+    end
+  end
+
+  test "someone who has not answered is asked again every ten messages in the thread" do
+    @session.update!(prompted_at_count: 0)
+    answered = @huddle.sessions.create!(slack_id: "U0ADMIN", joined_at: 5.minutes.ago, prompted_at_count: 0, mode: "chilling")
+    with_fake_slack do
+      9.times { |i| post_in_thread("1700000100.#{i.to_s.rjust(6, '0')}") }
+      assert_no_enqueued_jobs only: HuddlePromptJob
+
+      assert_enqueued_with(job: HuddlePromptJob, args: [ @session ]) { post_in_thread("1700000100.000010") }
+      assert_equal 10, @session.reload.prompted_at_count
+      assert_equal 0, answered.reload.prompted_at_count
+      assert_no_difference -> { JournalDraft.count } do
+        assert_no_enqueued_jobs(only: HuddlePromptJob) { post_in_thread("1700000100.000011") }
+      end
     end
   end
 
@@ -72,6 +95,10 @@ class HuddleFlowTest < ActiveSupport::TestCase
   end
 
   private
+
+  def post_in_thread(ts)
+    SlackBot.handle(:event, { "type" => "event_callback", "event" => { "type" => "message", "channel" => "CHUDDLE", "user" => "U0MEMBER", "text" => "hi", "ts" => ts, "thread_ts" => @huddle.thread_ts } })
+  end
 
   def press(choice, goal: nil, user: "U0MEMBER")
     state = { "goal" => { "goal" => { "type" => "plain_text_input", "value" => goal } } }

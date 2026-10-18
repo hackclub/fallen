@@ -5,16 +5,17 @@
 #
 # Table name: huddle_sessions
 #
-#  id         :bigint           not null, primary key
-#  goal       :text
-#  joined_at  :datetime         not null
-#  left_at    :datetime
-#  mode       :string
-#  created_at :datetime         not null
-#  updated_at :datetime         not null
-#  huddle_id  :bigint           not null
-#  slack_id   :string           not null
-#  user_id    :bigint
+#  id                :bigint           not null, primary key
+#  goal              :text
+#  joined_at         :datetime         not null
+#  left_at           :datetime
+#  mode              :string
+#  prompted_at_count :integer
+#  created_at        :datetime         not null
+#  updated_at        :datetime         not null
+#  huddle_id         :bigint           not null
+#  slack_id          :string           not null
+#  user_id           :bigint
 #
 # Indexes
 #

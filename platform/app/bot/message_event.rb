@@ -22,7 +22,8 @@ class MessageEvent < SlackBot::Event
     return if from_bot?
 
     if in_thread?
-      collect_reply
+      huddle = Huddle.live.find_by(channel_id: channel_id, thread_ts: event.thread_ts)
+      huddle ? huddle.message_posted!.each { |session| HuddlePromptJob.perform_later(session) } : collect_reply
     elsif channel_id == SlackMessaging.journals_channel_id
       remove_stray_post
     end
