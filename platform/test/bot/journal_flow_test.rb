@@ -118,9 +118,12 @@ class JournalFlowTest < ActiveSupport::TestCase
         assert_enqueued_with(job: RefreshDraftPromptJob, args: [ draft, "1" ]) { submit(modal, ticked: [ desk ]) }
         assert_equal [ desk.public_id ], draft.reload.timelapse_ids
         stub_method(LapseTimelapse, :sync, nil) { perform_enqueued_jobs(only: RefreshDraftPromptJob) }
-        redrawn = slack.calls_to(:response_url).last[:body]["blocks"]
-        assert redrawn.any? { |block| block.dig("text", "text").to_s.include?("#{desk.name} · 1.5h") }
-        assert_equal "1", redrawn.find { |block| block["block_id"] == "duration" }.dig("element", "initial_value")
+        assert_equal({ "delete_original" => true }, slack.calls_to(:response_url).last[:body])
+        redrawn = slack.calls_to(:chat_postEphemeral).last
+        assert_equal projects(:station).slack_thread_ts, redrawn[:thread_ts], "the new prompt goes in the thread, never the channel"
+        assert redrawn[:blocks].any? { |block| block.dig(:text, :text).to_s.include?("#{desk.name} · 1.5h") }
+        assert_equal "1", redrawn[:blocks].find { |block| block[:block_id] == "duration" }.dig(:element, :initial_value)
+        assert modal[:blocks].any? { |block| block[:type] == "divider" }
 
         assert_difference -> { Journal.count }, 1 do
           press("journal", draft, duration: "")
@@ -191,9 +194,11 @@ class JournalFlowTest < ActiveSupport::TestCase
 
         users(:member).update!(lapse_token: "lapse-token")
         stub_method(LapseTimelapse, :sync, nil) { RefreshDraftPromptJob.perform_now(draft) }
-        redrawn = slack.calls_to(:response_url).last
-        assert_equal [ "https://hooks.slack.test/r", true ], [ redrawn[:url], redrawn[:body]["replace_original"] ]
-        assert redrawn[:body]["blocks"].any? { |block| block.dig("accessory", "text", "text") == "Pick timelapses" }
+        assert_equal [ "https://hooks.slack.test/r", { "delete_original" => true } ], slack.calls_to(:response_url).last.values_at(:url, :body)
+        redrawn = slack.calls_to(:chat_postEphemeral).last
+        assert_equal projects(:station).slack_thread_ts, redrawn[:thread_ts]
+        assert redrawn[:blocks].any? { |block| block.dig(:accessory, :text, :text) == "Pick timelapses" }
+        assert_nil draft.reload.prompt_url
       end
     end
   end
@@ -212,9 +217,9 @@ class JournalFlowTest < ActiveSupport::TestCase
         assert_enqueued_with(job: RefreshDraftPromptJob, args: [ draft, "1.5" ]) { press_button(check[:accessory][:action_id], draft, duration: "1.5") }
         lapse_timelapses(:desk).update!(visibility: "UNLISTED")
         stub_method(LapseTimelapse, :sync, nil) { perform_enqueued_jobs(only: RefreshDraftPromptJob) }
-        blocks = slack.calls_to(:response_url).last[:body]["blocks"]
-        assert_equal "1.5", blocks.find { |block| block["block_id"] == "duration" }.dig("element", "initial_value")
-        assert blocks.any? { |block| block.dig("accessory", "text", "text") == "Pick timelapses" }
+        blocks = slack.calls_to(:chat_postEphemeral).last[:blocks]
+        assert_equal "1.5", blocks.find { |block| block[:block_id] == "duration" }.dig(:element, :initial_value)
+        assert blocks.any? { |block| block.dig(:accessory, :text, :text) == "Pick timelapses" }
       end
     end
   end

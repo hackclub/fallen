@@ -115,7 +115,8 @@ module SlackMessages
     [ SlackBot::Blocks.section("*#{TIMELAPSE_LABEL}*\n#{summary}", accessory: draft_button(picked.any? ? "Change" : "Pick timelapses", "pick_lapse", draft)) ]
   end
 
-  # A modal of all their timelapses, newest first, LapsePicker::PER_PAGE to a page: thumbnail, name and length,
+  # A modal of all their timelapses, newest first, LapsePicker::PER_PAGE to a page (with dividers that is at most
+  # 3 blocks each, inside Slack's 100 a modal): thumbnail, name and length,
   # and a checkbox for the ones that can back this journal. Ones another journal has, or Lapse can't play, say why
   # instead. Ticks are read when the page changes or on "Done" (LapsePickerAction, LapsePickerView).
   def lapse_picker(journal_draft, picker, error: nil)
@@ -134,6 +135,7 @@ module SlackMessages
       recorded = timelapse.recorded_at && " · #{timelapse.recorded_at.in_time_zone(journal_draft.user.timezone).to_date.to_fs(:long)}"
       detail = reason ? "_#{reason.delete_prefix('is ').capitalize}_" : "#{timelapse.duration_text}#{recorded}"
       thumbnail = SlackBot::Blocks.image(timelapse.thumbnail_url, timelapse_name(timelapse)) if timelapse.thumbnail_url.present?
+      blocks << SlackBot::Blocks.divider
       blocks << SlackBot::Blocks.section("*#{escape(timelapse_name(timelapse))}*\n#{detail}", accessory: thumbnail)
       next if reason
 
@@ -143,7 +145,7 @@ module SlackMessages
     end
     pager = [ (SlackBot::Blocks.button("‹ Newer", "lapse_picker:page", value: (page - 1).to_s) if page.positive?),
               (SlackBot::Blocks.button("Older ›", "lapse_picker:page", value: (page + 1).to_s) if page < pages - 1) ].compact
-    blocks << SlackBot::Blocks.actions(pager) if pager.any?
+    blocks += [ SlackBot::Blocks.divider, SlackBot::Blocks.actions(pager) ] if pager.any?
     SlackBot::Blocks.modal("Timelapses Selection", blocks, callback_id: "lapse_picker", submit: "Done", private_metadata: picker.to_json)
   end
 

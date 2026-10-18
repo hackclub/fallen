@@ -21,7 +21,7 @@ class LapseAuthController < ApplicationController
     token = Lapse.exchange_code(params[:code], callback_url, code_verifier: code_verifier(params[:state]))
     current_user.update!(lapse_token: token)
     # A Slack journal prompt that sent them here is redrawn with their timelapses, which also fetches them.
-    prompts = JournalDraft.where(user: current_user).with_live_prompt.to_a
+    prompts = JournalDraft.where(user: current_user).awaiting_prompt.to_a
     prompts.each { |draft| RefreshDraftPromptJob.perform_later(draft) }
     SyncLapseTimelapsesJob.perform_later(current_user) if prompts.empty?
     notice = prompts.any? ? "Lapse connected. Head back to Slack: your journal prompt now lists your timelapses." : "Lapse connected. Pick your timelapses when you journal."

@@ -41,10 +41,11 @@ class JournalDraft < ApplicationRecord
   belongs_to :project
   belongs_to :user
 
-  scope :with_live_prompt, -> { where.not(prompt_url: nil).where(prompt_url_at: PROMPT_URL_LASTS.ago..) }
+  # Drafts whose prompt sent the person off to do something (connect Lapse) and is waiting to be redrawn.
+  scope :awaiting_prompt, -> { where.not(prompt_url: nil).where(prompt_url_at: STALE_AFTER.ago..) }
 
-  # Where its prompt can be redrawn (RefreshDraftPromptJob): the response_url of a button pressed on it, like
-  # "Connect Lapse", whose result shows up somewhere else.
+  # The response_url of a button pressed on its prompt, like "Connect Lapse", whose result shows up somewhere
+  # else. RefreshDraftPromptJob deletes the old prompt through it, while Slack still accepts it, and posts a new one.
   def remember_prompt!(url) = update!(prompt_url: url, prompt_url_at: Time.current)
 
   def prompt_live? = prompt_url.present? && prompt_url_at && prompt_url_at > PROMPT_URL_LASTS.ago
