@@ -24,7 +24,7 @@ Only from the token's `subject`: any `emails` (case-insensitive against `users.e
 | Their projects and journals (text, hours, the tracked time before each and whether the hours went over it, Lapse links, Slack message ids and text), project banners and journal photos | `projects`, `journals`, Active Storage |
 | Their Lapse timelapses as Fallen copied them (Lapse id, name, recorded time, visibility, video and thumbnail links). The videos stay on Lapse | `lapse_timelapses` |
 | Slack thread replies not yet made into a journal (text, Slack message ids, photo names and links) | `journal_drafts` |
-| Time in the Slack huddle (when they joined and left, how each time was known, how long they shared their screen or had their camera on, what they said they were working on), also rows from before they signed up that carry their Slack id | `huddle_sessions` |
+| Time in the Slack huddle (when they joined and left, how each time was known, how long they shared their screen or had their camera on, what they said they were working on and got done, and the Slack DMs that asked them), also rows from before they signed up that carry their Slack id | `huddle_sessions` |
 | Slack's join and leave events for the huddle, by Slack id and time | `huddle_events` |
 | The pet's timer: when they started and stopped the site's timer, paused in the huddle, and which time milestones they were congratulated for | `timer_sessions`, `huddle_pauses`, `time_milestones` |
 | XP earned, line by line (journal XP, bonuses, streak checks) | `xp_entries`, `users.xp` |

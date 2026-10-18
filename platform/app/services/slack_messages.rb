@@ -256,8 +256,8 @@ module SlackMessages
   HUDDLE_STILL_OPTIONS = { "yes" => "yes!", "other" => "no i'm working on something else", "chill" => "no i'm just chilling" }.freeze
 
   # Ephemeral in the huddle's thread on every visit, and again every Huddle::REPROMPT_EVERY messages until they
-  # answer (HuddlePromptJob). Someone coming back with a goal from earlier is asked whether they are still on it.
-  # HuddleGoalAction re-renders it with `error` when the answer is incomplete.
+  # answer (HuddlePromptJob), and in their DMs on joining. Someone coming back with a goal from earlier is asked
+  # whether they are still on it. HuddleGoalAction re-renders it with `error` when the answer is incomplete.
   def huddle_prompt(session, picked: nil, error: nil)
     return huddle_still_prompt(session, picked: picked, error: error) if session.goal.present?
 
@@ -321,6 +321,36 @@ module SlackMessages
   # Posted in the huddle's thread, as their pet, once someone commits to a goal (HuddleCommitJob).
   def huddle_commit(session)
     { text: "<@#{session.slack_id}> is working on #{escape(session.goal)} today!!", **pet_persona(session.user&.pet) }
+  end
+
+  HUDDLE_DONE_INPUT = "done"
+
+  # In their DMs, from their pet, a little while after they leave the huddle (HuddleWrapUpJob). HuddleDoneAction
+  # re-renders it with `error` when the answer is empty.
+  def huddle_wrap_up(session, error: nil)
+    question = if session.mode == "working" && session.goal.present?
+      "Thanks for hanging out! You were working on #{escape(session.goal)}. What did you get done?"
+    else
+      "Thanks for hanging out! What did you get done?"
+    end
+    blocks = [ SlackBot::Blocks.section(question),
+               SlackBot::Blocks.input("I got done", SlackBot::Blocks.plain_text_input(HUDDLE_DONE_INPUT, multiline: true, max_length: 1000), block_id: HUDDLE_DONE_INPUT) ]
+    blocks << SlackBot::Blocks.context(":warning: #{escape(error)}") if error
+    blocks << SlackBot::Blocks.actions(
+      SlackBot::Blocks.button("share it!", "huddle_done:share", value: session.public_id, style: "primary"),
+      SlackBot::Blocks.button("skip", "huddle_done:skip", value: session.public_id)
+    )
+    { text: question, blocks: blocks, **pet_persona(session.user&.pet) }
+  end
+
+  def huddle_done_answer(session)
+    text = session.done.present? ? ":tada: You got done: #{escape(session.done)}" : "No worries, see you next time!"
+    { text: text, blocks: [ SlackBot::Blocks.section(text) ] }
+  end
+
+  # Posted in the huddle's thread, as their pet, once someone says what they got done (HuddleDoneJob).
+  def huddle_done(session)
+    { text: "<@#{session.slack_id}> got this done in the huddle: #{escape(session.done)} :tada:", **pet_persona(session.user&.pet) }
   end
 
   # Only they see it, from their pet, each TimeMilestone::EVERY since their last journal (TimeMilestoneJob).

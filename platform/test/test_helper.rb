@@ -114,7 +114,7 @@ class FakeSlackClient
 
   def method_missing(name, *args, **kwargs)
     @calls << [ name, args.first || kwargs ]
-    Slack::Messages::Message.new(name == :chat_postMessage ? { "ok" => true, "ts" => "1700009999.#{(@counter += 1).to_s.rjust(6, '0')}" } : { "ok" => true, "messages" => [] })
+    Slack::Messages::Message.new(name == :chat_postMessage ? { "ok" => true, "channel" => kwargs[:channel], "ts" => "1700009999.#{(@counter += 1).to_s.rjust(6, '0')}" } : { "ok" => true, "messages" => [] })
   end
 
   def respond_to_missing?(*) = true

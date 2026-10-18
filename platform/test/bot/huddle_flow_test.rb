@@ -216,16 +216,128 @@ class HuddleFlowTest < ActiveSupport::TestCase
     SlackHuddle.reset!
   end
 
+  test "on joining the question also goes to their DMs, which follow an answer given in the thread" do
+    with_fake_slack do |slack|
+      HuddlePromptJob.perform_now(@session, dm: true)
+
+      assert_equal 1, slack.calls_to(:chat_postEphemeral).size
+      dm = slack.calls_to(:chat_postMessage).sole
+      assert_equal [ "U0MEMBER", "Lulu" ], dm.values_at(:channel, :username)
+      assert_equal "huddle_goal:commit", dm[:blocks].last[:elements].first[:action_id]
+      assert_equal [ "U0MEMBER", "1700009999.000001" ], [ @session.reload.dm_channel_id, @session.prompt_dm_ts ]
+
+      press("commit", goal: "Case", channel: "CHUDDLE")
+      perform_enqueued_jobs(only: HuddleDmAnswerJob)
+      update = slack.calls_to(:chat_update).sole
+      assert_equal [ "U0MEMBER", "1700009999.000001" ], update.values_at(:channel, :ts)
+      assert_match "Working on: Case", update[:text]
+    end
+  end
+
+  test "answering in the DM does not update it twice" do
+    @session.update!(dm_channel_id: "U0MEMBER", prompt_dm_ts: "1700009999.000001")
+    with_fake_slack do
+      assert_no_enqueued_jobs(only: HuddleDmAnswerJob) { press("chill", channel: "U0MEMBER") }
+    end
+  end
+
+  test "reprompts in the thread do not DM again" do
+    with_fake_slack do |slack|
+      HuddlePromptJob.perform_now(@session)
+      assert_empty slack.calls_to(:chat_postMessage)
+    end
+  end
+
+  test "leaving asks what they got done a little later" do
+    assert_enqueued_with(job: HuddleWrapUpJob, args: [ @session ]) { @session.leave!(Time.current, "sync") }
+  end
+
+  test "the wrap-up DM asks what they got done on their goal" do
+    @session.update!(joined_at: 1.hour.ago, left_at: 2.minutes.ago, mode: "working", goal: "Case")
+    with_fake_slack do |slack|
+      HuddleWrapUpJob.perform_now(@session)
+
+      dm = slack.calls_to(:chat_postMessage).sole
+      assert_equal [ "U0MEMBER", "Lulu" ], dm.values_at(:channel, :username)
+      assert_equal "Thanks for hanging out! You were working on Case. What did you get done?", dm[:text]
+      assert_equal %w[huddle_done:share huddle_done:skip], dm[:blocks].last[:elements].pluck(:action_id)
+      assert_not_nil @session.reload.wrap_up_asked_at
+
+      HuddleWrapUpJob.perform_now(@session)
+      assert_equal 1, slack.calls_to(:chat_postMessage).size, "asked once"
+    end
+  end
+
+  test "no wrap-up for a short visit, chilling, coming back, or Slack ending the huddle" do
+    with_fake_slack do |slack|
+      @session.update!(left_at: 2.minutes.ago)
+      HuddleWrapUpJob.perform_now(@session)
+
+      @session.update!(joined_at: 1.hour.ago, mode: "chilling")
+      HuddleWrapUpJob.perform_now(@session)
+
+      @session.update!(mode: nil)
+      back = @huddle.sessions.create!(slack_id: "U0MEMBER", joined_at: 1.minute.ago)
+      HuddleWrapUpJob.perform_now(@session)
+
+      back.destroy!
+      @huddle.update!(ended_at: @session.left_at + 10.seconds)
+      HuddleWrapUpJob.perform_now(@session)
+
+      assert_empty slack.calls_to(:chat_postMessage)
+    end
+  end
+
+  test "a visit split by dropped connections counts as one" do
+    @huddle.sessions.create!(slack_id: "U0MEMBER", joined_at: 20.minutes.ago, left_at: 6.minutes.ago)
+    @session.update!(left_at: 2.minutes.ago)
+    with_fake_slack do |slack|
+      HuddleWrapUpJob.perform_now(@session)
+      assert_equal 1, slack.calls_to(:chat_postMessage).size
+    end
+  end
+
+  test "sharing what they got done stores it and tells the huddle" do
+    @session.update!(left_at: 2.minutes.ago)
+    with_fake_slack do |slack|
+      press_done("share", done: " ")
+      assert_includes slack.calls_to(:response_url).last[:body]["blocks"].to_s, "Write what you got done first!"
+
+      press_done("share", done: "Wired the matrix\n")
+      assert_equal "Wired the matrix", @session.reload.done
+      assert_match "You got done: Wired the matrix", slack.calls_to(:response_url).last[:body]["text"]
+
+      perform_enqueued_jobs(only: HuddleDoneJob)
+      post = slack.calls_to(:chat_postMessage).sole
+      assert_equal [ "CHUDDLE", "1700000000.000100", "Lulu" ], post.values_at(:channel, :thread_ts, :username)
+      assert_equal "<@U0MEMBER> got this done in the huddle: Wired the matrix :tada:", post[:text]
+    end
+  end
+
+  test "skipping stores nothing" do
+    with_fake_slack do |slack|
+      assert_no_enqueued_jobs(only: HuddleDoneJob) { press_done("skip") }
+      assert_nil @session.reload.done
+      assert_equal "No worries, see you next time!", slack.calls_to(:response_url).sole[:body]["text"]
+    end
+  end
+
   private
 
   def post_in_thread(ts)
     SlackBot.handle(:event, { "type" => "event_callback", "event" => { "type" => "message", "channel" => "CHUDDLE", "user" => "U0MEMBER", "text" => "hi", "ts" => ts, "thread_ts" => @huddle.thread_ts } })
   end
 
-  def press(choice, goal: nil, still: nil, user: "U0MEMBER")
+  def press(choice, goal: nil, still: nil, user: "U0MEMBER", channel: "CHUDDLE")
     state = { "goal" => { "goal" => { "type" => "plain_text_input", "value" => goal } } }
-    SlackBot.handle(:interaction, { "type" => "block_actions", "user" => { "id" => user }, "trigger_id" => "t", "response_url" => "https://hooks.slack.test/r",
+    SlackBot.handle(:interaction, { "type" => "block_actions", "user" => { "id" => user }, "channel" => { "id" => channel }, "trigger_id" => "t", "response_url" => "https://hooks.slack.test/r",
                                     "state" => { "values" => state }, "actions" => [ { "action_id" => "huddle_goal:#{choice}", "value" => [ @session.public_id, still ].compact.join(":") } ] })
+  end
+
+  def press_done(choice, done: nil)
+    state = { "done" => { "done" => { "type" => "plain_text_input", "value" => done } } }
+    SlackBot.handle(:interaction, { "type" => "block_actions", "user" => { "id" => "U0MEMBER" }, "channel" => { "id" => "U0MEMBER" }, "trigger_id" => "t", "response_url" => "https://hooks.slack.test/r",
+                                    "state" => { "values" => state }, "actions" => [ { "action_id" => "huddle_done:#{choice}", "value" => @session.public_id } ] })
   end
 
   def pick(choice)

@@ -2,7 +2,8 @@
 # "huddle_goal:commit" or "huddle_goal:chill"; on the "still working on it?" prompt, "huddle_goal:pick" is a choice
 # being picked (the session is the block_id) and "huddle_goal:still" submits it (value "<session>:<pick>"). Otherwise
 # the value is the HuddleSession's public id. The answer is stored on that session and on the one they have open
-# now, in case they dropped out and back in before answering.
+# now, in case they dropped out and back in before answering. The prompt is in the thread and their DMs; answering
+# one updates the other's DM copy (HuddleDmAnswerJob).
 class HuddleGoalAction < SlackBot::Action
   def call
     session_id, @picked = (arg == "pick" ? action.block_id : value).to_s.split(":", 2)
@@ -37,10 +38,11 @@ class HuddleGoalAction < SlackBot::Action
   end
 
   def answer(session, mode:, goal:)
-    session.huddle.sessions.where(slack_id: session.slack_id).merge(HuddleSession.ongoing.or(HuddleSession.where(id: session.id)))
-           .update_all(mode: mode, goal: goal, updated_at: Time.current)
+    rows = session.huddle.sessions.where(slack_id: session.slack_id).merge(HuddleSession.ongoing.or(HuddleSession.where(id: session.id))).to_a
+    HuddleSession.where(id: rows.map(&:id)).update_all(mode: mode, goal: goal, updated_at: Time.current)
     reply = SlackMessages.huddle_answer(session.reload)
     update_message(reply[:text], blocks: reply[:blocks])
+    rows.each { |row| HuddleDmAnswerJob.perform_later(row) if row.prompt_dm_ts && row.dm_channel_id != channel_id }
   end
 
   def ask_again(session, error, picked: @picked)

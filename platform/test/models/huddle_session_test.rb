@@ -7,6 +7,7 @@ require "test_helper"
 #  id                  :bigint           not null, primary key
 #  camera_seconds      :integer          default(0), not null
 #  camera_since        :datetime
+#  done                :text
 #  goal                :text
 #  join_source         :string
 #  joined_at           :datetime         not null
@@ -14,11 +15,14 @@ require "test_helper"
 #  leave_source        :string
 #  left_at             :datetime
 #  mode                :string
+#  prompt_dm_ts        :string
 #  prompted_at_count   :integer
 #  screenshare_seconds :integer          default(0), not null
 #  screenshare_since   :datetime
+#  wrap_up_asked_at    :datetime
 #  created_at          :datetime         not null
 #  updated_at          :datetime         not null
+#  dm_channel_id       :string
 #  huddle_id           :bigint           not null
 #  slack_id            :string           not null
 #  user_id             :bigint

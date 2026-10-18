@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_18_130110) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_18_140000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -121,6 +121,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_18_130110) do
     t.integer "screenshare_seconds", default: 0, null: false
     t.datetime "camera_since"
     t.integer "camera_seconds", default: 0, null: false
+    t.string "dm_channel_id"
+    t.string "prompt_dm_ts"
+    t.datetime "wrap_up_asked_at"
+    t.text "done"
     t.index ["huddle_id", "slack_id"], name: "index_huddle_sessions_on_huddle_id_and_slack_id"
     t.index ["huddle_id", "slack_id"], name: "index_huddle_sessions_one_open_per_person", unique: true, where: "(left_at IS NULL)"
     t.index ["slack_id"], name: "index_huddle_sessions_on_slack_id"
