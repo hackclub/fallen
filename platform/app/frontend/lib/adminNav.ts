@@ -1,5 +1,6 @@
 import BriefcaseBusiness from '@lucide/svelte/icons/briefcase-business'
 import FolderOpen from '@lucide/svelte/icons/folder-open'
+import Gauge from '@lucide/svelte/icons/gauge'
 import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard'
 import Users from '@lucide/svelte/icons/users'
 import { adminProjects, adminRoot, adminUsers } from '@/routes'
@@ -28,7 +29,10 @@ export const adminNav: AdminNavSection[] = [
   },
   {
     title: 'System',
-    items: [{ label: 'Jobs', href: '/admin/jobs', icon: BriefcaseBusiness, external: true }],
+    items: [
+      { label: 'Jobs', href: '/admin/jobs', icon: BriefcaseBusiness, external: true },
+      { label: 'Insights', href: '/admin/insights', icon: Gauge, external: true },
+    ],
   },
 ]
 

@@ -54,8 +54,15 @@ In development, the rack-mini-profiler badge at the top left of every page lists
 timings and call sites. Click it after an Inertia visit too; XHR requests are added to it. `?pp=help` lists its
 other modes, including flame graphs.
 
-In production, Sentry traces a sample of requests with spans per query. The database's `pg_stat_statements` view
-shows the most expensive statements over time, and every row's comment says which controller action or job ran it.
+In production:
+
+- `/admin/insights` (ActiveInsights) charts requests per minute and p50/p95/p99 per controller action and job, by
+  day. Start here to find which page or job is slow. Rows older than 30 days are deleted nightly.
+- Sentry traces every request and job (not `/up`) with a span per query, and profiles them, so a slow trace shows
+  the Ruby stack that spent the time. The browser side traces page loads, Inertia visits and Web Vitals, joined to
+  the Rails trace. `SENTRY_TRACES_SAMPLE_RATE` and `SENTRY_PROFILES_SAMPLE_RATE` turn these down when traffic grows.
+- The database's `pg_stat_statements` view (Orchard's query stats) shows the most expensive statements over time,
+  and every row's comment says which controller action or job ran it.
 
 A quick local check that scales the data: `bin/rails db:seed` creates a handful of records; the query budget test
 with fixtures catches per-row patterns because the fixtures have more than one project and journal per person.

@@ -9,6 +9,10 @@ production:
     command: "SolidCable::Message.trimmable.delete_all"
     schedule: every hour at minute 42
 
+  clear_active_insights:
+    command: "[ActiveInsights::Request, ActiveInsights::Job].each { it.where(started_at: ...30.days.ago).delete_all }"
+    schedule: every day at 4:17am
+
   close_week:
     class: CloseWeekJob
     queue: background

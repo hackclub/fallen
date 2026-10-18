@@ -58,6 +58,8 @@ Rails.application.routes.draw do
       resources :projects, only: %i[index show update]
       mount MissionControl::Jobs::Engine, at: "jobs"
     end
+    # Outside the namespace so the route proxy keeps the name the engine's views call (`active_insights`).
+    mount ActiveInsights::Engine, at: "admin/insights"
   end
 
   # Development/test only: sign in without Hack Club Auth (see DevController and db/seeds.rb).

@@ -50,6 +50,10 @@ gem "aws-sdk-s3", require: false
 gem "rack-attack", "~> 6.7"
 gem "sentry-ruby", "~> 7.0"
 gem "sentry-rails", "~> 7.0"
+# Sentry profiles: Ruby stacks for sampled traces
+gem "vernier", "~> 1.11"
+# Per-action request and job timings at /admin/insights
+gem "activeinsights", "~> 1.3"
 
 # Refuses migrations that lock a table or run unindexed (docs/performance.md)
 gem "strong_migrations", "~> 2.8"

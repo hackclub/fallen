@@ -43,6 +43,8 @@ Sessions are signed cookies holding the user id, so they stop working once the r
 - Solid Queue job rows can hold a user's GlobalID (`gid://fallen/User/1`) or a raw Slack event payload until they
   are cleared (finished jobs after a day by default). They are not searched.
 - Sentry events and application logs are not touched. They expire on their own retention.
+- Request timings for `/admin/insights` (`active_insights_requests`) keep the path, controller, status and timings,
+  but no user, IP or user agent. They are deleted after 30 days.
 - Lapse is its own service. The timelapses stay on the person's Lapse account, and disconnecting only forgets the token.
 - Slack itself is not ours to delete from. Project threads and journal messages stay in the workspace.
 - Stray posts in the journals channel are deleted through Prometheus, which keeps their text in its private audit

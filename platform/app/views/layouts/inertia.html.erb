@@ -7,6 +7,8 @@
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
     <% if ENV["SENTRY_FRONTEND_DSN"].present? %><meta name="sentry-dsn" content="<%= ENV["SENTRY_FRONTEND_DSN"] %>"><% end %>
+    <%# Lets the browser's page-load trace continue this request's trace. %>
+    <% Sentry.get_trace_propagation_headers&.each do |name, content| %><%= tag.meta(name:, content:) %><% end %>
 
     <link rel="icon" href="/favicon.ico" sizes="48x48">
     <link rel="icon" href="/icon.png" type="image/png">
