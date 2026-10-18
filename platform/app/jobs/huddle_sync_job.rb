@@ -62,14 +62,23 @@ class HuddleSyncJob < ApplicationJob
     users = User.kept.where(slack_id: arrived).index_by(&:slack_id)
     earlier = huddle.sessions.where(slack_id: arrived).order(:joined_at).index_by(&:slack_id)
     carried = huddle.carried_over(arrived - earlier.keys, at: now)
-    arrived.each do |slack_id|
-      before = earlier[slack_id] || carried[slack_id]
-      # Asked once per huddle, unless they already answered in the last one.
-      ask = earlier[slack_id].nil? && before&.mode.nil?
-      session = huddle.sessions.create!(slack_id: slack_id, user: users[slack_id], joined_at: now, mode: before&.mode, goal: before&.goal,
-                                        prompted_at_count: ask ? huddle.message_count : earlier[slack_id]&.prompted_at_count)
-      HuddlePromptJob.perform_later(session) if ask
+    arrived.each { |slack_id| arrive(huddle, slack_id, users[slack_id], earlier[slack_id], carried[slack_id], now) }
+  end
+
+  # Everyone is asked on every visit; someone who was working on something is asked whether they still are. A
+  # dropped connection, or coming over from the last huddle when Slack restarted it, keeps the answer instead.
+  def arrive(huddle, slack_id, user, earlier, carried, now)
+    kept = earlier if earlier && earlier.left_at > now - Huddle::REJOIN_QUIET
+    kept ||= carried if carried&.mode
+    attributes = if kept
+      { mode: kept.mode, goal: kept.goal, prompted_at_count: kept.prompted_at_count }
+    else
+      previous = earlier || carried
+      { goal: (previous.goal unless previous.nil? || previous.mode == "chilling"), prompted_at_count: huddle.message_count }
     end
+
+    session = huddle.sessions.create!(slack_id: slack_id, user: user, joined_at: now, **attributes)
+    HuddlePromptJob.perform_later(session) unless kept
   end
 
   def hand_off(huddle)

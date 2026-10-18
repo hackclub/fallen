@@ -3,6 +3,9 @@
 # share the user bot's secrets. If any of them stops, the others are stopped too so the container exits and gets
 # restarted.
 
+# The web container migrates too, but this one can boot first and would run new code against the old schema.
+./bin/rails db:prepare
+
 ./bin/jobs &
 ./bin/slack-typing &
 node script/slack_huddle.mjs &

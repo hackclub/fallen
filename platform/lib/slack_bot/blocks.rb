@@ -58,6 +58,10 @@ module SlackBot
       }.compact
     end
 
+    def radio_buttons(action_id, options, initial: nil)
+      { type: "radio_buttons", action_id: action_id, options: options, initial_option: initial }.compact
+    end
+
     def checkboxes(action_id, options, initial: nil)
       { type: "checkboxes", action_id: action_id, options: options, initial_options: initial.presence }.compact
     end

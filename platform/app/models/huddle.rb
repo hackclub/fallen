@@ -29,6 +29,8 @@ class Huddle < ApplicationRecord
   HANDOFF_WITHIN = 1.hour
   # Someone who was in the last huddle when it ended and joins this one this soon after it started keeps their answer.
   CARRY_OVER = 15.minutes
+  # Leaving and coming back this fast is a dropped connection, not a new visit, so it is not asked about.
+  REJOIN_QUIET = 2.minutes
   # Someone who has not answered is asked again after this many messages in the huddle's thread.
   REPROMPT_EVERY = 10
 

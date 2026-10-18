@@ -2,6 +2,7 @@ require "test_helper"
 
 class HuddleSyncJobTest < ActiveSupport::TestCase
   include ActiveJob::TestHelper
+  include ActiveSupport::Testing::TimeHelpers
 
   CHANNEL = "CHUDDLE"
   BOT = "U0BOT"
@@ -20,16 +21,35 @@ class HuddleSyncJobTest < ActiveSupport::TestCase
     assert_nil huddle.sessions.find_by(slack_id: "U0STRANGER").user
   end
 
-  test "closes the session of someone who left and only asks once when they come back" do
+  test "closes the session of someone who left and asks whether they are still on it when they come back" do
     huddle = Huddle.create!(call_id: "R1", channel_id: CHANNEL, thread_ts: "1700000000.000100", started_at: 1.hour.ago)
     huddle.sessions.create!(slack_id: "U0MEMBER", user: users(:member), joined_at: 30.minutes.ago, mode: "working", goal: "Case")
 
     sync(fake_browser(room: room("R1", %w[U0BOT])))
     assert_not_nil huddle.sessions.sole.left_at
 
+    travel Huddle::REJOIN_QUIET + 1.second do
+      assert_enqueued_jobs(1, only: HuddlePromptJob) { sync(fake_browser(room: room("R1", %w[U0BOT U0MEMBER]))) }
+    end
+    back = huddle.sessions.ongoing.sole
+    assert_equal [ nil, "Case" ], [ back.mode, back.goal ]
+  end
+
+  test "a dropped connection keeps the answer and is not asked again" do
+    huddle = Huddle.create!(call_id: "R1", channel_id: CHANNEL, started_at: 1.hour.ago)
+    huddle.sessions.create!(slack_id: "U0MEMBER", joined_at: 30.minutes.ago, left_at: 30.seconds.ago, mode: "working", goal: "Case", prompted_at_count: 3)
+
     assert_no_enqueued_jobs(only: HuddlePromptJob) { sync(fake_browser(room: room("R1", %w[U0BOT U0MEMBER]))) }
     back = huddle.sessions.ongoing.sole
-    assert_equal [ "working", "Case" ], [ back.mode, back.goal ]
+    assert_equal [ "working", "Case", 3 ], [ back.mode, back.goal, back.prompted_at_count ]
+  end
+
+  test "someone who was chilling is asked the first question again" do
+    huddle = Huddle.create!(call_id: "R1", channel_id: CHANNEL, started_at: 1.hour.ago)
+    huddle.sessions.create!(slack_id: "U0MEMBER", joined_at: 30.minutes.ago, left_at: 10.minutes.ago, mode: "chilling")
+
+    assert_enqueued_jobs(1, only: HuddlePromptJob) { sync(fake_browser(room: room("R1", %w[U0BOT U0MEMBER]))) }
+    assert_nil huddle.sessions.ongoing.sole.goal
   end
 
   test "an empty participant list leaves everyone where they are" do

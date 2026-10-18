@@ -157,11 +157,15 @@ module SlackMessages
   end
 
   HUDDLE_GOAL_INPUT = "goal"
+  HUDDLE_STILL_INPUT = "still"
+  HUDDLE_STILL_OPTIONS = { "yes" => "yes!", "other" => "no i'm working on something else", "chill" => "no i'm just chilling" }.freeze
 
-  # Ephemeral in the huddle's thread when someone joins it, and again every Huddle::REPROMPT_EVERY messages until
-  # they answer (HuddlePromptJob). HuddleGoalAction re-renders it with `error` when "commit!" is pressed with
-  # nothing typed.
+  # Ephemeral in the huddle's thread on every visit, and again every Huddle::REPROMPT_EVERY messages until they
+  # answer (HuddlePromptJob). Someone coming back with a goal from earlier is asked whether they are still on it.
+  # HuddleGoalAction re-renders it with `error` when the answer is incomplete.
   def huddle_prompt(session, error: nil)
+    return huddle_still_prompt(session, error: error) if session.goal.present?
+
     question = "<@#{session.slack_id}> what are you working on today?"
     blocks = [ SlackBot::Blocks.section(question),
                SlackBot::Blocks.input("Today I'm working on", SlackBot::Blocks.plain_text_input(HUDDLE_GOAL_INPUT, max_length: 500), block_id: HUDDLE_GOAL_INPUT) ]
@@ -170,6 +174,19 @@ module SlackMessages
       SlackBot::Blocks.button("commit!", "huddle_goal:commit", value: session.public_id, style: "primary"),
       SlackBot::Blocks.button("i'm just chilling here rn!", "huddle_goal:chill", value: session.public_id)
     )
+    { text: question, blocks: blocks, **pet_persona(session.user&.pet) }
+  end
+
+  def huddle_still_prompt(session, error: nil)
+    question = "<@#{session.slack_id}> are you still working on #{escape(session.goal)}?"
+    options = HUDDLE_STILL_OPTIONS.map { |value, label| SlackBot::Blocks.option(label, value) }
+    blocks = [
+      SlackBot::Blocks.section(question),
+      SlackBot::Blocks.input("Still on it?", SlackBot::Blocks.radio_buttons(HUDDLE_STILL_INPUT, options), block_id: HUDDLE_STILL_INPUT),
+      SlackBot::Blocks.input("Something else", SlackBot::Blocks.plain_text_input(HUDDLE_GOAL_INPUT, max_length: 500), block_id: HUDDLE_GOAL_INPUT, optional: true)
+    ]
+    blocks << SlackBot::Blocks.context(":warning: #{escape(error)}") if error
+    blocks << SlackBot::Blocks.actions(SlackBot::Blocks.button("submit", "huddle_goal:still", value: session.public_id, style: "primary"))
     { text: question, blocks: blocks, **pet_persona(session.user&.pet) }
   end
 

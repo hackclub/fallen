@@ -97,9 +97,10 @@ message is the project; each reply by the owner is a journal. Both sides stay in
   sound. Slack stops every huddle after 24 hours; when that or anything else ends the connection, it joins again.
 - `bin/slack-typing` also hears people join and leave that huddle and runs `HuddleSyncJob` (and every minute in case it
   missed one), which keeps `Huddle` and `HuddleSession` rows: who was in it and when, plus what they said they were
-  working on. Someone joining gets a hidden "what are you working on today?" in the huddle's thread, from their pet,
-  and again every 10 thread messages until they answer (`HuddlePromptJob`, `HuddleGoalAction`); committing posts
-  their goal in the thread (`HuddleCommitJob`). When Slack ends a huddle, the people still in it are mentioned in the
+  working on. Everyone joining gets a hidden "what are you working on today?" in the huddle's thread, from their pet
+  ("are you still working on ...?" when they had a goal), and again every 10 thread messages until they answer
+  (`HuddlePromptJob`, `HuddleGoalAction`); committing posts their goal in the thread (`HuddleCommitJob`). Dropping out
+  for under 2 minutes keeps the answer. When Slack ends a huddle, the people still in it are mentioned in the
   new huddle's thread and rung into it (`HuddleHandoffJob`, `rooms.notifyMember`), and keep their answer if they join
   within 15 minutes. A huddle that has run 12 hours with only the bot in it is restarted. The bot needs to be in the
   huddle channel.

@@ -29,12 +29,15 @@ class HuddleFlowTest < ActiveSupport::TestCase
     end
   end
 
-  test "commit stores the goal on every session they have in the huddle" do
-    earlier = @huddle.sessions.create!(slack_id: "U0MEMBER", joined_at: 50.minutes.ago, left_at: 40.minutes.ago)
+  test "commit stores the goal on that session and the one they have open now" do
+    earlier = @huddle.sessions.create!(slack_id: "U0MEMBER", joined_at: 50.minutes.ago, left_at: 40.minutes.ago, mode: "chilling")
+    @session.update!(joined_at: 10.minutes.ago, left_at: 6.minutes.ago)
+    now = @huddle.sessions.create!(slack_id: "U0MEMBER", joined_at: 5.minutes.ago)
     with_fake_slack do |slack|
       press("commit", goal: "  Soldering the  keyboard ")
 
-      assert_equal [ [ "working", "Soldering the keyboard" ] ], [ @session.reload, earlier.reload ].map { |s| [ s.mode, s.goal ] }.uniq
+      assert_equal [ [ "working", "Soldering the keyboard" ] ], [ @session.reload, now.reload ].map { |s| [ s.mode, s.goal ] }.uniq
+      assert_equal "chilling", earlier.reload.mode
       assert_match "Soldering the keyboard", slack.calls_to(:response_url).sole[:body]["text"]
 
       perform_enqueued_jobs
@@ -76,6 +79,50 @@ class HuddleFlowTest < ActiveSupport::TestCase
     end
   end
 
+  test "coming back with a goal asks whether they are still on it" do
+    @session.update!(goal: "Case")
+    with_fake_slack do |slack|
+      HuddlePromptJob.perform_now(@session)
+
+      prompt = slack.calls_to(:chat_postEphemeral).sole
+      assert_equal "<@U0MEMBER> are you still working on Case?", prompt[:text]
+      assert_equal %w[yes other chill], prompt[:blocks][1][:element][:options].map { |option| option[:value] }
+      assert_equal "huddle_goal:still", prompt[:blocks].last[:elements].sole[:action_id]
+    end
+  end
+
+  test "still on it keeps the goal without announcing it again" do
+    @session.update!(goal: "Case")
+    with_fake_slack do |slack|
+      press("still", still: "yes")
+      assert_equal [ "working", "Case" ], [ @session.reload.mode, @session.goal ]
+      assert_no_enqueued_jobs only: HuddleCommitJob
+    end
+  end
+
+  test "working on something else needs it written and announces it" do
+    @session.update!(goal: "Case")
+    with_fake_slack do |slack|
+      press("still", still: "other", goal: "")
+      assert_nil @session.reload.mode
+      assert_includes slack.calls_to(:response_url).last[:body]["blocks"].to_s, "Write what you're working on first!"
+
+      assert_enqueued_with(job: HuddleCommitJob) { press("still", still: "other", goal: "Firmware") }
+      assert_equal [ "working", "Firmware" ], [ @session.reload.mode, @session.goal ]
+    end
+  end
+
+  test "still prompt: chilling, or nothing picked" do
+    @session.update!(goal: "Case")
+    with_fake_slack do |slack|
+      press("still")
+      assert_includes slack.calls_to(:response_url).last[:body]["blocks"].to_s, "Pick one!"
+
+      press("still", still: "chill")
+      assert_equal [ "chilling", nil ], [ @session.reload.mode, @session.goal ]
+    end
+  end
+
   test "only the person asked can answer" do
     with_fake_slack do
       press("chill", user: "U0ADMIN")
@@ -108,8 +155,9 @@ class HuddleFlowTest < ActiveSupport::TestCase
     SlackBot.handle(:event, { "type" => "event_callback", "event" => { "type" => "message", "channel" => "CHUDDLE", "user" => "U0MEMBER", "text" => "hi", "ts" => ts, "thread_ts" => @huddle.thread_ts } })
   end
 
-  def press(choice, goal: nil, user: "U0MEMBER")
+  def press(choice, goal: nil, still: nil, user: "U0MEMBER")
     state = { "goal" => { "goal" => { "type" => "plain_text_input", "value" => goal } } }
+    state["still"] = { "still" => { "type" => "radio_buttons", "selected_option" => still && { "value" => still } } }
     SlackBot.handle(:interaction, { "type" => "block_actions", "user" => { "id" => user }, "trigger_id" => "t", "response_url" => "https://hooks.slack.test/r",
                                     "state" => { "values" => state }, "actions" => [ { "action_id" => "huddle_goal:#{choice}", "value" => @session.public_id } ] })
   end
