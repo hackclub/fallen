@@ -6,6 +6,10 @@ Rails.application.routes.draw do
 
   get "up" => "rails/health#show", as: :rails_health_check
 
+  # Built assets are served before routing, so this only sees missing ones. Cloudflare caches a 404 on a .js path,
+  # and a chunk asked for while a deploy's new pod is starting would otherwise stay broken at the edge after it.
+  get "vite/*path", format: false, to: ->(_env) { [ 404, { "cache-control" => "no-store", "content-type" => "text/plain" }, [ "Not found" ] ] }
+
   root "landing#index"
   get "home" => "home#index", as: :home
   get "docs(/:page)" => "docs#show", as: :docs, constraints: { page: /[a-z0-9-]+/ }
