@@ -10,6 +10,8 @@ class UserPolicy < ApplicationPolicy
   def watch_hatch? = record == user && !user_impersonating?
   # Starting and stopping their timer, or ringing themselves into the huddle. Not an admin browsing as them.
   def track_time? = record == user && !user_impersonating?
+  # Journal photos and project banners (UploadsController). Banned people are redirected before this runs.
+  def upload? = record == user
 
   # Admins can browse as regular, active users only; never as other staff or while already impersonating.
   def impersonate?

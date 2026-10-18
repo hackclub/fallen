@@ -17,6 +17,11 @@ class Rack::Attack
   throttle("req/user", limit: 300, period: 5.minutes) { |req| req.session[:user_id] }
   throttle("req/ip", limit: 1500, period: 5.minutes) { |req| req.ip if req.session[:user_id].blank? }
 
+  # Each upload holds a Puma thread while it goes on to R2 (UploadsController).
+  throttle("uploads/user", limit: 60, period: 10.minutes) do |req|
+    req.session[:user_id] if req.post? && req.path == "/uploads"
+  end
+
   throttle("auth/start/ip", limit: 60, period: 1.minute) do |req|
     req.ip if req.path == "/auth/hca/start"
   end

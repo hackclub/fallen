@@ -36,6 +36,7 @@ Rails.application.routes.draw do
   resource :timer, only: %i[show create destroy]
   resource :huddle_invite, only: :create
   resource :huddle_pause, only: %i[create destroy]
+  resources :uploads, only: :create
 
   resources :projects do
     resources :journals, only: %i[create update destroy], shallow: true

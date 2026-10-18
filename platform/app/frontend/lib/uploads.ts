@@ -1,5 +1,3 @@
-import { DirectUpload } from '@rails/activestorage'
-
 export interface UploadedImage {
   id: string
   url: string
@@ -9,30 +7,33 @@ export interface UploadedImage {
 export const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp']
 export const MAX_IMAGE_BYTES = 10 * 1024 * 1024
 
-// DirectUpload reads the token from the <meta> tag, which Inertia never re-renders, so it goes stale once
-// sign-in resets the session. inertia_rails keeps the XSRF-TOKEN cookie current, so copy that over first.
-function refreshCsrfMeta() {
+// The <meta> CSRF token goes stale once sign-in resets the session, since Inertia never re-renders it.
+// inertia_rails keeps the XSRF-TOKEN cookie current, so read that instead.
+function csrfToken() {
   const token = document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]*)/)?.[1]
-  const meta = document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')
-  if (token && meta) meta.content = decodeURIComponent(token)
+  return token ? decodeURIComponent(token) : ''
 }
 
-// Uploads straight to storage through Active Storage's direct upload endpoint and returns the blob's
-// signed id plus the redirect URL that serves it (ActiveStorage's own route, not one of ours).
-export function uploadImage(file: File, directUploadUrl: string): Promise<UploadedImage> {
-  return new Promise((resolve, reject) => {
-    if (!IMAGE_TYPES.includes(file.type))
-      return reject(new Error(`${file.name} is not a PNG, JPEG, GIF or WebP`))
-    if (file.size > MAX_IMAGE_BYTES) return reject(new Error(`${file.name} is over 10 MB`))
+// Posts the file to UploadsController, which stores it and returns the blob's signed id. The URL is Active
+// Storage's own redirect route, not one of ours. (Direct uploads to R2 come back once the bucket allows CORS.)
+export async function uploadImage(file: File, uploadUrl: string): Promise<UploadedImage> {
+  if (!IMAGE_TYPES.includes(file.type)) throw new Error(`${file.name} is not a PNG, JPEG, GIF or WebP`)
+  if (file.size > MAX_IMAGE_BYTES) throw new Error(`${file.name} is over 10 MB`)
 
-    refreshCsrfMeta()
-    new DirectUpload(file, directUploadUrl).create((error, blob) => {
-      if (error) return reject(error)
-      resolve({
-        id: blob.signed_id,
-        url: `/rails/active_storage/blobs/redirect/${blob.signed_id}/${encodeURIComponent(blob.filename)}`,
-        filename: blob.filename,
-      })
-    })
+  const body = new FormData()
+  body.append('file', file)
+  const response = await fetch(uploadUrl, {
+    method: 'POST',
+    body,
+    headers: { 'X-CSRF-Token': csrfToken(), Accept: 'application/json' },
+    credentials: 'same-origin',
   })
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(data.error ?? `Couldn't upload ${file.name} (${response.status})`)
+
+  return {
+    id: data.signed_id,
+    url: `/rails/active_storage/blobs/redirect/${data.signed_id}/${encodeURIComponent(data.filename)}`,
+    filename: data.filename,
+  }
 }

@@ -12,7 +12,7 @@ class ProjectsController < ApplicationController
     render inertia: "Projects/Index", props: {
       projects: ProjectSerializer.render(projects, **Project.journal_totals(projects), covers: Project.journal_covers(projects)),
       slack: slack_props,
-      direct_upload_url: rails_direct_uploads_path,
+      direct_upload_url: uploads_path,
       can: { create: policy(Project).create? }
     }
   end
@@ -27,7 +27,7 @@ class ProjectsController < ApplicationController
       owner: { name: @project.user.display_name, avatar: @project.user.avatar_url },
       pagy: pagy_props(pagy),
       slack: slack_props,
-      direct_upload_url: rails_direct_uploads_path,
+      direct_upload_url: uploads_path,
       lapse: InertiaRails.defer { lapse_props(timelapses: true) if @project.user_id == current_user.id },
       can: { update: policy(@project).update?, destroy: policy(@project).destroy?, journal: policy(@project.journals.build(user: current_user)).create? }
     }
@@ -35,7 +35,7 @@ class ProjectsController < ApplicationController
 
   def new
     authorize Project
-    render inertia: "Projects/Form", props: { project: nil, direct_upload_url: rails_direct_uploads_path }
+    render inertia: "Projects/Form", props: { project: nil, direct_upload_url: uploads_path }
   end
 
   def create
@@ -52,7 +52,7 @@ class ProjectsController < ApplicationController
 
   def edit
     authorize @project
-    render inertia: "Projects/Form", props: { project: ProjectSerializer.render(@project), direct_upload_url: rails_direct_uploads_path }
+    render inertia: "Projects/Form", props: { project: ProjectSerializer.render(@project), direct_upload_url: uploads_path }
   end
 
   def update
