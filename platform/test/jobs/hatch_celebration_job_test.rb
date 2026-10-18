@@ -10,7 +10,8 @@ class HatchCelebrationJobTest < ActiveJob::TestCase
       assert_equal "Lulu", message[:username]
       assert message[:icon_url].end_with?("/static-assets/pets/lulu-pfp.png")
       assert message[:text].start_with?(":yay-cat: YAY YOU DID IT!! :yay-cat:")
-      assert message[:text].end_with?("*p.s. check your mail! we have a note for you :3c:*")
+      assert_equal "context", message[:blocks].last[:type]
+      assert_equal "p.s. check your mailbox in a few days! (the physical one) we have a note for you :3c:", message[:blocks].last[:elements].sole[:text]
       assert_includes message[:text], "\n\n- lulu\n\n"
     end
   end

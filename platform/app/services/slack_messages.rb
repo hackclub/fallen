@@ -48,10 +48,9 @@ module SlackMessages
       Remember to attach images for each journal!!
 
       - #{pet}
-
-      *p.s. check your mail! we have a note for you :3c:*
     TEXT
-    { text: text, **pet_persona(pet) }
+    ps = "p.s. check your mailbox in a few days! (the physical one) we have a note for you :3c:"
+    { text: "#{text}\n\n#{ps}", blocks: [ SlackBot::Blocks.section(text), SlackBot::Blocks.context(ps) ], **pet_persona(pet) }
   end
 
   def stray_post(text, removed:)
