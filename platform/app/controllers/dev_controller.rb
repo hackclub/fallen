@@ -1,6 +1,7 @@
 # Development/test-only sign in, standing in for Hack Club Auth. Not routed in production (see config/routes.rb).
 class DevController < ApplicationController
   allow_unauthenticated_access only: %i[index create sign_in_as] # Signing in is what these are for; skip_slack needs a session
+  allow_trial_access only: %i[index create sign_in_as] # Without HCA set up, auth#new sends trial accounts here
   skip_before_action :redirect_banned_user!, only: %i[index create sign_in_as] # So a banned test account can switch away
   skip_after_action :verify_policy_scoped # Local-only: lists every account on purpose
   skip_after_action :verify_authorized # Local-only, no resource

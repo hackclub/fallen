@@ -7,6 +7,13 @@ class DevTest < ActionDispatch::IntegrationTest
     assert_not_includes response.body, users(:member).hca_id
   end
 
+  test "a trial account can still reach the account switcher" do
+    post trial_session_path, params: { email: "trial@example.com" }
+    inertia_props(dev_path, "Dev/Index")
+    get dev_sign_in_as_path(users(:member).public_id)
+    assert_redirected_to home_path
+  end
+
   test "searches accounts" do
     props = inertia_props(dev_path(q: users(:admin).display_name), "Dev/Index")
     assert_includes props["users"].pluck("id"), users(:admin).public_id

@@ -67,7 +67,7 @@
         Get started
       </h2>
       <p class="mx-auto mt-2 max-w-md font-montserrat text-sm text-pale-blue md:text-base">
-        Enter your email. If you have a Hack Club account, you'll sign in with it.
+        Enter your email! For teens 13-18.
       </p>
 
       <div class="mt-7 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center md:mt-9 md:gap-4">

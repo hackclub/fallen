@@ -5,13 +5,15 @@
   // The frame every prompt sits in: a night-blue panel with a lighter rim, a gold pin in each corner and a title
   // over a hooked rule. Inside it the paper colours are swapped for night ones (see .ornate-panel), so forms built
   // for paper (ProjectFields, MarkdownEditor) read right on it unchanged. Escape is left to the caller, which may
-  // want it to step back rather than close. Without `onClose` it can't be dismissed.
+  // want it to step back rather than close. Without `onClose` it can't be dismissed. `backdropClass` moves the panel
+  // within the backdrop.
   let {
     titleId,
     title,
     eyebrow,
     onClose,
     class: className = 'max-w-xl',
+    backdropClass = '',
     children,
   }: {
     titleId: string
@@ -19,12 +21,13 @@
     eyebrow?: string
     onClose?: () => void
     class?: string
+    backdropClass?: string
     children: Snippet
   } = $props()
 </script>
 
 <div
-  class="ornate-backdrop fixed inset-0 z-50 flex items-center justify-center overflow-auto p-2 md:p-6"
+  class="ornate-backdrop fixed inset-0 z-50 flex items-center justify-center overflow-auto p-2 md:p-6 {backdropClass}"
   role="dialog"
   aria-modal="true"
   aria-labelledby={titleId}

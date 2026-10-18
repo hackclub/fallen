@@ -40,6 +40,7 @@
   import { FINAL_FORM, PET_FORMS, PET_NAMES, hatch, petState } from '@/lib/pet.svelte'
   import { PET_HOME_EVENT, preferences } from '@/lib/preferences.svelte'
   import { shared } from '@/lib/shared.svelte'
+  import { slackGateDue } from '@/lib/slackGate.svelte'
   import { timer as tracked, watchTimer } from '@/lib/timer.svelte'
   import TimerPrompt, { PROMPT_WIDTH } from '@/components/TimerPrompt.svelte'
   import PetTimer from '@/components/PetTimer.svelte'
@@ -56,7 +57,7 @@
   // At least this form, whatever the server says: a hatch previewed in development (Shift+K) leaves the pet hatched.
   let floor = $state(0)
   const src = $derived(pet ? PET_FORMS[pet][Math.max(shown, floor)] : undefined)
-  const visible = $derived(!!src && !petState.onboarding && preferences.pet)
+  const visible = $derived(!!src && !petState.onboarding && !slackGateDue() && preferences.pet)
 
   let root: HTMLDivElement
   let flight: HTMLElement

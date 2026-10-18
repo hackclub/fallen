@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, type Snippet } from 'svelte'
-  import { Link } from '@inertiajs/svelte'
+  import { Link, page } from '@inertiajs/svelte'
   import Toasts from '@/components/Toasts.svelte'
   import OnboardingOverlay from '@/components/onboarding/OnboardingOverlay.svelte'
   import HatchOverlay from '@/components/hatch/HatchOverlay.svelte'
@@ -12,6 +12,7 @@
   import Wordmark from '@/components/Wordmark.svelte'
   import { adminRoot, home, signIn } from '@/routes'
   import { shared } from '@/lib/shared.svelte'
+  import { slackGateDue } from '@/lib/slackGate.svelte'
   import { pages, warmPages } from '@/lib/pages'
   import sky from '@/assets/hero/starry-bg.webp'
   import building from '@/assets/hero/building-1.webp'
@@ -19,6 +20,10 @@
   let { children }: { children?: Snippet } = $props()
 
   const user = $derived(shared().auth.user)
+  // Someone only checking the docs reads them first; the onboarding greets them on the next page.
+  const readingDocs = $derived(page.component === 'Docs/Show')
+  // While the Slack gate is up the rail sits above its backdrop, so the docs and project pages stay reachable.
+  const gated = $derived(slackGateDue())
 
   onMount(warmPages)
 </script>
@@ -37,7 +42,10 @@
     <div class="relative flex flex-1 flex-col md:flex-row">
       <!-- Rail: logo, nav and the name tag, pinned while the page scrolls. Offsets are the Figma frame's. -->
       <aside
-        class="relative flex flex-col gap-6 px-4 pt-6 md:sticky md:top-0 md:h-dvh md:w-[300px] md:shrink-0 md:gap-0 md:px-0 md:pt-[37px] md:pb-[42px]"
+        class={[
+          'relative flex flex-col gap-6 px-4 pt-6 md:sticky md:top-0 md:h-dvh md:w-[300px] md:shrink-0 md:gap-0 md:px-0 md:pt-[37px] md:pb-[42px]',
+          gated && 'z-[60]',
+        ]}
       >
         <img
           src={building}
@@ -74,7 +82,7 @@
         >
           <Toasts />
           <DesktopPet />
-          <OnboardingOverlay greet />
+          <OnboardingOverlay greet={!readingDocs} />
           <HatchOverlay />
           <SlackGate />
           {@render children?.()}
