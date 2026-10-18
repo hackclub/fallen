@@ -14,6 +14,7 @@
 #  id                  :bigint           not null, primary key
 #  camera_seconds      :integer          default(0), not null
 #  camera_since        :datetime
+#  deducted_seconds    :integer          default(0), not null
 #  done                :text
 #  goal                :text
 #  join_source         :string
@@ -120,14 +121,38 @@ class HuddleSession < ApplicationRecord
     visit.total_seconds >= WRAP_UP_MIN
   end
 
-  # This person's sessions in this huddle since they were last asked what they got done.
+  # What this visit counted on the pet (TrackedTime), asked about in the wrap-up DM.
+  def visit_seconds = visit_counted.sum { |_, seconds| seconds }
+
+  # Takes `seconds` they said were not really work off this visit, newest session first, each no more than it
+  # counted, so TrackedTime can cut every session on its own.
+  def deduct_from_visit!(seconds)
+    visit_counted.reverse_each do |session, counted|
+      cut = [ seconds, counted ].min
+      seconds -= cut
+      session.update!(deducted_seconds: cut)
+    end
+  end
+
+  # This person's sessions in this huddle since they were last asked what they got done, before this one.
   def visit
     mine = huddle.sessions.where(slack_id: slack_id)
-    asked = mine.where.not(wrap_up_asked_at: nil).maximum(:left_at)
+    asked = mine.where.not(wrap_up_asked_at: nil).where(left_at: ...left_at).maximum(:left_at)
     mine.where(joined_at: (asked || huddle.started_at)..left_at)
   end
 
   private
+
+  # [session, seconds it counted] for this visit, oldest first: the sessions they were not just chilling in, less
+  # any time they paused.
+  def visit_counted
+    sessions = visit.where(mode: nil).or(visit.where.not(mode: "chilling")).order(:joined_at).to_a
+    return [] if sessions.empty?
+
+    pauses = user ? user.huddle_pauses.where(started_at: ...left_at).where("ended_at IS NULL OR ended_at > ?", sessions.first.joined_at).pluck(:started_at, :ended_at) : []
+    holes = TrackedTime.union(pauses.map { |from, to| [ from, to || left_at ] })
+    sessions.map { |session| [ session, TrackedTime.total(TrackedTime.subtract([ [ session.joined_at, session.left_at ] ], holes)) ] }
+  end
 
   # Opens or closes a stretch of screenshare or camera time.
   def stretch(name, on, at)

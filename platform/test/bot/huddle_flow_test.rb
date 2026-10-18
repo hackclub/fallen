@@ -260,7 +260,7 @@ class HuddleFlowTest < ActiveSupport::TestCase
       dm = slack.calls_to(:chat_postMessage).sole
       assert_equal [ "U0MEMBER", "Lulu" ], dm.values_at(:channel, :username)
       assert_equal "Thanks for hanging out! You were working on Case. What did you get done?", dm[:text]
-      assert_equal %w[huddle_done:share huddle_done:skip], dm[:blocks].last[:elements].pluck(:action_id)
+      assert_equal [ [ "huddle_done:share", "save" ] ], dm[:blocks].last[:elements].map { |button| [ button[:action_id], button[:text][:text] ] }
       assert_not_nil @session.reload.wrap_up_asked_at
 
       HuddleWrapUpJob.perform_now(@session)
@@ -314,7 +314,39 @@ class HuddleFlowTest < ActiveSupport::TestCase
     end
   end
 
-  test "skipping stores nothing" do
+  test "the wrap-up asks how many of the counted hours were work, less pauses, and keeps the difference" do
+    freeze_time do
+      @session.update!(joined_at: 50.minutes.ago, left_at: 2.minutes.ago, mode: "working")
+      users(:member).huddle_pauses.create!(started_at: 40.minutes.ago, ended_at: 20.minutes.ago, end_reason: "resumed")
+      with_fake_slack do |slack|
+        HuddleWrapUpJob.perform_now(@session)
+        hours = slack.calls_to(:chat_postMessage).sole[:blocks].find { |block| block[:block_id] == "hours" }
+        assert_equal [ "0.47", "0.25", "0" ], hours[:element][:options].pluck(:value)
+        assert_equal "0.47", hours[:element][:initial_option][:value]
+
+        press_done("share", done: "Wired it", hours: "1")
+        assert_includes slack.calls_to(:response_url).last[:body]["blocks"].to_s, "Pick how many hours you were working"
+        assert_equal 0, @session.reload.deducted_seconds
+
+        press_done("share", done: "Wired it", hours: "0.25")
+        assert_equal 13.minutes.to_i, @session.reload.deducted_seconds
+      end
+    end
+  end
+
+  test "fewer honest hours come off the newest sessions of the visit first" do
+    freeze_time do
+      earlier = @huddle.sessions.create!(slack_id: "U0MEMBER", user: users(:member), joined_at: 50.minutes.ago, left_at: 30.minutes.ago, mode: "working")
+      @session.update!(joined_at: 25.minutes.ago, left_at: 15.minutes.ago, mode: "working")
+      with_fake_slack do
+        HuddleWrapUpJob.perform_now(@session)
+        press_done("share", done: "Wired it", hours: "0.25")
+      end
+      assert_equal [ 5.minutes.to_i, 10.minutes.to_i ], [ earlier.reload.deducted_seconds, @session.reload.deducted_seconds ]
+    end
+  end
+
+  test "skip on a DM from before skipping was taken out stores nothing" do
     with_fake_slack do |slack|
       assert_no_enqueued_jobs(only: HuddleDoneJob) { press_done("skip") }
       assert_nil @session.reload.done
@@ -334,8 +366,8 @@ class HuddleFlowTest < ActiveSupport::TestCase
                                     "state" => { "values" => state }, "actions" => [ { "action_id" => "huddle_goal:#{choice}", "value" => [ @session.public_id, still ].compact.join(":") } ] })
   end
 
-  def press_done(choice, done: nil)
-    state = { "done" => { "done" => { "type" => "plain_text_input", "value" => done } } }
+  def press_done(choice, done: nil, hours: nil)
+    state = { "done" => { "done" => { "type" => "plain_text_input", "value" => done } }, "hours" => { "hours" => { "type" => "static_select", "selected_option" => hours && { "value" => hours } } } }
     SlackBot.handle(:interaction, { "type" => "block_actions", "user" => { "id" => "U0MEMBER" }, "channel" => { "id" => "U0MEMBER" }, "trigger_id" => "t", "response_url" => "https://hooks.slack.test/r",
                                     "state" => { "values" => state }, "actions" => [ { "action_id" => "huddle_done:#{choice}", "value" => @session.public_id } ] })
   end

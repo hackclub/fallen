@@ -7,6 +7,7 @@ require "test_helper"
 #  id                  :bigint           not null, primary key
 #  camera_seconds      :integer          default(0), not null
 #  camera_since        :datetime
+#  deducted_seconds    :integer          default(0), not null
 #  done                :text
 #  goal                :text
 #  join_source         :string

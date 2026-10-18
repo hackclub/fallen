@@ -1,5 +1,5 @@
 import { router } from '@inertiajs/svelte'
-import { huddleInvite, huddlePauses, huddlePrompt, timers } from '@/routes'
+import { huddleInvite, huddlePauses, huddlePrompt, timerWrapUp, timers } from '@/routes'
 import type { RouteDefinition } from '@/routes/runtime'
 import type { TrackedTime } from '@/types'
 
@@ -23,8 +23,11 @@ export const timer = $state({
   inHuddle: false,
   huddleUrl: null as string | null,
   canRing: false,
+  // Their stopped site timer, waiting to be asked what they got done (TimerPrompt's wrapUp).
+  wrapUp: null as TrackedTime['wrap_up'],
+  maxHours: 0,
   // Which bubble TimerPrompt shows.
-  prompt: null as 'join' | 'goal' | 'pause' | 'leave' | null,
+  prompt: null as 'join' | 'start' | 'wrapUp' | 'goal' | 'pause' | 'leave' | null,
   // When `seconds` was last set, for ticking between answers.
   at: 0,
 })
@@ -39,13 +42,20 @@ function csrfToken() {
     : (document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '')
 }
 
-async function call(route: RouteDefinition<'get' | 'post' | 'delete'>) {
+// Throws the server's `error` for a refused answer (422), so a prompt can show it.
+async function call(route: RouteDefinition<'get' | 'post' | 'delete'>, body?: Record<string, unknown>) {
   const number = ++sent
   const response = await fetch(route.url, {
     method: route.method.toUpperCase(),
-    headers: { Accept: 'application/json', 'X-CSRF-Token': csrfToken() },
+    headers: {
+      Accept: 'application/json',
+      'X-CSRF-Token': csrfToken(),
+      ...(body && { 'Content-Type': 'application/json' }),
+    },
     credentials: 'same-origin',
+    body: body && JSON.stringify(body),
   })
+  if (response.status === 422) throw new Error((await response.json()).error)
   if (!response.ok) throw new Error(`${route.url} answered ${response.status}`)
   if (response.status === 202) return
   const time: TrackedTime = await response.json()
@@ -56,6 +66,10 @@ async function call(route: RouteDefinition<'get' | 'post' | 'delete'>) {
   timer.inHuddle = time.in_huddle
   timer.huddleUrl = time.huddle_url
   timer.canRing = time.can_ring
+  // A newly stopped timer asks what they got done once; closing the bubble leaves it for the next Start.
+  if (time.wrap_up && !timer.wrapUp && !timer.prompt) timer.prompt = 'wrapUp'
+  timer.wrapUp = time.wrap_up
+  timer.maxHours = time.max_hours
   timer.at = Date.now()
   timer.loaded = true
 }
@@ -145,15 +159,21 @@ function guess(running: Running) {
   applied = ++sent
 }
 
-export function startTimer() {
+// From the start bubble, with what they are working on. Rejects with the server's reason.
+export async function startTimer(goal: string) {
+  await call(timers.create(), { goal })
   timer.prompt = null
-  guess('timer')
-  call(timers.create()).catch(refresh)
 }
 
 export function stopTimer() {
   guess(null)
   call(timers.destroy()).catch(refresh)
+}
+
+// What they got done and how many of the counted hours were work. Rejects with the server's reason.
+export async function wrapUpTimer(answer: { done: string; hours: string }) {
+  await call(timerWrapUp(), answer)
+  timer.prompt = null
 }
 
 // Stay in the huddle, stop counting.

@@ -11,9 +11,12 @@ class TimersController < ApplicationController
     render_time
   end
 
+  # Starting asks what they will work on.
   def create
     authorize current_user, :track_time?
-    TimerSession.start(current_user)
+    return render(json: { error: "Say what you're working on first" }, status: :unprocessable_content) if params[:goal].blank?
+
+    TimerSession.start(current_user, goal: params[:goal])
     render_time
   end
 

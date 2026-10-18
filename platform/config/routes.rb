@@ -40,6 +40,7 @@ Rails.application.routes.draw do
   resource :pet, only: :update
   resource :hatch, only: :create
   resource :timer, only: %i[show create destroy]
+  resource :timer_wrap_up, only: :create
   resource :huddle_invite, only: :create
   resource :huddle_prompt, only: :create
   resource :huddle_pause, only: %i[create destroy]

@@ -1,9 +1,13 @@
 # What the pet's timer shows (TimersController, HuddlePausesController): the time since the last journal, what is
 # counting it now (TrackedTime#running), whether they are in the huddle at all, and where the huddle is for the
-# "Join the huddle?" prompt.
+# "Join the huddle?" prompt. `wrap_up` is their stopped site timer waiting to be asked what they got done
+# (TrackedTime#wrap_up), with what it counted as `hours` the way the answer is typed.
 class TrackedTimeSerializer < ApplicationSerializer
-  typelize seconds: :number, running: [ :string, nullable: true ], in_huddle: :boolean, huddle_url: [ :string, nullable: true ], can_ring: :boolean
+  typelize seconds: :number, running: [ :string, nullable: true ], in_huddle: :boolean, huddle_url: [ :string, nullable: true ], can_ring: :boolean,
+    wrap_up: [ "{ goal: string | null; hours: string }", nullable: true ], max_hours: :number
   attributes :seconds, :running
+  attribute(:wrap_up) { |time| time.wrap_up&.then { |session| { goal: session.goal, hours: HonestHours.text(session.counted_seconds(time.now)) } } }
+  attribute(:max_hours) { |_| TimerSession::MAX_LENGTH.in_hours.to_i }
   attribute(:in_huddle, &:in_huddle?)
   attribute(:huddle_url) { |_| params[:huddle]&.join_url || SlackHuddle.huddle_url }
   # The ring itself happens on the worker (HuddleRingJob), which holds the huddle account's session; the web

@@ -5,8 +5,9 @@
 
   // The pill above the desktop pet: the button for what can be done now, and the time put in since the last
   // journal (lib/timer.svelte.ts).
-  // - Start: asks them to join the huddle (TimerPrompt). Already in it just chilling, it counts again and Slack
-  //   asks what they are working on.
+  // - Start: asks them to join the huddle (TimerPrompt), or what they will work on for the site's timer. Already
+  //   in it just chilling, it counts again and Slack asks what they are working on. A stopped timer nobody said
+  //   anything about yet asks what they got done first.
   // - Pause in the huddle: asks whether to stay without counting or leave. Pause on the site timer stops it.
   // - Resume: back to counting in the huddle.
   // Until the first answer arrives it shows no time at all, just a light sweeping over it.
@@ -19,7 +20,8 @@
   const shown = $derived(formatTracked(shownSeconds(now)))
 
   function start() {
-    if (timer.inHuddle) askGoal()
+    if (timer.wrapUp) timer.prompt = 'wrapUp'
+    else if (timer.inHuddle) askGoal()
     else timer.prompt = 'join'
   }
 

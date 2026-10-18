@@ -11,11 +11,12 @@ module Duration
     "#{hours == hours.to_i ? hours.to_i : hours}h"
   end
 
-  def parse(text)
+  # Nil for anything that is not hours, and for no time at all unless `allow_zero`.
+  def parse(text, allow_zero: false)
     m = text.to_s.strip.downcase.match(/\A(\d*\.?\d+)\s*h?\z/)
     return nil unless m
 
     minutes = (m[1].to_f * 60).round
-    minutes.positive? ? minutes : nil
+    minutes.positive? || allow_zero ? minutes : nil
   end
 end

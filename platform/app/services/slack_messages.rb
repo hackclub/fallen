@@ -323,9 +323,12 @@ module SlackMessages
   end
 
   HUDDLE_DONE_INPUT = "done"
+  HUDDLE_HOURS_INPUT = "hours"
 
-  # In their DMs, from their pet, a little while after they leave the huddle (HuddleWrapUpJob). HuddleDoneAction
-  # re-renders it with `error` when the answer is empty.
+  # In their DMs, from their pet, a little while after they leave the huddle (HuddleWrapUpJob): what they got done
+  # and, for someone signed up, how many of the hours it counted were really work (HonestHours). There is no skip;
+  # someone who never answers keeps all their time. HuddleDoneAction
+  # re-renders it with `error` when the answer is empty or the hours do not add up.
   def huddle_wrap_up(session, error: nil)
     question = if session.mode == "working" && session.goal.present?
       "Thanks for hanging out! You were working on #{escape(session.goal)}. What did you get done?"
@@ -334,11 +337,14 @@ module SlackMessages
     end
     blocks = [ SlackBot::Blocks.section(question),
                SlackBot::Blocks.input("I got done", SlackBot::Blocks.plain_text_input(HUDDLE_DONE_INPUT, multiline: true, max_length: 1000), block_id: HUDDLE_DONE_INPUT) ]
+    if session.user && (counted = session.visit_seconds).positive?
+      choices = HonestHours.choices(counted).map { |label, hours| SlackBot::Blocks.option(label, hours) }
+      blocks << SlackBot::Blocks.input("Honestly, how many hours of that were you working?",
+        SlackBot::Blocks.static_select(HUDDLE_HOURS_INPUT, choices, initial: choices.first), block_id: HUDDLE_HOURS_INPUT,
+        hint: "The huddle counted #{HonestHours.text(counted)} hours.")
+    end
     blocks << SlackBot::Blocks.context(":warning: #{escape(error)}") if error
-    blocks << SlackBot::Blocks.actions(
-      SlackBot::Blocks.button("share it!", "huddle_done:share", value: session.public_id, style: "primary"),
-      SlackBot::Blocks.button("skip", "huddle_done:skip", value: session.public_id)
-    )
+    blocks << SlackBot::Blocks.actions(SlackBot::Blocks.button("save", "huddle_done:share", value: session.public_id, style: "primary"))
     { text: question, blocks: blocks, **pet_persona(session.user&.pet) }
   end
 

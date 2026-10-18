@@ -4,12 +4,16 @@
 </script>
 
 <script lang="ts">
+  import { untrack } from 'svelte'
   import { enter, exit } from '@/components/dialog/motion'
-  import { inviteToHuddle, pauseHuddle, startTimer, timer } from '@/lib/timer.svelte'
+  import { inviteToHuddle, pauseHuddle, startTimer, timer, wrapUpTimer } from '@/lib/timer.svelte'
 
   // A bubble above the desktop pet, pointing down at it, for the pet's timer (PetTimer):
   // - join: Start was pressed. Join the huddle, where time counts by itself, or "I'd prefer not" and count it on
   //   the site's timer.
+  // - start: the site's timer. What they are working on, and a tick that they know it stops at timer.maxHours.
+  // - wrapUp: the site's timer stopped (or ran out). What they got done, and on a slider how many of the counted
+  //   hours were really work; fewer comes off their time. No skip: closing it brings it back on the next Start.
   // - goal: Start was pressed while chilling in the huddle. It counts now, and Slack asks what they are working on.
   // - pause: Pause was pressed in the huddle. Stay and stop counting, or leave.
   // - leave: the site cannot take anyone out of a Slack huddle, so it says how; counting stops once Slack says
@@ -20,14 +24,49 @@
 
   const close = () => (timer.prompt = null)
 
+  let goal = $state('')
+  let aware = $state(false)
+  let done = $state('')
+  // The honest-hours slider, in minutes so it moves smoothly; it starts on everything the timer counted.
+  let minutes = $state(0)
+  const counted = $derived(Math.round(Number(timer.wrapUp?.hours ?? 0) * 60))
+  const asHours = (total: number) => String(Math.round((total / 60) * 100) / 100)
+  let error = $state('')
+  let busy = $state(false)
+  // Each bubble opens empty, the slider on everything counted. Only on opening: polls refresh timer.wrapUp.
+  $effect(() => {
+    const prompt = timer.prompt
+    untrack(() => {
+      error = ''
+      if (prompt === 'start') [goal, aware] = ['', false]
+      if (prompt === 'wrapUp') [done, minutes] = ['', counted]
+    })
+  })
+
+  async function submit(action: () => Promise<void>) {
+    busy = true
+    error = ''
+    try {
+      await action()
+    } catch (failure) {
+      error = failure instanceof Error ? failure.message : 'Something went wrong, try again'
+    } finally {
+      busy = false
+    }
+  }
+
   function onkeydown(event: KeyboardEvent) {
     if (event.key === 'Escape') close()
   }
 
   const primary = 'rounded-full bg-gold px-4 py-1.5 text-sm font-semibold text-dark-blue hover:brightness-110'
   const secondary = 'text-xs text-pale-blue/80 underline-offset-2 hover:text-cream hover:underline'
+  const field =
+    'mt-1 block rounded-lg border-2 border-gold/40 bg-white/5 px-3 py-1.5 text-sm text-cream placeholder:text-pale-blue/50 focus:border-gold focus:ring-0 focus:outline-none'
   const titles = {
     join: 'Join the huddle?',
+    start: 'Start the timer',
+    wrapUp: 'What did you get done?',
     goal: 'What are you working on?',
     pause: 'Stop counting?',
     leave: 'Leave from Slack',
@@ -72,7 +111,9 @@
           Work alongside everyone in the Fallen huddle on Slack. Your time there counts by itself.
         </p>
         <div class="mt-4 flex items-center justify-between gap-3">
-          <button type="button" class={secondary} onclick={startTimer}>I'd prefer not</button>
+          <button type="button" class={secondary} onclick={() => (timer.prompt = 'start')}
+            >I'd prefer not</button
+          >
           {#if timer.huddleUrl}
             <a href={timer.huddleUrl} target="_blank" rel="noopener" class={primary} onclick={inviteToHuddle}
               >Invite me</a
@@ -87,6 +128,68 @@
             >
           {/if}
         </div>
+      {:else if timer.prompt === 'start'}
+        <form onsubmit={(event) => (event.preventDefault(), submit(() => startTimer(goal)))}>
+          <label class="mt-2 block text-sm text-pale-blue">
+            What are you working on?
+            <!-- svelte-ignore a11y_autofocus -->
+            <input class={[field, 'w-full']} bind:value={goal} maxlength="500" required autofocus />
+          </label>
+          <label class="mt-3 flex items-start gap-2 text-sm leading-snug text-pale-blue">
+            <input type="checkbox" bind:checked={aware} required class="mt-0.5 rounded text-gold" />
+            I know the timer stops by itself after {timer.maxHours} hours
+          </label>
+          {#if error}<p class="mt-2 text-xs text-gold">{error}</p>{/if}
+          <div class="mt-4 flex justify-end">
+            <button
+              type="submit"
+              class={[primary, 'disabled:opacity-50']}
+              disabled={busy || !aware || !goal.trim()}>Start</button
+            >
+          </div>
+        </form>
+      {:else if timer.prompt === 'wrapUp' && timer.wrapUp}
+        <form
+          onsubmit={(event) => (
+            event.preventDefault(),
+            submit(() => wrapUpTimer({ done, hours: asHours(minutes) }))
+          )}
+        >
+          {#if timer.wrapUp.goal}
+            <p class="mt-1 text-sm leading-snug text-pale-blue">You were working on {timer.wrapUp.goal}.</p>
+          {/if}
+          <!-- svelte-ignore a11y_autofocus -->
+          <textarea
+            class={[field, 'mt-2 w-full resize-none']}
+            placeholder="What you got done"
+            rows="3"
+            bind:value={done}
+            maxlength="1000"
+            required
+            autofocus></textarea>
+          <label class="mt-3 block text-sm leading-snug text-pale-blue">
+            The timer counted {timer.wrapUp.hours} hours. Honestly, how many of those were you working?
+            <span class="mt-2 flex items-center gap-3">
+              <input
+                class="w-full accent-gold"
+                type="range"
+                min="0"
+                max={counted}
+                step="1"
+                bind:value={minutes}
+              />
+              <span class="w-20 shrink-0 text-right font-semibold text-cream tabular-nums"
+                >{asHours(minutes)} hours</span
+              >
+            </span>
+          </label>
+          {#if error}<p class="mt-2 text-xs text-gold">{error}</p>{/if}
+          <div class="mt-4 flex justify-end">
+            <button type="submit" class={[primary, 'disabled:opacity-50']} disabled={busy || !done.trim()}
+              >Save</button
+            >
+          </div>
+        </form>
       {:else if timer.prompt === 'goal'}
         <p class="mt-1 text-sm leading-snug text-pale-blue">
           Your time in the huddle is counting now. We asked in your Slack DMs what you're working on, so

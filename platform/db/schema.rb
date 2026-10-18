@@ -125,6 +125,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_18_230000) do
     t.string "prompt_dm_ts"
     t.datetime "wrap_up_asked_at"
     t.text "done"
+    t.integer "deducted_seconds", default: 0, null: false
     t.index ["huddle_id", "slack_id"], name: "index_huddle_sessions_on_huddle_id_and_slack_id"
     t.index ["huddle_id", "slack_id"], name: "index_huddle_sessions_one_open_per_person", unique: true, where: "(left_at IS NULL)"
     t.index ["slack_id"], name: "index_huddle_sessions_on_slack_id"
@@ -409,6 +410,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_18_230000) do
     t.datetime "stopped_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.text "goal"
+    t.text "done"
+    t.datetime "wrapped_up_at"
+    t.integer "deducted_seconds", default: 0, null: false
     t.index ["user_id", "started_at"], name: "index_timer_sessions_on_user_id_and_started_at"
     t.index ["user_id"], name: "index_timer_sessions_one_running_per_user", unique: true, where: "(stopped_at IS NULL)"
   end

@@ -4,12 +4,16 @@ require "test_helper"
 #
 # Table name: timer_sessions
 #
-#  id         :bigint           not null, primary key
-#  started_at :datetime         not null
-#  stopped_at :datetime
-#  created_at :datetime         not null
-#  updated_at :datetime         not null
-#  user_id    :bigint           not null
+#  id               :bigint           not null, primary key
+#  deducted_seconds :integer          default(0), not null
+#  done             :text
+#  goal             :text
+#  started_at       :datetime         not null
+#  stopped_at       :datetime
+#  wrapped_up_at    :datetime
+#  created_at       :datetime         not null
+#  updated_at       :datetime         not null
+#  user_id          :bigint           not null
 #
 # Indexes
 #

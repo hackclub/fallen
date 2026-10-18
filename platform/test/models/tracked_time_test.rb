@@ -65,6 +65,17 @@ class TrackedTimeTest < ActiveSupport::TestCase
     end
   end
 
+  test "honest hours come off each session's own time, so overlapping time is not taken off twice" do
+    freeze_time do
+      @user.journals.update_all(discarded_at: Time.current)
+      # The same hour in the huddle and on the timer, and each says only 30 minutes of it were work.
+      session(joined_at: 60.minutes.ago, left_at: 0.minutes.ago, mode: "working", deducted_seconds: 30.minutes.to_i)
+      @user.timer_sessions.create!(started_at: 60.minutes.ago, stopped_at: Time.current, deducted_seconds: 30.minutes.to_i)
+
+      assert_equal 30.minutes.to_i, TrackedTime.new(@user).seconds
+    end
+  end
+
   private
 
   def session(**attributes) = @huddle.sessions.create!(slack_id: @user.slack_id, user: @user, **attributes)
