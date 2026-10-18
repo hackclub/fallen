@@ -173,7 +173,7 @@ module SlackMessages
       SlackBot::Blocks.button("commit!", "huddle_goal:commit", value: session.public_id, style: "primary"),
       SlackBot::Blocks.button("i'm just chilling here rn!", "huddle_goal:chill", value: session.public_id)
     )
-    { text: question, blocks: blocks, **pet_persona(session.user&.pet) }
+    { text: question, blocks: blocks + huddle_signup_blocks(session), **pet_persona(session.user&.pet) }
   end
 
   # The choices sit in an actions block so picking one reaches HuddleGoalAction straight away, which redraws this
@@ -188,7 +188,21 @@ module SlackMessages
     end
     blocks << SlackBot::Blocks.context(":warning: #{escape(error)}") if error
     blocks << SlackBot::Blocks.actions(SlackBot::Blocks.button("submit", "huddle_goal:still", value: [ session.public_id, picked ].compact.join(":"), style: "primary"))
-    { text: question, blocks: blocks, **pet_persona(session.user&.pet) }
+    { text: question, blocks: blocks + huddle_signup_blocks(session), **pet_persona(session.user&.pet) }
+  end
+
+  # Under the huddle prompt for someone with no Fallen account, or no project yet.
+  def huddle_signup_blocks(session)
+    user = session.user
+    if user.nil?
+      [ SlackBot::Blocks.context("You don't have a Fallen account yet! Sign up and start a project to build with us."),
+        SlackBot::Blocks.actions(SlackBot::Blocks.button("Sign up for Fallen", "open_fallen", url: app_url)) ]
+    elsif !user.projects.kept.exists?
+      [ SlackBot::Blocks.context("You don't have a project yet! Start one on Fallen."),
+        SlackBot::Blocks.actions(SlackBot::Blocks.button("Start a project", "open_fallen", url: new_project_url)) ]
+    else
+      []
+    end
   end
 
   def huddle_answer(session)

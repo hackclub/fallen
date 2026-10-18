@@ -70,6 +70,9 @@ class User < ApplicationRecord
   validates :pet, inclusion: { in: PETS }, allow_nil: true
   validate :roles_are_known
 
+  # Huddle visits are recorded by Slack id before anyone signs up (HuddleSyncJob); they become theirs once linked.
+  after_save -> { HuddleSession.where(slack_id: slack_id, user_id: nil).update_all(user_id: id) }, if: -> { saved_change_to_slack_id? && slack_id.present? }
+
   scope :admins, -> { where("roles @> ARRAY[?]::varchar[]", "admin") }
   scope :with_role, ->(role) { where("roles @> ARRAY[?]::varchar[]", role.to_s) }
   scope :banned, -> { where(is_banned: true) }

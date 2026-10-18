@@ -17,7 +17,7 @@ class HuddleFlowTest < ActiveSupport::TestCase
       assert_equal "Lulu", prompt[:username]
       assert_equal SlackMessages::PET_PFPS["lulu"], prompt[:icon_url]
       assert_equal "<@U0MEMBER> what are you working on today?", prompt[:blocks].first[:text][:text]
-      assert_equal %w[huddle_goal:commit huddle_goal:chill], prompt[:blocks].last[:elements].pluck(:action_id)
+      assert_equal %w[huddle_goal:commit huddle_goal:chill], prompt[:blocks].last[:elements].pluck(:action_id), "someone with a project gets no sign-up nudge"
     end
   end
 
@@ -25,8 +25,24 @@ class HuddleFlowTest < ActiveSupport::TestCase
     session = @huddle.sessions.create!(slack_id: "U0STRANGER", joined_at: 1.minute.ago)
     with_fake_slack do |slack|
       HuddlePromptJob.perform_now(session)
-      assert_nil slack.calls_to(:chat_postEphemeral).sole[:username]
+      prompt = slack.calls_to(:chat_postEphemeral).sole
+      assert_nil prompt[:username]
+      assert_equal "Sign up for Fallen", prompt[:blocks].last[:elements].sole[:text][:text]
     end
+  end
+
+  test "someone with an account but no project is pointed at starting one" do
+    users(:member).projects.update_all(discarded_at: Time.current)
+    with_fake_slack do |slack|
+      HuddlePromptJob.perform_now(@session)
+      assert_equal "Start a project", slack.calls_to(:chat_postEphemeral).sole[:blocks].last[:elements].sole[:text][:text]
+    end
+  end
+
+  test "huddle visits from before signing up become theirs once their Slack is linked" do
+    visit = @huddle.sessions.create!(slack_id: "U0NEWBIE", joined_at: 1.minute.ago)
+    users(:newcomer).update!(slack_id: "U0NEWBIE")
+    assert_equal users(:newcomer), visit.reload.user
   end
 
   test "commit stores the goal on that session and the one they have open now" do

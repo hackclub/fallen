@@ -100,7 +100,8 @@ message is the project; each reply by the owner is a journal. Both sides stay in
   working on. Everyone joining gets a hidden "what are you working on today?" in the huddle's thread, from their pet
   ("are you still working on ...?" when they had a goal), and again every 10 thread messages until they answer
   (`HuddlePromptJob`, `HuddleGoalAction`); committing posts their goal in the thread (`HuddleCommitJob`). Dropping out
-  for under 2 minutes keeps the answer. When Slack ends a huddle, the people still in it are mentioned in the
+  for under 2 minutes keeps the answer. People without a Fallen account, or a project, get a button to start one;
+  their visits join their account once they link Slack. When Slack ends a huddle, the people still in it are mentioned in the
   new huddle's thread and rung into it (`HuddleHandoffJob`, `rooms.notifyMember`), and keep their answer if they join
   within 15 minutes. A huddle that has run 12 hours with only the bot in it is restarted. The bot needs to be in the
   huddle channel.
