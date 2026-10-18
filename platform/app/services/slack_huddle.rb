@@ -17,6 +17,12 @@ module SlackHuddle
 
   def configured? = channel_id.present? && ENV["SLACK_BROWSER_TOKEN"].present? && ENV["SLACK_BROWSER_COOKIE"].present?
 
+  # Opens the channel's huddle in Slack, the link Slack itself shares. For when no Huddle row has its own link yet.
+  def channel_huddle_url
+    team_id = ENV["SLACK_TEAM_ID"].presence
+    "https://app.slack.com/huddle/#{team_id}/#{channel_id}" if team_id && channel_id
+  end
+
   # The huddle running in the channel now, found from the message Slack posts when one starts. Nil when none is.
   def live_room
     body = client.call("conversations.history", channel: channel_id, oldest: LOOKBACK.ago.to_i, limit: 200)
