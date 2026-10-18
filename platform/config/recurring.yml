@@ -13,3 +13,11 @@ production:
     class: CloseWeekJob
     queue: background
     schedule: "0 12 * * 1"
+
+  keep_huddle: &keep_huddle
+    class: KeepHuddleJob
+    queue: slack
+    schedule: every 2 minutes
+
+development:
+  keep_huddle: *keep_huddle

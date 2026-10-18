@@ -90,6 +90,12 @@ message is the project; each reply by the owner is a journal. Both sides stay in
   reports typing to its own clients, so it signs in as an account in the channel (`SLACK_BROWSER_TOKEN`, an `xoxc-`
   token, and `SLACK_BROWSER_COOKIE`, its `d` cookie; `SlackBot::BrowserSocket`). In production it runs next to
   Solid Queue in the worker container (`bin/worker`).
+- The same account sits in a huddle in `SLACK_HUDDLE_CHANNEL_ID` around the clock. Huddles have no public API, so
+  `SlackHuddle` calls the methods Slack's desktop client uses (`rooms.join`, `screenhero.rooms.info`) through
+  `SlackBot::BrowserClient`, the way [huddlefm](https://github.com/ingoau/huddlefm) does. `KeepHuddleJob` runs
+  every two minutes (`config/recurring.yml`) and again when `bin/slack-typing` sees the huddle end: Slack stops
+  every huddle after 24 hours, and the job starts the next one. Run it by hand with
+  `bin/rails runner KeepHuddleJob.perform_now`.
 - Web -> Slack: `PostProjectToSlackJob` posts the thread anchor, `SyncJournalToSlackJob` posts, edits and deletes
   journal replies. Messages go out as the person when they have connected Slack (`SlackAuthController`, user scope
   `chat:write`, needs `SLACK_CLIENT_ID` / `SLACK_CLIENT_SECRET` and the redirect URL from the manifest); otherwise the
@@ -125,7 +131,7 @@ app/
   services/       HCA client, privacy hub token and deletion
 docs/             privacy.md
 lib/
-  slack_bot/      Router, Handler, Command/Event/Action/View/Shortcut, Blocks, Manifest, Payload, BrowserSocket
+  slack_bot/      Router, Handler, Command/Event/Action/View/Shortcut, Blocks, Manifest, Payload, BrowserSocket, BrowserClient
   constraints/    Constraints::Admin, Constraints::Staff
 ```
 

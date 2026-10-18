@@ -2,9 +2,16 @@ ENV["RAILS_ENV"] ||= "test"
 require_relative "../config/environment"
 require "rails/test_help"
 
+# Tests never run the frontend, so the layouts' Vite tags render nothing rather than needing a build to look up.
+ViteRails::TagHelpers.prepend(Module.new do
+  %i[vite_client_tag vite_javascript_tag vite_typescript_tag vite_stylesheet_tag].each { |name| define_method(name) { |*, **| nil } }
+end)
+
 module ActiveSupport
   class TestCase
-    parallelize(workers: :number_of_processors)
+    # A few workers is as fast as one per core for a suite this size, and each is a whole Rails process with its own
+    # database. PARALLEL_WORKERS overrides.
+    parallelize(workers: [ Etc.nprocessors, 4 ].min)
     fixtures :all
 
     # Bullet raises on N+1 queries and unused preloads (config/environments/test.rb). Fix the query, don't
@@ -110,6 +117,24 @@ class FakeSlackClient
   def respond_to_missing?(*) = true
 
   def calls_to(name) = calls.select { |n, _| n == name }.map(&:last)
+end
+
+# Stands in for SlackBot::BrowserClient. Answers each method from `responses`; a value that is an exception is raised.
+class FakeBrowserClient
+  attr_reader :calls
+
+  def initialize(responses = {})
+    @responses = responses
+    @calls = []
+  end
+
+  def call(method, **fields)
+    @calls << [ method, fields ]
+    response = @responses.fetch(method) { raise SlackBot::BrowserClient::Error.new(method, "unexpected_call") }
+    raise response if response.is_a?(Exception)
+
+    response
+  end
 end
 
 module SlackStubHelper
