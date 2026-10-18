@@ -12,8 +12,8 @@
   import OrnateButton from '@/components/OrnateButton.svelte'
   import OrnateModal from '@/components/OrnateModal.svelte'
   import PastEvents from '@/components/PastEvents.svelte'
-  import PastProjects from '@/components/PastProjects.svelte'
-  import Recap from '@/components/Recap.svelte'
+  // import PastProjects from '@/components/PastProjects.svelte'
+  import Recap from '@/components/Recap.svelte
   // import Store from '@/components/Store.svelte'
   import Wordmark from '@/components/Wordmark.svelte'
   import { home, root, signIn, slackAvatar } from '@/routes'
@@ -296,7 +296,7 @@
       <PastEvents />
     </div>
     <HowItWorks />
-    <PastProjects />
+    <!-- <PastProjects /> -->
     <!-- <Store /> -->
     <Faq />
     <Recap />
