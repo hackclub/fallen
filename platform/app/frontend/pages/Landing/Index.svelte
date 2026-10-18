@@ -10,14 +10,12 @@
   import GoldFrame from '@/components/GoldFrame.svelte'
   import HowItWorks from '@/components/HowItWorks.svelte'
   import OrnamentNav from '@/components/OrnamentNav.svelte'
-  import OrnateButton from '@/components/OrnateButton.svelte'
-  import OrnateModal from '@/components/OrnateModal.svelte'
   import PastEvents from '@/components/PastEvents.svelte'
   // import PastProjects from '@/components/PastProjects.svelte'
   import Recap from '@/components/Recap.svelte'
   // import Store from '@/components/Store.svelte'
   import Wordmark from '@/components/Wordmark.svelte'
-  import { home, root, signIn, slackAvatar } from '@/routes'
+  import { docs, home, signIn, slackAvatar } from '@/routes'
   import { buildTime, travellers } from '@/lib/program'
   import { shared } from '@/lib/shared.svelte'
 
@@ -93,13 +91,6 @@
     showDevLogin = true
   }
 
-  // There aren't any stats to show yet, so View Stats just says so.
-  let showStats = $state(false)
-  const openStats = (event: MouseEvent) => {
-    event.preventDefault()
-    showStats = true
-  }
-
   // Getting started goes straight to Hack Club Auth for someone signed in to it there, and asks anyone else for
   // their email first (GetStartedDialog).
   let hcaSignedIn = $state(false)
@@ -144,7 +135,7 @@
       : avatar
         ? { label: 'GET STARTED', href: signIn().url, onclick: getStarted, glimmer: true, avatar }
         : { label: 'GET STARTED', href: signIn().url, onclick: getStarted, glimmer: true },
-    { label: 'View Stats', href: root().url, onclick: openStats },
+    { label: 'Docs', href: docs.show({}).url },
   ])
 
   // The WebGL effects start after the page has painted.
@@ -155,30 +146,13 @@
 </script>
 
 <svelte:head><title>Fallen</title></svelte:head>
-<svelte:window
-  bind:scrollY
-  bind:innerHeight
-  onkeydown={(event) => {
-    if (event.key === 'Escape') showStats = false
-  }}
-/>
+<svelte:window bind:scrollY bind:innerHeight />
 <svelte:body bind:clientHeight={pageHeight} />
 
 <CursorTrail />
 
 {#if showGetStarted}
   <GetStartedDialog checkEmailUrl={check_email_url} onClose={() => (showGetStarted = false)} />
-{/if}
-
-{#if showStats}
-  <OrnateModal titleId="stats-title" title="View Stats" class="max-w-md" onClose={() => (showStats = false)}>
-    <div class="px-6 pt-1 pb-6 text-center md:px-9 md:pb-8">
-      <p class="font-outfit text-ink-soft">oops :p we don't have enough stats to show yet</p>
-      <div class="mt-6 flex justify-center">
-        <OrnateButton kind="confirm" onclick={() => (showStats = false)}>Okay</OrnateButton>
-      </div>
-    </div>
-  </OrnateModal>
 {/if}
 
 <div
