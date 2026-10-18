@@ -189,7 +189,7 @@
   <!-- Keydown stays here so Enter on the button does not also advance the dialog. -->
   <button
     type="button"
-    class="pointer-events-auto fixed top-4 right-4 z-10 cursor-pointer rounded-full bg-black/40 px-4 py-2 font-dialog text-sm font-semibold text-white/85 transition-colors hover:bg-black/60 hover:text-white"
+    class="pointer-events-auto fixed top-5 right-5 z-10 cursor-pointer rounded-full border-2 border-white/60 bg-black/60 px-6 py-3 font-dialog text-lg font-bold text-white shadow-lg transition-colors hover:border-white hover:bg-black/80"
     onclick={skip}
     onkeydown={(event) => event.stopPropagation()}
   >
