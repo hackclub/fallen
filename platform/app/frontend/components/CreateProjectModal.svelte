@@ -87,14 +87,6 @@
           Every journal you post on it goes in this thread, so give it its real name. Not right yet? Change it
           now, before anything is posted.
         </p>
-        {#if bare}
-          <p
-            class="mt-3 rounded-xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-center text-sm text-red-300"
-          >
-            There's no description, so the post is just the name. Say what you're building so people know what
-            they're looking at.
-          </p>
-        {/if}
       </div>
 
       <div class="mt-6 flex flex-col-reverse justify-center gap-3 sm:flex-row md:mt-8">
