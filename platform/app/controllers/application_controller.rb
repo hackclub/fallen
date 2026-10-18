@@ -19,7 +19,9 @@ class ApplicationController < ActionController::Base
     {
       auth: { user: current_user && UserSerializer.render(current_user) },
       impersonation: impersonating? ? { impersonator_name: true_user.display_name } : nil,
-      setup: setup_props
+      setup: setup_props,
+      # So Settings can show its Lapse tab on the instant visit from the nav rail, before its own props arrive.
+      lapse_configured: Lapse.configured?
     }
   end
 

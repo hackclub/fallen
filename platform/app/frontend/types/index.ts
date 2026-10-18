@@ -15,6 +15,7 @@ export interface SharedProps {
   impersonation: { impersonator_name: string } | null
   // ApplicationController#setup_props. `project` is the title of one made during the onboarding, if any.
   setup: { step: 'onboarding'; project: string | null } | { step: 'slack' } | null
+  lapse_configured: boolean
   errors: Record<string, string[]>
   [key: string]: unknown
 }

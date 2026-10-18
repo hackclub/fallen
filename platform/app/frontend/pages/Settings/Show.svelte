@@ -25,11 +25,12 @@
   const pet = $derived(user?.pet ?? null)
 
   type Section = 'profile' | 'slack' | 'lapse' | 'pet' | 'sound'
+  // Lapse's tab goes by the shared flag: the nav rail's instant visit renders this before `lapse` arrives.
   // The pet's tab only once there is a pet, picked during onboarding.
   const sections = $derived([
     { id: 'profile' as const, label: 'Profile', icon: profileIcon },
     { id: 'slack' as const, label: 'Slack', icon: slackIcon },
-    ...(lapse?.configured ? [{ id: 'lapse' as const, label: 'Lapse', icon: lapseIcon }] : []),
+    ...(shared().lapse_configured ? [{ id: 'lapse' as const, label: 'Lapse', icon: lapseIcon }] : []),
     ...(pet ? [{ id: 'pet' as const, label: 'Pet', icon: petIcon }] : []),
     { id: 'sound' as const, label: 'Sound', icon: soundIcon },
   ])
