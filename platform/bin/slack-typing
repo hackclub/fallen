@@ -2,7 +2,8 @@
 # Listens on Slack's own real-time socket, signed in as the user bot (SLACK_BROWSER_TOKEN is its xoxc- token and
 # SLACK_BROWSER_COOKIE its `d` cookie), for events the Events API never sends:
 # - someone starting a top-level post in the journals channel, to send them a hint (TypingHintJob)
-# - people joining and leaving the bot's huddle, and the huddle ending (HuddleSyncJob)
+# - people joining and leaving the bot's huddle, and the huddle ending: joins and leaves are kept with Slack's
+#   timestamp (HuddleEvent) before HuddleSyncJob runs, so the sync can use the exact time
 # Idles when the credentials are not set or there is nothing to watch.
 require_relative "../config/environment"
 
@@ -21,6 +22,12 @@ SlackBot::BrowserSocket.new(token: token, cookie: cookie).run do |event|
   if channel && event["type"] == "user_typing" && event["channel"] == channel && event["thread_ts"].blank?
     TypingHintJob.hint(event["user"], channel)
   elsif huddle && %w[sh_room_join sh_room_leave sh_room_update].include?(event["type"])
+    begin
+      HuddleEvent.record(event)
+    rescue ActiveRecord::ActiveRecordError => e
+      # The sync still runs; this visit falls back to the time the sync notices it.
+      Rails.logger.error({ event: "huddle_event.record_failed", error: e.message }.to_json)
+    end
     HuddleSyncJob.perform_later
   end
 end

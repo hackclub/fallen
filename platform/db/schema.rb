@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_18_130103) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_18_130106) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -82,6 +82,27 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_18_130103) do
     t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
   end
 
+  create_table "huddle_events", force: :cascade do |t|
+    t.string "call_id", null: false
+    t.string "slack_id", null: false
+    t.string "kind", null: false
+    t.datetime "occurred_at", null: false
+    t.datetime "created_at", null: false
+    t.index ["call_id", "slack_id", "occurred_at"], name: "index_huddle_events_on_call_id_and_slack_id_and_occurred_at"
+    t.index ["slack_id"], name: "index_huddle_events_on_slack_id"
+  end
+
+  create_table "huddle_pauses", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.datetime "started_at", null: false
+    t.datetime "ended_at"
+    t.string "end_reason"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id", "started_at"], name: "index_huddle_pauses_on_user_id_and_started_at"
+    t.index ["user_id"], name: "index_huddle_pauses_one_open_per_user", unique: true, where: "(ended_at IS NULL)"
+  end
+
   create_table "huddle_sessions", force: :cascade do |t|
     t.bigint "huddle_id", null: false
     t.bigint "user_id"
@@ -93,6 +114,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_18_130103) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.integer "prompted_at_count"
+    t.datetime "last_seen_at"
+    t.string "join_source"
+    t.string "leave_source"
+    t.datetime "screenshare_since"
+    t.integer "screenshare_seconds", default: 0, null: false
+    t.datetime "camera_since"
+    t.integer "camera_seconds", default: 0, null: false
     t.index ["huddle_id", "slack_id"], name: "index_huddle_sessions_on_huddle_id_and_slack_id"
     t.index ["huddle_id", "slack_id"], name: "index_huddle_sessions_one_open_per_person", unique: true, where: "(left_at IS NULL)"
     t.index ["slack_id"], name: "index_huddle_sessions_on_slack_id"
@@ -109,6 +137,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_18_130103) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.integer "message_count", default: 0, null: false
+    t.string "link"
     t.index ["call_id"], name: "index_huddles_on_call_id", unique: true
     t.index ["ended_at"], name: "index_huddles_on_ended_at"
   end
@@ -357,6 +386,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_18_130103) do
     t.index ["key"], name: "index_solid_queue_semaphores_on_key", unique: true
   end
 
+  create_table "timer_sessions", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.datetime "started_at", null: false
+    t.datetime "stopped_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id", "started_at"], name: "index_timer_sessions_on_user_id_and_started_at"
+    t.index ["user_id"], name: "index_timer_sessions_one_running_per_user", unique: true, where: "(stopped_at IS NULL)"
+  end
+
   create_table "users", force: :cascade do |t|
     t.string "hca_id", null: false
     t.string "email", null: false
@@ -423,6 +462,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_18_130103) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "huddle_pauses", "users"
   add_foreign_key "huddle_sessions", "huddles"
   add_foreign_key "huddle_sessions", "users"
   add_foreign_key "journal_drafts", "projects"
@@ -440,5 +480,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_18_130103) do
   add_foreign_key "solid_queue_ready_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_recurring_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_scheduled_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
+  add_foreign_key "timer_sessions", "users"
   add_foreign_key "xp_entries", "users"
 end

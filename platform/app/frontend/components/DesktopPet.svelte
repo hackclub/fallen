@@ -40,10 +40,14 @@
   import { FINAL_FORM, PET_FORMS, PET_NAMES, hatch, petState } from '@/lib/pet.svelte'
   import { PET_HOME_EVENT, preferences } from '@/lib/preferences.svelte'
   import { shared } from '@/lib/shared.svelte'
+  import { watchTimer } from '@/lib/timer.svelte'
+  import TimerPrompt from '@/components/TimerPrompt.svelte'
+  import PetTimer from '@/components/PetTimer.svelte'
 
   // A desktop pet for the signed-in site: the egg picked in onboarding sits on the bottom of the window, hops about
   // now and then, wobbles, can be picked up and dropped, and jumps when poked. Where it stands is remembered. It
-  // shows its current form (User#pet_form) and bursts into the next one when that changes.
+  // shows its current form (User#pet_form) and bursts into the next one when that changes. Above it sits the timer
+  // (PetTimer), egg or hatched.
   const user = $derived(shared().auth.user)
   const pet = $derived(petState.picked ?? user?.pet ?? null)
   const form = $derived(user?.pet_form ?? 0)
@@ -54,7 +58,7 @@
   const src = $derived(pet ? PET_FORMS[pet][Math.max(shown, floor)] : undefined)
   const visible = $derived(!!src && !petState.onboarding && preferences.pet)
 
-  let root: HTMLButtonElement
+  let root: HTMLDivElement
   let flight: HTMLElement
   let body: HTMLElement
   let flying = $state(false)
@@ -139,15 +143,20 @@
   const maxX = () => window.innerWidth - dims.w - EDGE
   const home = () => maxX() - 24
 
-  function live(el: HTMLButtonElement) {
+  function live(el: HTMLDivElement) {
     return untrack(() => start(el))
   }
 
-  function start(el: HTMLButtonElement) {
+  // The timer is asked for while the pet is shown.
+  $effect(() => {
+    if (visible) return untrack(watchTimer)
+  })
+
+  function start(el: HTMLDivElement) {
     root = el
     // On <body>, out of the layout's stacking contexts, so it can fly above the onboarding overlay.
     document.body.append(el)
-    flight = el.firstElementChild as HTMLElement
+    flight = el.querySelector('[data-flight]') as HTMLElement
     body = flight.firstElementChild as HTMLElement
     const stored = Number(localStorage.getItem(STORE))
     x = clamp(Number.isFinite(stored) && stored > 0 ? stored : home(), EDGE, maxX())
@@ -447,12 +456,12 @@
 </script>
 
 {#if visible}
-  <button
-    type="button"
-    aria-label="Your pet. {TIP}"
+  <div
     data-desktop-pet
+    role="group"
+    aria-label="Your pet"
     class={[
-      'fixed bottom-0 left-0 cursor-grab touch-none select-none outline-none active:cursor-grabbing',
+      'fixed bottom-0 left-0 cursor-grab touch-none select-none active:cursor-grabbing',
       flying ? 'z-[80]' : 'z-40',
     ]}
     style:width="{dims.w}px"
@@ -463,11 +472,16 @@
     {onpointermove}
     {onpointerup}
     onpointercancel={onpointerup}
-    {onpointerenter}
-    onpointerleave={() => (hovered = false)}
-    onclick={(event) => event.detail === 0 && poke()}
   >
-    <span class="absolute inset-0" style:transform-origin="50% 100%">
+    <button
+      type="button"
+      aria-label="Your pet. {TIP}"
+      class="absolute inset-0 cursor-[inherit] outline-none"
+      {onpointerenter}
+      onpointerleave={() => (hovered = false)}
+      onclick={(event) => event.detail === 0 && poke()}
+    ></button>
+    <span data-flight class="pointer-events-none absolute inset-0" style:transform-origin="50% 100%">
       <span class="absolute inset-0" style:transform-origin="50% 100%">
         <!-- a slow breath, on its own element so it never fights the squashes above -->
         <span
@@ -493,10 +507,15 @@
         </span>
       </span>
     </span>
+    {#if !flying}
+      <div class="absolute bottom-full left-1/2 mb-2 -translate-x-1/2 cursor-default whitespace-nowrap">
+        <PetTimer />
+      </div>
+    {/if}
     {#if showTip}
       <span
         role="tooltip"
-        class="pointer-events-none absolute bottom-full left-1/2 mb-3 cursor-default"
+        class="pointer-events-none absolute bottom-full left-1/2 mb-14 cursor-default"
         style:width="{TIP_WIDTH}px"
         style:margin-left="{-TIP_WIDTH / 2 + tipShift}px"
         style:transform-origin="{TIP_WIDTH / 2 - tipShift}px 100%"
@@ -537,5 +556,6 @@
         ></span>
       </span>
     {/if}
-  </button>
+  </div>
+  <TimerPrompt />
 {/if}

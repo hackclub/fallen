@@ -1,0 +1,71 @@
+<script lang="ts">
+  import SolarPause from '@/components/icons/SolarPause.svelte'
+  import SolarPlay from '@/components/icons/SolarPlay.svelte'
+  import { formatTracked, resumeHuddle, shownSeconds, startTimer, stopTimer, timer } from '@/lib/timer.svelte'
+
+  // The pill above the desktop pet: the button for what can be done now, and the time put in since the last
+  // journal (lib/timer.svelte.ts).
+  // - Start: asks about the huddle first (TimerPrompt) unless they are in it.
+  // - Pause in the huddle: asks whether to stay without counting or leave. Pause on the site timer stops it.
+  // - Resume: back to counting in the huddle.
+  let now = $state(Date.now())
+  $effect(() => {
+    if (timer.running !== 'huddle' && timer.running !== 'timer') return
+    const tick = setInterval(() => (now = Date.now()), 1000)
+    return () => clearInterval(tick)
+  })
+  const shown = $derived(formatTracked(shownSeconds(now)))
+
+  // Start always asks about the huddle first, unless they are already in it.
+  function start() {
+    if (timer.inHuddle) startTimer()
+    else timer.prompt = 'join'
+  }
+
+  const segment =
+    'flex items-center gap-1.5 py-1 pr-2.5 pl-2 font-semibold transition-colors hover:bg-white/10 focus-visible:bg-white/10 focus-visible:outline-none disabled:opacity-60'
+</script>
+
+<!-- Its own presses never pick the pet up. -->
+<div
+  class="flex items-center overflow-hidden rounded-full border-2 border-gold bg-dark-blue font-outfit text-sm text-cream shadow-[0_6px_16px_-6px_rgba(0,0,0,0.7)]"
+  onpointerdown={(event) => event.stopPropagation()}
+  role="group"
+  aria-label="Time since your last journal"
+>
+  {#if timer.running === 'huddle'}
+    <button
+      type="button"
+      class={segment}
+      onclick={() => (timer.prompt = 'pause')}
+      title="Counting while you're in the huddle"
+    >
+      <span class="relative flex size-2">
+        <span class="absolute inline-flex size-full animate-ping rounded-full bg-gold opacity-75"></span>
+        <span class="relative inline-flex size-2 rounded-full bg-gold"></span>
+      </span>
+      Pause
+    </button>
+  {:else if timer.running === 'timer'}
+    <button type="button" class={segment} onclick={stopTimer}>
+      <SolarPause size={14} class="text-gold" />
+      Pause
+    </button>
+  {:else if timer.running === 'paused'}
+    <button type="button" class={segment} onclick={resumeHuddle} title="In the huddle, not counting">
+      <SolarPlay size={14} class="text-gold" />
+      Resume
+    </button>
+  {:else}
+    <button type="button" class={segment} onclick={start} disabled={!timer.loaded}>
+      <SolarPlay size={14} class="text-gold" />
+      Start
+    </button>
+  {/if}
+  <span
+    class={[
+      'border-l-2 border-gold/40 py-1 pr-3 pl-2.5 tabular-nums',
+      timer.running === 'paused' && 'text-pale-blue/70',
+    ]}>{shown}</span
+  >
+</div>

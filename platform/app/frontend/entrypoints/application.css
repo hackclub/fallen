@@ -456,6 +456,38 @@
   }
 }
 
+/* The docs' boxed checklists (components/docs/Checklist.svelte): each list item is a checkbox, ticked by
+   aria-checked. */
+@utility checklist {
+  @apply rounded-[4px] bg-white/10 px-5 py-4;
+  & > * + * {
+    @apply mt-3;
+  }
+  & ul {
+    @apply list-none! space-y-2 pl-0!;
+  }
+  & ul ul {
+    @apply mt-2;
+  }
+  & li {
+    @apply relative cursor-pointer pl-8 outline-none;
+  }
+  & li::before {
+    @apply absolute top-[0.25em] left-0 size-5 rounded-[4px] border-2 border-cream/60 bg-center bg-no-repeat transition content-[''];
+  }
+  & li:hover::before {
+    @apply border-cream;
+  }
+  & li:focus-visible::before {
+    @apply outline-2 outline-offset-2 outline-cream;
+  }
+  & li[aria-checked='true']::before {
+    @apply border-cream bg-cream;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2340455b' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E");
+    background-size: 14px;
+  }
+}
+
 /* The cream pill's quieter sibling for the glass panels on the sky. */
 @utility pill-glass {
   @apply inline-flex h-11 cursor-pointer items-center justify-center rounded-full border border-white/25 bg-white/10 px-5 font-montserrat font-semibold text-cream outline-offset-4 outline-cream transition hover:bg-white/20 focus-visible:outline-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100;

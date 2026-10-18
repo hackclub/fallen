@@ -5,14 +5,16 @@
   import { stagger } from '@/lib/stagger'
 
   // Settings and Docs: a rail of tabs beside a glass panel, moved through like a game menu. The tabs feel like the
-  // nav rail, arrow keys step through them with a blip, the open tab is kept in the URL's hash (/settings#sound), and
-  // the panel eases to the height of what is open while its children fade in one after another.
+  // nav rail, arrow keys step through them with a blip, the open tab is kept in the URL (the hash, /settings#sound, or
+  // the path from `href`, /docs/journaling) without a visit, and the panel eases to the height of what is open while its children fade in one after another.
   // Tabs without icons stay a column on phones; with icons they become a row that keeps only the open tab's word.
+  // On wider screens the rail is as wide as its longest label, never under 200px, and stays in view as the page scrolls.
   let {
     items,
     label,
     current = $bindable(),
     panelClass = '',
+    href,
     panel,
     after,
   }: {
@@ -20,6 +22,7 @@
     label: string
     current: Id
     panelClass?: string
+    href?: (id: Id) => string
     panel: Snippet<[Id]>
     after?: Snippet<[Id]>
   } = $props()
@@ -31,15 +34,18 @@
   const tabs: Record<string, HTMLButtonElement> = $state({})
   let height = $state(0)
 
+  const url = (id: Id) => href?.(id) ?? `#${id}`
+
+  // With `href`, an old hash link (/docs#journaling) still opens its tab.
   onMount(() => {
-    const id = location.hash.slice(1) as Id
+    const id = ids.find((id) => location.pathname === url(id)) ?? (location.hash.slice(1) as Id)
     if (ids.includes(id)) current = id
   })
 
   function open(id: Id) {
     if (id === current) return
     current = id
-    history.replaceState(history.state, '', `#${id}`)
+    history.replaceState(history.state, '', url(id))
   }
 
   function onkeydown(event: KeyboardEvent) {
@@ -62,7 +68,7 @@
   }
 </script>
 
-<div class="grid gap-6 md:grid-cols-[200px_minmax(0,1fr)] md:items-start">
+<div class="grid gap-6 md:grid-cols-[minmax(200px,max-content)_minmax(0,1fr)] md:items-start">
   <!-- svelte-ignore a11y_interactive_supports_focus -->
   <ul
     role="tablist"
@@ -71,7 +77,7 @@
     {onkeydown}
     {@attach flashOnClick}
     class={[
-      'rail flex overflow-hidden rounded-[4px] bg-white/10 md:w-auto md:flex-col',
+      'rail flex overflow-hidden rounded-[4px] bg-white/10 md:sticky md:top-8 md:w-auto md:flex-col',
       row ? 'w-fit' : 'flex-col',
     ]}
   >
@@ -95,8 +101,10 @@
             class="relative z-10 flex items-center gap-3 drop-shadow-[0_1.5px_4px_rgba(0,0,0,0.35)]"
             style:transform="translateX({spring(item.id).current}px)"
           >
-            {@render item.icon?.()}
-            <span class={[row && current !== item.id && 'max-sm:sr-only']}>{item.label}</span>
+            {#if item.icon}<span class="shrink-0">{@render item.icon()}</span>{/if}
+            <span class={['whitespace-nowrap md:pr-8', row && current !== item.id && 'max-sm:sr-only']}
+              >{item.label}</span
+            >
           </span>
         </button>
       </li>

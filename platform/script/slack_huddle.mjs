@@ -125,6 +125,10 @@ function openSignaling(meeting, attendee, onEnd) {
     if (frame.type === 'PING_PONG' && frame.ping_pong?.type === 'PING') {
       send('PING_PONG', { ping_pong: { type: 2, ping_id: frame.ping_pong.ping_id } })
     }
+    // Who Chime has in the audio, muted or dropped. Logged only for now, to learn whether external_user_id maps to
+    // Slack ids before mute time is tracked from it.
+    if (frame.type === 'AUDIO_STREAM_ID_INFO')
+      log('chime_streams', { streams: frame.audio_stream_id_info?.streams })
     const status = frame.audio_status?.audio_status
     if (status !== undefined && status !== 200)
       onEnd(`audio status ${status} (${finalAudioStatus[status] ?? 'lost'})`, status in finalAudioStatus)

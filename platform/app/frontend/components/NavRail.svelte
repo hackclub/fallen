@@ -13,7 +13,7 @@
   const items = [
     { label: 'Home', icon: SolarHome, href: home.index(), component: pages.home },
     { label: 'Projects', icon: SolarSledgehammer, href: projects.index(), component: pages.projects },
-    { label: 'Docs', icon: SolarDocument, href: docs.show(), component: pages.docs },
+    { label: 'Docs', icon: SolarDocument, href: docs.show({}), component: pages.docs },
     { label: 'Settings', icon: SolarSettings, href: settings.show(), component: pages.settings },
   ].map((item) => ({ ...item, x: nudgeSpring() }))
 

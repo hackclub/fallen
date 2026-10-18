@@ -8,7 +8,7 @@ Rails.application.routes.draw do
 
   root "landing#index"
   get "home" => "home#index", as: :home
-  get "docs" => "docs#show", as: :docs
+  get "docs(/:page)" => "docs#show", as: :docs, constraints: { page: /[a-z0-9-]+/ }
   get "settings" => "settings#show", as: :settings
   get "sorry" => "bans#show", as: :sorry
 
@@ -33,6 +33,9 @@ Rails.application.routes.draw do
 
   resource :pet, only: :update
   resource :hatch, only: :create
+  resource :timer, only: %i[show create destroy]
+  resource :huddle_invite, only: :create
+  resource :huddle_pause, only: %i[create destroy]
 
   resources :projects do
     resources :journals, only: %i[create update destroy], shallow: true

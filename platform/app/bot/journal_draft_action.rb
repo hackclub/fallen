@@ -32,6 +32,7 @@ class JournalDraftAction < SlackBot::Action
     end
 
     CollectSlackJournalJob.perform_later(journal, files, journal.slack_parts.pluck("ts"))
+    AddJournalFooterJob.perform_later(journal)
     if egg && user.reload.hatched?
       EggCrackingJob.perform_later(user)
       EggCrackingJob.perform_later(user, journal.project)

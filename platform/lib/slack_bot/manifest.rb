@@ -10,6 +10,7 @@ module SlackBot
     BOT_SCOPES = %w[
       app_mentions:read
       channels:history
+      channels:manage
       chat:write
       chat:write.customize
       commands

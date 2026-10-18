@@ -5,9 +5,8 @@ module SlackMessages
   module_function
 
   def project_anchor(project)
-    lines = [ ":hammer_and_wrench: *#{escape(project.title)}*" ]
-    lines << escape(project.description) if project.description.present?
-    { text: lines.join("\n") }
+    text = [ "Idea: #{escape(project.title)}", escape(project.description).presence ].compact.join("\n\n")
+    { text: text, blocks: [ SlackBot::Blocks.section(text), footer(project_url(project)) ] }
   end
 
   def journal(journal)
@@ -16,9 +15,15 @@ module SlackMessages
     text = [ body, image_links.join("  ") ].select(&:present?).join("\n")
     blocks = [ SlackBot::Blocks.section(text) ]
     # Timelapses are private to the person and staff, so the public thread never links one.
-    blocks << SlackBot::Blocks.context(":stopwatch: #{journal.duration_text}") if journal.hours_logged?
+    blocks << footer(journal_url(journal), *(":stopwatch: #{journal.duration_text}" if journal.hours_logged?))
     { text: text, blocks: blocks }
   end
+
+  FOOTER_BLOCK_ID = "fallen_footer"
+
+  # The small "fallen ↗" line under a project anchor or journal, linking to it on the site.
+  def footer(url, *before) = SlackBot::Blocks.context(*before, "<#{url}|fallen ↗>").merge(block_id: FOOTER_BLOCK_ID)
+  def footer?(blocks) = Array(blocks).any? { |block| block.to_h.with_indifferent_access[:block_id] == FOOTER_BLOCK_ID }
 
   EGG_TEASERS = {
     "lulu" => "https://cdn.hackclub.com/01a14bd9-eba7-7b6c-832b-b10a6790a3c4/egg-teaser-lulu.webp",
@@ -265,6 +270,8 @@ module SlackMessages
   def blob_url(image) = Rails.application.routes.url_helpers.rails_blob_url(image, host: ENV.fetch("APP_URL", "http://localhost:3000"))
 
   def project_url(project) = Rails.application.routes.url_helpers.project_url(project, host: ENV.fetch("APP_URL", "http://localhost:3000"))
+
+  def journal_url(journal) = Rails.application.routes.url_helpers.project_url(journal.project, anchor: "journal-#{journal.public_id}", host: ENV.fetch("APP_URL", "http://localhost:3000"))
 
   def hatch_url = Rails.application.routes.url_helpers.home_url(hatch: 1, host: ENV.fetch("APP_URL", "http://localhost:3000"))
 

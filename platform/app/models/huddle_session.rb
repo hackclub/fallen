@@ -1,21 +1,32 @@
 # One stretch of someone sitting in the huddle, from when Slack listed them to when it stopped. Their time in the
-# huddle is the sum of these; nothing pays out for it yet. `mode` and `goal` are what they answered when asked
-# what they were working on (HuddleGoalAction).
+# huddle is the sum of these (`total_seconds`); nothing pays out for it yet. `mode` and `goal` are what they answered
+# when asked what they were working on (HuddleGoalAction).
+#
+# `join_source` and `leave_source` say how exact each end is (SOURCES). `last_seen_at` is the last sync that found
+# them in the huddle. `screenshare_seconds` and `camera_seconds` count time with either on, as often as the sync
+# checks (every minute, and on every join and leave); `*_since` is when the current stretch of it began.
 # == Schema Information
 #
 # Table name: huddle_sessions
 #
-#  id                :bigint           not null, primary key
-#  goal              :text
-#  joined_at         :datetime         not null
-#  left_at           :datetime
-#  mode              :string
-#  prompted_at_count :integer
-#  created_at        :datetime         not null
-#  updated_at        :datetime         not null
-#  huddle_id         :bigint           not null
-#  slack_id          :string           not null
-#  user_id           :bigint
+#  id                  :bigint           not null, primary key
+#  camera_seconds      :integer          default(0), not null
+#  camera_since        :datetime
+#  goal                :text
+#  join_source         :string
+#  joined_at           :datetime         not null
+#  last_seen_at        :datetime
+#  leave_source        :string
+#  left_at             :datetime
+#  mode                :string
+#  prompted_at_count   :integer
+#  screenshare_seconds :integer          default(0), not null
+#  screenshare_since   :datetime
+#  created_at          :datetime         not null
+#  updated_at          :datetime         not null
+#  huddle_id           :bigint           not null
+#  slack_id            :string           not null
+#  user_id             :bigint
 #
 # Indexes
 #
@@ -33,6 +44,14 @@ class HuddleSession < ApplicationRecord
   include PublicIdentifiable
 
   MODES = %w[working chilling].freeze
+  # event: the time on Slack's own join or leave event (HuddleEvent), to the millisecond.
+  # sync: when a sync first noticed, at most a minute late.
+  # unseen: nothing was watching when they left (a deploy, Slack failing), so the last sync that saw them, which
+  #   can only undercount.
+  # huddle_end: the moment Slack ended the huddle.
+  SOURCES = %w[event sync unseen huddle_end].freeze
+  # Longer than this since a sync saw someone means syncs were not running, so "now" is not when they left.
+  UNSEEN_AFTER = 3.minutes
 
   set_public_id_prefix :hds
 
@@ -41,10 +60,46 @@ class HuddleSession < ApplicationRecord
 
   validates :slack_id, :joined_at, presence: true
   validates :mode, inclusion: { in: MODES }, allow_nil: true
+  validates :join_source, :leave_source, inclusion: { in: SOURCES }, allow_nil: true
 
   scope :ongoing, -> { where(left_at: nil) }
 
-  def leave!(at) = update!(left_at: [ at, joined_at ].max)
+  # Joining, leaving and answering change the pet's timer; the sync's every-minute last_seen_at does not.
+  after_commit -> { TimerChannel.changed(user_id) }, if: -> { (previous_changes.keys & %w[id left_at mode user_id]).any? }
 
-  def minutes = (((left_at || Time.current) - joined_at) / 60).floor
+  # Seconds in the huddle across these sessions, counting open ones up to now.
+  def self.total_seconds
+    sum(Arel.sql("EXTRACT(EPOCH FROM COALESCE(left_at, CURRENT_TIMESTAMP) - joined_at)")).to_i
+  end
+
+  def seconds = ((left_at || Time.current) - joined_at).to_i
+
+  # A sync found them sharing their screen and with their camera on, or not. Writes only when either changed.
+  def sharing!(at, screen:, camera:)
+    changes = { **stretch(:screenshare, screen, at), **stretch(:camera, camera, at) }
+    update!(changes) if changes.any?
+  end
+
+  def leave!(at, source)
+    at = [ at, joined_at ].max
+    update!(left_at: at, leave_source: source, **stretch(:screenshare, false, at), **stretch(:camera, false, at))
+  end
+
+  # Whether syncs stopped seeing them a while before `at`, so `at` cannot be when they left. Sessions from before
+  # last_seen_at was kept have nothing to go on.
+  def unseen_at?(at) = last_seen_at.present? && at - last_seen_at > UNSEEN_AFTER
+
+  private
+
+  # Opens or closes a stretch of screenshare or camera time.
+  def stretch(name, on, at)
+    since = self["#{name}_since"]
+    if on && since.nil?
+      { "#{name}_since" => at }
+    elsif !on && since
+      { "#{name}_since" => nil, "#{name}_seconds" => self["#{name}_seconds"] + (at - since).to_i.clamp(0..) }
+    else
+      {}
+    end
+  end
 end

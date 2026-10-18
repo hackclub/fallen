@@ -8,6 +8,7 @@
 #  id            :bigint           not null, primary key
 #  ended_at      :datetime
 #  handed_off_at :datetime
+#  link          :string
 #  message_count :integer          default(0), not null
 #  started_at    :datetime         not null
 #  thread_ts     :string
@@ -41,13 +42,35 @@ class Huddle < ApplicationRecord
 
   scope :live, -> { where(ended_at: nil) }
 
+  # The huddle running in SLACK_HUDDLE_CHANNEL_ID now, if one is set up.
+  def self.current = SlackHuddle.channel_id && live.where(channel_id: SlackHuddle.channel_id).order(:started_at).last
+
   def ended? = ended_at.present?
 
-  # Closes every open session at the moment the huddle ended.
+  # Closes every open session at the moment the huddle ended, or earlier for anyone known to have left before.
   def end!(at)
     transaction do
       update!(ended_at: at)
-      sessions.ongoing.find_each { |session| session.leave!(at) }
+      sessions.ongoing.find_each { |session| session.leave!(*departure(session, at, "huddle_end")) }
+    end
+  end
+
+  # When someone Slack lists now arrived, and how that is known (HuddleSession::SOURCES): their join event after
+  # `after` (their last visit ending, or the huddle starting), or now.
+  def arrival(slack_id, after:, now:)
+    joined = HuddleEvent.last_at(call_id, slack_id, "joined", since: after)
+    joined ? [ [ joined, now ].min, "event" ] : [ now, "sync" ]
+  end
+
+  # When someone Slack no longer lists left, and how that is known: their leave event, the last sync that saw them
+  # if syncs had stopped, or `now` as `source`.
+  def departure(session, now, source = "sync")
+    if (left = HuddleEvent.last_at(call_id, session.slack_id, "left", since: session.joined_at))
+      [ [ left, now ].min, "event" ]
+    elsif session.unseen_at?(now)
+      [ session.last_seen_at, "unseen" ]
+    else
+      [ now, source ]
     end
   end
 
@@ -85,4 +108,7 @@ class Huddle < ApplicationRecord
 
   # The message Slack posts for the huddle, which carries its Join button.
   def slack_url = thread_ts && SlackMessaging.permalink(channel_id, thread_ts)
+
+  # Opens the huddle itself in Slack, or failing that its message.
+  def join_url = link || slack_url
 end

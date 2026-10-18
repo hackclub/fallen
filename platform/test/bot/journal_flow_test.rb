@@ -71,6 +71,7 @@ class JournalFlowTest < ActiveSupport::TestCase
       end
 
       journal = Journal.last
+      assert_enqueued_with(job: AddJournalFooterJob, args: [ journal ])
       assert_equal "Printed the case\n\nThen sanded it", journal.body
       assert_equal 75, journal.duration_minutes
       assert_equal 10, journal.xp
@@ -217,8 +218,15 @@ class JournalFlowTest < ActiveSupport::TestCase
     journal = projects(:station).journals.create!(user: users(:member), body: "one\n\ntwo", duration_minutes: 30, source: "slack", slack_channel_id: CHANNEL, slack_ts: "1700000010.000100", images: [ photo ],
                                                   slack_parts: [ { ts: "1700000010.000100", text: "one" }, { ts: "1700000010.000200", text: "two" } ])
     with_fake_slack do
-      SlackBot.handle(:event, { "event" => { "type" => "message", "subtype" => "message_changed", "channel" => CHANNEL, "message" => { "ts" => "1700000010.000200", "text" => "TWO" } } })
+      assert_enqueued_with(job: AddJournalFooterJob, args: [ journal ]) do
+        SlackBot.handle(:event, { "event" => { "type" => "message", "subtype" => "message_changed", "channel" => CHANNEL, "message" => { "ts" => "1700000010.000200", "text" => "TWO" } } })
+      end
       assert_equal "one\n\nTWO", journal.reload.body
+
+      footed = { "ts" => "1700000010.000200", "text" => "TWO", "blocks" => [ { "type" => "context", "block_id" => SlackMessages::FOOTER_BLOCK_ID, "elements" => [] } ] }
+      assert_no_enqueued_jobs(only: AddJournalFooterJob) do
+        SlackBot.handle(:event, { "event" => { "type" => "message", "subtype" => "message_changed", "channel" => CHANNEL, "message" => footed } })
+      end
 
       SlackBot.handle(:event, { "event" => { "type" => "message", "subtype" => "message_deleted", "channel" => CHANNEL, "deleted_ts" => "1700000010.000100" } })
       assert_equal "TWO", journal.reload.body

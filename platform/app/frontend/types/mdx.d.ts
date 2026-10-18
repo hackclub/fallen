@@ -2,7 +2,7 @@
 declare module '*.mdx' {
   import type { Component } from 'svelte'
 
-  export const metadata: { title: string; order: number }
+  export const metadata: { title: string; order: number; icon: string }
   const component: Component
   export default component
 }

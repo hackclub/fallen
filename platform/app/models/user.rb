@@ -64,6 +64,8 @@ class User < ApplicationRecord
   has_many :journals, dependent: :destroy
   has_many :xp_entries, dependent: :destroy
   has_many :huddle_sessions, dependent: :destroy
+  has_many :timer_sessions, dependent: :destroy
+  has_many :huddle_pauses, dependent: :destroy
   has_many :lapse_timelapses, dependent: :destroy
 
   validates :hca_id, :email, :display_name, :timezone, presence: true
@@ -77,6 +79,7 @@ class User < ApplicationRecord
   after_save -> { HuddleSession.where(slack_id: slack_id, user_id: nil).update_all(user_id: id) }, if: -> { saved_change_to_slack_id? && slack_id.present? }
   # Finishing onboarding (picking a pet) or linking Slack while sitting in the huddle gets a welcome (HuddleWelcomeJob).
   after_commit -> { HuddleWelcomeJob.perform_later(self) }, on: %i[create update], if: :just_joined_fallen?
+  after_commit -> { JoinMembersChannelJob.perform_later(self) }, on: %i[create update], if: :just_joined_fallen?
 
   scope :admins, -> { where("roles @> ARRAY[?]::varchar[]", "admin") }
   scope :with_role, ->(role) { where("roles @> ARRAY[?]::varchar[]", role.to_s) }

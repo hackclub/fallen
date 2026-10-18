@@ -80,6 +80,8 @@ class Journal < ApplicationRecord
 
   after_save :claim_picked_timelapses, if: -> { @picked_timelapses }
   after_save :sync_xp, if: -> { saved_change_to_duration_minutes? || saved_change_to_discarded_at? }
+  # A new journal starts the pet's timer from zero; deleting the newest one brings its time back.
+  after_commit -> { TimerChannel.changed(user_id) }, if: -> { previous_changes.key?("id") || previous_changes.key?("discarded_at") }
 
   scope :newest_first, -> { order(created_at: :desc, id: :desc) }
   scope :needing_hours, -> { where(duration_minutes: nil) }
@@ -101,6 +103,7 @@ class Journal < ApplicationRecord
   def images_needed = (duration_minutes.to_f / MINUTES_PER_IMAGE).ceil
   def duration_text = Duration.format(duration_minutes)
   def multi_part? = slack_parts.size > 1
+  def last_slack_ts = slack_parts.last&.dig("ts") || slack_ts
 
   # The full set of timelapses the journal should end up with, saved along with it.
   def picked_timelapses=(timelapses)

@@ -1,0 +1,81 @@
+---
+title: On Journaling
+order: 1
+icon: journal
+---
+
+<script>import {JournalExample} from '@/components/docs'</script>
+
+A journal is a running log of your project's progress. In Fallen, you journal once per session that you work on your project by posting in the [#fallen-journals](https://hackclub.enterprise.slack.com/archives/C0C9B7FHY3A) Slack channel or on [fallen.hackclub.com](https://fallen.hackclub.com/).
+
+Journals are a keepsake of your journey and a way for others to learn from how you built your project.
+
+**They DON'T have to be formal or polished, but they should show what you did, what you tried, and what you accomplished.**
+
+We'll be reading them to review your project! We want to see how you build your project, what you tried, and the late night chaos!
+
+A good journal includes:
+
+1. Date & Title
+2. What happened
+   - Write this as you work!
+3. Pictures! The more the merrier
+4. Time spent this session
+
+Both journals below cover the same 6 hours of progress on the project, but with _very_ different amounts of detail!
+
+## A bad journal
+
+<JournalExample images={['journal-board.webp']}>
+
+Made a few fixes, finished my board and finally ordered it!
+
+_Time spent this session: 6 hours_
+
+</JournalExample>
+
+**This journal raises a lot of questions:**
+
+- Why did you do this?
+- What fixes? What was wrong before?
+- How did you fix it?
+- What does the board do?
+- Where did you order it and how?
+- There are more problems, but you get the point!
+
+## A good journal
+
+<JournalExample images={['journal-closeup-1.webp', 'journal-closeup-2.webp', 'journal-closeup-3.webp', 'journal-board.webp']}>
+
+**Oct 1st: Finishing up + purchasing**
+
+Final checks on my e-paper & BLE PCB badge!
+
+Added stitching vias + repositioned the e-ink connector + widened cutout for the display's flex pcb + added pull up resistors on I2C which I almost forgot!
+
+**Based on a friend's review I changed a few parts:**
+
+- Moved traces so that they're not under the inductor
+- Used different zone shapes under the mcu
+- Recalculated this trace width (it's a much more manageable thickness now)
+
+Spent so long checking everything for the gazillionth time as I'm terrified I've goofed something up.
+
+And then I proceeded to go to war with JLCPCB.
+
+I was able to carry over most of my selected parts from v1 of this project, except a couple which had the wrong footprint.
+
+I had to update the project, then reupload the gerbers around 7 times oml. but, JLC's BOM tool did not seem to ever update random parts, so I kept on rechecking and updating the selected part for multiple components.
+
+I ended up sleeping at 5am just to get this ordered. Finally done though! 10/10 experience would make a pcb again
+
+_Time spent this session: 6 hours_
+
+</JournalExample>
+
+**The journal:**
+
+- Says what changed
+- Says _why_ it changed
+- Describes the struggle
+- Has plenty of screenshots!

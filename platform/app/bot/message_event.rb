@@ -65,7 +65,11 @@ class MessageEvent < SlackBot::Event
   def message_changed
     changed = event.message or return
     if (journal = Journal.find_by_slack_message(channel_id, changed.ts))
-      journal.slack_message_edited(changed.ts, changed.text.to_s) unless journal.discarded?
+      return if journal.discarded?
+
+      journal.slack_message_edited(changed.ts, changed.text.to_s)
+      # Editing in Slack drops blocks the person didn't write, the footer among them.
+      AddJournalFooterJob.perform_later(journal) if changed.ts == journal.last_slack_ts && !SlackMessages.footer?(changed.blocks)
     else
       JournalDraft.containing(changed.ts).first&.edit(changed.ts, changed.text.to_s)
     end
@@ -73,7 +77,11 @@ class MessageEvent < SlackBot::Event
 
   def message_deleted
     if (journal = Journal.find_by_slack_message(channel_id, event.deleted_ts))
-      journal.slack_message_deleted(event.deleted_ts) unless journal.discarded?
+      return if journal.discarded?
+
+      footed = event.deleted_ts == journal.last_slack_ts
+      journal.slack_message_deleted(event.deleted_ts)
+      AddJournalFooterJob.perform_later(journal) if footed && journal.kept?
     else
       JournalDraft.containing(event.deleted_ts).first&.remove(event.deleted_ts)
     end

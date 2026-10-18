@@ -112,6 +112,90 @@ class HuddleSyncJobTest < ActiveSupport::TestCase
     assert_nil Huddle.find_by!(call_id: "R2").sessions.sole.mode
   end
 
+  test "takes join and leave times from Slack's events" do
+    huddle = Huddle.create!(call_id: "R1", channel_id: CHANNEL, started_at: 1.hour.ago)
+    joined = Time.zone.at(40.seconds.ago.to_i)
+    HuddleEvent.create!(call_id: "R1", slack_id: "U0MEMBER", kind: "joined", occurred_at: joined)
+
+    sync(fake_browser(room: room("R1", %w[U0BOT U0MEMBER])))
+    session = huddle.sessions.sole
+    assert_equal [ joined, "event" ], [ session.joined_at, session.join_source ]
+
+    left = Time.zone.at(5.seconds.ago.to_i)
+    HuddleEvent.create!(call_id: "R1", slack_id: "U0MEMBER", kind: "left", occurred_at: left)
+    sync(fake_browser(room: room("R1", %w[U0BOT])))
+    assert_equal [ left, "event" ], [ session.reload.left_at, session.leave_source ]
+  end
+
+  test "without events, times are when the sync noticed" do
+    huddle = Huddle.create!(call_id: "R1", channel_id: CHANNEL, started_at: 1.hour.ago)
+    HuddleEvent.create!(call_id: "R1", slack_id: "U0MEMBER", kind: "joined", occurred_at: 2.hours.ago)
+
+    freeze_time do
+      sync(fake_browser(room: room("R1", %w[U0BOT U0MEMBER])))
+      session = huddle.sessions.sole
+      assert_equal [ Time.current, "sync", Time.current ], [ session.joined_at, session.join_source, session.last_seen_at ]
+    end
+  end
+
+  test "someone who left while nothing was watching leaves when last seen, not when syncs resume" do
+    huddle = Huddle.create!(call_id: "R1", channel_id: CHANNEL, started_at: 1.hour.ago)
+    seen = Time.zone.at(20.minutes.ago.to_i)
+    session = huddle.sessions.create!(slack_id: "U0MEMBER", joined_at: 30.minutes.ago, last_seen_at: seen)
+    staying = huddle.sessions.create!(slack_id: "U0ADMIN", joined_at: 30.minutes.ago, last_seen_at: seen)
+
+    sync(fake_browser(room: room("R1", %w[U0BOT U0ADMIN])))
+
+    assert_equal [ seen, "unseen" ], [ session.reload.left_at, session.leave_source ]
+    assert_nil staying.reload.left_at
+    assert_in_delta Time.current, staying.last_seen_at, 2
+  end
+
+  test "counts time with the screen shared and the camera on" do
+    huddle = Huddle.create!(call_id: "R1", channel_id: CHANNEL, started_at: 1.hour.ago)
+    sharing = room("R1", %w[U0BOT U0MEMBER]).merge("participants_screenshare_on" => %w[U0MEMBER], "participants_camera_on" => [ { "user_id" => "U0MEMBER" } ])
+    start = Time.current.change(usec: 0)
+
+    travel_to(start) { sync(fake_browser(room: sharing)) }
+    session = huddle.sessions.sole
+    assert_equal [ start, start ], [ session.screenshare_since, session.camera_since ]
+
+    travel_to(start + 90.seconds) { sync(fake_browser(room: sharing.merge("participants_screenshare_on" => []))) }
+    assert_equal [ nil, 90, 0 ], [ session.reload.screenshare_since, session.screenshare_seconds, session.camera_seconds ]
+
+    travel_to(start + 2.minutes) { sync(fake_browser(room: room("R1", %w[U0BOT]))) }
+    assert_equal [ nil, 120 ], [ session.reload.camera_since, session.camera_seconds ]
+  end
+
+  test "sessions still open when the huddle ends close at the end" do
+    ended_at = Time.zone.at(30.seconds.ago.to_i)
+    huddle = Huddle.create!(call_id: "R1", channel_id: CHANNEL, started_at: 1.day.ago)
+    huddle.sessions.create!(slack_id: "U0MEMBER", joined_at: 2.hours.ago, last_seen_at: 1.minute.ago)
+
+    sync(fake_browser(room: room("R1", [], date_end: ended_at.to_i)))
+
+    assert_equal [ ended_at, "huddle_end" ], huddle.sessions.sole.slice(:left_at, :leave_source).values
+  end
+
+  test "leaving ends a pause, a dropped connection keeps it, and no pause outlives its huddle visit" do
+    huddle = Huddle.create!(call_id: "R1", channel_id: CHANNEL, started_at: 1.hour.ago)
+    huddle.sessions.create!(slack_id: "U0MEMBER", user: users(:member), joined_at: 30.minutes.ago, last_seen_at: Time.current, mode: "working")
+    pause = users(:member).huddle_pauses.create!(started_at: 10.minutes.ago)
+
+    sync(fake_browser(room: room("R1", %w[U0BOT])))
+    assert_equal "left", pause.reload.end_reason
+
+    travel 5.seconds do
+      sync(fake_browser(room: room("R1", %w[U0BOT U0MEMBER])))
+    end
+    assert_equal 1, users(:member).huddle_pauses.open.count
+
+    stray = users(:admin).huddle_pauses.create!(started_at: 1.minute.ago)
+    sync(fake_browser(room: room("R1", %w[U0BOT U0MEMBER])))
+    assert_equal "left", stray.reload.end_reason
+    assert_equal 1, users(:member).huddle_pauses.open.count
+  end
+
   test "does nothing until the huddle is configured" do
     with_env("SLACK_HUDDLE_CHANNEL_ID" => nil) { HuddleSyncJob.perform_now }
     assert_equal 0, Huddle.count

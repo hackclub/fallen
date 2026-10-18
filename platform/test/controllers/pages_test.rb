@@ -14,9 +14,21 @@ class PagesTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "Landing/Index"
   end
 
-  test "docs and settings require sign in" do
+  test "docs render for guests" do
     get docs_path
-    assert_redirected_to root_path
+    assert_response :success
+    assert_includes response.body, "Docs/Show"
+  end
+
+  test "each doc has its own path, and a name with no doc goes back to the docs" do
+    get docs_path(page: "travel-stipends")
+    assert_response :success
+    assert_includes response.body, "Docs/Show"
+    get docs_path(page: "nope")
+    assert_redirected_to docs_path
+  end
+
+  test "settings require sign in" do
     get settings_path
     assert_redirected_to root_path
   end

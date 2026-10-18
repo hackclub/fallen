@@ -10,7 +10,7 @@
   import NavRail from '@/components/NavRail.svelte'
   import NameTag from '@/components/NameTag.svelte'
   import Wordmark from '@/components/Wordmark.svelte'
-  import { adminRoot, home } from '@/routes'
+  import { adminRoot, home, signIn } from '@/routes'
   import { shared } from '@/lib/shared.svelte'
   import { pages, warmPages } from '@/lib/pages'
   import sky from '@/assets/hero/starry-bg.webp'
@@ -53,6 +53,12 @@
         {#if user}
           <NavRail class="relative w-fit md:mt-10 md:ml-[53px] md:w-[204px]" />
           <NameTag {user} class="mt-auto ml-[67px] hidden md:block" />
+        {:else}
+          <!-- Signed out (only Docs is public): signing in where the name tag would be. A full visit, it leaves for
+               Hack Club Auth. -->
+          <a href={signIn().url} class="pill-cream relative mt-auto ml-[67px] hidden w-fit md:inline-flex"
+            >Sign in</a
+          >
         {/if}
       </aside>
 
@@ -63,7 +69,9 @@
           </div>
         {/if}
 
-        <main class="mx-auto w-full max-w-5xl flex-1 px-4 py-8 md:pr-[59px] md:pl-0">
+        <main
+          class="mx-auto w-full max-w-5xl flex-1 has-[[data-wide]]:max-w-[1360px] px-4 py-8 md:pr-[59px] md:pl-0"
+        >
           <Toasts />
           <DesktopPet />
           <OnboardingOverlay greet />
@@ -74,6 +82,8 @@
 
         {#if user}
           <NameTag {user} class="mx-4 mb-8 md:hidden" />
+        {:else}
+          <a href={signIn().url} class="pill-cream mx-4 mb-8 w-fit md:hidden">Sign in</a>
         {/if}
       </div>
     </div>

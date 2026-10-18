@@ -4,7 +4,7 @@
 # own client reads it. Huddles have no public API, so this uses the account's browser session
 # (SLACK_BROWSER_TOKEN and SLACK_BROWSER_COOKIE). HuddleSyncJob and HuddleHandoffJob use it.
 module SlackHuddle
-  Room = Data.define(:call_id, :thread_ts, :participant_ids, :started_at, :ended_at) do
+  Room = Data.define(:call_id, :thread_ts, :link, :participant_ids, :screenshare_ids, :camera_ids, :started_at, :ended_at) do
     def ended? = !ended_at.nil?
   end
 
@@ -57,10 +57,15 @@ module SlackHuddle
     Room.new(
       call_id: room.fetch("id"),
       thread_ts: thread_ts || room["thread_root_ts"] || room["canvas_thread_ts"],
-      # Slack lists participants as user ids or as membership objects.
-      participant_ids: Array(room["participants"]).filter_map { |entry| entry.is_a?(Hash) ? entry["user_id"] : entry },
+      link: room["huddle_link"].presence,
+      participant_ids: user_ids(room["participants"]),
+      screenshare_ids: user_ids(room["participants_screenshare_on"]),
+      camera_ids: user_ids(room["participants_camera_on"]),
       started_at: room["date_start"].to_i.positive? ? Time.zone.at(room["date_start"].to_i) : Time.current,
       ended_at: ended
     )
   end
+
+  # Slack lists people as user ids or as membership objects.
+  def user_ids(list) = Array(list).filter_map { |entry| entry.is_a?(Hash) ? entry["user_id"] : entry }
 end

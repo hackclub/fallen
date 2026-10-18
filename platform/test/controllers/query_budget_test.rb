@@ -23,6 +23,9 @@ class QueryBudgetTest < ActionDispatch::IntegrationTest
     assert_query_budget(3) { get edit_project_path(projects(:station)) }
     assert_query_budget(2) { get docs_path }
     assert_query_budget(2) { get settings_path }
+    # Not a page: what the pet's timer asks for after every visit and every 30 seconds. The last journal, then
+    # huddle sessions, pauses and timer sessions since it, plus the live huddle when one is configured.
+    assert_query_budget(4) { get timer_path }
   end
 
   test "onboarding pages" do

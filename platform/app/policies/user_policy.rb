@@ -8,6 +8,8 @@ class UserPolicy < ApplicationPolicy
   def choose_pet? = record == user
   # An admin watching it while impersonating does not count as the person seeing it.
   def watch_hatch? = record == user && !user_impersonating?
+  # Starting and stopping their timer, or ringing themselves into the huddle. Not an admin browsing as them.
+  def track_time? = record == user && !user_impersonating?
 
   # Admins can browse as regular, active users only; never as other staff or while already impersonating.
   def impersonate?

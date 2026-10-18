@@ -29,14 +29,17 @@ class HuddleSyncJob < ApplicationJob
     huddle = Huddle.live.where(channel_id: SlackHuddle.channel_id).order(:started_at).last
     if huddle
       room = SlackHuddle.room(huddle.call_id)
-      return seat(huddle, room) if room && !room.ended?
+      if room && !room.ended?
+        huddle.update!(link: room.link) if room.link && huddle.link != room.link
+        return seat(huddle, room)
+      end
 
       huddle.end!(room&.ended_at || Time.current)
     end
 
     room = SlackHuddle.live_room or return
     huddle = Huddle.create_or_find_by!(call_id: room.call_id) do |new_huddle|
-      new_huddle.assign_attributes(channel_id: SlackHuddle.channel_id, thread_ts: room.thread_ts, started_at: room.started_at)
+      new_huddle.assign_attributes(channel_id: SlackHuddle.channel_id, thread_ts: room.thread_ts, link: room.link, started_at: room.started_at)
     end
     return if huddle.ended?
 
@@ -54,22 +57,34 @@ class HuddleSyncJob < ApplicationJob
 
     now = Time.current
     open = huddle.sessions.ongoing.index_by(&:slack_id)
-    open.except(*present).each_value { |session| session.leave!(now) }
+    open.except(*present).each_value do |session|
+      left_at, source = huddle.departure(session, now)
+      session.leave!(left_at, source)
+      HuddlePause.finish(session.user_id, at: left_at, reason: "left") if session.user_id
+    end
+    staying = open.slice(*present).values
+    HuddleSession.where(id: staying.map(&:id)).update_all(last_seen_at: now)
+    staying.each { |session| session.sharing!(now, screen: room.screenshare_ids.include?(session.slack_id), camera: room.camera_ids.include?(session.slack_id)) }
 
     arrived = present - open.keys
-    return if arrived.empty?
+    welcome(huddle, room, arrived, now) if arrived.any?
+    # A pause can only last while its person is in the huddle; this also ends one that raced a leave.
+    HuddlePause.finish(HuddlePause.open.where.not(user_id: HuddleSession.ongoing.where.not(user_id: nil).select(:user_id)).pluck(:user_id), at: now, reason: "left")
+  end
 
+  def welcome(huddle, room, arrived, now)
     users = User.kept.where(slack_id: arrived).index_by(&:slack_id)
     earlier = huddle.sessions.where(slack_id: arrived).order(:joined_at).index_by(&:slack_id)
     carried = huddle.carried_over(arrived - earlier.keys, at: now)
-    arrived.each { |slack_id| arrive(huddle, slack_id, users[slack_id], earlier[slack_id], carried[slack_id], now) }
+    arrived.each { |slack_id| arrive(huddle, room, slack_id, users[slack_id], earlier[slack_id], carried[slack_id], now) }
   end
 
   # Everyone is asked on every visit; someone who was working on something is asked whether they still are. A
   # dropped connection, or coming over from the last huddle when Slack restarted it, keeps an answer instead. With
   # no answer yet they are asked again, since the private prompt goes away when they leave.
-  def arrive(huddle, slack_id, user, earlier, carried, now)
-    kept = earlier if earlier&.mode && earlier.left_at > now - Huddle::REJOIN_QUIET
+  def arrive(huddle, room, slack_id, user, earlier, carried, now)
+    joined_at, source = huddle.arrival(slack_id, after: earlier&.left_at || huddle.started_at, now: now)
+    kept = earlier if earlier&.mode && earlier.left_at > joined_at - Huddle::REJOIN_QUIET
     kept ||= carried if carried&.mode
     attributes = if kept
       { mode: kept.mode, goal: kept.goal, prompted_at_count: kept.prompted_at_count }
@@ -78,8 +93,23 @@ class HuddleSyncJob < ApplicationJob
       { goal: (previous.goal unless previous.nil? || previous.mode == "chilling"), prompted_at_count: huddle.message_count }
     end
 
-    session = huddle.sessions.create!(slack_id: slack_id, user: user, joined_at: now, **attributes)
+    resume_pause(user, earlier, joined_at) if user && earlier
+    session = huddle.sessions.create!(
+      slack_id: slack_id, user: user, joined_at: joined_at, join_source: source, last_seen_at: now,
+      screenshare_since: (now if room.screenshare_ids.include?(slack_id)), camera_since: (now if room.camera_ids.include?(slack_id)),
+      **attributes
+    )
     HuddlePromptJob.perform_later(session) unless kept
+  end
+
+  # Someone who paused and dropped out for a moment is still paused when they come straight back.
+  def resume_pause(user, earlier, joined_at)
+    return unless earlier.left_at > joined_at - Huddle::REJOIN_QUIET
+    return unless HuddlePause.exists?(user: user, end_reason: "left", ended_at: earlier.left_at)
+
+    HuddlePause.create!(user: user, started_at: joined_at)
+  rescue ActiveRecord::RecordNotUnique
+    nil
   end
 
   def hand_off(huddle)
