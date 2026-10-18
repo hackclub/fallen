@@ -191,6 +191,18 @@ module SlackMessages
     { text: question, blocks: blocks + huddle_signup_blocks(session), **pet_persona(session.user&.pet) }
   end
 
+  # Posted in the huddle's thread when someone in it finishes signing up for Fallen (HuddleWelcomeJob).
+  def huddle_welcome(user)
+    { text: "<@#{user.slack_id}> just joined Fallen!! say hi :wave:", **pet_persona(user.pet) }
+  end
+
+  def huddle_welcome_dm(user)
+    text = "Welcome to Fallen! Your time in the huddle is on your account now."
+    blocks = [ SlackBot::Blocks.section(text) ]
+    blocks << SlackBot::Blocks.actions(SlackBot::Blocks.button("Start a project", "open_fallen", url: new_project_url, style: "primary")) unless user.projects.kept.exists?
+    { text: text, blocks: blocks, **pet_persona(user.pet) }
+  end
+
   # Under the huddle prompt for someone with no Fallen account, or no project yet.
   def huddle_signup_blocks(session)
     user = session.user

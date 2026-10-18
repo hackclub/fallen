@@ -45,6 +45,31 @@ class HuddleFlowTest < ActiveSupport::TestCase
     assert_equal users(:newcomer), visit.reload.user
   end
 
+  test "finishing onboarding while in the huddle gets a welcome there and in a DM" do
+    @huddle.sessions.create!(slack_id: "U0NEWBIE", joined_at: 1.minute.ago)
+    users(:newcomer).update!(slack_id: "U0NEWBIE")
+    assert_no_enqueued_jobs(only: HuddleWelcomeJob) { users(:newcomer).update!(display_name: "Newbie") }
+
+    with_fake_slack do |slack|
+      assert_enqueued_with(job: HuddleWelcomeJob) { users(:newcomer).update!(pet: "sami") }
+      perform_enqueued_jobs(only: HuddleWelcomeJob)
+
+      thread, dm = slack.calls_to(:chat_postMessage)
+      assert_equal [ "CHUDDLE", "1700000000.000100", "Sami" ], thread.values_at(:channel, :thread_ts, :username)
+      assert_match "<@U0NEWBIE> just joined Fallen", thread[:text]
+      assert_equal "U0NEWBIE", dm[:channel]
+      assert_equal "Start a project", dm[:blocks].last[:elements].sole[:text][:text]
+    end
+  end
+
+  test "no welcome for someone who is not in the huddle" do
+    with_fake_slack do |slack|
+      users(:newcomer).update!(slack_id: "U0NEWBIE", pet: "lulu")
+      perform_enqueued_jobs(only: HuddleWelcomeJob)
+      assert_empty slack.calls_to(:chat_postMessage)
+    end
+  end
+
   test "commit stores the goal on that session and the one they have open now" do
     earlier = @huddle.sessions.create!(slack_id: "U0MEMBER", joined_at: 50.minutes.ago, left_at: 40.minutes.ago, mode: "chilling")
     @session.update!(joined_at: 10.minutes.ago, left_at: 6.minutes.ago)

@@ -72,6 +72,8 @@ class User < ApplicationRecord
 
   # Huddle visits are recorded by Slack id before anyone signs up (HuddleSyncJob); they become theirs once linked.
   after_save -> { HuddleSession.where(slack_id: slack_id, user_id: nil).update_all(user_id: id) }, if: -> { saved_change_to_slack_id? && slack_id.present? }
+  # Finishing onboarding (picking a pet) or linking Slack while sitting in the huddle gets a welcome (HuddleWelcomeJob).
+  after_commit -> { HuddleWelcomeJob.perform_later(self) }, on: %i[create update], if: :just_joined_fallen?
 
   scope :admins, -> { where("roles @> ARRAY[?]::varchar[]", "admin") }
   scope :with_role, ->(role) { where("roles @> ARRAY[?]::varchar[]", role.to_s) }
@@ -178,6 +180,12 @@ class User < ApplicationRecord
   end
 
   private
+
+  def just_joined_fallen?
+    return false if slack_id.blank? || pet.blank?
+
+    (saved_change_to_pet? && pet_before_last_save.nil?) || (saved_change_to_slack_id? && slack_id_before_last_save.nil?)
+  end
 
   def roles_are_known
     unknown = roles - ROLES
