@@ -83,15 +83,23 @@ class HuddleFlowTest < ActiveSupport::TestCase
     end
   end
 
-  test "the handoff mentions everyone with a link to the huddle" do
+  test "the handoff mentions everyone with a link to the huddle and rings them in" do
+    browser = FakeBrowserClient.new("rooms.notifyMember" => ->(fields) { fields[:user_id] == "U0STRANGER" ? SlackBot::BrowserClient::Error.new("rooms.notifyMember", "user_not_found") : { "ok" => true } })
+    SlackHuddle.instance_variable_set(:@client, browser)
     with_fake_slack do |slack|
-      HuddleHandoffJob.perform_now(@huddle, %w[U0MEMBER U0STRANGER])
+      with_env("SLACK_HUDDLE_CHANNEL_ID" => "CHUDDLE", "SLACK_BROWSER_TOKEN" => "xoxc-test", "SLACK_BROWSER_COOKIE" => "xoxd-test") do
+        HuddleHandoffJob.perform_now(@huddle, %w[U0MEMBER U0STRANGER])
+      end
+      assert_equal [ { channel_id: "CHUDDLE", user_id: "U0MEMBER" }, { channel_id: "CHUDDLE", user_id: "U0STRANGER" } ],
+                   browser.calls.map { |_, fields| fields.slice(:channel_id, :user_id) }
 
       post = slack.calls_to(:chat_postMessage).sole
       assert_equal [ "CHUDDLE", "1700000000.000100" ], post.values_at(:channel, :thread_ts)
       assert_match "<@U0MEMBER> <@U0STRANGER>", post[:text]
       assert_equal "https://slack.com/archives/CHUDDLE/p1700000000000100", post[:blocks].last[:elements].sole[:url]
     end
+  ensure
+    SlackHuddle.reset!
   end
 
   private

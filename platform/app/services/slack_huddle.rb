@@ -2,7 +2,7 @@
 
 # The huddle the user bot keeps open in SLACK_HUDDLE_CHANNEL_ID (script/slack_huddle.mjs), read the way Slack's
 # own client reads it. Huddles have no public API, so this uses the account's browser session
-# (SLACK_BROWSER_TOKEN and SLACK_BROWSER_COOKIE). HuddleSyncJob is the only caller.
+# (SLACK_BROWSER_TOKEN and SLACK_BROWSER_COOKIE). HuddleSyncJob and HuddleHandoffJob use it.
 module SlackHuddle
   Room = Data.define(:call_id, :thread_ts, :participant_ids, :started_at, :ended_at) do
     def ended? = !ended_at.nil?
@@ -34,6 +34,11 @@ module SlackHuddle
     raise unless e.code.start_with?("rooms_")
 
     nil
+  end
+
+  # Rings someone into the channel's huddle, like "Invite to huddle" in Slack's client.
+  def ring(slack_id)
+    client.call("rooms.notifyMember", channel_id: channel_id, user_id: slack_id, _x_reason: "huddle-notify-member")
   end
 
   # The Slack user id of the account behind the browser session, which sits in the huddle around the clock.

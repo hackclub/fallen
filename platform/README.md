@@ -100,8 +100,9 @@ message is the project; each reply by the owner is a journal. Both sides stay in
   working on. Someone joining gets a hidden "what are you working on today?" in the huddle's thread, from their pet,
   and again every 10 thread messages until they answer (`HuddlePromptJob`, `HuddleGoalAction`); committing posts
   their goal in the thread (`HuddleCommitJob`). When Slack ends a huddle, the people still in it are mentioned in the
-  new huddle's thread (`HuddleHandoffJob`) and keep their answer if they join within 15 minutes. A huddle that has run
-  12 hours with only the bot in it is restarted. The bot needs to be in the huddle channel.
+  new huddle's thread and rung into it (`HuddleHandoffJob`, `rooms.notifyMember`), and keep their answer if they join
+  within 15 minutes. A huddle that has run 12 hours with only the bot in it is restarted. The bot needs to be in the
+  huddle channel.
 - Web -> Slack: `PostProjectToSlackJob` posts the thread anchor, `SyncJournalToSlackJob` posts, edits and deletes
   journal replies. Messages go out as the person when they have connected Slack (`SlackAuthController`, user scope
   `chat:write`, needs `SLACK_CLIENT_ID` / `SLACK_CLIENT_SECRET` and the redirect URL from the manifest); otherwise the
