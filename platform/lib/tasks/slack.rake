@@ -13,4 +13,26 @@ namespace :slack do
 
     puts "Queued #{unlinked.count} projects and #{journals.count} journals"
   end
+
+  desc "Rewrite every project's Slack anchor in the current format (DRY_RUN=1 to only count what would change)"
+  task rewrite_anchors: :environment do
+    dry_run = ENV["DRY_RUN"].present?
+    tally = Hash.new(0)
+    skipped = Hash.new { |hash, key| hash[key] = [] }
+
+    Project.kept.where.not(slack_thread_ts: nil).includes(:user).find_each do |project|
+      outcome = begin
+        RewriteProjectAnchorJob.new.perform(project, dry_run: dry_run)
+      rescue Slack::Web::Api::Errors::TooManyRequestsError => e
+        sleep e.retry_after.to_i.clamp(1, 60)
+        retry
+      end
+      tally[outcome] += 1
+      skipped[outcome] << project.public_id unless outcome.in?(%i[rewritten would_rewrite already_rewritten])
+    end
+
+    puts(dry_run ? "Dry run, nothing changed." : "Done.")
+    tally.each { |outcome, count| puts "#{outcome}: #{count}" }
+    skipped.each { |outcome, ids| puts "#{outcome}: #{ids.join(' ')}" }
+  end
 end
