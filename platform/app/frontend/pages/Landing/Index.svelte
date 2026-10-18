@@ -16,12 +16,14 @@
   import Recap from '@/components/Recap.svelte'
   // import Store from '@/components/Store.svelte'
   import Wordmark from '@/components/Wordmark.svelte'
-  import { home, root, signIn } from '@/routes'
+  import { home, root, signIn, slackAvatar } from '@/routes'
   import { buildTime, travellers } from '@/lib/program'
   import { shared } from '@/lib/shared.svelte'
 
   import { onMount } from 'svelte'
   import type { Component } from 'svelte'
+
+  let { whoami_url }: { whoami_url: string } = $props()
 
   // Everything that follows the scroll is plain arithmetic on scrollY, so a scroll costs no layout: the only
   // measurements are the intro's and How It Works' places on the page, taken again whenever the page changes height.
@@ -97,10 +99,39 @@
     showStats = true
   }
 
+  // Someone signed in to Hack Club Auth but not here gets started as their Slack picture, if they've set one. HCA's
+  // whoami says who they are; the picture is looked up in a job, so it is asked for again until it's ready.
+  let avatar: { src: string; alt: string } | undefined = $state()
+  onMount(async () => {
+    if (shared().auth.user) return
+    try {
+      const me = await (await fetch(whoami_url, { credentials: 'include' })).json()
+      if (!me.signed_in || !me.email) return
+      for (let tries = 0; tries < 8; tries++) {
+        const response = await fetch(slackAvatar().url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: me.email }),
+        })
+        if (response.status === 200) {
+          const { url } = await response.json()
+          if (url) avatar = { src: url, alt: me.first_name || 'you' }
+          return
+        }
+        if (response.status !== 202) return
+        await new Promise((resolve) => setTimeout(resolve, 750))
+      }
+    } catch {
+      // not signed in to HCA, or HCA doesn't let this origin ask: the button just says Get Started
+    }
+  })
+
   const navItems = $derived([
     shared().auth.user
       ? { label: 'DASHBOARD', href: home.index().url, glimmer: true }
-      : { label: 'GET STARTED', href: signIn().url, glimmer: true },
+      : avatar
+        ? { label: 'GET STARTED AS', href: signIn().url, glimmer: true, avatar }
+        : { label: 'GET STARTED', href: signIn().url, glimmer: true },
     { label: 'View Stats', href: root().url, onclick: openStats },
   ])
 

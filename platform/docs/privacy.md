@@ -42,6 +42,9 @@ Sessions are signed cookies holding the user id, so they stop working once the r
 
 - Solid Queue job rows can hold a user's GlobalID (`gid://fallen/User/1`) or a raw Slack event payload until they
   are cleared (finished jobs after a day by default). They are not searched.
+- The landing page's "Get started as" picture: a `SlackAvatarJob` row holds the email someone is signed in to Hack
+  Club Auth with until it is cleared, and the cache keeps the Slack picture URL under a digest of the email for a day.
+  Neither is searched.
 - Sentry events and application logs are not touched. They expire on their own retention.
 - Request timings for `/admin/insights` (`active_insights_requests`) keep the path, controller, status and timings,
   but no user, IP or user agent. They are deleted after 30 days.

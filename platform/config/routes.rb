@@ -17,6 +17,8 @@ Rails.application.routes.draw do
   get "auth/hca/callback" => "auth#create", as: :hca_callback
   delete "auth/sign_out" => "auth#destroy", as: :sign_out
   delete "impersonation" => "impersonations#destroy", as: :impersonation
+  # The landing page's "Get started as", for someone signed in to Hack Club Auth (SlackAvatarsController)
+  post "slack_avatar" => "slack_avatars#create", as: :slack_avatar
 
   # Slack user token (post journals as yourself)
   get "auth/slack/start" => "slack_auth#new", as: :connect_slack

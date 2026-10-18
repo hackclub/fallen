@@ -4,6 +4,6 @@ class LandingController < ApplicationController
   skip_after_action :verify_policy_scoped # Nothing to scope
 
   def index
-    render inertia: "Landing/Index"
+    render inertia: "Landing/Index", props: { whoami_url: "#{HCA.host}/api/external/whoami" }
   end
 end

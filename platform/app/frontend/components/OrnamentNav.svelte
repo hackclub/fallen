@@ -4,7 +4,8 @@
   // A stacked list of links with a line-and-diamonds ornament either side of the active one. The first link stays
   // active until another is hovered or focused, and again once the pointer leaves. small is the footer's size; glow
   // gives the links and ornaments a white glow, like the footer's wordmark. class goes on the nav, itemClass on each
-  // link's row. A link with glimmer turns mint under the pointer, and the letters nearest it light up white.
+  // link's row. A link with glimmer turns mint under the pointer, and the letters nearest it light up white. A link
+  // with an avatar shows the picture after its label, about as tall as the text.
   let {
     items,
     small = false,
@@ -13,7 +14,13 @@
     class: className = '',
     itemClass = '',
   }: {
-    items: { label: string; href: string; onclick?: (event: MouseEvent) => void; glimmer?: boolean }[]
+    items: {
+      label: string
+      href: string
+      onclick?: (event: MouseEvent) => void
+      glimmer?: boolean
+      avatar?: { src: string; alt: string }
+    }[]
     small?: boolean
     glow?: boolean
     label?: string
@@ -129,6 +136,14 @@
           aria-hidden="true"
         ></span>
         {item.label}
+        {#if item.avatar}
+          <img
+            src={item.avatar.src}
+            alt={item.avatar.alt}
+            class="ml-1 inline-block size-[1.1em] rounded-full align-[-0.2em] ring-1 ring-parchment/70"
+            referrerpolicy="no-referrer"
+          />
+        {/if}
         {#if item.glimmer}
           <!-- the light, on a copy of the label without the outline, so only the letters catch it -->
           <span
