@@ -20,6 +20,20 @@ class LapseAuthTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "connecting from a Slack journal prompt redraws that prompt instead" do
+    draft = JournalDraft.create!(project: projects(:station), user: users(:member), parts: [ { "ts" => "1700000003.000100", "text" => "x" } ])
+    draft.remember_prompt!("https://hooks.slack.test/r")
+    with_lapse do
+      get connect_lapse_path(return_to: "/settings#lapse")
+      state = Rack::Utils.parse_query(URI(response.location).query)["state"]
+      Lapse.define_singleton_method(:exchange_code) { |*, **| "lapse-token" }
+      assert_enqueued_with(job: RefreshDraftPromptJob, args: [ draft ]) do
+        assert_no_enqueued_jobs(only: SyncLapseTimelapsesJob) { get lapse_callback_path(code: "abc", state: state) }
+      end
+      assert_match(/Head back to Slack/, flash[:notice])
+    end
+  end
+
   test "refuses a callback without a state it issued" do
     with_lapse { get lapse_callback_path(code: "abc", state: "forged") }
     assert_match(/state mismatch/, flash[:alert])

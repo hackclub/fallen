@@ -173,7 +173,7 @@
         />
 
         <div>
-          <p class="font-display text-lg text-ink">Time spent</p>
+          <p class="font-display text-lg text-ink">Time spent (hours)</p>
           <p class="mb-2 font-outfit text-xs text-ink-soft">
             {timelapsed
               ? 'In hours. Leave it empty to use your timelapses’ time.'

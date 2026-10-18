@@ -20,8 +20,12 @@ class LapseAuthController < ApplicationController
 
     token = Lapse.exchange_code(params[:code], callback_url, code_verifier: code_verifier(params[:state]))
     current_user.update!(lapse_token: token)
-    SyncLapseTimelapsesJob.perform_later(current_user)
-    redirect_to return_path, notice: "Lapse connected. Pick a timelapse when you journal and its time becomes your hours."
+    # A Slack journal prompt that sent them here is redrawn with their timelapses, which also fetches them.
+    prompts = JournalDraft.where(user: current_user).with_live_prompt.to_a
+    prompts.each { |draft| RefreshDraftPromptJob.perform_later(draft) }
+    SyncLapseTimelapsesJob.perform_later(current_user) if prompts.empty?
+    notice = prompts.any? ? "Lapse connected. Head back to Slack: your journal prompt now lists your timelapses." : "Lapse connected. Pick your timelapses when you journal."
+    redirect_to return_path, notice: notice
   rescue Lapse::Error, Faraday::Error => e
     Sentry.capture_exception(e)
     redirect_to return_path, alert: "Connecting Lapse failed: #{e.message}"

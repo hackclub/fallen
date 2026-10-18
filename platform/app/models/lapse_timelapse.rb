@@ -58,6 +58,14 @@ class LapseTimelapse < ApplicationRecord
     user.disconnect_lapse!
   end
 
+  # A fresh copy for something about to list them (a Slack prompt). Lapse being slow or down only logs; the list
+  # shows the last copy.
+  def self.sync_if_connected(user)
+    sync(user) if user.lapse_connected?
+  rescue Lapse::Error, Faraday::Error => e
+    Rails.logger.warn({ event: "lapse.sync_failed", user_id: user.id, error: e.message }.to_json)
+  end
+
   def self.attributes_from(data)
     {
       lapse_id: data.fetch("id"),

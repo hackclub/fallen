@@ -1,7 +1,8 @@
 # The buttons on a draft prompt (JournalPromptJob, SlackMessages.draft_prompt). action_id is
 # "journal_draft:<choice>", the value is the draft's public id. "Save journal" reads the time typed into the message.
 # "Not a journal" on several messages shows SlackMessages.draft_picker instead, whose "Done" value also carries the
-# newest message it listed.
+# newest message it listed. "Connect Lapse" (a link to Fallen) and "Check again" remember where the prompt is, so it
+# can be redrawn with the timelapses once there are some (RefreshDraftPromptJob).
 class JournalDraftAction < SlackBot::Action
   def call
     draft_id, @upto = value.to_s.split(":", 2)
@@ -16,6 +17,8 @@ class JournalDraftAction < SlackBot::Action
     when "skip" then skip(draft)
     when "pick" then pick(draft)
     when "back" then show_prompt(draft)
+    when "connect_lapse" then draft.remember_prompt!(response_url)
+    when "check_lapse" then check_lapse(draft)
     end
   end
 
@@ -73,6 +76,12 @@ class JournalDraftAction < SlackBot::Action
     kept = input_values.select { |key, _| key.start_with?(SlackMessages::PICKER_INPUT) }.values.flatten.compact
     draft.keep_only(kept, upto: @upto)
     draft.destroyed? ? delete_message : show_prompt(draft)
+  end
+
+  # Asking Lapse takes a moment, so the prompt is redrawn from a job, keeping what is in the time box.
+  def check_lapse(draft)
+    draft.remember_prompt!(response_url)
+    RefreshDraftPromptJob.perform_later(draft, input_values["duration"])
   end
 
   def show_prompt(draft)

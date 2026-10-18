@@ -78,9 +78,9 @@ module SlackMessages
     offered = Duration.format(tracked)&.delete_suffix("h") if duration.nil? && tracked.to_i.positive?
     hint = "Every journal needs one, and a photo for every #{Journal::MINUTES_PER_IMAGE / 60} hours of it. Post photos in the thread to add them."
     hint = "(based on tracked recorded hours) #{hint}" if offered
-    blocks << SlackBot::Blocks.input("Time spent", SlackBot::Blocks.plain_text_input("duration", placeholder: "Hours, like 1.5 or 0.5", initial_value: duration.presence || offered), block_id: "duration", hint: hint)
+    blocks << SlackBot::Blocks.input("Time spent (hours)", SlackBot::Blocks.plain_text_input("duration", placeholder: "Hours, like 1.5 or 0.5", initial_value: duration.presence || offered), block_id: "duration", hint: hint)
     blocks << SlackBot::Blocks.context("Nothing tracked since your last journal. Join the huddle or start the timer on your pet next time and the hours fill in.") if duration.nil? && !offered && tracked
-    blocks += timelapse_blocks(draft.user, timelapses)
+    blocks += timelapse_blocks(draft, timelapses)
     blocks << SlackBot::Blocks.context(":warning: #{escape(error)}") if error
     blocks << SlackBot::Blocks.actions(
       draft_button("Save journal", "journal", draft, style: "primary"),
@@ -95,22 +95,27 @@ module SlackMessages
   # Slack's limit for a select's options.
   TIMELAPSE_OPTIONS = 100
 
-  # Their unused Lapse timelapses to pick from. Without Lapse connected, a button to connect it on Fallen; with
-  # nothing to pick, where to record one. Never a box for a link: timelapses only ever come from their own Lapse.
-  def timelapse_blocks(user, picked)
+  # Their unused Lapse timelapses to pick from. Without Lapse connected, a button that connects it on Fallen; the
+  # prompt then redraws itself with the picker (RefreshDraftPromptJob). With nothing to pick, where to record one
+  # and a button to look again. Never a box for a link: timelapses only ever come from their own Lapse.
+  def timelapse_blocks(draft, picked)
+    user = draft.user
     return [] unless Lapse.configured?
-    return [ timelapse_note("Connect Lapse on Fallen to pick your timelapses here.", "Connect Lapse", "#{settings_url}#lapse") ] unless user.lapse_connected?
+
+    unless user.lapse_connected?
+      connect = draft_button("Connect Lapse", "connect_lapse", draft).merge(url: connect_lapse_url)
+      return [ SlackBot::Blocks.section("*#{TIMELAPSE_LABEL}*\nConnect Lapse on Fallen and this message lists your timelapses.", accessory: connect) ]
+    end
 
     options = user.lapse_timelapses.unclaimed.newest_first.limit(TIMELAPSE_OPTIONS).select(&:usable?)
-    return [ timelapse_note("No unused timelapses on Lapse yet. Make them unlisted so staff can watch them.", "Record one", Lapse.web_host) ] if options.empty?
+    if options.empty?
+      text = "*#{TIMELAPSE_LABEL}*\nNo unused timelapses on Lapse yet. <#{Lapse.web_host}|Record one>, make it unlisted so staff can watch it, then check again."
+      return [ SlackBot::Blocks.section(text, accessory: draft_button("Check again", "check_lapse", draft)) ]
+    end
 
     choices = options.map { |timelapse| SlackBot::Blocks.option("#{(timelapse.name.presence || 'Untitled timelapse').truncate(50)} · #{timelapse.duration_text}", timelapse.public_id) }
     [ SlackBot::Blocks.input(TIMELAPSE_LABEL, SlackBot::Blocks.multi_static_select("lapse_timelapses", choices, placeholder: "Pick this session's timelapses", initial: choices.select { |choice| picked.include?(choice[:value]) }),
                              block_id: "lapse_timelapses", optional: true, hint: "They back up the hours you log.") ]
-  end
-
-  def timelapse_note(text, button, url)
-    SlackBot::Blocks.section("*#{TIMELAPSE_LABEL}*\n#{text}", accessory: SlackBot::Blocks.button(button, "open_fallen", url: url))
   end
 
   # Every journal needs a photo, so writing without one gets a reminder instead of the time box.
@@ -320,7 +325,8 @@ module SlackMessages
   def new_project_url = Rails.application.routes.url_helpers.new_project_url(host: ENV.fetch("APP_URL", "http://localhost:3000"))
 
   def app_url = ENV.fetch("APP_URL", "http://localhost:3000")
-  def settings_url = Rails.application.routes.url_helpers.settings_url(host: app_url)
+  # Back to Settings' Lapse tab afterwards, where the notice says to head back to Slack.
+  def connect_lapse_url = Rails.application.routes.url_helpers.connect_lapse_url(host: app_url, return_to: "/settings#lapse")
 
   def escape(text) = text.to_s.gsub("&", "&amp;").gsub("<", "&lt;").gsub(">", "&gt;")
 end

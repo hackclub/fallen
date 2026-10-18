@@ -5,12 +5,14 @@
 #
 # Table name: journal_drafts
 #
-#  id         :bigint           not null, primary key
-#  parts      :jsonb            not null
-#  created_at :datetime         not null
-#  updated_at :datetime         not null
-#  project_id :bigint           not null
-#  user_id    :bigint           not null
+#  id            :bigint           not null, primary key
+#  parts         :jsonb            not null
+#  prompt_url    :string
+#  prompt_url_at :datetime
+#  created_at    :datetime         not null
+#  updated_at    :datetime         not null
+#  project_id    :bigint           not null
+#  user_id       :bigint           not null
 #
 # Indexes
 #
@@ -32,9 +34,19 @@ class JournalDraft < ApplicationRecord
   ASK_AFTER = 8.seconds
   # An unanswered draft this old is a different conversation: the next reply starts over instead of joining it.
   STALE_AFTER = 12.hours
+  # How long Slack lets a prompt be replaced through the response_url one of its buttons hands over.
+  PROMPT_URL_LASTS = 30.minutes
 
   belongs_to :project
   belongs_to :user
+
+  scope :with_live_prompt, -> { where.not(prompt_url: nil).where(prompt_url_at: PROMPT_URL_LASTS.ago..) }
+
+  # Where its prompt can be redrawn (RefreshDraftPromptJob): the response_url of a button pressed on it, like
+  # "Connect Lapse", whose result shows up somewhere else.
+  def remember_prompt!(url) = update!(prompt_url: url, prompt_url_at: Time.current)
+
+  def prompt_live? = prompt_url.present? && prompt_url_at && prompt_url_at > PROMPT_URL_LASTS.ago
 
   def self.containing(ts) = where("parts @> CAST(? AS jsonb)", [ { ts: ts } ].to_json)
 
