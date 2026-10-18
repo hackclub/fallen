@@ -86,8 +86,23 @@ class HuddleFlowTest < ActiveSupport::TestCase
 
       prompt = slack.calls_to(:chat_postEphemeral).sole
       assert_equal "<@U0MEMBER> are you still working on Case?", prompt[:text]
-      assert_equal %w[yes other chill], prompt[:blocks][1][:element][:options].map { |option| option[:value] }
+      assert_equal %w[yes other chill], prompt[:blocks][1][:elements].sole[:options].map { |option| option[:value] }
       assert_equal "huddle_goal:still", prompt[:blocks].last[:elements].sole[:action_id]
+      assert_not prompt[:blocks].any? { |block| block[:type] == "input" }, "the box only shows for something else"
+    end
+  end
+
+  test "picking something else shows the box, picking anything else hides it" do
+    @session.update!(goal: "Case")
+    with_fake_slack do |slack|
+      pick("other")
+      blocks = slack.calls_to(:response_url).last[:body]["blocks"]
+      assert_equal [ "goal" ], blocks.select { |block| block["type"] == "input" }.pluck("block_id")
+      assert_equal "other", blocks[1]["elements"].sole["initial_option"]["value"]
+      assert_equal "#{@session.public_id}:other", blocks.last["elements"].sole["value"]
+
+      pick("yes")
+      assert_empty slack.calls_to(:response_url).last[:body]["blocks"].select { |block| block["type"] == "input" }
     end
   end
 
@@ -157,8 +172,12 @@ class HuddleFlowTest < ActiveSupport::TestCase
 
   def press(choice, goal: nil, still: nil, user: "U0MEMBER")
     state = { "goal" => { "goal" => { "type" => "plain_text_input", "value" => goal } } }
-    state["still"] = { "still" => { "type" => "radio_buttons", "selected_option" => still && { "value" => still } } }
     SlackBot.handle(:interaction, { "type" => "block_actions", "user" => { "id" => user }, "trigger_id" => "t", "response_url" => "https://hooks.slack.test/r",
-                                    "state" => { "values" => state }, "actions" => [ { "action_id" => "huddle_goal:#{choice}", "value" => @session.public_id } ] })
+                                    "state" => { "values" => state }, "actions" => [ { "action_id" => "huddle_goal:#{choice}", "value" => [ @session.public_id, still ].compact.join(":") } ] })
+  end
+
+  def pick(choice)
+    SlackBot.handle(:interaction, { "type" => "block_actions", "user" => { "id" => "U0MEMBER" }, "trigger_id" => "t", "response_url" => "https://hooks.slack.test/r",
+                                    "actions" => [ { "action_id" => "huddle_goal:pick", "block_id" => @session.public_id, "type" => "radio_buttons", "selected_option" => { "value" => choice } } ] })
   end
 end

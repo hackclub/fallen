@@ -157,14 +157,13 @@ module SlackMessages
   end
 
   HUDDLE_GOAL_INPUT = "goal"
-  HUDDLE_STILL_INPUT = "still"
   HUDDLE_STILL_OPTIONS = { "yes" => "yes!", "other" => "no i'm working on something else", "chill" => "no i'm just chilling" }.freeze
 
   # Ephemeral in the huddle's thread on every visit, and again every Huddle::REPROMPT_EVERY messages until they
   # answer (HuddlePromptJob). Someone coming back with a goal from earlier is asked whether they are still on it.
   # HuddleGoalAction re-renders it with `error` when the answer is incomplete.
-  def huddle_prompt(session, error: nil)
-    return huddle_still_prompt(session, error: error) if session.goal.present?
+  def huddle_prompt(session, picked: nil, error: nil)
+    return huddle_still_prompt(session, picked: picked, error: error) if session.goal.present?
 
     question = "<@#{session.slack_id}> what are you working on today?"
     blocks = [ SlackBot::Blocks.section(question),
@@ -177,16 +176,18 @@ module SlackMessages
     { text: question, blocks: blocks, **pet_persona(session.user&.pet) }
   end
 
-  def huddle_still_prompt(session, error: nil)
+  # The choices sit in an actions block so picking one reaches HuddleGoalAction straight away, which redraws this
+  # with `picked` and shows the box only for "something else". The submit button's value carries the pick.
+  def huddle_still_prompt(session, picked: nil, error: nil)
     question = "<@#{session.slack_id}> are you still working on #{escape(session.goal)}?"
     options = HUDDLE_STILL_OPTIONS.map { |value, label| SlackBot::Blocks.option(label, value) }
-    blocks = [
-      SlackBot::Blocks.section(question),
-      SlackBot::Blocks.input("Still on it?", SlackBot::Blocks.radio_buttons(HUDDLE_STILL_INPUT, options), block_id: HUDDLE_STILL_INPUT),
-      SlackBot::Blocks.input("Something else", SlackBot::Blocks.plain_text_input(HUDDLE_GOAL_INPUT, max_length: 500), block_id: HUDDLE_GOAL_INPUT, optional: true)
-    ]
+    radio = SlackBot::Blocks.radio_buttons("huddle_goal:pick", options, initial: options.find { |option| option[:value] == picked })
+    blocks = [ SlackBot::Blocks.section(question), SlackBot::Blocks.actions(radio, block_id: session.public_id) ]
+    if picked == "other"
+      blocks << SlackBot::Blocks.input("Something else", SlackBot::Blocks.plain_text_input(HUDDLE_GOAL_INPUT, max_length: 500), block_id: HUDDLE_GOAL_INPUT)
+    end
     blocks << SlackBot::Blocks.context(":warning: #{escape(error)}") if error
-    blocks << SlackBot::Blocks.actions(SlackBot::Blocks.button("submit", "huddle_goal:still", value: session.public_id, style: "primary"))
+    blocks << SlackBot::Blocks.actions(SlackBot::Blocks.button("submit", "huddle_goal:still", value: [ session.public_id, picked ].compact.join(":"), style: "primary"))
     { text: question, blocks: blocks, **pet_persona(session.user&.pet) }
   end
 
