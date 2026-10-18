@@ -59,6 +59,7 @@ class ProjectsController < ApplicationController
     authorize @project
 
     if @project.update(project_params)
+      UpdateProjectOnSlackJob.perform_later(@project) if @project.saved_change_to_title? || @project.saved_change_to_description?
       redirect_to project_path(@project), notice: "Project updated."
     else
       inertia_errors(@project, fallback_location: edit_project_path(@project))

@@ -53,6 +53,16 @@ class ProjectsTest < ActionDispatch::IntegrationTest
     assert_not project.reload.banner.attached?
   end
 
+  test "renaming a project rewrites its slack message, other edits do not" do
+    project = projects(:station)
+    assert_enqueued_with(job: UpdateProjectOnSlackJob, args: [ project ]) do
+      patch project_path(project), params: { project: { title: "Robot arm" } }
+    end
+    assert_no_enqueued_jobs(only: UpdateProjectOnSlackJob) do
+      patch project_path(project), params: { project: { repo_url: "https://github.com/x/y" } }
+    end
+  end
+
   test "a project without a banner shows its first journal photo" do
     blob = ActiveStorage::Blob.create_and_upload!(io: StringIO.new("png"), filename: "board.png", content_type: "image/png")
     journals(:first).images.attach(blob)
