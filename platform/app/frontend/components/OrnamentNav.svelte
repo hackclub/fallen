@@ -37,7 +37,9 @@
   // Pictures that have loaded, by src
   let loaded: Record<string, boolean> = $state({})
   const whenLoaded = (src: string) => (img: HTMLImageElement) => {
-    const done = () => (loaded[src] = true)
+    // A cached picture is complete straight away; waiting two frames lets the collapsed state paint first, so it
+    // widens in every time, not just on the first visit.
+    const done = () => requestAnimationFrame(() => requestAnimationFrame(() => (loaded[src] = true)))
     if (img.complete && img.naturalWidth) done()
     else img.addEventListener('load', done, { once: true })
   }
@@ -47,7 +49,7 @@
      light lands on the same letters. The copy keeps the picture's space but not the picture. -->
 {#snippet text(item: (typeof items)[number], copy: boolean)}
   <!-- flex, so the markup's whitespace adds no gaps -->
-  <span class="inline-flex items-baseline">
+  <span class="inline-flex items-center">
     {item.label}
     {#if item.avatar}
       {@const shown = loaded[item.avatar.src]}
@@ -60,20 +62,20 @@
         <span class="min-w-0 overflow-clip [overflow-clip-margin:8px]">
           <span
             class={[
-              'flex items-baseline gap-[0.2em] ps-[0.25em] transition-[opacity,translate] duration-500 motion-reduce:transition-none',
+              'flex items-center gap-[0.3em] ps-[0.3em] transition-[opacity,translate] duration-500 motion-reduce:transition-none',
               shown ? 'opacity-100 delay-150' : '-translate-x-2 opacity-0',
             ]}
           >
             {#if item.avatar.before}<span class="text-[0.67em]">{item.avatar.before}</span>{/if}
             {#if copy}
-              <span class="relative top-[0.2em] size-[1.1em] shrink-0"></span>
+              <span class="size-[1.1em] shrink-0"></span>
             {:else}
               <img
                 {@attach whenLoaded(item.avatar.src)}
                 src={item.avatar.src}
                 alt={item.avatar.alt}
                 class={[
-                  'relative top-[0.2em] size-[1.1em] shrink-0 rounded-full ring-1 ring-parchment/70 transition-[scale] duration-700 ease-[cubic-bezier(0.3,1.6,0.5,1)] motion-reduce:transition-none',
+                  'size-[1.1em] shrink-0 rounded-full ring-1 ring-parchment/70 transition-[scale] duration-700 ease-[cubic-bezier(0.3,1.6,0.5,1)] motion-reduce:transition-none',
                   shown ? 'scale-100 delay-200' : 'scale-50',
                 ]}
                 referrerpolicy="no-referrer"
