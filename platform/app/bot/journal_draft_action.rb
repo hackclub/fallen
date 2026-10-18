@@ -1,8 +1,8 @@
 # The buttons on a draft prompt (JournalPromptJob, SlackMessages.draft_prompt). action_id is
 # "journal_draft:<choice>", the value is the draft's public id. "Save journal" reads the time typed into the message.
 # "Not a journal" on several messages shows SlackMessages.draft_picker instead, whose "Done" value also carries the
-# newest message it listed. "Connect Lapse" (a link to Fallen) and "Check again" remember where the prompt is, so it
-# can be redrawn with the timelapses once there are some (RefreshDraftPromptJob).
+# newest message it listed. "Connect Lapse" (a link to Fallen), "Check again" and "Pick timelapses" (a modal,
+# LapsePickerAction and LapsePickerView) remember where the prompt is, so it can be redrawn (RefreshDraftPromptJob).
 class JournalDraftAction < SlackBot::Action
   def call
     draft_id, @upto = value.to_s.split(":", 2)
@@ -19,6 +19,7 @@ class JournalDraftAction < SlackBot::Action
     when "back" then show_prompt(draft)
     when "connect_lapse" then draft.remember_prompt!(response_url)
     when "check_lapse" then check_lapse(draft)
+    when "pick_lapse" then pick_lapse(draft)
     end
   end
 
@@ -28,11 +29,10 @@ class JournalDraftAction < SlackBot::Action
     files = draft.files
     # An older prompt may still carry a box for a Lapse link; it is ignored. Timelapses are only ever picked.
     duration = input_values["duration"]
-    picked = Array(input_values["lapse_timelapses"]).first(Journal::MAX_TIMELAPSES + 1)
     egg = !user.hatched?
-    journal = draft.journal!(duration: duration, timelapses: user.lapse_timelapses.where_public_ids(picked).to_a)
+    journal = draft.journal!(duration: duration, timelapses: draft.picked_timelapses)
     unless journal.persisted?
-      prompt = SlackMessages.draft_prompt(draft, duration: duration.to_s, timelapses: picked, error: journal.errors.full_messages.first)
+      prompt = SlackMessages.draft_prompt(draft, duration: duration.to_s, error: journal.errors.full_messages.first)
       return update_message(prompt[:text], blocks: prompt[:blocks])
     end
 
@@ -76,6 +76,12 @@ class JournalDraftAction < SlackBot::Action
     kept = input_values.select { |key, _| key.start_with?(SlackMessages::PICKER_INPUT) }.values.flatten.compact
     draft.keep_only(kept, upto: @upto)
     draft.destroyed? ? delete_message : show_prompt(draft)
+  end
+
+  # The picker opens straight away, from what Fallen already has; the prompt is redrawn when it is closed with Done.
+  def pick_lapse(draft)
+    draft.remember_prompt!(response_url)
+    open_modal(SlackMessages.lapse_picker(draft, draft.timelapse_ids, duration: input_values["duration"]))
   end
 
   # Asking Lapse takes a moment, so the prompt is redrawn from a job, keeping what is in the time box.

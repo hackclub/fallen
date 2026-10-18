@@ -62,11 +62,6 @@ module SlackBot
       { type: "radio_buttons", action_id: action_id, options: options, initial_option: initial }.compact
     end
 
-    # Up to 100 options; Slack reads the picked ones back as `selected_options`.
-    def multi_static_select(action_id, options, placeholder: "Select", initial: nil)
-      { type: "multi_static_select", action_id: action_id, placeholder: plain(placeholder), options: options, initial_options: initial.presence }.compact
-    end
-
     def checkboxes(action_id, options, initial: nil)
       { type: "checkboxes", action_id: action_id, options: options, initial_options: initial.presence }.compact
     end

@@ -88,31 +88,50 @@ class JournalFlowTest < ActiveSupport::TestCase
     end
   end
 
-  test "offers the tracked hours and a picker of Lapse timelapses, and saves the picked ones" do
+  test "offers the tracked hours, picks timelapses in a modal with thumbnails, and saves the picked ones" do
     user = users(:member)
     user.update!(lapse_token: "lapse-token")
     user.journals.update_all(created_at: 1.day.ago)
     Huddle.create!(call_id: "R1", channel_id: "CHUDDLE", started_at: 1.day.ago)
       .sessions.create!(slack_id: user.slack_id, user: user, joined_at: 61.minutes.ago, left_at: 1.minute.ago, mode: "working")
+    desk = lapse_timelapses(:desk)
 
-    with_fake_slack do |slack|
-      reply("Soldered the board", files: [ PHOTO ])
-      with_env("LAPSE_CLIENT_ID" => "svc_test", "LAPSE_CLIENT_SECRET" => "scs_test") do
+    with_env("LAPSE_CLIENT_ID" => "svc_test", "LAPSE_CLIENT_SECRET" => "scs_test") do
+      with_fake_slack do |slack|
+        reply("Soldered the board", files: [ PHOTO ])
         stub_method(LapseTimelapse, :sync, nil) { perform_enqueued_jobs(only: JournalPromptJob) }
-      end
-      inputs = slack.calls_to(:chat_postEphemeral).last[:blocks].select { |block| block[:type] == "input" }
-      assert_equal %w[duration lapse_timelapses], inputs.pluck(:block_id)
-      assert_equal "1", inputs.first.dig(:element, :initial_value)
-      assert inputs.first.dig(:hint, :text).start_with?("(based on tracked recorded hours)")
-      assert_equal SlackMessages::TIMELAPSE_LABEL, inputs.last.dig(:label, :text)
-      assert_includes inputs.last.dig(:element, :options).pluck(:value), lapse_timelapses(:desk).public_id
+        blocks = slack.calls_to(:chat_postEphemeral).last[:blocks]
+        duration = blocks.find { |block| block[:block_id] == "duration" }
+        assert_equal [ "1", "Time spent (hours)" ], [ duration.dig(:element, :initial_value), duration.dig(:label, :text) ]
+        assert duration.dig(:hint, :text).start_with?("(based on tracked recorded hours)")
+        pick = button_in(blocks, "Pick timelapses")
+        draft = JournalDraft.last
 
-      assert_difference -> { Journal.count }, 1 do
-        press("journal", JournalDraft.last, duration: "", timelapses: [ lapse_timelapses(:desk).public_id ])
+        press_button(pick[:action_id], draft, duration: "1")
+        modal = slack.calls_to(:views_open).last[:view]
+        assert_equal "lapse_picker", modal[:callback_id]
+        row = modal[:blocks].find { |block| block.dig(:text, :text).to_s.include?(desk.name) }
+        assert_equal desk.thumbnail_url, row.dig(:accessory, :image_url)
+
+        toggle(modal, button_in(modal[:blocks], "Select"))
+        modal = slack.calls_to(:views_update).last[:view]
+        assert button_in(modal[:blocks], "Selected ✓")
+        assert_equal [ desk.public_id ], JSON.parse(modal[:private_metadata])["selected"]
+
+        assert_enqueued_with(job: RefreshDraftPromptJob, args: [ draft, "1" ]) { submit(modal) }
+        assert_equal [ desk.public_id ], draft.reload.timelapse_ids
+        stub_method(LapseTimelapse, :sync, nil) { perform_enqueued_jobs(only: RefreshDraftPromptJob) }
+        redrawn = slack.calls_to(:response_url).last[:body]["blocks"]
+        assert redrawn.any? { |block| block.dig("text", "text").to_s.include?("#{desk.name} · 1.5h") }
+        assert_equal "1", redrawn.find { |block| block["block_id"] == "duration" }.dig("element", "initial_value")
+
+        assert_difference -> { Journal.count }, 1 do
+          press("journal", draft, duration: "")
+        end
+        journal = Journal.last
+        assert_equal [ 90, 60, false ], [ journal.duration_minutes, journal.tracked_minutes, journal.hours_self_claimed ]
+        assert_equal journal, desk.reload.journal
       end
-      journal = Journal.last
-      assert_equal [ 90, 60, false ], [ journal.duration_minutes, journal.tracked_minutes, journal.hours_self_claimed ]
-      assert_equal journal, lapse_timelapses(:desk).reload.journal
     end
   end
 
@@ -136,8 +155,7 @@ class JournalFlowTest < ActiveSupport::TestCase
         stub_method(LapseTimelapse, :sync, nil) { RefreshDraftPromptJob.perform_now(draft) }
         redrawn = slack.calls_to(:response_url).last
         assert_equal [ "https://hooks.slack.test/r", true ], [ redrawn[:url], redrawn[:body]["replace_original"] ]
-        picker = redrawn[:body]["blocks"].find { |block| block["block_id"] == "lapse_timelapses" }
-        assert_includes picker.dig("element", "options").pluck("value"), lapse_timelapses(:desk).public_id
+        assert redrawn[:body]["blocks"].any? { |block| block.dig("accessory", "text", "text") == "Pick timelapses" }
       end
     end
   end
@@ -158,7 +176,7 @@ class JournalFlowTest < ActiveSupport::TestCase
         stub_method(LapseTimelapse, :sync, nil) { perform_enqueued_jobs(only: RefreshDraftPromptJob) }
         blocks = slack.calls_to(:response_url).last[:body]["blocks"]
         assert_equal "1.5", blocks.find { |block| block["block_id"] == "duration" }.dig("element", "initial_value")
-        assert blocks.any? { |block| block["block_id"] == "lapse_timelapses" }
+        assert blocks.any? { |block| block.dig("accessory", "text", "text") == "Pick timelapses" }
       end
     end
   end
@@ -348,9 +366,8 @@ class JournalFlowTest < ActiveSupport::TestCase
     handle_message(user: user, ts: ts, text: text, thread_ts: thread_ts, files: files)
   end
 
-  def press(choice, draft, duration: nil, timelapses: nil, lapse_url: nil)
+  def press(choice, draft, duration: nil, lapse_url: nil)
     state = { "duration" => { "duration" => { "type" => "plain_text_input", "value" => duration } }, "lapse_url" => { "lapse_url" => { "type" => "plain_text_input", "value" => lapse_url } } }
-    state["lapse_timelapses"] = { "lapse_timelapses" => { "type" => "multi_static_select", "selected_options" => timelapses.map { |id| { "value" => id } } } } if timelapses
     SlackBot.handle(:interaction, { "type" => "block_actions", "user" => { "id" => "U0MEMBER" }, "trigger_id" => "t", "response_url" => "https://hooks.slack.test/r",
                                     "state" => { "values" => state }, "actions" => [ { "action_id" => "journal_draft:#{choice}", "value" => draft.public_id } ] })
   end
@@ -359,6 +376,22 @@ class JournalFlowTest < ActiveSupport::TestCase
     state = { "duration" => { "duration" => { "type" => "plain_text_input", "value" => duration } } }
     SlackBot.handle(:interaction, { "type" => "block_actions", "user" => { "id" => "U0MEMBER" }, "trigger_id" => "t", "response_url" => "https://hooks.slack.test/r",
                                     "state" => { "values" => state }, "actions" => [ { "action_id" => action_id, "value" => draft.public_id } ] })
+  end
+
+  def button_in(blocks, label)
+    blocks.flat_map { |block| [ block[:accessory], *Array(block[:elements]) ] }.compact.find { |element| element[:type] == "button" && element.dig(:text, :text) == label }
+  end
+
+  # A button inside the open timelapse picker modal.
+  def toggle(modal, button)
+    view = { "id" => "V1", "callback_id" => modal[:callback_id], "private_metadata" => modal[:private_metadata] }
+    SlackBot.handle(:interaction, { "type" => "block_actions", "user" => { "id" => "U0MEMBER" }, "trigger_id" => "t", "view" => view,
+                                    "actions" => [ { "action_id" => button[:action_id], "value" => button[:value] } ] })
+  end
+
+  def submit(modal)
+    view = { "id" => "V1", "callback_id" => modal[:callback_id], "private_metadata" => modal[:private_metadata], "state" => { "values" => {} } }
+    SlackBot.handle(:interaction, { "type" => "view_submission", "user" => { "id" => "U0MEMBER" }, "view" => view })
   end
 
   def pick(draft, kept, upto:)

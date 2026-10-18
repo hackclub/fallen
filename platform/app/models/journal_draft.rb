@@ -9,6 +9,7 @@
 #  parts         :jsonb            not null
 #  prompt_url    :string
 #  prompt_url_at :datetime
+#  timelapse_ids :jsonb            not null
 #  created_at    :datetime         not null
 #  updated_at    :datetime         not null
 #  project_id    :bigint           not null
@@ -47,6 +48,9 @@ class JournalDraft < ApplicationRecord
   def remember_prompt!(url) = update!(prompt_url: url, prompt_url_at: Time.current)
 
   def prompt_live? = prompt_url.present? && prompt_url_at && prompt_url_at > PROMPT_URL_LASTS.ago
+
+  # The timelapses picked in the Slack picker (SlackMessages.lapse_picker), newest first, still theirs.
+  def picked_timelapses = user.lapse_timelapses.where_public_ids(timelapse_ids).newest_first.to_a
 
   def self.containing(ts) = where("parts @> CAST(? AS jsonb)", [ { ts: ts } ].to_json)
 

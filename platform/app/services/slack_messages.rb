@@ -67,9 +67,9 @@ module SlackMessages
   # Ephemeral, asking a project's owner what their recent thread replies were (JournalPromptJob). Everything happens
   # in the message: the time box and buttons sit under the text, and JournalDraftAction re-renders it with `error`
   # and what they typed when the time doesn't parse. `tracked` is the hours the huddle and site timer counted since
-  # their last journal, offered in the time box the first time it is shown. `timelapses` are the public ids of
-  # the Lapse timelapses they picked.
-  def draft_prompt(draft, duration: nil, timelapses: [], tracked: nil, error: nil)
+  # their last journal, offered in the time box the first time it is shown. Timelapses are picked in a modal
+  # (lapse_picker) and kept on the draft.
+  def draft_prompt(draft, duration: nil, tracked: nil, error: nil)
     return photos_prompt(draft) unless draft.written?
     return needs_photo_prompt(draft) if draft.files.empty?
 
@@ -80,7 +80,7 @@ module SlackMessages
     hint = "(based on tracked recorded hours) #{hint}" if offered
     blocks << SlackBot::Blocks.input("Time spent (hours)", SlackBot::Blocks.plain_text_input("duration", placeholder: "Hours, like 1.5 or 0.5", initial_value: duration.presence || offered), block_id: "duration", hint: hint)
     blocks << SlackBot::Blocks.context("Nothing tracked since your last journal. Join the huddle or start the timer on your pet next time and the hours fill in.") if duration.nil? && !offered && tracked
-    blocks += timelapse_blocks(draft, timelapses)
+    blocks += timelapse_blocks(draft)
     blocks << SlackBot::Blocks.context(":warning: #{escape(error)}") if error
     blocks << SlackBot::Blocks.actions(
       draft_button("Save journal", "journal", draft, style: "primary"),
@@ -92,31 +92,53 @@ module SlackMessages
   end
 
   TIMELAPSE_LABEL = "Timelapses (helps you not get deflated)"
-  # Slack's limit for a select's options.
-  TIMELAPSE_OPTIONS = 100
+  # Each takes two blocks in the picker, and a modal holds 100.
+  PICKER_TIMELAPSES = 40
 
-  # Their unused Lapse timelapses to pick from. Without Lapse connected, a button that connects it on Fallen; the
-  # prompt then redraws itself with the picker (RefreshDraftPromptJob). With nothing to pick, where to record one
-  # and a button to look again. Never a box for a link: timelapses only ever come from their own Lapse.
-  def timelapse_blocks(draft, picked)
+  # The prompt's timelapse line. With Lapse connected: what is picked, and a button opening the picker modal. Without
+  # it, a button that connects it on Fallen, after which the prompt redraws itself (RefreshDraftPromptJob). With
+  # nothing to pick, where to record one and a button to look again. Never a box for a link: timelapses only ever
+  # come from their own Lapse.
+  def timelapse_blocks(draft)
     user = draft.user
     return [] unless Lapse.configured?
 
     unless user.lapse_connected?
       connect = draft_button("Connect Lapse", "connect_lapse", draft).merge(url: connect_lapse_url)
-      return [ SlackBot::Blocks.section("*#{TIMELAPSE_LABEL}*\nConnect Lapse on Fallen and this message lists your timelapses.", accessory: connect) ]
+      return [ SlackBot::Blocks.section("*#{TIMELAPSE_LABEL}*\nConnect Lapse on Fallen to pick your timelapses here.", accessory: connect) ]
     end
 
-    options = user.lapse_timelapses.unclaimed.newest_first.limit(TIMELAPSE_OPTIONS).select(&:usable?)
-    if options.empty?
+    picked = draft.picked_timelapses
+    if picked.empty? && pickable_timelapses(user).empty?
       text = "*#{TIMELAPSE_LABEL}*\nNo unused timelapses on Lapse yet. <#{Lapse.web_host}|Record one>, make it unlisted so staff can watch it, then check again."
       return [ SlackBot::Blocks.section(text, accessory: draft_button("Check again", "check_lapse", draft)) ]
     end
 
-    choices = options.map { |timelapse| SlackBot::Blocks.option("#{(timelapse.name.presence || 'Untitled timelapse').truncate(50)} · #{timelapse.duration_text}", timelapse.public_id) }
-    [ SlackBot::Blocks.input(TIMELAPSE_LABEL, SlackBot::Blocks.multi_static_select("lapse_timelapses", choices, placeholder: "Pick this session's timelapses", initial: choices.select { |choice| picked.include?(choice[:value]) }),
-                             block_id: "lapse_timelapses", optional: true, hint: "They back up the hours you log.") ]
+    summary = picked.any? ? "#{picked.map { |timelapse| escape(timelapse_name(timelapse)) }.join(', ')} · #{Duration.format(picked.sum(&:duration_minutes))}" : "None picked yet."
+    [ SlackBot::Blocks.section("*#{TIMELAPSE_LABEL}*\n#{summary}", accessory: draft_button(picked.any? ? "Change" : "Pick timelapses", "pick_lapse", draft)) ]
   end
+
+  # A modal of their unused timelapses with thumbnails, each with a button that toggles it (LapsePickerAction).
+  # "Done" keeps the picks on the draft (LapsePickerView). `selected` are public ids; `duration` is what was in the
+  # prompt's time box, so redrawing the prompt keeps it.
+  def lapse_picker(draft, selected, duration: nil)
+    options = pickable_timelapses(draft.user).first(PICKER_TIMELAPSES)
+    chosen = options.select { |timelapse| selected.include?(timelapse.public_id) }
+    status = chosen.any? ? "#{chosen.size} picked · #{Duration.format(chosen.sum(&:duration_minutes))}" : "Pick every one from this session."
+    blocks = [ SlackBot::Blocks.context("#{status} They back up the hours you log. Up to #{Journal::MAX_TIMELAPSES}.") ]
+    options.each do |timelapse|
+      on = selected.include?(timelapse.public_id)
+      recorded = timelapse.recorded_at && " · #{timelapse.recorded_at.in_time_zone(draft.user.timezone).to_date.to_fs(:long)}"
+      thumbnail = SlackBot::Blocks.image(timelapse.thumbnail_url, timelapse_name(timelapse)) if timelapse.thumbnail_url.present?
+      blocks << SlackBot::Blocks.section("*#{escape(timelapse_name(timelapse))}*\n#{timelapse.duration_text}#{recorded}", accessory: thumbnail)
+      blocks << SlackBot::Blocks.actions(SlackBot::Blocks.button(on ? "Selected ✓" : "Select", "lapse_picker:toggle", value: timelapse.public_id, style: on ? "primary" : nil))
+    end
+    SlackBot::Blocks.modal("Timelapses", blocks, callback_id: "lapse_picker", submit: "Done",
+                           private_metadata: { draft: draft.public_id, selected: chosen.map(&:public_id), duration: duration }.to_json)
+  end
+
+  def pickable_timelapses(user) = user.lapse_timelapses.unclaimed.newest_first.limit(PICKER_TIMELAPSES * 2).select(&:usable?)
+  def timelapse_name(timelapse) = (timelapse.name.presence || "Untitled timelapse").truncate(60)
 
   # Every journal needs a photo, so writing without one gets a reminder instead of the time box.
   def needs_photo_prompt(draft)
