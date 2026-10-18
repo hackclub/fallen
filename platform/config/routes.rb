@@ -8,6 +8,8 @@ Rails.application.routes.draw do
 
   root "landing#index"
   get "home" => "home#index", as: :home
+  get "docs" => "docs#show", as: :docs
+  get "settings" => "settings#show", as: :settings
   get "sorry" => "bans#show", as: :sorry
 
   # Hack Club Auth (OAuth)

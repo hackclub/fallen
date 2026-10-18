@@ -1,6 +1,8 @@
 // The hatch's sounds, made with Web Audio so there are no files to download: a click of filtered noise over a
 // knock for each crack, a rising hum while it charges, and a pop and a chime when it opens.
 
+import { loudness } from '@/lib/preferences.svelte'
+
 let context: AudioContext | null = null
 let master: GainNode
 
@@ -8,9 +10,9 @@ function audio() {
   if (!context) {
     context = new AudioContext()
     master = context.createGain()
-    master.gain.value = 0.45
     master.connect(context.destination)
   }
+  master.gain.value = 0.45 * loudness()
   if (context.state === 'suspended') context.resume()
   return context
 }

@@ -1,6 +1,5 @@
 <script lang="ts">
-  import { router } from '@inertiajs/svelte'
-  import { connectSlack, disconnectSlack } from '@/routes'
+  import { connectSlack } from '@/routes'
 
   export interface SlackStatus {
     configured: boolean
@@ -10,23 +9,10 @@
   }
 
   // The gate: projects and journals exist in Slack first, so nothing can be written here until Slack is connected.
-  let {
-    slack,
-    returnTo,
-    compact = false,
-  }: { slack: SlackStatus; returnTo: string; compact?: boolean } = $props()
+  let { slack, returnTo }: { slack: SlackStatus; returnTo: string } = $props()
 </script>
 
-{#if slack.connected}
-  {#if !compact}
-    <p class="font-outfit text-xs text-sky-ice/50">
-      Slack connected. Journals you write here post to your thread as you.
-      <button type="button" class="underline hover:text-white" onclick={() => router.visit(disconnectSlack())}
-        >Disconnect</button
-      >
-    </p>
-  {/if}
-{:else}
+{#if !slack.connected}
   <div class="paper px-6 py-5">
     <p class="font-display text-xl text-ink">Connect Slack to start</p>
     <p class="mt-1 max-w-md font-outfit text-sm text-ink-soft">

@@ -308,11 +308,13 @@
   }
 
   &:focus-visible::after,
-  &[aria-current='page']::after {
+  &[aria-current='page']::after,
+  &[aria-selected='true']::after {
     opacity: 1;
   }
 
-  &[aria-current='page']::before {
+  &[aria-current='page']::before,
+  &[aria-selected='true']::before {
     opacity: 0.72;
   }
 
@@ -331,11 +333,11 @@
     animation: none !important;
   }
 
-  &.rail-hold:not([aria-current='page'])::before {
+  &.rail-hold:not([aria-current='page'], [aria-selected='true'])::before {
     opacity: 0 !important;
   }
 
-  &.rail-hold:not([aria-current='page'])::after {
+  &.rail-hold:not([aria-current='page'], [aria-selected='true'])::after {
     opacity: 0 !important;
   }
 
@@ -346,11 +348,13 @@
 
 /* While another item is hovered, the current page's glow and line drop to half. */
 @media (hover: hover) and (pointer: fine) and (width >= 48rem) {
-  .rail:has(.rail-item:hover) .rail-item[aria-current='page']:not(:hover)::before {
+  .rail:has(.rail-item:hover)
+    .rail-item:is([aria-current='page'], [aria-selected='true']):not(:hover)::before {
     opacity: 0.36;
   }
 
-  .rail:has(.rail-item:hover) .rail-item[aria-current='page']:not(:hover)::after {
+  .rail:has(.rail-item:hover)
+    .rail-item:is([aria-current='page'], [aria-selected='true']):not(:hover)::after {
     opacity: 0.5;
   }
 }
@@ -377,6 +381,84 @@
   100% {
     opacity: 0.72;
   }
+}
+
+/* A row in a settings panel: the rail's glow, fainter so the text on it stays easy to read, lights it from the left
+   while the pointer or focus is in it. */
+@utility setting-row {
+  @apply relative flex flex-wrap items-center gap-x-6 gap-y-3 px-5 py-4 md:px-6;
+
+  &::before {
+    @apply pointer-events-none absolute inset-0 bg-[linear-gradient(to_left,rgba(255,255,255,0)_0%,rgba(255,255,255,0.1)_85%,rgba(255,255,255,0.2)_100%)] opacity-0 transition-opacity duration-150 ease-out content-[''];
+  }
+
+  &::after {
+    @apply pointer-events-none absolute inset-y-0 left-0 w-px bg-white opacity-0 transition-opacity duration-150 ease-out content-[''];
+  }
+
+  &:focus-within::before,
+  &:focus-within::after {
+    opacity: 1;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    &:hover::before {
+      opacity: 1;
+    }
+  }
+}
+
+/* Children fade and slide in one after another, in the order lib/stagger.ts numbers them (--i), so a settings
+   section or a docs page arrives row by row or paragraph by paragraph, --stagger-step apart. */
+@utility stagger-in {
+  & > * {
+    animation: stagger-in 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: calc(min(var(--i, 0), 14) * var(--stagger-step, 45ms));
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    & > * {
+      animation: none;
+    }
+  }
+}
+
+@keyframes stagger-in {
+  from {
+    opacity: 0;
+    translate: 14px 0;
+  }
+}
+
+/* Markdown on the glass panels (the docs pages). */
+@utility prose-docs {
+  @apply font-outfit text-base leading-relaxed text-pale-blue;
+  & > * + * {
+    @apply mt-4;
+  }
+  & h2 {
+    @apply pt-3 font-montserrat text-xl font-semibold tracking-[-0.02em] text-white;
+  }
+  & strong {
+    @apply font-semibold text-cream;
+  }
+  & a {
+    @apply text-cream underline decoration-cream/40 underline-offset-3 hover:decoration-cream;
+  }
+  & ul {
+    @apply list-disc space-y-2 pl-5 marker:text-cream/50;
+  }
+  & ol {
+    @apply list-decimal space-y-2 pl-5 marker:text-cream/50;
+  }
+  & code {
+    @apply rounded bg-white/10 px-1 py-0.5 text-[0.9em] text-cream;
+  }
+}
+
+/* The cream pill's quieter sibling for the glass panels on the sky. */
+@utility pill-glass {
+  @apply inline-flex h-11 cursor-pointer items-center justify-center rounded-full border border-white/25 bg-white/10 px-5 font-montserrat font-semibold text-cream outline-offset-4 outline-cream transition hover:bg-white/20 focus-visible:outline-2 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100;
 }
 
 @utility pill-cream {

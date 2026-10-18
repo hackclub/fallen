@@ -38,6 +38,7 @@
   import { starPath } from '@/components/GoldFrame.svelte'
   import { enter, exit, prefersReducedMotion, styler } from '@/components/dialog/motion'
   import { FINAL_FORM, PET_FORMS, PET_NAMES, hatch, petState } from '@/lib/pet.svelte'
+  import { PET_HOME_EVENT, preferences } from '@/lib/preferences.svelte'
   import { shared } from '@/lib/shared.svelte'
 
   // A desktop pet for the signed-in site: the egg picked in onboarding sits on the bottom of the window, hops about
@@ -51,7 +52,7 @@
   // At least this form, whatever the server says: a hatch previewed in development (Shift+K) leaves the pet hatched.
   let floor = $state(0)
   const src = $derived(pet ? PET_FORMS[pet][Math.max(shown, floor)] : undefined)
-  const visible = $derived(!!src && !petState.onboarding)
+  const visible = $derived(!!src && !petState.onboarding && preferences.pet)
 
   let root: HTMLButtonElement
   let flight: HTMLElement
@@ -136,6 +137,7 @@
   let timer: ReturnType<typeof setTimeout> | undefined
 
   const maxX = () => window.innerWidth - dims.w - EDGE
+  const home = () => maxX() - 24
 
   function live(el: HTMLButtonElement) {
     return untrack(() => start(el))
@@ -148,7 +150,7 @@
     flight = el.firstElementChild as HTMLElement
     body = flight.firstElementChild as HTMLElement
     const stored = Number(localStorage.getItem(STORE))
-    x = clamp(Number.isFinite(stored) && stored > 0 ? stored : maxX() - 24, EDGE, maxX())
+    x = clamp(Number.isFinite(stored) && stored > 0 ? stored : home(), EDGE, maxX())
     styler(root).set({ x, y: 0 })
 
     const handoff = petState.handoff
@@ -162,10 +164,20 @@
       x = clamp(x, EDGE, maxX())
       styler(root).set({ x })
     }
+    // Called back from Settings: hop home to the corner.
+    const onHome = async () => {
+      if (busy || flying) return
+      clearTimeout(timer)
+      const target = clamp(home(), EDGE, maxX())
+      await (Math.abs(target - x) > 1 ? hopTo(target) : wobble())
+      schedule()
+    }
     window.addEventListener('resize', onResize)
+    window.addEventListener(PET_HOME_EVENT, onHome)
     return () => {
       clearTimeout(timer)
       window.removeEventListener('resize', onResize)
+      window.removeEventListener(PET_HOME_EVENT, onHome)
       el.remove()
     }
   }

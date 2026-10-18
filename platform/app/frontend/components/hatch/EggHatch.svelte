@@ -17,6 +17,7 @@
   const EGG_COLOURS: Record<string, { shell: string; outline: string }> = {
     lulu: { shell: SHELL, outline: OUTLINE },
     sami: { shell: '#353b7d', outline: '#04052c' },
+    egg: { shell: '#fbfaf6', outline: '#031235' },
   }
   const GOLD = '#F9AF3F'
   const CONFETTI = ['#F9AF3F', '#fcf9ef', '#90a8f6', '#cbe1b8', '#f7dda6']
@@ -42,6 +43,7 @@
   import { onMount, tick } from 'svelte'
   import { fade, fly } from 'svelte/transition'
   import { styler } from '@/components/dialog/motion'
+  import plainEgg from '@/assets/onboarding/egg.png'
   import { PET_FORMS, PET_NAMES, petState } from '@/lib/pet.svelte'
   import { H, W, breakShell } from './shell'
   import * as sounds from './sounds'
@@ -51,7 +53,8 @@
   let { pet, teaser = false, onclose }: { pet: string; teaser?: boolean; onclose: () => void } = $props()
 
   // svelte-ignore state_referenced_locally
-  const [eggSrc, petSrc] = PET_FORMS[pet]
+  // `egg` is the onboarding's egg before a pet is picked; it has no pet inside, so only the teaser plays it.
+  const [eggSrc, petSrc] = PET_FORMS[pet] ?? [plainEgg]
   // svelte-ignore state_referenced_locally
   const name = PET_NAMES[pet] ?? 'Your pet'
   // svelte-ignore state_referenced_locally

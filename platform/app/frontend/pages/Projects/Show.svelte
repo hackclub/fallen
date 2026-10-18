@@ -171,10 +171,6 @@
           buttonClass="text-sky-ice/70 hover:text-white disabled:opacity-30"
         />
       {/if}
-
-      {#if can.journal}
-        <SlackConnect {slack} returnTo={projectRoute(project.id).url} />
-      {/if}
     {/if}
   </div>
 </div>

@@ -24,6 +24,7 @@ class JournalDraftAction < SlackBot::Action
   def save_journal(draft)
     files = draft.files
     duration, lapse_url = input_values.values_at("duration", "lapse_url")
+    egg = !user.hatched?
     journal = draft.journal!(duration: duration, lapse_url: lapse_url)
     unless journal.persisted?
       prompt = SlackMessages.draft_prompt(draft, duration: duration, lapse_url: lapse_url, error: journal.errors.full_messages.first)
@@ -31,6 +32,10 @@ class JournalDraftAction < SlackBot::Action
     end
 
     CollectSlackJournalJob.perform_later(journal, files, journal.slack_parts.pluck("ts"))
+    if egg && user.reload.hatched?
+      EggCrackingJob.perform_later(user)
+      EggCrackingJob.perform_later(user, journal.project)
+    end
     update_message(":white_check_mark: Journaled *#{journal.duration_text}* on *#{SlackMessages.escape(journal.project.title)}*. <#{SlackMessages.project_url(journal.project)}|Open on Fallen>")
   end
 

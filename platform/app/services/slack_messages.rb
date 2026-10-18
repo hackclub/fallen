@@ -20,6 +20,18 @@ module SlackMessages
     { text: text, blocks: blocks }
   end
 
+  EGG_TEASERS = {
+    "lulu" => "https://cdn.hackclub.com/01a14bd9-eba7-7b6c-832b-b10a6790a3c4/egg-teaser-lulu.webp",
+    "sami" => "https://cdn.hackclub.com/01a14bd9-ea8d-7374-9d4c-2abb6b5428f7/egg-teaser-sami.webp"
+  }.freeze
+
+  # Sent once the first journal from Slack hatches the egg, as a DM and in the project's thread (EggCrackingJob). The button opens the site, which plays the hatch.
+  def egg_cracking(pet)
+    text = ":eyes_shaking: SOMETHING IS CRACKING..."
+    crack = SlackBot::Blocks.button(":bangbang:CLICK ME:bangbang:", "open_fallen", url: hatch_url, style: "primary")
+    { text: text, blocks: [ SlackBot::Blocks.section(text), SlackBot::Blocks.image(EGG_TEASERS.fetch(pet), "Your egg, cracking"), SlackBot::Blocks.actions(crack) ] }
+  end
+
   def stray_post(text, removed:)
     cta = "If you're looking to start a new project, visit the Fallen platform!"
     start = SlackBot::Blocks.actions(SlackBot::Blocks.button("Start a new project here", "open_fallen", url: new_project_url, style: "primary"))
@@ -143,6 +155,8 @@ module SlackMessages
   def blob_url(image) = Rails.application.routes.url_helpers.rails_blob_url(image, host: ENV.fetch("APP_URL", "http://localhost:3000"))
 
   def project_url(project) = Rails.application.routes.url_helpers.project_url(project, host: ENV.fetch("APP_URL", "http://localhost:3000"))
+
+  def hatch_url = Rails.application.routes.url_helpers.home_url(hatch: 1, host: ENV.fetch("APP_URL", "http://localhost:3000"))
 
   def new_project_url = Rails.application.routes.url_helpers.new_project_url(host: ENV.fetch("APP_URL", "http://localhost:3000"))
 

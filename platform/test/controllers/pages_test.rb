@@ -14,6 +14,20 @@ class PagesTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "Landing/Index"
   end
 
+  test "docs and settings require sign in" do
+    get docs_path
+    assert_redirected_to root_path
+    get settings_path
+    assert_redirected_to root_path
+  end
+
+  test "settings shows the Slack connection" do
+    sign_in_as users(:member)
+    inertia_props(docs_path, "Docs/Show")
+    props = inertia_props(settings_path, "Settings/Show")
+    assert_equal users(:member).slack_connected?, props["slack"]["connected"]
+  end
+
   test "home requires sign in" do
     get home_path
     assert_redirected_to root_path

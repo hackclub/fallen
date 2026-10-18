@@ -5,6 +5,8 @@ export const pages = {
   projects: 'Projects/Index',
   project: 'Projects/Show',
   projectForm: 'Projects/Form',
+  docs: 'Docs/Show',
+  settings: 'Settings/Show',
 } as const
 
 // An instant visit still waits for the page's lazy chunk, so fetch them once the signed-in shell is idle.
@@ -14,6 +16,8 @@ export function warmPages() {
     void import('@/pages/Projects/Index.svelte')
     void import('@/pages/Projects/Show.svelte')
     void import('@/pages/Projects/Form.svelte')
+    void import('@/pages/Docs/Show.svelte')
+    void import('@/pages/Settings/Show.svelte')
   }
   if ('requestIdleCallback' in window) requestIdleCallback(load)
   else setTimeout(load, 1000)

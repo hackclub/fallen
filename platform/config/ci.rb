@@ -13,9 +13,6 @@ CI.run do
   step "Security: Gem audit", "bin/bundler-audit --update"
   step "Security: npm audit", "npm audit --omit=dev"
 
-  # Built once up front: otherwise every parallel test worker auto-builds the same stale assets at once and they
-  # trip over each other's output directory.
-  step "Tests: assets", "bin/vite build --mode=test"
   step "Tests: Rails", "bin/rails test"
 
   # Annotations, TypeScript prop types and route helpers are generated from the schema, serializers and routes.

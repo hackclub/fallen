@@ -85,6 +85,28 @@ class JournalFlowTest < ActiveSupport::TestCase
     end
   end
 
+  test "the journal that hatches the egg sends a DM and a thread reply to crack it on the site, and only that one" do
+    XpEntry.where(user: users(:member)).delete_all
+    users(:member).update_columns(xp: 0)
+    with_fake_slack do |slack|
+      reply("Printed the case", files: [ PHOTO ])
+      assert_enqueued_with(job: EggCrackingJob) { press("journal", JournalDraft.last, duration: "1h") }
+      stub_method(Faraday, :get, Faraday::Response.new(status: 404)) { perform_enqueued_jobs }
+
+      dm, thread = slack.calls_to(:chat_postMessage).partition { |message| message[:channel] == "U0MEMBER" }.map(&:sole)
+      assert_equal [ projects(:station).slack_channel_id, projects(:station).slack_thread_ts ], thread.values_at(:channel, :thread_ts)
+      assert_nil dm[:thread_ts]
+      [ dm, thread ].each do |message|
+        assert_equal ":eyes_shaking: SOMETHING IS CRACKING...", message[:text]
+        assert_equal SlackMessages::EGG_TEASERS["lulu"], message[:blocks].find { |block| block[:type] == "image" }[:image_url]
+        assert_includes message[:blocks].last.dig(:elements, 0, :url), "/home?hatch=1"
+      end
+
+      reply("Then sanded it", ts: "1700000003.000200", files: [ PHOTO ])
+      assert_no_enqueued_jobs(only: EggCrackingJob) { press("journal", JournalDraft.last, duration: "1h") }
+    end
+  end
+
   test "add more keeps collecting" do
     with_fake_slack do |slack|
       reply("Printed the case")
