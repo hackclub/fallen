@@ -4,11 +4,28 @@
 # still in the old one are asked to come over (HuddleHandoffJob).
 class HuddleSyncJob < ApplicationJob
   queue_as :realtime
-  limits_concurrency to: 1, key: "huddle_sync", duration: 2.minutes
+  # A Postgres lock rather than limits_concurrency: a worker killed mid-run (every deploy) drops it with its
+  # connection, where a Solid Queue semaphore stays held until the dispatcher's next sweep, minutes later.
+  LOCK = Zlib.crc32("huddle_sync")
 
   def perform
     return unless SlackHuddle.configured?
 
+    connection = ActiveRecord::Base.connection
+    connection.select_value("SELECT pg_advisory_lock(#{LOCK})")
+    begin
+      sync
+    ensure
+      connection.select_value("SELECT pg_advisory_unlock(#{LOCK})")
+    end
+  rescue ActiveRecord::QueryCanceled
+    # Another sync held the lock past statement_timeout; the next event or the minute's run catches up.
+    nil
+  end
+
+  private
+
+  def sync
     huddle = Huddle.live.where(channel_id: SlackHuddle.channel_id).order(:started_at).last
     if huddle
       room = SlackHuddle.room(huddle.call_id)
@@ -28,8 +45,6 @@ class HuddleSyncJob < ApplicationJob
   rescue SlackBot::BrowserClient::Error, Faraday::Error => e
     Rails.logger.error({ event: "huddle_sync.failed", error: e.message }.to_json)
   end
-
-  private
 
   def seat(huddle, room)
     # The bot is always in its own huddle, so an empty list means Slack did not say, not that everyone left.
