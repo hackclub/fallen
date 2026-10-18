@@ -17,6 +17,19 @@ class SyncJournalToSlackJobTest < ActiveJob::TestCase
     assert journal.reload.on_slack?
   end
 
+  test "splits a journal longer than one slack section across several" do
+    paragraph = "Wired the amp and tested every key on the board. " * 20
+    journal = projects(:station).journals.create!(user: users(:member), body: Array.new(8, paragraph.strip).join("\n\n"), duration_minutes: 60, source: "web", images: [ photo ])
+
+    with_fake_slack do |slack|
+      SyncJournalToSlackJob.perform_now(journal, "create")
+      sections = slack.calls_to(:chat_postMessage).sole[:blocks].select { |block| block[:type] == "section" }
+      assert_operator sections.size, :>, 1
+      assert sections.all? { |section| section[:text][:text].length <= SlackBot::Blocks::SECTION_LIMIT }
+      assert_includes sections.last[:text][:text], "photo.png>"
+    end
+  end
+
   test "refuses to post for someone who has not connected slack" do
     users(:member).disconnect_slack!
     journal = projects(:station).journals.create!(user: users(:member), body: journal_text("x"), duration_minutes: 30, source: "web", images: [ photo ])

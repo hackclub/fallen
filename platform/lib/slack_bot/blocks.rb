@@ -28,6 +28,19 @@ module SlackBot
       }.compact
     end
 
+    SECTION_LIMIT = 3000
+
+    # One section per SECTION_LIMIT characters, Slack's cap on a section's text. Breaks between lines, then words,
+    # so links and formatting stay whole unless a single word is longer than the limit.
+    def sections(text)
+      pieces = text.to_s.split(/(?<=\n)/).flat_map { |line| line.length > SECTION_LIMIT ? line.split(/(?<= )/) : line }
+      chunks = pieces.flat_map { |piece| piece.scan(/.{1,#{SECTION_LIMIT}}/m) }.each_with_object([ +"" ]) do |piece, all|
+        all << +"" if all.last.length + piece.length > SECTION_LIMIT
+        all.last << piece
+      end
+      chunks.map(&:strip).compact_blank.map { |chunk| section(chunk) }
+    end
+
     def context(*elements)
       { type: "context", elements: elements.flatten.map { |e| e.is_a?(Hash) ? e : mrkdwn(e) } }
     end

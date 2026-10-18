@@ -13,7 +13,7 @@ module SlackMessages
     body = mrkdwn(journal.body)
     image_links = journal.images.map { |image| "<#{blob_url(image)}|:frame_with_picture: #{image.filename}>" }
     text = [ body, image_links.join("  ") ].select(&:present?).join("\n")
-    blocks = [ SlackBot::Blocks.section(text) ]
+    blocks = SlackBot::Blocks.sections(text)
     # Timelapses are private to the person and staff, so the public thread never links one.
     blocks << footer(journal_url(journal), *(":stopwatch: #{journal.duration_text}" if journal.hours_logged?))
     { text: text, blocks: blocks }
