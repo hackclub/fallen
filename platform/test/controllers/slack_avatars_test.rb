@@ -47,19 +47,33 @@ class SlackAvatarsTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "answers a real Gravatar, asking for no fallback" do
+    picture = "https://secure.gravatar.com/avatar/real.jpg?s=192&d=https%3A%2F%2Fa.slack-edge.com%2Fava_0013-192.png"
+    stub_method(SlackAvatars, :gravatar?, true) do
+      with_fake_lookup(->(_) { { "image_192" => picture } }) do
+        post slack_avatar_path, params: { email: "grav@hackclub.com" }, as: :json
+        perform_enqueued_jobs
+        post slack_avatar_path, params: { email: "grav@hackclub.com" }, as: :json
+        assert_equal "https://secure.gravatar.com/avatar/real.jpg?d=404&s=192", response.parsed_body["url"]
+      end
+    end
+  end
+
   test "answers nothing for Slack's default picture or someone not in Slack" do
     default_art = "https://secure.gravatar.com/avatar/x.jpg?d=https%3A%2F%2Fa.slack-edge.com%2Fdf10d%2Fimg%2Favatars%2Fava_0013-192.png"
-    with_fake_lookup(lambda { |email|
-      next Slack::Web::Api::Errors::UsersNotFound.new("users_not_found") if email.start_with?("nobody")
+    stub_method(SlackAvatars, :gravatar?, false) do
+      with_fake_lookup(lambda { |email|
+        next Slack::Web::Api::Errors::UsersNotFound.new("users_not_found") if email.start_with?("nobody")
 
-      { "is_custom_image" => true, "image_192" => default_art }
-    }) do
-      %w[plain@hackclub.com nobody@hackclub.com].each do |email|
-        post slack_avatar_path, params: { email: email }, as: :json
-        perform_enqueued_jobs
-        post slack_avatar_path, params: { email: email }, as: :json
-        assert_response :success
-        assert_nil response.parsed_body["url"]
+        { "is_custom_image" => true, "image_192" => default_art }
+      }) do
+        %w[plain@hackclub.com nobody@hackclub.com].each do |email|
+          post slack_avatar_path, params: { email: email }, as: :json
+          perform_enqueued_jobs
+          post slack_avatar_path, params: { email: email }, as: :json
+          assert_response :success
+          assert_nil response.parsed_body["url"]
+        end
       end
     end
   end

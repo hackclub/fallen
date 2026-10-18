@@ -7,9 +7,10 @@
 module SlackAvatars
   PENDING = "pending"
   KEEP_FOR = 1.day
-  # Pictures people upload. Slack's is_custom_image can't be trusted: it is true for a Gravatar URL that falls back
-  # to Slack's default art.
+  # Pictures people upload. Without one, Slack links their email's Gravatar with its silhouette as the fallback, so
+  # Slack's is_custom_image is true for that too. Asking Gravatar with d=404 tells a real Gravatar from the silhouette.
   UPLOADED_HOST = "avatars.slack-edge.com"
+  GRAVATAR_HOST = "secure.gravatar.com"
 
   module_function
 
@@ -33,11 +34,21 @@ module SlackAvatars
     # Someone with a Fallen account may use another email on Slack, so the Slack account HCA linked comes first.
     slack_id = User.where(email: email).where.not(slack_id: nil).pick(:slack_id)
     user = slack_id ? client.users_info(user: slack_id).user : client.users_lookupByEmail(email: email).user
-    url = user.profile.image_192.to_s
-    Rails.cache.write(key_for(email), URI(url).host == UPLOADED_HOST ? url : "", expires_in: KEEP_FOR)
+    Rails.cache.write(key_for(email), own_picture(user.profile.image_192.to_s).to_s, expires_in: KEEP_FOR)
   rescue Slack::Web::Api::Errors::UsersNotFound, Slack::Web::Api::Errors::UserNotFound
     Rails.cache.write(key_for(email), "", expires_in: KEEP_FOR)
   end
+
+  def own_picture(url)
+    uri = URI(url)
+    return url if uri.host == UPLOADED_HOST
+    return unless uri.host == GRAVATAR_HOST
+
+    uri.query = URI.decode_www_form(uri.query.to_s).to_h.merge("d" => "404").to_query
+    uri.to_s if gravatar?(uri)
+  end
+
+  def gravatar?(uri) = Faraday.new { |f| f.options.timeout = 5 }.head(uri).success?
 
   def client = @client ||= Slack::Web::Client.new(token: ENV.fetch("SLACK_LOOKUP_TOKEN"))
 
