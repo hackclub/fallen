@@ -5,8 +5,8 @@ gem "propshaft"
 gem "pg", "~> 1.7"
 gem "puma", ">= 6.0"
 
-# Windows does not include zoneinfo files, so bundle the tzinfo-data gem
-gem "tzinfo-data", platforms: %i[ windows jruby ]
+# Bundled everywhere: Debian trixie moved legacy names like Asia/Katmandu (which Slack still sends) to tzdata-legacy.
+gem "tzinfo-data"
 
 # Database-backed adapters for Rails.cache, Active Job, and Action Cable
 gem "solid_cache"

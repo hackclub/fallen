@@ -78,6 +78,22 @@ class UserTest < ActiveSupport::TestCase
     assert_includes user.errors[:roles].first, "superuser"
   end
 
+  test "sync_slack_profile! keeps legacy zone names Slack sends and skips ones Ruby cannot load" do
+    user = users(:member)
+    with_fake_slack do |slack|
+      tz = "Asia/Katmandu"
+      slack.define_singleton_method(:users_info) { |user:| Slack::Messages::Message.new("user" => { "tz" => tz, "profile" => { "display_name" => "Orpheus" } }) }
+
+      user.sync_slack_profile!
+      assert_equal "Asia/Katmandu", user.reload.timezone
+      assert_equal "Asia/Kathmandu", ActiveSupport::TimeZone[user.timezone].tzinfo.canonical_identifier
+
+      tz = "Mars/Olympus_Mons"
+      user.sync_slack_profile!
+      assert_equal "Asia/Katmandu", user.reload.timezone
+    end
+  end
+
   test "assign_from_hca fills profile fields" do
     user = User.new(hca_id: "x")
     user.assign_from_hca({ "primary_email" => "zrl@hackclub.com", "first_name" => "Zach", "last_name" => "L", "slack_id" => "U123", "verification_status" => "verified", "birthday" => "1990-01-01" }, "tok")

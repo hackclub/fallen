@@ -187,7 +187,7 @@ class User < ApplicationRecord
     profile = info.user.profile
     updates = {}
     updates[:display_name] = profile.display_name.presence || profile.real_name.presence || display_name
-    updates[:timezone] = info.user.tz.presence || timezone
+    updates[:timezone] = info.user.tz if ActiveSupport::TimeZone[info.user.tz.to_s]
     update!(updates)
   end
 
