@@ -16,6 +16,8 @@ export interface SharedProps {
   // ApplicationController#setup_props. `project` is the title of one made during the onboarding, if any.
   setup: { step: 'onboarding'; project: string | null; rules: TeamRules } | { step: 'slack' } | null
   lapse_configured: boolean
+  // Development only, for replaying the onboarding after a pet is picked.
+  team_rules: TeamRules | null
   errors: Record<string, string[]>
   [key: string]: unknown
 }

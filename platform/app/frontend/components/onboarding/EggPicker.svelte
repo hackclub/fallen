@@ -47,10 +47,10 @@
   // The egg under the pointer or keyboard focus, so the perks can be compared before picking.
   let hover = $state<string | null>(null)
   const shown = $derived(EGGS.find((e) => e.value === (hover ?? pick)))
-  // Only sent while onboarding; replaying it in development afterwards goes without the details.
+  // Sent while onboarding, and always in development so a replay shows them too.
   const rules = $derived.by(() => {
-    const setup = shared().setup
-    return setup?.step === 'onboarding' ? setup.rules : null
+    const { setup, team_rules } = shared()
+    return setup?.step === 'onboarding' ? setup.rules : team_rules
   })
   let launching = $state(false)
   let card: HTMLElement

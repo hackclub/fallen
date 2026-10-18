@@ -21,7 +21,9 @@ class ApplicationController < ActionController::Base
       impersonation: impersonating? ? { impersonator_name: true_user.display_name } : nil,
       setup: setup_props,
       # So Settings can show its Lapse tab on the instant visit from the nav rail, before its own props arrive.
-      lapse_configured: Lapse.configured?
+      lapse_configured: Lapse.configured?,
+      # Development only, for the egg picker when the onboarding is replayed (Shift+L) after a pet is picked.
+      team_rules: (Team.rules if Rails.env.development?)
     }
   end
 
