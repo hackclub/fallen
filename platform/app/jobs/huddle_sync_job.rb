@@ -66,9 +66,10 @@ class HuddleSyncJob < ApplicationJob
   end
 
   # Everyone is asked on every visit; someone who was working on something is asked whether they still are. A
-  # dropped connection, or coming over from the last huddle when Slack restarted it, keeps the answer instead.
+  # dropped connection, or coming over from the last huddle when Slack restarted it, keeps an answer instead. With
+  # no answer yet they are asked again, since the private prompt goes away when they leave.
   def arrive(huddle, slack_id, user, earlier, carried, now)
-    kept = earlier if earlier && earlier.left_at > now - Huddle::REJOIN_QUIET
+    kept = earlier if earlier&.mode && earlier.left_at > now - Huddle::REJOIN_QUIET
     kept ||= carried if carried&.mode
     attributes = if kept
       { mode: kept.mode, goal: kept.goal, prompted_at_count: kept.prompted_at_count }

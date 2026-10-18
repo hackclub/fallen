@@ -37,11 +37,19 @@ class HuddleSyncJobTest < ActiveSupport::TestCase
 
   test "a dropped connection keeps the answer and is not asked again" do
     huddle = Huddle.create!(call_id: "R1", channel_id: CHANNEL, started_at: 1.hour.ago)
-    huddle.sessions.create!(slack_id: "U0MEMBER", joined_at: 30.minutes.ago, left_at: 30.seconds.ago, mode: "working", goal: "Case", prompted_at_count: 3)
+    huddle.sessions.create!(slack_id: "U0MEMBER", joined_at: 30.minutes.ago, left_at: 10.seconds.ago, mode: "working", goal: "Case", prompted_at_count: 3)
 
     assert_no_enqueued_jobs(only: HuddlePromptJob) { sync(fake_browser(room: room("R1", %w[U0BOT U0MEMBER]))) }
     back = huddle.sessions.ongoing.sole
     assert_equal [ "working", "Case", 3 ], [ back.mode, back.goal, back.prompted_at_count ]
+  end
+
+  test "a dropped connection without an answer is asked again" do
+    huddle = Huddle.create!(call_id: "R1", channel_id: CHANNEL, started_at: 1.hour.ago)
+    huddle.sessions.create!(slack_id: "U0MEMBER", joined_at: 30.minutes.ago, left_at: 5.seconds.ago, goal: "Case", prompted_at_count: 0)
+
+    assert_enqueued_jobs(1, only: HuddlePromptJob) { sync(fake_browser(room: room("R1", %w[U0BOT U0MEMBER]))) }
+    assert_equal "Case", huddle.sessions.ongoing.sole.goal
   end
 
   test "someone who was chilling is asked the first question again" do
