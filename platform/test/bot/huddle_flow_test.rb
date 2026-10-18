@@ -45,8 +45,9 @@ class HuddleFlowTest < ActiveSupport::TestCase
     assert_equal users(:newcomer), visit.reload.user
   end
 
-  test "finishing onboarding while in the huddle gets a welcome there and in a DM" do
+  test "signing up while in the huddle gets a welcome there and in a DM" do
     @huddle.sessions.create!(slack_id: "U0NEWBIE", joined_at: 1.minute.ago)
+    users(:newcomer).update_column(:created_at, 30.seconds.ago)
     users(:newcomer).update!(slack_id: "U0NEWBIE")
     assert_no_enqueued_jobs(only: HuddleWelcomeJob) { users(:newcomer).update!(display_name: "Newbie") }
 
@@ -59,6 +60,16 @@ class HuddleFlowTest < ActiveSupport::TestCase
       assert_match "<@U0NEWBIE> just joined Fallen", thread[:text]
       assert_equal "U0NEWBIE", dm[:channel]
       assert_equal "Start a project", dm[:blocks].last[:elements].sole[:text][:text]
+    end
+  end
+
+  test "an account from before this visit gets only the DM" do
+    @huddle.sessions.create!(slack_id: "U0NEWBIE", joined_at: 1.minute.ago)
+    users(:newcomer).update_column(:created_at, 1.day.ago)
+    with_fake_slack do |slack|
+      users(:newcomer).update!(slack_id: "U0NEWBIE", pet: "lulu")
+      perform_enqueued_jobs(only: HuddleWelcomeJob)
+      assert_equal [ "U0NEWBIE" ], slack.calls_to(:chat_postMessage).pluck(:channel)
     end
   end
 
