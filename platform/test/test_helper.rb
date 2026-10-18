@@ -56,6 +56,9 @@ end
 
 module FixtureHelper
   # A photo for a journal, since every one needs at least one for its hours (Journal::MINUTES_PER_IMAGE).
+  # Enough writing for a journal (Journal::MIN_BODY_LENGTH), starting with `start`.
+  def journal_text(start = "Worked on it") = "#{start}. #{'Wrote down what I did and what I learned along the way. ' * 2}".strip
+
   def photo(name = "photo.png") = ActiveStorage::Blob.create_and_upload!(io: StringIO.new("png"), filename: name, content_type: "image/png")
 
   # Adds `count` journals without hours to a project, newer than the fixtures, so pagination has something to do.

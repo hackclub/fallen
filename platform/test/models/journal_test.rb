@@ -54,8 +54,24 @@ class JournalTest < ActiveSupport::TestCase
     assert_nil Duration.format(nil)
   end
 
+  test "needs 100 characters of writing, not counting embedded photos" do
+    short = projects(:station).journals.build(user: users(:member), body: "Soldered it ![board](/rails/active_storage/#{'x' * 120})", duration: "1", images: [ photo ])
+    assert_not short.valid?
+    assert_match(/needs at least 100 characters .* \(11 so far\)/, short.errors[:body].first)
+
+    short.body = journal_text("Soldered it")
+    assert short.valid?
+  end
+
+  test "an older, shorter journal can still be edited in Slack, but not shortened on the site" do
+    journal = journals(:first)
+    assert journal.update(slack_parts: [], body: "Shorter now", source: "slack"), "Slack edits keep up with the thread"
+    journal.update_columns(source: "web")
+    assert_not journal.update(body: "Still short")
+  end
+
   test "typed duration sets minutes or an error" do
-    journal = projects(:station).journals.build(user: users(:member), body: "x", duration: "2h", images: [ photo ])
+    journal = projects(:station).journals.build(user: users(:member), body: journal_text("x"), duration: "2h", images: [ photo ])
     assert journal.valid?
     assert_equal 120, journal.duration_minutes
     journal.duration = "a while"
@@ -65,7 +81,7 @@ class JournalTest < ActiveSupport::TestCase
 
   test "picked timelapses fill in the hours only when none are typed" do
     second = users(:member).lapse_timelapses.create!(lapse_id: "lapse_second", name: "Wiring", duration_seconds: 1800, visibility: "PUBLIC", playback_url: "https://cdn.lapse.test/2.mp4")
-    journal = projects(:station).journals.build(user: users(:member), body: "x", duration: "", picked_timelapses: [ lapse_timelapses(:desk), second ], images: [ photo ])
+    journal = projects(:station).journals.build(user: users(:member), body: journal_text("x"), duration: "", picked_timelapses: [ lapse_timelapses(:desk), second ], images: [ photo ])
     assert journal.save, journal.errors.full_messages.to_sentence
     assert_equal 120, journal.duration_minutes
     assert_equal [ journal.id ] * 2, [ lapse_timelapses(:desk), second ].map { |t| t.reload.journal_id }
@@ -88,21 +104,21 @@ class JournalTest < ActiveSupport::TestCase
     huddle = Huddle.create!(call_id: "R1", channel_id: "CHUDDLE", started_at: 1.day.ago)
     huddle.sessions.create!(slack_id: user.slack_id, user: user, joined_at: 1.minute.ago - 1.hour, left_at: 1.minute.ago, mode: "working")
 
-    tracked = projects(:station).journals.create!(user: user, body: "x", duration: "1", images: [ photo ])
+    tracked = projects(:station).journals.create!(user: user, body: journal_text("x"), duration: "1", images: [ photo ])
     assert_equal [ 60, false ], [ tracked.tracked_minutes, tracked.hours_self_claimed ]
 
     tracked.update!(duration: "1.5")
     assert tracked.hours_self_claimed, "more than was tracked"
 
-    covered = projects(:station).journals.create!(user: user, body: "y", duration: "1.5", picked_timelapses: [ lapse_timelapses(:desk) ], images: [ photo ])
+    covered = projects(:station).journals.create!(user: user, body: journal_text("y"), duration: "1.5", picked_timelapses: [ lapse_timelapses(:desk) ], images: [ photo ])
     assert_equal [ 0, false ], [ covered.tracked_minutes, covered.hours_self_claimed ], "the timelapses cover it"
 
-    under = projects(:station).journals.create!(user: user, body: "z", duration: "0.5", images: [ photo ])
+    under = projects(:station).journals.create!(user: user, body: journal_text("z"), duration: "0.5", images: [ photo ])
     assert under.hours_self_claimed, "nothing tracked since the last journal"
   end
 
   test "picked timelapses must be rendered, yours, and on one journal at a time, whatever their visibility" do
-    journal = projects(:station).journals.build(user: users(:member), body: "x", picked_timelapses: [ lapse_timelapses(:hidden) ], images: [ photo ])
+    journal = projects(:station).journals.build(user: users(:member), body: journal_text("x"), picked_timelapses: [ lapse_timelapses(:hidden) ], images: [ photo ])
     assert journal.valid?, "a private timelapse is fine; Fallen never shows it publicly"
 
     lapse_timelapses(:hidden).update!(playback_url: nil)
@@ -114,7 +130,7 @@ class JournalTest < ActiveSupport::TestCase
     assert_not journal.valid?
     assert_equal [ "“Admin's timelapse” must be yours" ], journal.errors[:lapse_timelapses]
 
-    first = projects(:station).journals.create!(user: users(:member), body: "first", picked_timelapses: [ lapse_timelapses(:desk) ], images: [ photo ])
+    first = projects(:station).journals.create!(user: users(:member), body: journal_text("first"), picked_timelapses: [ lapse_timelapses(:desk) ], images: [ photo ])
     journal.picked_timelapses = [ lapse_timelapses(:desk).reload ]
     assert_not journal.valid?
     assert_equal [ "“Soldering the sensor board” is already on another journal" ], journal.errors[:lapse_timelapses]
@@ -124,7 +140,7 @@ class JournalTest < ActiveSupport::TestCase
   end
 
   test "every journal needs a time" do
-    journal = projects(:station).journals.build(user: users(:member), body: "x", images: [ photo ])
+    journal = projects(:station).journals.build(user: users(:member), body: journal_text("x"), images: [ photo ])
     assert_not journal.valid?
     assert journal.errors[:duration].any?
     journal.duration = "0.75"
@@ -132,7 +148,7 @@ class JournalTest < ActiveSupport::TestCase
   end
 
   test "every two hours logged need a photo" do
-    journal = projects(:station).journals.build(user: users(:member), body: "x", duration: "2h")
+    journal = projects(:station).journals.build(user: users(:member), body: journal_text("x"), duration: "2h")
     assert_not journal.valid?
     assert_equal [ "at least 1 for 2h, one per 2 hours" ], journal.errors[:images]
     journal.images = [ photo ]
@@ -154,13 +170,13 @@ class JournalTest < ActiveSupport::TestCase
   end
 
   test "author must own the project" do
-    journal = projects(:station).journals.build(user: users(:admin), body: "mine?")
+    journal = projects(:station).journals.build(user: users(:admin), body: journal_text("mine?"))
     assert_not journal.valid?
     assert journal.errors[:project].any?
   end
 
   test "slack ts is unique per channel" do
-    dup = projects(:station).journals.build(user: users(:member), body: "again", slack_channel_id: "CJOURNALS", slack_ts: journals(:first).slack_ts)
+    dup = projects(:station).journals.build(user: users(:member), body: journal_text("again"), slack_channel_id: "CJOURNALS", slack_ts: journals(:first).slack_ts)
     assert_not dup.valid?
   end
 end

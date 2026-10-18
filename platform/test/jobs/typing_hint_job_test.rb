@@ -43,7 +43,7 @@ class TypingHintJobTest < ActiveJob::TestCase
   test "hints again after anyone posts in the channel, and not after a post is deleted" do
     with_cache(ActiveSupport::Cache::MemoryStore.new) do
       hints { TypingHintJob.hint("U0NEWBIE", "CJOURNALS") }
-      journal = projects(:station).journals.create!(user: users(:member), body: "wired it up", duration_minutes: 30, source: "slack", slack_channel_id: "CJOURNALS", slack_ts: "9999999999.000100", images: [ photo ])
+      journal = projects(:station).journals.create!(user: users(:member), body: journal_text("wired it up"), duration_minutes: 30, source: "slack", slack_channel_id: "CJOURNALS", slack_ts: "9999999999.000100", images: [ photo ])
       assert_equal 1, hints { TypingHintJob.hint("U0NEWBIE", "CJOURNALS") }
 
       journal.discard

@@ -2,7 +2,7 @@ require "test_helper"
 
 class SyncJournalToSlackJobTest < ActiveJob::TestCase
   test "posts a web journal into the thread as the author" do
-    journal = projects(:station).journals.create!(user: users(:member), body: "**Soldered** the [board](https://x.test)", duration_minutes: 60, source: "web", lapse_url: "https://lapse.hackclub.com/t/1", images: [ photo ])
+    journal = projects(:station).journals.create!(user: users(:member), body: journal_text("**Soldered** the [board](https://x.test)"), duration_minutes: 60, source: "web", lapse_url: "https://lapse.hackclub.com/t/1", images: [ photo ])
 
     with_fake_slack do |slack|
       SyncJournalToSlackJob.perform_now(journal, "create")
@@ -10,7 +10,7 @@ class SyncJournalToSlackJobTest < ActiveJob::TestCase
       assert_equal "CJOURNALS", call[:channel]
       assert_equal projects(:station).slack_thread_ts, call[:thread_ts]
       assert_nil call[:username]
-      assert call[:text].start_with?("*Soldered* the <https://x.test|board>\n<"), call[:text]
+      assert call[:text].start_with?("*Soldered* the <https://x.test|board>. Wrote down"), call[:text]
       assert_includes call[:text], "photo.png>"
       refute_includes call[:blocks].to_s, "lapse.hackclub.com"
     end
@@ -19,7 +19,7 @@ class SyncJournalToSlackJobTest < ActiveJob::TestCase
 
   test "refuses to post for someone who has not connected slack" do
     users(:member).disconnect_slack!
-    journal = projects(:station).journals.create!(user: users(:member), body: "x", duration_minutes: 30, source: "web", images: [ photo ])
+    journal = projects(:station).journals.create!(user: users(:member), body: journal_text("x"), duration_minutes: 30, source: "web", images: [ photo ])
     with_fake_slack do |slack|
       assert_raises(SlackMessaging::NotConnected) { SyncJournalToSlackJob.perform_now(journal, "create") }
       assert_empty slack.calls

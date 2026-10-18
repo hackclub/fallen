@@ -5,7 +5,7 @@
   import MarkdownEditor from '@/components/MarkdownEditor.svelte'
   import OrnateButton from '@/components/OrnateButton.svelte'
   import OrnateModal from '@/components/OrnateModal.svelte'
-  import { countWords } from '@/lib/markdown'
+  import { MIN_JOURNAL_LENGTH, countWords, writtenLength } from '@/lib/markdown'
   import { trackedHours } from '@/lib/timer.svelte'
   import type { UploadedImage } from '@/lib/uploads'
   import { journals, project as projectRoute, projectJournals } from '@/routes'
@@ -86,10 +86,16 @@
   })
 
   const words = $derived(countWords(form.body))
+  const written = $derived(writtenLength(form.body))
+  // Enough for a reviewer to follow. An older, shorter journal can still be saved as long as its text is untouched.
+  const longEnough = $derived(written >= MIN_JOURNAL_LENGTH || (editing && form.body === journal?.body))
   // Typed hours always count. With timelapses picked and nothing typed, the server takes their recorded time.
   const timelapsed = $derived(form.lapse_timelapses.length > 0)
   const canSubmit = $derived(
-    form.body.trim().length > 0 && (timelapsed || form.duration.trim().length > 0) && !form.processing,
+    form.body.trim().length > 0 &&
+      longEnough &&
+      (timelapsed || form.duration.trim().length > 0) &&
+      !form.processing,
   )
 
   function addImage(image: UploadedImage) {
@@ -157,9 +163,13 @@
           <span>
             {#if form.errors.body}<span class="text-red-700">{form.errors.body}</span>
             {:else if uploadError}<span class="text-red-700">{uploadError}</span>
+            {:else if !longEnough && written > 0}Write at least {MIN_JOURNAL_LENGTH} characters so a reviewer can
+              follow what you did.
             {:else if draftRestored}Draft restored.{/if}
           </span>
-          <span>{words} {words === 1 ? 'word' : 'words'}</span>
+          <span class="shrink-0 tabular-nums">
+            {#if longEnough}{words} {words === 1 ? 'word' : 'words'}{:else}{written}/{MIN_JOURNAL_LENGTH} characters{/if}
+          </span>
         </div>
       </section>
 

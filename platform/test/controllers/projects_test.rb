@@ -78,7 +78,7 @@ class ProjectsTest < ActionDispatch::IntegrationTest
 
   test "writing a journal syncs to slack and earns xp" do
     assert_enqueued_with(job: SyncJournalToSlackJob) do
-      post project_journals_path(projects(:station)), params: { journal: { body: "Wired the display", duration: "1h", images: [ photo.signed_id ] } }
+      post project_journals_path(projects(:station)), params: { journal: { body: journal_text("Wired the display"), duration: "1h", images: [ photo.signed_id ] } }
     end
     journal = Journal.last
     assert_redirected_to project_path(projects(:station))
@@ -90,24 +90,24 @@ class ProjectsTest < ActionDispatch::IntegrationTest
   test "journals carry images, one photo per two hours" do
     blob = photo("board.png")
     assert_no_difference -> { Journal.count } do
-      post project_journals_path(projects(:station)), params: { journal: { body: "no photo", duration: "0.75" } }
+      post project_journals_path(projects(:station)), params: { journal: { body: journal_text("no photo"), duration: "0.75" } }
     end
-    post project_journals_path(projects(:station)), params: { journal: { body: "![board](x)", duration: "0.75", images: [ blob.signed_id ] } }
+    post project_journals_path(projects(:station)), params: { journal: { body: journal_text("![board](x)"), duration: "0.75", images: [ blob.signed_id ] } }
     journal = Journal.last
     assert_equal 1, journal.images.count
 
     get project_path(projects(:station))
     assert_includes response.body, "board.png"
 
-    patch journal_path(journal), params: { journal: { body: "no photo", images: [] } }
+    patch journal_path(journal), params: { journal: { body: journal_text("no photo"), images: [] } }
     assert_equal 1, journal.reload.images.count, "a journal keeps the photos its hours need"
-    patch journal_path(journal), params: { journal: { body: "longer", duration: "3h", images: [ blob.signed_id ] } }
+    patch journal_path(journal), params: { journal: { body: journal_text("longer"), duration: "3h", images: [ blob.signed_id ] } }
     assert_equal 45, journal.reload.duration_minutes, "three hours need two photos"
   end
 
   test "a journal can take its hours from picked Lapse timelapses, and drop them to type them" do
     timelapse = lapse_timelapses(:desk)
-    post project_journals_path(projects(:station)), params: { journal: { body: "Soldered", duration: "", lapse_timelapses: [ timelapse.public_id ], images: [ photo.signed_id ] } }
+    post project_journals_path(projects(:station)), params: { journal: { body: journal_text("Soldered"), duration: "", lapse_timelapses: [ timelapse.public_id ], images: [ photo.signed_id ] } }
     journal = Journal.last
     assert_equal [ timelapse ], journal.lapse_timelapses
     assert_equal 90, journal.duration_minutes
@@ -115,20 +115,20 @@ class ProjectsTest < ActionDispatch::IntegrationTest
     get project_path(projects(:station))
     assert_includes response.body, timelapse.url
 
-    patch journal_path(journal), params: { journal: { body: "Soldered", duration: "0.5", images: journal.images.map(&:signed_id) } }
+    patch journal_path(journal), params: { journal: { body: journal_text("Soldered"), duration: "0.5", images: journal.images.map(&:signed_id) } }
     assert_empty journal.reload.lapse_timelapses
     assert_equal 30, journal.duration_minutes
   end
 
   test "someone else's timelapse cannot be picked" do
     assert_no_difference -> { Journal.count } do
-      post project_journals_path(projects(:station)), params: { journal: { body: "x", lapse_timelapses: [ lapse_timelapses(:desk).public_id, lapse_timelapses(:admins).public_id ], images: [ photo.signed_id ] } }
+      post project_journals_path(projects(:station)), params: { journal: { body: journal_text("x"), lapse_timelapses: [ lapse_timelapses(:desk).public_id, lapse_timelapses(:admins).public_id ], images: [ photo.signed_id ] } }
     end
     assert_response :not_found
   end
 
   test "the composer lists all the owner's timelapses, saying which journal has one" do
-    journal = projects(:station).journals.create!(user: users(:member), body: "x", duration: "1", images: [ photo ])
+    journal = projects(:station).journals.create!(user: users(:member), body: journal_text("x"), duration: "1", images: [ photo ])
     lapse_timelapses(:hidden).update!(journal: journal)
     props = load_deferred(project_path(projects(:station)), "Projects/Show", "lapse")
     assert_equal [ lapse_timelapses(:desk).public_id, lapse_timelapses(:hidden).public_id ], props["lapse"]["timelapses"].pluck("id")
@@ -144,21 +144,21 @@ class ProjectsTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_includes response.body, '"journal":false'
 
-    post project_journals_path(projects(:station)), params: { journal: { body: "hi" } }
+    post project_journals_path(projects(:station)), params: { journal: { body: journal_text("hi") } }
     assert_redirected_to root_path
     post projects_path, params: { project: { title: "Made while onboarding" } }
     assert Project.exists?(title: "Made while onboarding")
   end
 
   test "cannot journal on someone else's project" do
-    post project_journals_path(projects(:admins)), params: { journal: { body: "hi" } }
+    post project_journals_path(projects(:admins)), params: { journal: { body: journal_text("hi") } }
     assert_redirected_to root_path
   end
 
   test "updating and deleting journals syncs to slack" do
-    patch journal_path(journals(:first)), params: { journal: { body: "Edited" } }
+    patch journal_path(journals(:first)), params: { journal: { body: journal_text("Edited") } }
     assert_redirected_to project_path(projects(:station))
-    assert_equal "Edited", journals(:first).reload.body
+    assert_equal journal_text("Edited"), journals(:first).reload.body
 
     assert_enqueued_with(job: SyncJournalToSlackJob, args: [ journals(:first), "delete" ]) do
       delete journal_path(journals(:first))

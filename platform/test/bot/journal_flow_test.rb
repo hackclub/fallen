@@ -4,16 +4,18 @@ class JournalFlowTest < ActiveSupport::TestCase
   include ActiveJob::TestHelper
 
   CHANNEL = "CJOURNALS"
+  # Enough writing for a journal (Journal::MIN_BODY_LENGTH).
+  WRITTEN = "Printed the case, sanded the edges smooth and test fitted the board. The lid was tight so I filed the clips."
   PHOTO = { "id" => "F1", "name" => "case.png", "mimetype" => "image/png", "url_private_download" => "https://files.slack.test/case.png", "size" => 3 }.freeze
 
   test "a thread reply by the owner waits for them to say it is a journal" do
     with_fake_slack do |slack|
       assert_no_difference -> { Journal.count } do
-        assert_enqueued_with(job: JournalPromptJob, at: nil) { reply("Printed the case", files: [ PHOTO ]) }
+        assert_enqueued_with(job: JournalPromptJob, at: nil) { reply(WRITTEN, files: [ PHOTO ]) }
       end
       assert_nil enqueued_jobs.last["scheduled_at"], "the first reply is asked about straight away"
       draft = JournalDraft.last
-      assert_equal [ "Printed the case" ], draft.parts.pluck("text")
+      assert_equal [ WRITTEN ], draft.parts.pluck("text")
 
       perform_enqueued_jobs
       prompt = slack.calls_to(:chat_postEphemeral).first
@@ -27,7 +29,7 @@ class JournalFlowTest < ActiveSupport::TestCase
 
   test "writing without a photo gets a reminder instead of the time box" do
     with_fake_slack do |slack|
-      reply("Printed the case")
+      reply(WRITTEN)
       perform_enqueued_jobs
       prompt = slack.calls_to(:chat_postEphemeral).last
       assert_equal "Nice! Please also add a photo for your journal.", prompt[:text]
@@ -46,11 +48,30 @@ class JournalFlowTest < ActiveSupport::TestCase
     end
   end
 
+  test "too little writing gets a reminder to write more, with the photo too when there is none" do
+    with_fake_slack do |slack|
+      reply("Printed the case", files: [ PHOTO ])
+      perform_enqueued_jobs
+      prompt = slack.calls_to(:chat_postEphemeral).last
+      assert prompt[:blocks].first.dig(:text, :text).start_with?("Nice! Please write a bit more about what you did, at least 100 characters so a reviewer can follow what you did (you're at 16) :>>")
+      assert_empty prompt[:blocks].select { |block| block[:type] == "input" }
+
+      reply("Short again", ts: "1700000004.000100", thread_ts: projects(:station).slack_thread_ts)
+      JournalDraft.last.update!(parts: [ { "ts" => "1700000004.000100", "text" => "Short again" } ])
+      perform_enqueued_jobs
+      assert_includes slack.calls_to(:chat_postEphemeral).last[:blocks].first.dig(:text, :text), "and add a photo for your journal"
+
+      assert_no_difference -> { Journal.count } do
+        press("journal", JournalDraft.last, duration: "1")
+      end
+    end
+  end
+
   test "the photo reminder asks for one photo per two hours tracked" do
     users(:member).journals.update_all(created_at: 1.day.ago)
     users(:member).timer_sessions.create!(started_at: 150.minutes.ago, stopped_at: Time.current)
     with_fake_slack do |slack|
-      reply("Printed the case")
+      reply(WRITTEN)
       perform_enqueued_jobs
       assert slack.calls_to(:chat_postEphemeral).last[:blocks].first.dig(:text, :text).start_with?("Nice! Please also add 2 photos for your journal :>> you can just send a message with the photos!")
     end
@@ -58,7 +79,7 @@ class JournalFlowTest < ActiveSupport::TestCase
 
   test "several replies become one journal, only with a time and enough photos" do
     with_fake_slack do |slack|
-      reply("Printed the case", ts: "1700000003.000100")
+      reply(WRITTEN, ts: "1700000003.000100")
       reply("Then sanded it", ts: "1700000003.000200", files: [ PHOTO ])
       perform_enqueued_jobs
       assert_equal 1, slack.calls_to(:chat_postEphemeral).size, "only the last reply's prompt is sent"
@@ -85,7 +106,7 @@ class JournalFlowTest < ActiveSupport::TestCase
       journal = Journal.last
       assert_nil journal.lapse_url
       assert_enqueued_with(job: AddJournalFooterJob, args: [ journal ])
-      assert_equal "Printed the case\n\nThen sanded it", journal.body
+      assert_equal "#{WRITTEN}\n\nThen sanded it", journal.body
       assert_equal 75, journal.duration_minutes
       assert_equal 10, journal.xp
       assert_equal "1700000003.000100", journal.slack_ts
@@ -109,7 +130,7 @@ class JournalFlowTest < ActiveSupport::TestCase
 
     with_env("LAPSE_CLIENT_ID" => "svc_test", "LAPSE_CLIENT_SECRET" => "scs_test") do
       with_fake_slack do |slack|
-        reply("Soldered the board", files: [ PHOTO ])
+        reply(WRITTEN, files: [ PHOTO ])
         stub_method(LapseTimelapse, :sync, nil) { perform_enqueued_jobs(only: JournalPromptJob) }
         blocks = slack.calls_to(:chat_postEphemeral).last[:blocks]
         duration = blocks.find { |block| block[:block_id] == "duration" }
@@ -150,7 +171,7 @@ class JournalFlowTest < ActiveSupport::TestCase
     user = users(:member)
     user.update!(lapse_token: "lapse-token")
     older = 25.times.map { |i| user.lapse_timelapses.create!(lapse_id: "lapse_#{i}", name: "Session #{i}", duration_seconds: 600, visibility: "UNLISTED", playback_url: "https://cdn.lapse.test/#{i}.mp4", recorded_at: (i + 2).days.ago) }
-    used = projects(:station).journals.create!(user: user, body: "x", duration: "1", images: [ photo ])
+    used = projects(:station).journals.create!(user: user, body: journal_text("x"), duration: "1", images: [ photo ])
     older.first.update!(journal: used)
     draft = JournalDraft.create!(project: projects(:station), user: user, parts: [ { "ts" => "1700000003.000100", "text" => "x" } ])
 
@@ -191,7 +212,7 @@ class JournalFlowTest < ActiveSupport::TestCase
   test "without Lapse connected the prompt offers to connect it, and says when nothing was tracked" do
     with_env("LAPSE_CLIENT_ID" => "svc_test", "LAPSE_CLIENT_SECRET" => "scs_test") do
       with_fake_slack do |slack|
-        reply("Soldered the board", files: [ PHOTO ])
+        reply(WRITTEN, files: [ PHOTO ])
         perform_enqueued_jobs(only: JournalPromptJob)
         blocks = slack.calls_to(:chat_postEphemeral).last[:blocks]
         assert_equal %w[duration], blocks.select { |block| block[:type] == "input" }.pluck(:block_id)
@@ -222,7 +243,7 @@ class JournalFlowTest < ActiveSupport::TestCase
     lapse_timelapses(:hidden).update!(playback_url: nil)
     with_env("LAPSE_CLIENT_ID" => "svc_test", "LAPSE_CLIENT_SECRET" => "scs_test") do
       with_fake_slack do |slack|
-        reply("Soldered the board", files: [ PHOTO ])
+        reply(WRITTEN, files: [ PHOTO ])
         stub_method(LapseTimelapse, :sync, nil) { perform_enqueued_jobs(only: JournalPromptJob) }
         check = slack.calls_to(:chat_postEphemeral).last[:blocks].find { |block| block.dig(:accessory, :text, :text) == "Check again" }
         assert check
@@ -242,7 +263,7 @@ class JournalFlowTest < ActiveSupport::TestCase
     XpEntry.where(user: users(:member)).delete_all
     users(:member).update_columns(xp: 0)
     with_fake_slack do |slack|
-      reply("Printed the case", files: [ PHOTO ])
+      reply(WRITTEN, files: [ PHOTO ])
       assert_enqueued_with(job: EggCrackingJob) { press("journal", JournalDraft.last, duration: "1h") }
       stub_method(Faraday, :get, Faraday::Response.new(status: 404)) { perform_enqueued_jobs }
 
@@ -262,7 +283,7 @@ class JournalFlowTest < ActiveSupport::TestCase
 
   test "add more keeps collecting" do
     with_fake_slack do |slack|
-      reply("Printed the case")
+      reply(WRITTEN)
       press("more", JournalDraft.last)
       assert_includes slack.calls_to(:response_url).last[:body]["text"], "Keep going"
       reply("and sanded it", ts: "1700000003.000200")
@@ -272,14 +293,14 @@ class JournalFlowTest < ActiveSupport::TestCase
 
   test "a later reply waits for a pause before asking again" do
     with_fake_slack do
-      reply("Printed the case")
+      reply(WRITTEN)
       assert_enqueued_with(job: JournalPromptJob, at: JournalDraft::ASK_AFTER.from_now) { reply("Then sanded it", ts: "1700000003.000200") }
     end
   end
 
   test "not a journal on one message drops it, on several lets the person tick which belong" do
     with_fake_slack do |slack|
-      reply("Printed the case", ts: "1700000003.000100")
+      reply(WRITTEN, ts: "1700000003.000100")
       reply("brb dinner", ts: "1700000003.000200")
       reply("Then sanded it", ts: "1700000003.000300")
       draft = JournalDraft.last
@@ -293,7 +314,7 @@ class JournalFlowTest < ActiveSupport::TestCase
 
       reply("one more thing", ts: "1700000003.000400")
       pick(draft, %w[1700000003.000100 1700000003.000300], upto: "1700000003.000300")
-      assert_equal [ "Printed the case", "Then sanded it", "one more thing" ], draft.reload.parts.pluck("text"), "unseen replies are kept"
+      assert_equal [ WRITTEN, "Then sanded it", "one more thing" ], draft.reload.parts.pluck("text"), "unseen replies are kept"
       assert slack.calls_to(:response_url).last[:body]["text"].include?("add a photo")
 
       pick(draft, [], upto: "1700000003.000400")
@@ -334,10 +355,10 @@ class JournalFlowTest < ActiveSupport::TestCase
   end
 
   test "a web journal echoed back from slack is not collected" do
-    projects(:station).journals.create!(user: users(:member), body: "Posted on the site", duration_minutes: 30, source: "web", images: [ photo ])
+    projects(:station).journals.create!(user: users(:member), body: journal_text("Posted on the site"), duration_minutes: 30, source: "web", images: [ photo ])
     with_fake_slack do
       assert_no_difference -> { JournalDraft.count } do
-        reply("Posted on the site", ts: "1700000006.000100")
+        reply(journal_text("Posted on the site"), ts: "1700000006.000100")
       end
     end
   end
@@ -367,7 +388,7 @@ class JournalFlowTest < ActiveSupport::TestCase
   end
 
   test "edits and deletions of one reply in a journal update its body" do
-    journal = projects(:station).journals.create!(user: users(:member), body: "one\n\ntwo", duration_minutes: 30, source: "slack", slack_channel_id: CHANNEL, slack_ts: "1700000010.000100", images: [ photo ],
+    journal = projects(:station).journals.create!(user: users(:member), body: journal_text("one\n\ntwo"), duration_minutes: 30, source: "slack", slack_channel_id: CHANNEL, slack_ts: "1700000010.000100", images: [ photo ],
                                                   slack_parts: [ { ts: "1700000010.000100", text: "one" }, { ts: "1700000010.000200", text: "two" } ])
     with_fake_slack do
       assert_enqueued_with(job: AddJournalFooterJob, args: [ journal ]) do

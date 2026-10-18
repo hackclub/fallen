@@ -33,7 +33,7 @@ class AddJournalFooterJobTest < ActiveJob::TestCase
   private
 
   def slack_journal
-    projects(:station).journals.create!(user: users(:member), body: "one\n\ntwo", duration_minutes: 30, source: "slack", slack_channel_id: "CJOURNALS", slack_ts: "1700000010.000100",
+    projects(:station).journals.create!(user: users(:member), body: journal_text("one\n\ntwo"), duration_minutes: 30, source: "slack", slack_channel_id: "CJOURNALS", slack_ts: "1700000010.000100",
                                         images: [ photo ], slack_parts: [ { ts: "1700000010.000100", text: "one" }, { ts: "1700000010.000200", text: "two" } ])
   end
 

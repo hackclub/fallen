@@ -46,6 +46,8 @@ class Journal < ApplicationRecord
   # Every two hours logged need a photo to show for them.
   MINUTES_PER_IMAGE = 120
   MAX_TIMELAPSES = 10
+  # A journal needs this much writing for a reviewer to follow what was done. Photos embedded in it don't count.
+  MIN_BODY_LENGTH = 100
   # Hours are typed to two decimals, so taking the tracked time as offered can land a minute over it.
   CLAIM_LEEWAY = 1
 
@@ -70,6 +72,9 @@ class Journal < ApplicationRecord
   MAX_IMAGE_BYTES = 10.megabytes
 
   validates :body, presence: true, length: { maximum: 10_000 }
+  # New journals, and edits on the site. Edits made in Slack always go through, so the journal keeps up with the
+  # thread.
+  validate :body_long_enough, if: -> { new_record? || (will_save_change_to_body? && from_web?) }
   validates :source, inclusion: { in: SOURCES }
   validates :duration_minutes, numericality: { only_integer: true, greater_than: 0, less_than_or_equal_to: MAX_MINUTES }, allow_nil: true
   validates :slack_ts, uniqueness: { scope: :slack_channel_id }, allow_nil: true
@@ -110,6 +115,9 @@ class Journal < ApplicationRecord
   def xp = xp_entry&.kept? ? xp_entry.amount : nil
   def images_needed = (duration_minutes.to_f / MINUTES_PER_IMAGE).ceil
   def duration_text = Duration.format(duration_minutes)
+
+  # How much writing there is, leaving out embedded photos (Markdown images).
+  def self.written_length(text) = text.to_s.gsub(/!\[[^\]]*\]\([^)]*\)/, "").strip.length
   def multi_part? = slack_parts.size > 1
   def last_slack_ts = slack_parts.last&.dig("ts") || slack_ts
 
@@ -139,6 +147,13 @@ class Journal < ApplicationRecord
   end
 
   private
+
+  def body_long_enough
+    length = Journal.written_length(body)
+    return if body.blank? || length >= MIN_BODY_LENGTH
+
+    errors.add(:body, "needs at least #{MIN_BODY_LENGTH} characters so a reviewer can follow what you did (#{length} so far)")
+  end
 
   # Older journals saved without a time can still be edited from Slack and deleted; any time typed must be real.
   def duration_was_understood

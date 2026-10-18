@@ -34,7 +34,7 @@ class LapseTimelapseTest < ActiveSupport::TestCase
 
   test "sync copies what Lapse has, drops what is gone and keeps what a journal uses" do
     used = lapse_timelapses(:hidden)
-    old = projects(:station).journals.create!(user: users(:member), body: "old", duration_minutes: 30, images: [ photo ], discarded_at: Time.current)
+    old = projects(:station).journals.create!(user: users(:member), body: journal_text("old"), duration_minutes: 30, images: [ photo ], discarded_at: Time.current)
     used.update!(journal: old)
 
     stub_method(Lapse, :timelapses, [ lapse_data("lapse_new", duration: 2700), lapse_data("lapse_desk", name: "Renamed", duration: 5400) ]) do

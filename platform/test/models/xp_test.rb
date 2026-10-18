@@ -4,7 +4,7 @@ require "test_helper"
 class XpTest < ActiveSupport::TestCase
   test "a journal's entry follows its hours and is worth at least 1 xp" do
     user = users(:member)
-    journal = projects(:station).journals.create!(user: user, body: "x", duration: "1.5", images: [ photo ])
+    journal = projects(:station).journals.create!(user: user, body: journal_text("x"), duration: "1.5", images: [ photo ])
     assert_equal 12, journal.xp
     assert_equal 32, user.reload.xp
 
@@ -27,7 +27,7 @@ class XpTest < ActiveSupport::TestCase
     user = users(:newcomer)
     travel_to Project::EARLY_BIRD_UNTIL - 1.hour do
       project = user.projects.create!(title: "First")
-      project.journals.create!(user: user, body: "x", duration: "1h", images: [ photo ])
+      project.journals.create!(user: user, body: journal_text("x"), duration: "1h", images: [ photo ])
       assert_equal Project::EARLY_BIRD_BONUS + 8, user.reload.xp
 
       assert_no_difference -> { XpEntry.count } do
@@ -42,7 +42,7 @@ class XpTest < ActiveSupport::TestCase
   test "a journal keeps the multiplier it was saved with" do
     user = users(:admin)
     user.update!(xp_multiplier: 1.5)
-    journal = projects(:admins).journals.create!(user: user, body: "x", duration: "1h", images: [ photo ])
+    journal = projects(:admins).journals.create!(user: user, body: journal_text("x"), duration: "1h", images: [ photo ])
     assert_equal 12, journal.xp
 
     user.update!(xp_multiplier: 1.0)
@@ -55,7 +55,7 @@ class XpTest < ActiveSupport::TestCase
     user = users(:member)
     user.update!(timezone: "Pacific/Auckland")
     travel_to Time.utc(2026, 10, 20, 13, 0) do
-      journal = projects(:station).journals.create!(user: user, body: "x", duration: "1h", images: [ photo ])
+      journal = projects(:station).journals.create!(user: user, body: journal_text("x"), duration: "1h", images: [ photo ])
       assert_equal Date.new(2026, 10, 21), journal.xp_entry.day
     end
   end
@@ -169,7 +169,7 @@ class XpTest < ActiveSupport::TestCase
     project = user.projects.first || user.projects.create!(title: "Thing")
     days.each do |day|
       travel_to day.in_time_zone(user.timezone).change(hour: 12) do
-        project.journals.create!(user: user, body: "on #{day}", duration: hours, images: Array.new(Journal.new(duration: hours).images_needed) { photo })
+        project.journals.create!(user: user, body: journal_text("on #{day}"), duration: hours, images: Array.new(Journal.new(duration: hours).images_needed) { photo })
       end
     end
   end

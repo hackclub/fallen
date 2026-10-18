@@ -71,7 +71,8 @@ module SlackMessages
   # (lapse_picker) and kept on the draft.
   def draft_prompt(draft, duration: nil, tracked: nil, error: nil)
     return photos_prompt(draft) unless draft.written?
-    return needs_photo_prompt(draft, tracked: tracked) if draft.files.empty?
+    short = Journal.written_length(draft.text) < Journal::MIN_BODY_LENGTH
+    return needs_more_prompt(draft, tracked: tracked) if short || draft.files.empty?
 
     blocks = [ SlackBot::Blocks.section(":notebook_with_decorative_cover: Is this a journal for *#{escape(draft.project.title)}*?\n#{quote(draft.text, 1500)}") ]
     blocks += photo_blocks(draft)
@@ -162,14 +163,24 @@ module SlackMessages
 
   def timelapse_name(timelapse) = (timelapse.name.presence || "Untitled timelapse").truncate(60)
 
-  # Every journal needs a photo, so writing without one gets a reminder instead of the time box: one photo per
-  # Journal::MINUTES_PER_IMAGE of the time tracked so far, at least one.
-  def needs_photo_prompt(draft, tracked: nil)
-    count = [ (tracked.to_i / Journal::MINUTES_PER_IMAGE.to_f).ceil, 1 ].max
+  # A journal needs Journal::MIN_BODY_LENGTH characters of writing and a photo per Journal::MINUTES_PER_IMAGE of the
+  # time tracked so far (at least one), so a draft short of either gets a reminder saying what is missing instead
+  # of the time box. Anything they post next in the thread joins the draft.
+  def needs_more_prompt(draft, tracked: nil)
+    written = Journal.written_length(draft.text)
+    short = written < Journal::MIN_BODY_LENGTH
+    count = draft.files.empty? ? [ (tracked.to_i / Journal::MINUTES_PER_IMAGE.to_f).ceil, 1 ].max : 0
     photos = count == 1 ? "a photo" : "#{count} photos"
-    intro = "Nice! Please also add #{photos} for your journal :>> you can just send a message with the #{count == 1 ? 'photo' : 'photos'}!"
-    blocks = [ SlackBot::Blocks.section("#{intro}\n#{quote(draft.text, 1500)}"), SlackBot::Blocks.actions(draft_button("Not a journal", "skip", draft)) ]
-    { text: "Nice! Please also add #{photos} for your journal.", blocks: blocks }
+    writing = "at least #{Journal::MIN_BODY_LENGTH} characters so a reviewer can follow what you did (you're at #{written})"
+    text = if short && count.positive?
+      "Nice! Please write a bit more, #{writing}, and add #{photos} for your journal :>> you can just keep sending messages here!"
+    elsif short
+      "Nice! Please write a bit more about what you did, #{writing} :>> you can just send another message!"
+    else
+      "Nice! Please also add #{photos} for your journal :>> you can just send a message with the #{count == 1 ? 'photo' : 'photos'}!"
+    end
+    blocks = [ SlackBot::Blocks.section("#{text}\n#{quote(draft.text, 1500)}"), SlackBot::Blocks.actions(draft_button("Not a journal", "skip", draft)) ]
+    { text: text.split(" :>>").first + ".", blocks: blocks }
   end
 
   def photos_prompt(draft)
