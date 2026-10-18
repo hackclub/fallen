@@ -11,6 +11,8 @@
 #  hca_token               :text
 #  is_adult                :boolean          default(FALSE), not null
 #  is_banned               :boolean          default(FALSE), not null
+#  lapse_synced_at         :datetime
+#  lapse_token             :text
 #  last_seen_at            :datetime
 #  pet                     :string
 #  roles                   :string           default([]), not null, is an Array
@@ -56,12 +58,13 @@ class User < ApplicationRecord
 
   pg_search_scope :search, against: %i[display_name email slack_id], using: { tsearch: { prefix: true } }
 
-  encrypts :hca_token, :slack_user_token
+  encrypts :hca_token, :slack_user_token, :lapse_token
 
   has_many :projects, dependent: :destroy
   has_many :journals, dependent: :destroy
   has_many :xp_entries, dependent: :destroy
   has_many :huddle_sessions, dependent: :destroy
+  has_many :lapse_timelapses, dependent: :destroy
 
   validates :hca_id, :email, :display_name, :timezone, presence: true
   validates :hca_id, uniqueness: true
@@ -134,6 +137,11 @@ class User < ApplicationRecord
   def slack_connected? = slack_user_token.present?
 
   def disconnect_slack! = update!(slack_user_token: nil, slack_user_token_scopes: nil)
+
+  # Journals can pick a Lapse timelapse for their hours once Lapse is connected (LapseAuthController).
+  def lapse_connected? = lapse_token.present?
+
+  def disconnect_lapse! = update!(lapse_token: nil, lapse_synced_at: nil)
 
   def touch_last_seen
     update_column(:last_seen_at, Time.current) if last_seen_at.nil? || last_seen_at < 5.minutes.ago

@@ -20,8 +20,9 @@ Only from the token's `subject`: any `emails` (case-insensitive against `users.e
 
 | What | Where |
 | --- | --- |
-| The account: name, email, avatar, Slack id, timezone, roles, HCA token, Slack user token, verification status, pet, when they first watched it hatch | `users` |
+| The account: name, email, avatar, Slack id, timezone, roles, HCA token, Slack user token, Lapse token, verification status, pet, when they first watched it hatch | `users` |
 | Their projects and journals (text, hours, Lapse links, Slack message ids and text), project banners and journal photos | `projects`, `journals`, Active Storage |
+| Their Lapse timelapses as Fallen copied them (Lapse id, name, recorded time, visibility, video and thumbnail links). The videos stay on Lapse | `lapse_timelapses` |
 | Slack thread replies not yet made into a journal (text, Slack message ids, photo names and links) | `journal_drafts` |
 | Time in the Slack huddle (when they joined and left, what they said they were working on), also rows from before they signed up that carry their Slack id | `huddle_sessions` |
 | XP earned, line by line (journal XP, bonuses, streak checks) | `xp_entries`, `users.xp` |
@@ -42,6 +43,7 @@ Sessions are signed cookies holding the user id, so they stop working once the r
 - Solid Queue job rows can hold a user's GlobalID (`gid://fallen/User/1`) or a raw Slack event payload until they
   are cleared (finished jobs after a day by default). They are not searched.
 - Sentry events and application logs are not touched. They expire on their own retention.
+- Lapse is its own service. The timelapses stay on the person's Lapse account, and disconnecting only forgets the token.
 - Slack itself is not ours to delete from. Project threads and journal messages stay in the workspace.
 - Stray posts in the journals channel are deleted through Prometheus, which keeps their text in its private audit
   log channel. That log belongs to Prometheus, not Fallen.

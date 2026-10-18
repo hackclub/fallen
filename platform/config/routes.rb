@@ -23,6 +23,12 @@ Rails.application.routes.draw do
   get "auth/slack/callback" => "slack_auth#create", as: :slack_callback
   delete "auth/slack" => "slack_auth#destroy", as: :disconnect_slack
 
+  # Lapse (pick a timelapse for a journal's hours)
+  get "auth/lapse/start" => "lapse_auth#new", as: :connect_lapse
+  get "auth/lapse/callback" => "lapse_auth#create", as: :lapse_callback
+  delete "auth/lapse" => "lapse_auth#destroy", as: :disconnect_lapse
+  resource :lapse_sync, only: :create
+
   resource :pet, only: :update
   resource :hatch, only: :create
 

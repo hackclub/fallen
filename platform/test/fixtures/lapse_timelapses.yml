@@ -1,0 +1,53 @@
+# == Schema Information
+#
+# Table name: lapse_timelapses
+#
+#  id               :bigint           not null, primary key
+#  duration_seconds :integer          default(0), not null
+#  name             :string
+#  playback_url     :string
+#  recorded_at      :datetime
+#  thumbnail_url    :string
+#  visibility       :string
+#  created_at       :datetime         not null
+#  updated_at       :datetime         not null
+#  lapse_id         :string           not null
+#  user_id          :bigint           not null
+#
+# Indexes
+#
+#  index_lapse_timelapses_on_lapse_id     (lapse_id) UNIQUE
+#  index_lapse_timelapses_on_recorded_at  (recorded_at)
+#  index_lapse_timelapses_on_user_id      (user_id)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (user_id => users.id)
+#
+desk:
+  user: member
+  lapse_id: lapse_desk
+  name: Soldering the sensor board
+  duration_seconds: 5400
+  visibility: UNLISTED
+  playback_url: https://cdn.lapse.test/desk.mp4
+  thumbnail_url: https://cdn.lapse.test/desk.jpg
+  recorded_at: <%= 1.hour.ago.to_fs(:db) %>
+
+hidden:
+  user: member
+  lapse_id: lapse_hidden
+  name: Private one
+  duration_seconds: 3600
+  visibility: PRIVATE
+  playback_url: https://cdn.lapse.test/hidden.mp4
+  recorded_at: <%= 2.hours.ago.to_fs(:db) %>
+
+admins:
+  user: admin
+  lapse_id: lapse_admins
+  name: Admin's timelapse
+  duration_seconds: 1800
+  visibility: PUBLIC
+  playback_url: https://cdn.lapse.test/admins.mp4
+  recorded_at: <%= 3.hours.ago.to_fs(:db) %>

@@ -6,6 +6,7 @@
   import { Link, router } from '@inertiajs/svelte'
   import JournalComposer from '@/components/JournalComposer.svelte'
   import JournalItem from '@/components/JournalItem.svelte'
+  import type { LapseStatus } from '@/components/LapsePicker.svelte'
   import Pagination from '@/components/Pagination.svelte'
   import ProjectBanner from '@/components/ProjectBanner.svelte'
   import SlackConnect, { type SlackStatus } from '@/components/SlackConnect.svelte'
@@ -21,6 +22,7 @@
     slack,
     direct_upload_url,
     owner,
+    lapse,
     can,
   }: {
     project: Project
@@ -30,6 +32,8 @@
     slack?: SlackStatus
     direct_upload_url?: string
     owner?: { name: string; avatar: string }
+    // Deferred, and null on someone else's project.
+    lapse?: LapseStatus | null
     can?: { update: boolean; destroy: boolean; journal: boolean }
   } = $props()
 
@@ -180,6 +184,7 @@
     {project}
     journal={composer.journal}
     directUploadUrl={direct_upload_url}
+    {lapse}
     onClose={() => (composer = { open: false, journal: null })}
   />
 {/if}

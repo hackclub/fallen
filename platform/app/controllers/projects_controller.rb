@@ -1,5 +1,6 @@
 class ProjectsController < ApplicationController
   include SlackStatus
+  include LapseStatus
 
   JOURNALS_PER_PAGE = 20
 
@@ -18,7 +19,7 @@ class ProjectsController < ApplicationController
 
   def show
     authorize @project
-    pagy, journals = pagy(@project.journals.kept.newest_first.includes(:xp_entry, images_attachments: :blob), limit: JOURNALS_PER_PAGE)
+    pagy, journals = pagy(@project.journals.kept.newest_first.includes(:xp_entry, :lapse_timelapse, images_attachments: :blob), limit: JOURNALS_PER_PAGE)
 
     render inertia: "Projects/Show", props: {
       project: ProjectSerializer.render(@project, covers: Project.journal_covers([ @project ])),
@@ -27,6 +28,7 @@ class ProjectsController < ApplicationController
       pagy: pagy_props(pagy),
       slack: slack_props,
       direct_upload_url: rails_direct_uploads_path,
+      lapse: InertiaRails.defer { lapse_props(timelapses: true) if @project.user_id == current_user.id },
       can: { update: policy(@project).update?, destroy: policy(@project).destroy?, journal: policy(@project.journals.build(user: current_user)).create? }
     }
   end

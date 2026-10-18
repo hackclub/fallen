@@ -65,10 +65,13 @@
             {journal.source === 'slack' ? 'written in Slack' : 'in Slack'} ↗
           </a>
         {/if}
-        {#if journal.lapse_url}
+        {#if journal.lapse_timelapse || journal.lapse_url}
           <span> • </span>
-          <a href={journal.lapse_url} target="_blank" rel="noopener" class="hover:text-ink hover:underline"
-            >timelapse ↗</a
+          <a
+            href={journal.lapse_timelapse?.url ?? journal.lapse_url}
+            target="_blank"
+            rel="noopener"
+            class="hover:text-ink hover:underline">timelapse ↗</a
           >
         {/if}
       </p>

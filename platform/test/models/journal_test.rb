@@ -4,25 +4,27 @@ require "test_helper"
 #
 # Table name: journals
 #
-#  id               :bigint           not null, primary key
-#  body             :text             not null
-#  discarded_at     :datetime
-#  duration_minutes :integer
-#  lapse_url        :string
-#  slack_parts      :jsonb            not null
-#  slack_ts         :string
-#  source           :string           default("web"), not null
-#  created_at       :datetime         not null
-#  updated_at       :datetime         not null
-#  project_id       :bigint           not null
-#  slack_channel_id :string
-#  user_id          :bigint           not null
+#  id                 :bigint           not null, primary key
+#  body               :text             not null
+#  discarded_at       :datetime
+#  duration_minutes   :integer
+#  lapse_url          :string
+#  slack_parts        :jsonb            not null
+#  slack_ts           :string
+#  source             :string           default("web"), not null
+#  created_at         :datetime         not null
+#  updated_at         :datetime         not null
+#  lapse_timelapse_id :bigint
+#  project_id         :bigint           not null
+#  slack_channel_id   :string
+#  user_id            :bigint           not null
 #
 # Indexes
 #
 #  index_journals_needing_hours                     (project_id) WHERE ((discarded_at IS NULL) AND (duration_minutes IS NULL))
 #  index_journals_on_created_at                     (created_at)
 #  index_journals_on_discarded_at                   (discarded_at)
+#  index_journals_on_lapse_timelapse_id             (lapse_timelapse_id) UNIQUE WHERE ((lapse_timelapse_id IS NOT NULL) AND (discarded_at IS NULL))
 #  index_journals_on_project_id                     (project_id)
 #  index_journals_on_slack_channel_id_and_slack_ts  (slack_channel_id,slack_ts) UNIQUE WHERE (slack_ts IS NOT NULL)
 #  index_journals_on_slack_parts                    (slack_parts jsonb_path_ops) USING gin
@@ -30,6 +32,7 @@ require "test_helper"
 #
 # Foreign Keys
 #
+#  fk_rails_...  (lapse_timelapse_id => lapse_timelapses.id)
 #  fk_rails_...  (project_id => projects.id)
 #  fk_rails_...  (user_id => users.id)
 #
@@ -59,6 +62,30 @@ class JournalTest < ActiveSupport::TestCase
     journal.duration = "a while"
     assert_not journal.valid?
     assert journal.errors[:duration].any?
+  end
+
+  test "a picked timelapse sets the hours, whatever was typed" do
+    journal = projects(:station).journals.build(user: users(:member), body: "x", duration: "9", lapse_timelapse: lapse_timelapses(:desk), images: [ photo ])
+    assert journal.valid?, journal.errors.full_messages.to_sentence
+    assert_equal 90, journal.duration_minutes
+
+    journal = projects(:station).journals.build(user: users(:member), body: "x", duration: "nonsense", lapse_timelapse: lapse_timelapses(:desk), images: [ photo ])
+    assert journal.valid?, "nothing typed counts while a timelapse is picked"
+  end
+
+  test "a timelapse must be watchable, yours, and on one journal at a time" do
+    journal = projects(:station).journals.build(user: users(:member), body: "x", lapse_timelapse: lapse_timelapses(:hidden), images: [ photo ])
+    assert_not journal.valid?
+    assert_match(/private/, journal.errors[:lapse_timelapse].first)
+
+    journal.lapse_timelapse = lapse_timelapses(:admins)
+    assert_not journal.valid?
+    assert_equal [ "must be yours" ], journal.errors[:lapse_timelapse]
+
+    projects(:station).journals.create!(user: users(:member), body: "first", lapse_timelapse: lapse_timelapses(:desk), images: [ photo ])
+    journal.lapse_timelapse = lapse_timelapses(:desk)
+    assert_not journal.valid?
+    assert_equal [ "is already on another journal" ], journal.errors[:lapse_timelapse]
   end
 
   test "every journal needs a time" do

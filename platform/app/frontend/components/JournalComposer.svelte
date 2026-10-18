@@ -1,23 +1,26 @@
 <script lang="ts">
   import { useForm } from '@inertiajs/svelte'
   import { onMount } from 'svelte'
+  import LapsePicker, { type LapseStatus } from '@/components/LapsePicker.svelte'
   import MarkdownEditor from '@/components/MarkdownEditor.svelte'
   import OrnateButton from '@/components/OrnateButton.svelte'
   import OrnateModal from '@/components/OrnateModal.svelte'
   import { countWords } from '@/lib/markdown'
   import type { UploadedImage } from '@/lib/uploads'
-  import { journals, projectJournals } from '@/routes'
+  import { journals, project as projectRoute, projectJournals } from '@/routes'
   import type { Journal, Project } from '@/types'
 
   let {
     project,
     journal = null,
     directUploadUrl,
+    lapse,
     onClose,
   }: {
     project: Project
     journal?: Journal | null
     directUploadUrl: string
+    lapse?: LapseStatus | null
     onClose: () => void
   } = $props()
 
@@ -30,7 +33,7 @@
   const form = useForm({
     body: journal?.body ?? '',
     duration: journal?.duration_text?.replace(/h$/, '') ?? '',
-    lapse_url: journal?.lapse_url ?? '',
+    lapse_timelapse: journal?.lapse_timelapse?.id ?? '',
     images: (journal?.images ?? []) as UploadedImage[],
   })
 
@@ -46,7 +49,7 @@
         const parsed = JSON.parse(draft)
         form.body = parsed.body ?? ''
         form.duration = parsed.duration ?? ''
-        form.lapse_url = parsed.lapse_url ?? ''
+        form.lapse_timelapse = parsed.lapse_timelapse ?? ''
         form.images = parsed.images ?? []
         draftRestored = true
       }
@@ -60,7 +63,7 @@
     const snapshot = {
       body: form.body,
       duration: form.duration,
-      lapse_url: form.lapse_url,
+      lapse_timelapse: form.lapse_timelapse,
       images: form.images,
     }
     const timer = setTimeout(() => {
@@ -75,8 +78,16 @@
   })
 
   const words = $derived(countWords(form.body))
+  // A picked timelapse sets the hours; the server ignores any typed time while one is picked.
+  const pickedLapse = $derived(
+    [journal?.lapse_timelapse, ...(lapse?.timelapses ?? [])].find(
+      (t) => t && t.id === form.lapse_timelapse,
+    ) ?? null,
+  )
   const canSubmit = $derived(
-    form.body.trim().length > 0 && form.duration.trim().length > 0 && !form.processing,
+    form.body.trim().length > 0 &&
+      (form.lapse_timelapse !== '' || form.duration.trim().length > 0) &&
+      !form.processing,
   )
 
   function addImage(image: UploadedImage) {
@@ -151,37 +162,38 @@
       </section>
 
       <aside class="flex flex-col gap-5 bg-black/15 px-5 py-4 sm:px-7 lg:overflow-y-auto">
-        <div>
-          <p class="font-display text-lg text-ink">Time spent</p>
-          <p class="mb-2 font-outfit text-xs text-ink-soft">
-            Every journal needs one, in hours: 1.5, 0.5, 0.1.
-          </p>
-          <input
-            type="text"
-            bind:value={form.duration}
-            placeholder="1.5"
-            inputmode="decimal"
-            required
-            class="paper-input"
-          />
-          {#if form.errors.duration}<p class="mt-1 font-outfit text-xs text-red-700">
-              {form.errors.duration}
-            </p>{/if}
-        </div>
+        <LapsePicker
+          {lapse}
+          current={journal?.lapse_timelapse}
+          bind:selected={form.lapse_timelapse}
+          returnTo={`${projectRoute(project.id).url}#write`}
+          error={form.errors.lapse_timelapse}
+        />
 
         <div>
-          <p class="font-display text-lg text-ink">
-            Timelapse <span class="font-outfit text-xs text-ink-soft">optional</span>
-          </p>
-          <p class="mb-2 font-outfit text-xs text-ink-soft">A Lapse link if you recorded the session.</p>
-          <input
-            type="url"
-            bind:value={form.lapse_url}
-            placeholder="https://lapse.hackclub.com/..."
-            class="paper-input"
-          />
-          {#if form.errors.lapse_url}<p class="mt-1 font-outfit text-xs text-red-700">
-              {form.errors.lapse_url}
+          <p class="font-display text-lg text-ink">Time spent</p>
+          {#if form.lapse_timelapse}
+            <p class="mb-2 font-outfit text-xs text-ink-soft">
+              From your timelapse. Unpick it to type your own.
+            </p>
+            <p class="paper-input text-ink-soft" aria-live="polite">
+              {pickedLapse?.duration_text ?? 'From the timelapse'}
+            </p>
+          {:else}
+            <p class="mb-2 font-outfit text-xs text-ink-soft">
+              Every journal needs one, in hours: 1.5, 0.5, 0.1.
+            </p>
+            <input
+              type="text"
+              bind:value={form.duration}
+              placeholder="1.5"
+              inputmode="decimal"
+              required
+              class="paper-input"
+            />
+          {/if}
+          {#if form.errors.duration}<p class="mt-1 font-outfit text-xs text-red-700">
+              {form.errors.duration}
             </p>{/if}
         </div>
 

@@ -13,6 +13,8 @@ require "test_helper"
 #  hca_token               :text
 #  is_adult                :boolean          default(FALSE), not null
 #  is_banned               :boolean          default(FALSE), not null
+#  lapse_synced_at         :datetime
+#  lapse_token             :text
 #  last_seen_at            :datetime
 #  pet                     :string
 #  roles                   :string           default([]), not null, is an Array

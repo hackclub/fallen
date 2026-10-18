@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_18_050000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_18_120200) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -97,13 +97,31 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_18_050000) do
     t.datetime "updated_at", null: false
     t.string "lapse_url"
     t.jsonb "slack_parts", default: [], null: false
+    t.bigint "lapse_timelapse_id"
     t.index ["created_at"], name: "index_journals_on_created_at"
     t.index ["discarded_at"], name: "index_journals_on_discarded_at"
+    t.index ["lapse_timelapse_id"], name: "index_journals_on_lapse_timelapse_id", unique: true, where: "((lapse_timelapse_id IS NOT NULL) AND (discarded_at IS NULL))"
     t.index ["project_id"], name: "index_journals_needing_hours", where: "((discarded_at IS NULL) AND (duration_minutes IS NULL))"
     t.index ["project_id"], name: "index_journals_on_project_id"
     t.index ["slack_channel_id", "slack_ts"], name: "index_journals_on_slack_channel_id_and_slack_ts", unique: true, where: "(slack_ts IS NOT NULL)"
     t.index ["slack_parts"], name: "index_journals_on_slack_parts", opclass: :jsonb_path_ops, using: :gin
     t.index ["user_id"], name: "index_journals_on_user_id"
+  end
+
+  create_table "lapse_timelapses", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "lapse_id", null: false
+    t.string "name"
+    t.integer "duration_seconds", default: 0, null: false
+    t.string "visibility"
+    t.string "playback_url"
+    t.string "thumbnail_url"
+    t.datetime "recorded_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["lapse_id"], name: "index_lapse_timelapses_on_lapse_id", unique: true
+    t.index ["recorded_at"], name: "index_lapse_timelapses_on_recorded_at"
+    t.index ["user_id"], name: "index_lapse_timelapses_on_user_id"
   end
 
   create_table "privacy_token_uses", primary_key: "jti", id: :text, force: :cascade do |t|
@@ -322,6 +340,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_18_050000) do
     t.integer "streak_freezes", default: 3, null: false
     t.datetime "airtable_synced_at"
     t.datetime "hatch_seen_at"
+    t.text "lapse_token"
+    t.datetime "lapse_synced_at"
     t.index ["airtable_synced_at"], name: "index_users_on_airtable_synced_at"
     t.index ["created_at"], name: "index_users_on_created_at"
     t.index ["discarded_at"], name: "index_users_on_discarded_at"
@@ -366,8 +386,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_18_050000) do
   add_foreign_key "huddle_sessions", "users"
   add_foreign_key "journal_drafts", "projects"
   add_foreign_key "journal_drafts", "users"
+  add_foreign_key "journals", "lapse_timelapses"
   add_foreign_key "journals", "projects"
   add_foreign_key "journals", "users"
+  add_foreign_key "lapse_timelapses", "users"
   add_foreign_key "projects", "users"
   add_foreign_key "solid_queue_batch_executions", "solid_queue_batches", column: "batch_id", on_delete: :cascade
   add_foreign_key "solid_queue_batch_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade

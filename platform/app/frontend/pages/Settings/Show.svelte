@@ -3,12 +3,15 @@
 </script>
 
 <script lang="ts">
+  import type { LapseStatus } from '@/components/LapsePicker.svelte'
   import PageTitle from '@/components/PageTitle.svelte'
   import type { SlackStatus } from '@/components/SlackConnect.svelte'
   import TabbedPanel from '@/components/TabbedPanel.svelte'
   import SolarChat from '@/components/icons/SolarChat.svelte'
   import SolarUser from '@/components/icons/SolarUser.svelte'
+  import SolarVideocamera from '@/components/icons/SolarVideocamera.svelte'
   import SolarVolume from '@/components/icons/SolarVolume.svelte'
+  import LapseSection from '@/components/settings/LapseSection.svelte'
   import PetSection from '@/components/settings/PetSection.svelte'
   import ProfileSection from '@/components/settings/ProfileSection.svelte'
   import SlackSection from '@/components/settings/SlackSection.svelte'
@@ -16,16 +19,17 @@
   import { PET_FORMS } from '@/lib/pet.svelte'
   import { shared } from '@/lib/shared.svelte'
 
-  let { slack, timezone }: { slack?: SlackStatus; timezone?: string } = $props()
+  let { slack, lapse, timezone }: { slack?: SlackStatus; lapse?: LapseStatus; timezone?: string } = $props()
 
   const user = $derived(shared().auth.user)
   const pet = $derived(user?.pet ?? null)
 
-  type Section = 'profile' | 'slack' | 'pet' | 'sound'
+  type Section = 'profile' | 'slack' | 'lapse' | 'pet' | 'sound'
   // The pet's tab only once there is a pet, picked during onboarding.
   const sections = $derived([
     { id: 'profile' as const, label: 'Profile', icon: profileIcon },
     { id: 'slack' as const, label: 'Slack', icon: slackIcon },
+    ...(lapse?.configured ? [{ id: 'lapse' as const, label: 'Lapse', icon: lapseIcon }] : []),
     ...(pet ? [{ id: 'pet' as const, label: 'Pet', icon: petIcon }] : []),
     { id: 'sound' as const, label: 'Sound', icon: soundIcon },
   ])
@@ -34,6 +38,7 @@
 
 {#snippet profileIcon()}<SolarUser size={24} />{/snippet}
 {#snippet slackIcon()}<SolarChat size={24} />{/snippet}
+{#snippet lapseIcon()}<SolarVideocamera size={24} />{/snippet}
 {#snippet soundIcon()}<SolarVolume size={24} />{/snippet}
 {#snippet petIcon()}
   {#if pet && user}<img src={PET_FORMS[pet][user.pet_form]} alt="" class="size-6 object-contain" />{/if}
@@ -52,6 +57,8 @@
       <ProfileSection {user} {timezone} />
     {:else if id === 'slack'}
       <SlackSection {slack} />
+    {:else if id === 'lapse' && lapse}
+      <LapseSection {lapse} />
     {:else if id === 'pet' && pet && user}
       <PetSection {user} {pet} />
     {:else if id === 'sound'}

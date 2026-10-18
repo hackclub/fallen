@@ -87,23 +87,50 @@ class ProjectsTest < ActionDispatch::IntegrationTest
     assert_equal 28, users(:member).reload.xp
   end
 
-  test "journals carry images and a lapse link, one photo per two hours" do
+  test "journals carry images, one photo per two hours" do
     blob = photo("board.png")
     assert_no_difference -> { Journal.count } do
       post project_journals_path(projects(:station)), params: { journal: { body: "no photo", duration: "0.75" } }
     end
-    post project_journals_path(projects(:station)), params: { journal: { body: "![board](x)", duration: "0.75", lapse_url: "https://lapse.hackclub.com/t/1", images: [ blob.signed_id ] } }
+    post project_journals_path(projects(:station)), params: { journal: { body: "![board](x)", duration: "0.75", images: [ blob.signed_id ] } }
     journal = Journal.last
     assert_equal 1, journal.images.count
-    assert_equal "https://lapse.hackclub.com/t/1", journal.lapse_url
 
     get project_path(projects(:station))
     assert_includes response.body, "board.png"
 
-    patch journal_path(journal), params: { journal: { body: "no photo", lapse_url: "", images: [] } }
+    patch journal_path(journal), params: { journal: { body: "no photo", images: [] } }
     assert_equal 1, journal.reload.images.count, "a journal keeps the photos its hours need"
     patch journal_path(journal), params: { journal: { body: "longer", duration: "3h", images: [ blob.signed_id ] } }
     assert_equal 45, journal.reload.duration_minutes, "three hours need two photos"
+  end
+
+  test "a journal can take its hours from a picked Lapse timelapse, and drop it to type them" do
+    timelapse = lapse_timelapses(:desk)
+    post project_journals_path(projects(:station)), params: { journal: { body: "Soldered", duration: "", lapse_timelapse: timelapse.public_id, images: [ photo.signed_id ] } }
+    journal = Journal.last
+    assert_equal timelapse, journal.lapse_timelapse
+    assert_equal 90, journal.duration_minutes
+
+    get project_path(projects(:station))
+    assert_includes response.body, timelapse.url
+
+    patch journal_path(journal), params: { journal: { body: "Soldered", duration: "0.5", lapse_timelapse: "", images: journal.images.map(&:signed_id) } }
+    assert_nil journal.reload.lapse_timelapse
+    assert_equal 30, journal.duration_minutes
+  end
+
+  test "someone else's timelapse cannot be picked" do
+    assert_no_difference -> { Journal.count } do
+      post project_journals_path(projects(:station)), params: { journal: { body: "x", lapse_timelapse: lapse_timelapses(:admins).public_id, images: [ photo.signed_id ] } }
+    end
+    assert_response :not_found
+  end
+
+  test "the composer lists the owner's unclaimed timelapses" do
+    props = load_deferred(project_path(projects(:station)), "Projects/Show", "lapse")
+    assert_equal [ lapse_timelapses(:desk).public_id, lapse_timelapses(:hidden).public_id ], props["lapse"]["timelapses"].pluck("id")
+    assert_match(/private/, props["lapse"]["timelapses"].last["unusable_reason"])
   end
 
   test "journals wait for slack, projects do not" do

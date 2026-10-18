@@ -46,8 +46,12 @@ class JournalsController < ApplicationController
   end
 
   # `images` is the full list of blob signed ids (direct uploads) the journal should end up with.
+  # `lapse_timelapse` is the public id of one of the person's timelapses, or blank for none.
   def journal_params
-    permitted = params.expect(journal: [ :body, :duration, :lapse_url, images: [] ])
-    permitted.to_h.symbolize_keys.tap { |h| h[:images] = Array(h[:images]).compact_blank }
+    permitted = params.expect(journal: [ :body, :duration, :lapse_timelapse, images: [] ])
+    permitted.to_h.symbolize_keys.tap do |h|
+      h[:images] = Array(h[:images]).compact_blank
+      h[:lapse_timelapse] = h[:lapse_timelapse].presence && current_user.lapse_timelapses.find_by_public_id!(h[:lapse_timelapse]) if h.key?(:lapse_timelapse)
+    end
   end
 end
