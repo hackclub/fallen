@@ -1,16 +1,16 @@
 #!/bin/bash
-# The worker container (Dockerfile.worker): Solid Queue plus the Slack typing watcher, which needs the same secrets.
-# If either stops, the other is stopped too so the container exits and gets restarted.
+# The worker container (Dockerfile.worker): Solid Queue, the Slack typing watcher and the huddle keeper, which
+# share the user bot's secrets. If any of them stops, the others are stopped too so the container exits and gets
+# restarted.
 
 ./bin/jobs &
-jobs=$!
 ./bin/slack-typing &
-typing=$!
+node script/slack_huddle.mjs &
 
-trap 'kill -TERM $jobs $typing 2>/dev/null; wait' TERM INT
+trap 'kill -TERM $(jobs -p) 2>/dev/null; wait' TERM INT
 
 wait -n
 status=$?
-kill -TERM $jobs $typing 2>/dev/null
+kill -TERM $(jobs -p) 2>/dev/null
 wait
 exit $status

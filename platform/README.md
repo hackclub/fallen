@@ -90,12 +90,11 @@ message is the project; each reply by the owner is a journal. Both sides stay in
   reports typing to its own clients, so it signs in as an account in the channel (`SLACK_BROWSER_TOKEN`, an `xoxc-`
   token, and `SLACK_BROWSER_COOKIE`, its `d` cookie; `SlackBot::BrowserSocket`). In production it runs next to
   Solid Queue in the worker container (`bin/worker`).
-- The same account sits in a huddle in `SLACK_HUDDLE_CHANNEL_ID` around the clock. Huddles have no public API, so
-  `SlackHuddle` calls the methods Slack's desktop client uses (`rooms.join`, `screenhero.rooms.info`) through
-  `SlackBot::BrowserClient`, the way [huddlefm](https://github.com/ingoau/huddlefm) does. `KeepHuddleJob` runs
-  every two minutes (`config/recurring.yml`) and again when `bin/slack-typing` sees the huddle end: Slack stops
-  every huddle after 24 hours, and the job starts the next one. Run it by hand with
-  `bin/rails runner KeepHuddleJob.perform_now`.
+- The same account sits in a huddle in `SLACK_HUDDLE_CHANNEL_ID` around the clock (`script/slack_huddle.mjs`,
+  started by `bin/worker` and `bin/dev`). Huddles have no public API, so it joins the way the desktop client does
+  (`rooms.join`, as [huddlefm](https://github.com/ingoau/huddlefm) does) and then connects to the Amazon Chime
+  meeting behind the huddle over WebRTC, since Slack only lists a participant whose audio is connected. It sends no
+  sound. Slack stops every huddle after 24 hours; when that or anything else ends the connection, it joins again.
 - Web -> Slack: `PostProjectToSlackJob` posts the thread anchor, `SyncJournalToSlackJob` posts, edits and deletes
   journal replies. Messages go out as the person when they have connected Slack (`SlackAuthController`, user scope
   `chat:write`, needs `SLACK_CLIENT_ID` / `SLACK_CLIENT_SECRET` and the redirect URL from the manifest); otherwise the
@@ -131,7 +130,7 @@ app/
   services/       HCA client, privacy hub token and deletion
 docs/             privacy.md
 lib/
-  slack_bot/      Router, Handler, Command/Event/Action/View/Shortcut, Blocks, Manifest, Payload, BrowserSocket, BrowserClient
+  slack_bot/      Router, Handler, Command/Event/Action/View/Shortcut, Blocks, Manifest, Payload, BrowserSocket
   constraints/    Constraints::Admin, Constraints::Staff
 ```
 
@@ -159,7 +158,7 @@ Two Coolify services from this folder (set it as the base directory), Dockerfile
 (`.env.production.example`):
 
 1. web: `Dockerfile`, port 80, health check `GET /up`.
-2. worker: `Dockerfile.worker`, no port, no health check. Runs `bin/jobs`.
+2. worker: `Dockerfile.worker`, no port, no health check. Runs `bin/worker`.
 
 Secrets are ENV only. `bin/rails secret` for `SECRET_KEY_BASE`, `bin/rails db:encryption:init` for the
 `ACTIVE_RECORD_ENCRYPTION_*` keys. Set `HASHID_SALT` once and never change it. Deploy web first (it runs

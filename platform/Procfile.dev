@@ -3,3 +3,4 @@ vite: bin/vite dev
 jobs: bin/jobs
 slack: node script/slack_socket_mode.mjs
 typing: bin/slack-typing
+huddle: node script/slack_huddle.mjs

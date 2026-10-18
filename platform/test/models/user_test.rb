@@ -5,6 +5,7 @@ require "test_helper"
 # Table name: users
 #
 #  id                      :bigint           not null, primary key
+#  airtable_synced_at      :datetime
 #  avatar                  :string
 #  discarded_at            :datetime
 #  display_name            :string           not null
@@ -29,13 +30,14 @@ require "test_helper"
 #
 # Indexes
 #
-#  index_users_on_created_at    (created_at)
-#  index_users_on_discarded_at  (discarded_at)
-#  index_users_on_email         (email)
-#  index_users_on_hca_id        (hca_id) UNIQUE
-#  index_users_on_last_seen_at  (last_seen_at)
-#  index_users_on_roles         (roles) USING gin
-#  index_users_on_slack_id      (slack_id)
+#  index_users_on_airtable_synced_at  (airtable_synced_at)
+#  index_users_on_created_at          (created_at)
+#  index_users_on_discarded_at        (discarded_at)
+#  index_users_on_email               (email)
+#  index_users_on_hca_id              (hca_id) UNIQUE
+#  index_users_on_last_seen_at        (last_seen_at)
+#  index_users_on_roles               (roles) USING gin
+#  index_users_on_slack_id            (slack_id)
 #
 class UserTest < ActiveSupport::TestCase
   test "public ids round trip" do

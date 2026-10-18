@@ -3,6 +3,7 @@
 # Table name: users
 #
 #  id                      :bigint           not null, primary key
+#  airtable_synced_at      :datetime
 #  avatar                  :string
 #  discarded_at            :datetime
 #  display_name            :string           not null
@@ -27,13 +28,14 @@
 #
 # Indexes
 #
-#  index_users_on_created_at    (created_at)
-#  index_users_on_discarded_at  (discarded_at)
-#  index_users_on_email         (email)
-#  index_users_on_hca_id        (hca_id) UNIQUE
-#  index_users_on_last_seen_at  (last_seen_at)
-#  index_users_on_roles         (roles) USING gin
-#  index_users_on_slack_id      (slack_id)
+#  index_users_on_airtable_synced_at  (airtable_synced_at)
+#  index_users_on_created_at          (created_at)
+#  index_users_on_discarded_at        (discarded_at)
+#  index_users_on_email               (email)
+#  index_users_on_hca_id              (hca_id) UNIQUE
+#  index_users_on_last_seen_at        (last_seen_at)
+#  index_users_on_roles               (roles) USING gin
+#  index_users_on_slack_id            (slack_id)
 #
 class User < ApplicationRecord
   ROLES = %w[user reviewer admin].freeze
@@ -64,6 +66,8 @@ class User < ApplicationRecord
   validates :roles, presence: true
   validates :pet, inclusion: { in: PETS }, allow_nil: true
   validate :roles_are_known
+
+  before_update -> { self.airtable_synced_at = nil }, if: -> { changed? && !airtable_synced_at_changed? }
 
   scope :admins, -> { where("roles @> ARRAY[?]::varchar[]", "admin") }
   scope :with_role, ->(role) { where("roles @> ARRAY[?]::varchar[]", role.to_s) }
@@ -106,7 +110,7 @@ class User < ApplicationRecord
 
   # users.xp is the sum of the ledger's kept entries, recounted by XpEntry after every change. Never incremented, so it cannot drift.
   def self.recount_xp(ids)
-    where(id: ids).update_all("xp = (SELECT COALESCE(SUM(amount), 0) FROM xp_entries WHERE xp_entries.user_id = users.id AND xp_entries.discarded_at IS NULL)")
+    where(id: ids).update_all("xp = (SELECT COALESCE(SUM(amount), 0) FROM xp_entries WHERE xp_entries.user_id = users.id AND xp_entries.discarded_at IS NULL), airtable_synced_at = NULL")
   end
 
   # Journals posted from the web go to Slack as this person when they have connected Slack (SlackAuthController).

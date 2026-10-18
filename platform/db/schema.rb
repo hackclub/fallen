@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_17_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_17_200000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -289,6 +289,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_17_120000) do
     t.integer "xp", default: 0, null: false
     t.decimal "xp_multiplier", precision: 2, scale: 1, default: "1.0", null: false
     t.integer "streak_freezes", default: 3, null: false
+    t.datetime "airtable_synced_at"
+    t.index ["airtable_synced_at"], name: "index_users_on_airtable_synced_at"
     t.index ["created_at"], name: "index_users_on_created_at"
     t.index ["discarded_at"], name: "index_users_on_discarded_at"
     t.index ["email"], name: "index_users_on_email"

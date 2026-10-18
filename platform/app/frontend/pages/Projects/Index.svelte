@@ -66,13 +66,14 @@
   <div class="paper flex flex-col items-center p-6 md:p-10">
     <img src={soup} alt="" class="mb-4 h-32 w-32 object-contain sm:mb-6 sm:h-48 sm:w-48" />
     <p class="mb-6 max-w-xl text-center font-outfit text-lg text-ink sm:mb-8 sm:text-xl">
-      {#if slack.connected}
-        No projects yet, Create one here!
-      {:else}
+      No projects yet, Create one here!
+    </p>
+    {#if !slack.connected}
+      <p class="-mt-3 mb-6 max-w-xl text-center font-outfit text-sm text-ink/70 sm:-mt-5 sm:mb-8">
         Your project lives as a thread in the Slack journals channel, and every journal is a reply posted as
         you. Connect Slack first so we can post for you.
-      {/if}
-    </p>
+      </p>
+    {/if}
     {@render createButton()}
     {#if !slack.oauth_available && !slack.connected}
       <p class="font-outfit text-xs text-red-700">Slack sign-in is not configured on this server yet.</p>

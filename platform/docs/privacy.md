@@ -25,6 +25,7 @@ Only from the token's `subject`: any `emails` (case-insensitive against `users.e
 | Slack thread replies not yet made into a journal (text, Slack message ids, photo names and links) | `journal_drafts` |
 | XP earned, line by line (journal XP, bonuses, streak checks) | `xp_entries`, `users.xp` |
 | Change history of the account, projects and journals (PaperTrail copies of the rows) | `versions` |
+| The account's row in Airtable (name, email, HCA and Slack ids, XP, project, journal and hour counts), matched on the public id. Real runs only; if Airtable refuses, the whole request fails and nothing is deleted | Airtable Users table (`AirtableUsers`) |
 
 Sessions are signed cookies holding the user id, so they stop working once the row is gone.
 
@@ -33,7 +34,7 @@ Sessions are signed cookies holding the user id, so they stop working once the r
 | What | Why |
 | --- | --- |
 | History of changes the person made to other accounts as staff | Belongs to those accounts. `whodunnit` is set to null so it no longer points at the person. |
-| Banned accounts | Kept as a placeholder with only the HCA id and ban flag, so the ban still applies if they sign in again. Name, email, avatar, pet, Slack id and tokens are wiped and the account's history is deleted. |
+| Banned accounts | Kept as a placeholder with only the HCA id and ban flag, so the ban still applies if they sign in again. Name, email, avatar, pet, Slack id and tokens are wiped and the account's history is deleted. Its Airtable row is overwritten with the placeholder on the next sync. |
 
 ## Not covered
 

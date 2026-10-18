@@ -17,7 +17,8 @@ class PrivacyRequest
     verification_status: nil,
     is_adult: false,
     last_seen_at: nil,
-    xp: 0
+    xp: 0,
+    airtable_synced_at: nil
   }.freeze
 
   def initialize(subject)
@@ -62,6 +63,7 @@ class PrivacyRequest
     deleted["journals"] = Journal.where(id: journal_ids).delete_all
     deleted["projects"] = Project.where(id: project_ids).delete_all
     deleted["users"] = User.where(id: removable.map(&:id)).delete_all
+    delete_from_airtable(removable) if commit? && Airtable.configured?
 
     attributed = PaperTrail::Version.where(whodunnit: ids.map(&:to_s)).update_all(whodunnit: nil)
     if attributed.positive?
@@ -76,6 +78,14 @@ class PrivacyRequest
     end
 
     { found: true, deleted: deleted.select { |_, count| count.positive? }, retained: retained }
+  end
+
+  # Not counted, so a dry run reports the same as the real run. Banned placeholders stay in Airtable and are
+  # overwritten with the wiped row on the next sync.
+  def delete_from_airtable(users)
+    return if users.empty?
+
+    Airtable.delete_where(AirtableUsers.table, AirtableUsers::MERGE_ON, users.map(&:public_id))
   end
 
   def matching_users
