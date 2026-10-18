@@ -17,10 +17,10 @@ module SlackHuddle
 
   def configured? = channel_id.present? && ENV["SLACK_BROWSER_TOKEN"].present? && ENV["SLACK_BROWSER_COOKIE"].present?
 
-  # Opens the channel's huddle in Slack, the link Slack itself shares. For when no Huddle row has its own link yet.
-  def channel_huddle_url
-    team_id = ENV["SLACK_TEAM_ID"].presence
-    "https://app.slack.com/huddle/#{team_id}/#{channel_id}" if team_id && channel_id
+  # Opens the channel's huddle in Slack. Not the app.slack.com link Slack shares (Room#link): that one redirects to
+  # slack.com/huddle/C… and loses the workspace on the way, see SlackMessaging::WORKSPACE_URL.
+  def huddle_url(channel_id = self.channel_id)
+    "#{SlackMessaging::WORKSPACE_URL}/huddle/#{channel_id}" if channel_id
   end
 
   # The huddle running in the channel now, found from the message Slack posts when one starts. Nil when none is.

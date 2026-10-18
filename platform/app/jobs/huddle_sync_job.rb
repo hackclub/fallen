@@ -1,7 +1,8 @@
 # Brings Huddle and HuddleSession rows in line with who Slack lists in the huddle. Runs whenever bin/slack-typing
 # sees a huddle event and every minute (config/recurring.yml) for anything it missed. Someone new gets asked what
-# they are working on (HuddlePromptJob); when a huddle ends and the bot starts the next one, the people who were
-# still in the old one are asked to come over (HuddleHandoffJob).
+# they are working on, in the thread and in a DM (HuddlePromptJob), and someone leaving what they got done
+# (HuddleWrapUpJob); when a huddle ends and the bot starts the next one, the people who were still in the old one
+# are asked to come over (HuddleHandoffJob).
 class HuddleSyncJob < ApplicationJob
   queue_as :realtime
   # A Postgres lock rather than limits_concurrency: a worker killed mid-run (every deploy) drops it with its
@@ -81,16 +82,17 @@ class HuddleSyncJob < ApplicationJob
 
   # Everyone is asked on every visit; someone who was working on something is asked whether they still are. A
   # dropped connection, or coming over from the last huddle when Slack restarted it, keeps an answer instead. With
-  # no answer yet they are asked again, since the private prompt goes away when they leave.
+  # no answer yet they are asked again, since the private prompt goes away when they leave. Someone who said they
+  # were just chilling stays chilling for the rest of the huddle without being asked again; the prompt in their DMs
+  # still works if they start on something.
   def arrive(huddle, room, slack_id, user, earlier, carried, now)
     joined_at, source = huddle.arrival(slack_id, after: earlier&.left_at || huddle.started_at, now: now)
-    kept = earlier if earlier&.mode && earlier.left_at > joined_at - Huddle::REJOIN_QUIET
+    kept = earlier if earlier&.mode == "chilling" || (earlier&.mode && earlier.left_at > joined_at - Huddle::REJOIN_QUIET)
     kept ||= carried if carried&.mode
     attributes = if kept
       { mode: kept.mode, goal: kept.goal, prompted_at_count: kept.prompted_at_count }
     else
-      previous = earlier || carried
-      { goal: (previous.goal unless previous.nil? || previous.mode == "chilling"), prompted_at_count: huddle.message_count }
+      { goal: (earlier || carried)&.goal, prompted_at_count: huddle.message_count }
     end
 
     resume_pause(user, earlier, joined_at) if user && earlier
@@ -99,7 +101,7 @@ class HuddleSyncJob < ApplicationJob
       screenshare_since: (now if room.screenshare_ids.include?(slack_id)), camera_since: (now if room.camera_ids.include?(slack_id)),
       **attributes
     )
-    HuddlePromptJob.perform_later(session) unless kept
+    HuddlePromptJob.perform_later(session, dm: true) unless kept
   end
 
   # Someone who paused and dropped out for a moment is still paused when they come straight back.

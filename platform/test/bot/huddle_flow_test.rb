@@ -210,7 +210,7 @@ class HuddleFlowTest < ActiveSupport::TestCase
       post = slack.calls_to(:chat_postMessage).sole
       assert_equal [ "CHUDDLE", "1700000000.000100" ], post.values_at(:channel, :thread_ts)
       assert_match "<@U0MEMBER> <@U0STRANGER>", post[:text]
-      assert_equal "https://slack.com/archives/CHUDDLE/p1700000000000100", post[:blocks].last[:elements].sole[:url]
+      assert_equal "https://hackclub.slack.com/archives/CHUDDLE/p1700000000000100", post[:blocks].last[:elements].sole[:url]
     end
   ensure
     SlackHuddle.reset!

@@ -109,6 +109,6 @@ class Huddle < ApplicationRecord
   # The message Slack posts for the huddle, which carries its Join button.
   def slack_url = thread_ts && SlackMessaging.permalink(channel_id, thread_ts)
 
-  # Opens the huddle itself in Slack, or failing that its message.
-  def join_url = link || slack_url
+  # Opens the huddle itself in Slack.
+  def join_url = SlackHuddle.huddle_url(channel_id)
 end

@@ -15,9 +15,12 @@ module SlackMessaging
 
   def oauth_configured? = ENV["SLACK_CLIENT_ID"].present? && ENV["SLACK_CLIENT_SECRET"].present?
 
-  # https://slack.com/archives/C123/p1700000000000100?thread_ts=... opens the right workspace for whoever clicks it.
+  # Links name the workspace. A bare slack.com or app.slack.com link opens whichever workspace the person last used,
+  # so anyone also signed in to another one lands on Slack's error page.
+  WORKSPACE_URL = "https://hackclub.slack.com"
+
   def permalink(channel_id, ts, thread_ts: nil)
-    url = "https://slack.com/archives/#{channel_id}/p#{ts.to_s.delete('.')}"
+    url = "#{WORKSPACE_URL}/archives/#{channel_id}/p#{ts.to_s.delete('.')}"
     thread_ts.present? && thread_ts != ts ? "#{url}?thread_ts=#{thread_ts}&cid=#{channel_id}" : url
   end
 

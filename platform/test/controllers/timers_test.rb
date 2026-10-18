@@ -24,14 +24,14 @@ class TimersTest < ActionDispatch::IntegrationTest
     sign_in_as users(:member)
 
     with_env("SLACK_HUDDLE_CHANNEL_ID" => "CHUDDLE") { get timer_path }
-    assert_equal "https://app.slack.com/huddle/T1/CHUDDLE", response.parsed_body["huddle_url"]
+    assert_equal "https://hackclub.slack.com/huddle/CHUDDLE", response.parsed_body["huddle_url"]
   end
 
   test "can ring and link the huddle without the huddle account's session on the web" do
     sign_in_as users(:member)
 
-    with_env("SLACK_HUDDLE_CHANNEL_ID" => "CHUDDLE", "SLACK_TEAM_ID" => "E1", "SLACK_BROWSER_TOKEN" => nil) { get timer_path }
-    assert_equal [ true, "https://app.slack.com/huddle/E1/CHUDDLE" ], response.parsed_body.values_at("can_ring", "huddle_url")
+    with_env("SLACK_HUDDLE_CHANNEL_ID" => "CHUDDLE", "SLACK_BROWSER_TOKEN" => nil) { get timer_path }
+    assert_equal [ true, "https://hackclub.slack.com/huddle/CHUDDLE" ], response.parsed_body.values_at("can_ring", "huddle_url")
   end
 
   test "Invite me rings them into the huddle" do
