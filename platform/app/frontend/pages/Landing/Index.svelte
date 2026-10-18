@@ -101,7 +101,7 @@
 
   // Someone signed in to Hack Club Auth but not here gets started as their Slack picture, if they've set one. HCA's
   // whoami says who they are; the picture is looked up in a job, so it is asked for again until it's ready.
-  let avatar: { src: string; alt: string } | undefined = $state()
+  let avatar: { src: string; alt: string; before: string } | undefined = $state()
   onMount(async () => {
     if (shared().auth.user) return
     try {
@@ -115,7 +115,7 @@
         })
         if (response.status === 200) {
           const { url } = await response.json()
-          if (url) avatar = { src: url, alt: me.first_name || 'you' }
+          if (url) avatar = { src: url, alt: me.first_name || 'you', before: 'AS' }
           return
         }
         if (response.status !== 202) return
@@ -130,7 +130,7 @@
     shared().auth.user
       ? { label: 'DASHBOARD', href: home.index().url, glimmer: true }
       : avatar
-        ? { label: 'GET STARTED AS', href: signIn().url, glimmer: true, avatar }
+        ? { label: 'GET STARTED', href: signIn().url, glimmer: true, avatar }
         : { label: 'GET STARTED', href: signIn().url, glimmer: true },
     { label: 'View Stats', href: root().url, onclick: openStats },
   ])

@@ -5,7 +5,8 @@
   // active until another is hovered or focused, and again once the pointer leaves. small is the footer's size; glow
   // gives the links and ornaments a white glow, like the footer's wordmark. class goes on the nav, itemClass on each
   // link's row. A link with glimmer turns mint under the pointer, and the letters nearest it light up white. A link
-  // with an avatar shows the picture after its label, about as tall as the text.
+  // with an avatar adds its `before` word, smaller, and the picture after its label. Both widen in once the picture
+  // has loaded, since it usually arrives a few seconds after the page.
   let {
     items,
     small = false,
@@ -19,7 +20,7 @@
       href: string
       onclick?: (event: MouseEvent) => void
       glimmer?: boolean
-      avatar?: { src: string; alt: string }
+      avatar?: { src: string; alt: string; before?: string }
     }[]
     small?: boolean
     glow?: boolean
@@ -32,7 +33,58 @@
     '[filter:drop-shadow(0_0_6px_rgb(255_255_255/0.25))_drop-shadow(0_0_20px_rgb(255_255_255/0.1))]'
 
   let active = $state(0)
+
+  // Pictures that have loaded, by src
+  let loaded: Record<string, boolean> = $state({})
+  const whenLoaded = (src: string) => (img: HTMLImageElement) => {
+    const done = () => (loaded[src] = true)
+    if (img.complete && img.naturalWidth) done()
+    else img.addEventListener('load', done, { once: true })
+  }
 </script>
+
+<!-- The label, drawn twice: for the link, and again as the glimmer's copy, which needs the same layout so the
+     light lands on the same letters. The copy keeps the picture's space but not the picture. -->
+{#snippet text(item: (typeof items)[number], copy: boolean)}
+  <!-- flex, so the markup's whitespace adds no gaps -->
+  <span class="inline-flex items-baseline">
+    {item.label}
+    {#if item.avatar}
+      {@const shown = loaded[item.avatar.src]}
+      <span
+        class={[
+          'grid transition-[grid-template-columns] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none',
+          shown ? 'grid-cols-[1fr]' : 'grid-cols-[0fr]',
+        ]}
+      >
+        <span class="min-w-0 overflow-clip [overflow-clip-margin:8px]">
+          <span
+            class={[
+              'flex items-baseline gap-[0.2em] ps-[0.25em] transition-[opacity,translate] duration-500 motion-reduce:transition-none',
+              shown ? 'opacity-100 delay-150' : '-translate-x-2 opacity-0',
+            ]}
+          >
+            {#if item.avatar.before}<span class="text-[0.67em]">{item.avatar.before}</span>{/if}
+            {#if copy}
+              <span class="relative top-[0.2em] size-[1.1em] shrink-0"></span>
+            {:else}
+              <img
+                {@attach whenLoaded(item.avatar.src)}
+                src={item.avatar.src}
+                alt={item.avatar.alt}
+                class={[
+                  'relative top-[0.2em] size-[1.1em] shrink-0 rounded-full ring-1 ring-parchment/70 transition-[scale] duration-700 ease-[cubic-bezier(0.3,1.6,0.5,1)] motion-reduce:transition-none',
+                  shown ? 'scale-100 delay-200' : 'scale-50',
+                ]}
+                referrerpolicy="no-referrer"
+              />
+            {/if}
+          </span>
+        </span>
+      </span>
+    {/if}
+  </span>
+{/snippet}
 
 {#snippet ornament(visible: boolean, extra = '')}
   <svg
@@ -135,20 +187,12 @@
           ]}
           aria-hidden="true"
         ></span>
-        {item.label}
-        {#if item.avatar}
-          <img
-            src={item.avatar.src}
-            alt={item.avatar.alt}
-            class="ml-1 inline-block size-[1.1em] rounded-full align-[-0.2em] ring-1 ring-parchment/70"
-            referrerpolicy="no-referrer"
-          />
-        {/if}
+        {@render text(item, false)}
         {#if item.glimmer}
           <!-- the light, on a copy of the label without the outline, so only the letters catch it -->
           <span
             class="glimmer pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100"
-            aria-hidden="true">{item.label}</span
+            aria-hidden="true">{@render text(item, true)}</span
           >
         {/if}
       </a>
