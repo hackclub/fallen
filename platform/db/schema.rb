@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_18_120200) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_18_130100) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -100,7 +100,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_18_120200) do
     t.bigint "lapse_timelapse_id"
     t.index ["created_at"], name: "index_journals_on_created_at"
     t.index ["discarded_at"], name: "index_journals_on_discarded_at"
-    t.index ["lapse_timelapse_id"], name: "index_journals_on_lapse_timelapse_id", unique: true, where: "((lapse_timelapse_id IS NOT NULL) AND (discarded_at IS NULL))"
     t.index ["project_id"], name: "index_journals_needing_hours", where: "((discarded_at IS NULL) AND (duration_minutes IS NULL))"
     t.index ["project_id"], name: "index_journals_on_project_id"
     t.index ["slack_channel_id", "slack_ts"], name: "index_journals_on_slack_channel_id_and_slack_ts", unique: true, where: "(slack_ts IS NOT NULL)"
@@ -119,6 +118,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_18_120200) do
     t.datetime "recorded_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "journal_id"
+    t.index ["journal_id"], name: "index_lapse_timelapses_on_journal_id"
     t.index ["lapse_id"], name: "index_lapse_timelapses_on_lapse_id", unique: true
     t.index ["recorded_at"], name: "index_lapse_timelapses_on_recorded_at"
     t.index ["user_id"], name: "index_lapse_timelapses_on_user_id"
@@ -386,9 +387,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_18_120200) do
   add_foreign_key "huddle_sessions", "users"
   add_foreign_key "journal_drafts", "projects"
   add_foreign_key "journal_drafts", "users"
-  add_foreign_key "journals", "lapse_timelapses"
   add_foreign_key "journals", "projects"
   add_foreign_key "journals", "users"
+  add_foreign_key "lapse_timelapses", "journals"
   add_foreign_key "lapse_timelapses", "users"
   add_foreign_key "projects", "users"
   add_foreign_key "solid_queue_batch_executions", "solid_queue_batches", column: "batch_id", on_delete: :cascade

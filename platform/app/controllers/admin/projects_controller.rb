@@ -17,7 +17,7 @@ class Admin::ProjectsController < Admin::ApplicationController
     authorize [ :admin, project ]
 
     journals = project.journals.kept
-    pagy, page = pagy(journals.newest_first.includes(:xp_entry, :lapse_timelapse, images_attachments: :blob))
+    pagy, page = pagy(journals.newest_first.includes(:xp_entry, :lapse_timelapses, images_attachments: :blob))
 
     render inertia: "Admin/Projects/Show", props: {
       project: AdminProjectSerializer.render(project),

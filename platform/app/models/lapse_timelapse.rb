@@ -13,17 +13,20 @@
 #  visibility       :string
 #  created_at       :datetime         not null
 #  updated_at       :datetime         not null
+#  journal_id       :bigint
 #  lapse_id         :string           not null
 #  user_id          :bigint           not null
 #
 # Indexes
 #
+#  index_lapse_timelapses_on_journal_id   (journal_id)
 #  index_lapse_timelapses_on_lapse_id     (lapse_id) UNIQUE
 #  index_lapse_timelapses_on_recorded_at  (recorded_at)
 #  index_lapse_timelapses_on_user_id      (user_id)
 #
 # Foreign Keys
 #
+#  fk_rails_...  (journal_id => journals.id)
 #  fk_rails_...  (user_id => users.id)
 #
 class LapseTimelapse < ApplicationRecord
@@ -36,19 +39,20 @@ class LapseTimelapse < ApplicationRecord
   set_public_id_prefix :lps
 
   belongs_to :user
-  has_many :journals, dependent: :restrict_with_exception
+  belongs_to :journal, optional: true
 
   validates :lapse_id, presence: true, uniqueness: true
 
   scope :newest_first, -> { order(recorded_at: :desc, id: :desc) }
-  scope :unclaimed, -> { where.not(id: Journal.kept.where.not(lapse_timelapse_id: nil).select(:lapse_timelapse_id)) }
+  # Free to pick: on no journal, or on one that was deleted.
+  scope :unclaimed, -> { where(journal_id: nil).or(where(journal_id: Journal.discarded.select(:id))) }
 
   # Replaces the person's copies with what Lapse has now. A timelapse already claimed by another Fallen account
   # stays theirs; one gone from Lapse is dropped unless a journal points at it.
   def self.sync(user)
     rows = Lapse.timelapses(user.lapse_token).map { |data| attributes_from(data).merge(user_id: user.id) }
     upsert_all(rows, unique_by: :lapse_id, update_only: %i[name duration_seconds visibility playback_url thumbnail_url recorded_at]) if rows.any?
-    user.lapse_timelapses.where.not(lapse_id: rows.pluck(:lapse_id)).where.missing(:journals).delete_all
+    user.lapse_timelapses.where.not(lapse_id: rows.pluck(:lapse_id)).where(journal_id: nil).delete_all
     user.update!(lapse_synced_at: Time.current)
   rescue Lapse::Unauthorized
     user.disconnect_lapse!

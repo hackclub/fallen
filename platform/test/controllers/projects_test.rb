@@ -105,24 +105,24 @@ class ProjectsTest < ActionDispatch::IntegrationTest
     assert_equal 45, journal.reload.duration_minutes, "three hours need two photos"
   end
 
-  test "a journal can take its hours from a picked Lapse timelapse, and drop it to type them" do
+  test "a journal can take its hours from picked Lapse timelapses, and drop them to type them" do
     timelapse = lapse_timelapses(:desk)
-    post project_journals_path(projects(:station)), params: { journal: { body: "Soldered", duration: "", lapse_timelapse: timelapse.public_id, images: [ photo.signed_id ] } }
+    post project_journals_path(projects(:station)), params: { journal: { body: "Soldered", duration: "", lapse_timelapses: [ timelapse.public_id ], images: [ photo.signed_id ] } }
     journal = Journal.last
-    assert_equal timelapse, journal.lapse_timelapse
+    assert_equal [ timelapse ], journal.lapse_timelapses
     assert_equal 90, journal.duration_minutes
 
     get project_path(projects(:station))
     assert_includes response.body, timelapse.url
 
-    patch journal_path(journal), params: { journal: { body: "Soldered", duration: "0.5", lapse_timelapse: "", images: journal.images.map(&:signed_id) } }
-    assert_nil journal.reload.lapse_timelapse
+    patch journal_path(journal), params: { journal: { body: "Soldered", duration: "0.5", images: journal.images.map(&:signed_id) } }
+    assert_empty journal.reload.lapse_timelapses
     assert_equal 30, journal.duration_minutes
   end
 
   test "someone else's timelapse cannot be picked" do
     assert_no_difference -> { Journal.count } do
-      post project_journals_path(projects(:station)), params: { journal: { body: "x", lapse_timelapse: lapse_timelapses(:admins).public_id, images: [ photo.signed_id ] } }
+      post project_journals_path(projects(:station)), params: { journal: { body: "x", lapse_timelapses: [ lapse_timelapses(:desk).public_id, lapse_timelapses(:admins).public_id ], images: [ photo.signed_id ] } }
     end
     assert_response :not_found
   end

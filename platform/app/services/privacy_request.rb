@@ -63,8 +63,8 @@ class PrivacyRequest
     ActiveStorage::Attachment.where(record_type: "Project", record_id: project_ids).delete_all
     deleted["xp_entries"] = XpEntry.where(user_id: ids).delete_all
     deleted["huddle_sessions"] = HuddleSession.where(user_id: ids).or(HuddleSession.where(slack_id: users.filter_map(&:slack_id))).delete_all
+    deleted["lapse_timelapses"] = LapseTimelapse.where(user_id: ids).or(LapseTimelapse.where(journal_id: journal_ids)).delete_all
     deleted["journals"] = Journal.where(id: journal_ids).delete_all
-    deleted["lapse_timelapses"] = LapseTimelapse.where(user_id: ids).delete_all
     deleted["projects"] = Project.where(id: project_ids).delete_all
     deleted["users"] = User.where(id: removable.map(&:id)).delete_all
 

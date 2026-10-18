@@ -65,15 +65,24 @@
             {journal.source === 'slack' ? 'written in Slack' : 'in Slack'} ↗
           </a>
         {/if}
-        {#if journal.lapse_timelapse || journal.lapse_url}
+        {#each journal.lapse_timelapses as timelapse, i (timelapse.id)}
           <span> • </span>
           <a
-            href={journal.lapse_timelapse?.url ?? journal.lapse_url}
+            href={timelapse.url}
             target="_blank"
             rel="noopener"
-            class="hover:text-ink hover:underline">timelapse ↗</a
+            title={timelapse.name ?? undefined}
+            class="hover:text-ink hover:underline"
+            >timelapse{journal.lapse_timelapses.length > 1 ? ` ${i + 1}` : ''} ↗</a
           >
-        {/if}
+        {:else}
+          {#if journal.lapse_url}
+            <span> • </span>
+            <a href={journal.lapse_url} target="_blank" rel="noopener" class="hover:text-ink hover:underline"
+              >timelapse ↗</a
+            >
+          {/if}
+        {/each}
       </p>
     </div>
 

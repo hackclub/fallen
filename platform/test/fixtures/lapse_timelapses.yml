@@ -11,17 +11,20 @@
 #  visibility       :string
 #  created_at       :datetime         not null
 #  updated_at       :datetime         not null
+#  journal_id       :bigint
 #  lapse_id         :string           not null
 #  user_id          :bigint           not null
 #
 # Indexes
 #
+#  index_lapse_timelapses_on_journal_id   (journal_id)
 #  index_lapse_timelapses_on_lapse_id     (lapse_id) UNIQUE
 #  index_lapse_timelapses_on_recorded_at  (recorded_at)
 #  index_lapse_timelapses_on_user_id      (user_id)
 #
 # Foreign Keys
 #
+#  fk_rails_...  (journal_id => journals.id)
 #  fk_rails_...  (user_id => users.id)
 #
 desk:

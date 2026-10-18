@@ -41,6 +41,15 @@ module PublicIdentifiable
       find_by_public_id(id) || raise(ActiveRecord::RecordNotFound.new("Couldn't find #{name} with public id #{id.inspect}", name))
     end
 
+    # Records for several public ids in one query. Ids that are malformed or not found are left out.
+    def where_public_ids(ids)
+      hashes = Array(ids).grep(String).filter_map do |id|
+        prefix, _, hash = id.rpartition(SEPARATOR)
+        hash if prefix.downcase == get_public_id_prefix
+      end
+      where(id: decode_id(hashes).compact)
+    end
+
     def get_public_id_prefix
       return public_id_prefix.to_s.downcase if public_id_prefix.present?
 

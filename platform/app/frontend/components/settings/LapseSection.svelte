@@ -20,6 +20,15 @@
       </span>
     {/snippet}
   </SettingRow>
+  <SettingRow
+    title="Reconnect Lapse"
+    description="Sign in again to switch Lapse accounts or renew access. Lapse asks every 30 days."
+  >
+    <a
+      href={connectLapse({ query: { return_to: settings.show().url } }).url}
+      class="pill-cream h-11 text-base">Reconnect</a
+    >
+  </SettingRow>
   <SettingRow title="Disconnect Lapse" description="Journals you already wrote keep their timelapses.">
     <HoldButton
       label="Hold to disconnect"

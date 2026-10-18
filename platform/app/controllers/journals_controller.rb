@@ -45,13 +45,20 @@ class JournalsController < ApplicationController
     @journal = Journal.kept.find_by_public_id!(params[:id])
   end
 
-  # `images` is the full list of blob signed ids (direct uploads) the journal should end up with.
-  # `lapse_timelapse` is the public id of one of the person's timelapses, or blank for none.
+  # `images` is the full list of blob signed ids (direct uploads) the journal should end up with, and
+  # `lapse_timelapses` the full list of the person's timelapse public ids.
   def journal_params
-    permitted = params.expect(journal: [ :body, :duration, :lapse_timelapse, images: [] ])
+    permitted = params.expect(journal: [ :body, :duration, images: [], lapse_timelapses: [] ])
     permitted.to_h.symbolize_keys.tap do |h|
       h[:images] = Array(h[:images]).compact_blank
-      h[:lapse_timelapse] = h[:lapse_timelapse].presence && current_user.lapse_timelapses.find_by_public_id!(h[:lapse_timelapse]) if h.key?(:lapse_timelapse)
+      h[:picked_timelapses] = picked_timelapses(Array(h.delete(:lapse_timelapses)).compact_blank.uniq)
     end
+  end
+
+  def picked_timelapses(ids)
+    timelapses = current_user.lapse_timelapses.where_public_ids(ids.first(Journal::MAX_TIMELAPSES + 1)).to_a
+    raise ActiveRecord::RecordNotFound, "Unknown timelapse" if timelapses.size < [ ids.size, Journal::MAX_TIMELAPSES + 1 ].min
+
+    timelapses
   end
 end

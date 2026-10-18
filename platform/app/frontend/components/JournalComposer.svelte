@@ -33,7 +33,7 @@
   const form = useForm({
     body: journal?.body ?? '',
     duration: journal?.duration_text?.replace(/h$/, '') ?? '',
-    lapse_timelapse: journal?.lapse_timelapse?.id ?? '',
+    lapse_timelapses: (journal?.lapse_timelapses ?? []).map((t) => t.id),
     images: (journal?.images ?? []) as UploadedImage[],
   })
 
@@ -49,7 +49,7 @@
         const parsed = JSON.parse(draft)
         form.body = parsed.body ?? ''
         form.duration = parsed.duration ?? ''
-        form.lapse_timelapse = parsed.lapse_timelapse ?? ''
+        form.lapse_timelapses = parsed.lapse_timelapses ?? []
         form.images = parsed.images ?? []
         draftRestored = true
       }
@@ -63,7 +63,7 @@
     const snapshot = {
       body: form.body,
       duration: form.duration,
-      lapse_timelapse: form.lapse_timelapse,
+      lapse_timelapses: form.lapse_timelapses,
       images: form.images,
     }
     const timer = setTimeout(() => {
@@ -78,16 +78,10 @@
   })
 
   const words = $derived(countWords(form.body))
-  // A picked timelapse sets the hours; the server ignores any typed time while one is picked.
-  const pickedLapse = $derived(
-    [journal?.lapse_timelapse, ...(lapse?.timelapses ?? [])].find(
-      (t) => t && t.id === form.lapse_timelapse,
-    ) ?? null,
-  )
+  // Picked timelapses set the hours; the server ignores any typed time while there are any.
+  const timelapsed = $derived(form.lapse_timelapses.length > 0)
   const canSubmit = $derived(
-    form.body.trim().length > 0 &&
-      (form.lapse_timelapse !== '' || form.duration.trim().length > 0) &&
-      !form.processing,
+    form.body.trim().length > 0 && (timelapsed || form.duration.trim().length > 0) && !form.processing,
   )
 
   function addImage(image: UploadedImage) {
@@ -164,22 +158,15 @@
       <aside class="flex flex-col gap-5 bg-black/15 px-5 py-4 sm:px-7 lg:overflow-y-auto">
         <LapsePicker
           {lapse}
-          current={journal?.lapse_timelapse}
-          bind:selected={form.lapse_timelapse}
+          current={journal?.lapse_timelapses}
+          bind:selected={form.lapse_timelapses}
           returnTo={`${projectRoute(project.id).url}#write`}
-          error={form.errors.lapse_timelapse}
+          error={form.errors.lapse_timelapses}
         />
 
-        <div>
-          <p class="font-display text-lg text-ink">Time spent</p>
-          {#if form.lapse_timelapse}
-            <p class="mb-2 font-outfit text-xs text-ink-soft">
-              From your timelapse. Unpick it to type your own.
-            </p>
-            <p class="paper-input text-ink-soft" aria-live="polite">
-              {pickedLapse?.duration_text ?? 'From the timelapse'}
-            </p>
-          {:else}
+        {#if !timelapsed}
+          <div>
+            <p class="font-display text-lg text-ink">Time spent</p>
             <p class="mb-2 font-outfit text-xs text-ink-soft">
               Every journal needs one, in hours: 1.5, 0.5, 0.1.
             </p>
@@ -191,11 +178,14 @@
               required
               class="paper-input"
             />
-          {/if}
-          {#if form.errors.duration}<p class="mt-1 font-outfit text-xs text-red-700">
-              {form.errors.duration}
-            </p>{/if}
-        </div>
+            {#if form.errors.duration}<p class="mt-1 font-outfit text-xs text-red-700">
+                {form.errors.duration}
+              </p>{/if}
+          </div>
+        {/if}
+        <p class="-mt-3 font-outfit text-xs text-ink-soft">
+          If your journal isn't detailed enough, its hours might be deflated.
+        </p>
 
         <div>
           <p class="font-display text-lg text-ink">Photos</p>

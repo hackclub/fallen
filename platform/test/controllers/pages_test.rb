@@ -28,6 +28,15 @@ class PagesTest < ActionDispatch::IntegrationTest
     assert_equal users(:member).slack_connected?, props["slack"]["connected"]
   end
 
+  test "settings shows the Lapse connection" do
+    sign_in_as users(:member)
+    with_env("LAPSE_CLIENT_ID" => "svc_test", "LAPSE_CLIENT_SECRET" => "scs_test") do
+      assert_equal({ "configured" => true, "connected" => false, "synced_at" => nil }, inertia_props(settings_path, "Settings/Show")["lapse"])
+      users(:member).update!(lapse_token: "lapse-token")
+      assert inertia_props(settings_path, "Settings/Show")["lapse"]["connected"]
+    end
+  end
+
   test "home requires sign in" do
     get home_path
     assert_redirected_to root_path

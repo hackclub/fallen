@@ -6,27 +6,25 @@
 #
 # Table name: journals
 #
-#  id                 :bigint           not null, primary key
-#  body               :text             not null
-#  discarded_at       :datetime
-#  duration_minutes   :integer
-#  lapse_url          :string
-#  slack_parts        :jsonb            not null
-#  slack_ts           :string
-#  source             :string           default("web"), not null
-#  created_at         :datetime         not null
-#  updated_at         :datetime         not null
-#  lapse_timelapse_id :bigint
-#  project_id         :bigint           not null
-#  slack_channel_id   :string
-#  user_id            :bigint           not null
+#  id               :bigint           not null, primary key
+#  body             :text             not null
+#  discarded_at     :datetime
+#  duration_minutes :integer
+#  lapse_url        :string
+#  slack_parts      :jsonb            not null
+#  slack_ts         :string
+#  source           :string           default("web"), not null
+#  created_at       :datetime         not null
+#  updated_at       :datetime         not null
+#  project_id       :bigint           not null
+#  slack_channel_id :string
+#  user_id          :bigint           not null
 #
 # Indexes
 #
 #  index_journals_needing_hours                     (project_id) WHERE ((discarded_at IS NULL) AND (duration_minutes IS NULL))
 #  index_journals_on_created_at                     (created_at)
 #  index_journals_on_discarded_at                   (discarded_at)
-#  index_journals_on_lapse_timelapse_id             (lapse_timelapse_id) UNIQUE WHERE ((lapse_timelapse_id IS NOT NULL) AND (discarded_at IS NULL))
 #  index_journals_on_project_id                     (project_id)
 #  index_journals_on_slack_channel_id_and_slack_ts  (slack_channel_id,slack_ts) UNIQUE WHERE (slack_ts IS NOT NULL)
 #  index_journals_on_slack_parts                    (slack_parts jsonb_path_ops) USING gin
@@ -34,7 +32,6 @@
 #
 # Foreign Keys
 #
-#  fk_rails_...  (lapse_timelapse_id => lapse_timelapses.id)
 #  fk_rails_...  (project_id => projects.id)
 #  fk_rails_...  (user_id => users.id)
 #
@@ -46,14 +43,18 @@ class Journal < ApplicationRecord
   MAX_MINUTES = 24 * 60
   # Every two hours logged need a photo to show for them.
   MINUTES_PER_IMAGE = 120
+  MAX_TIMELAPSES = 10
 
   set_public_id_prefix :jrn
+  # Replaced by lapse_timelapses.journal_id so a journal can have several. Drop the column once this is deployed.
+  self.ignored_columns += %w[lapse_timelapse_id]
   has_paper_trail
 
   belongs_to :project
   belongs_to :user
-  # A timelapse picked from the person's Lapse account. Its recorded time is the journal's hours; nothing typed counts.
-  belongs_to :lapse_timelapse, optional: true
+  # Timelapses picked from the person's Lapse account. Their recorded time adds up to the journal's hours; nothing
+  # typed counts while there are any.
+  has_many :lapse_timelapses, dependent: :nullify
   has_one :xp_entry, as: :source
   has_many_attached :images
 
@@ -73,10 +74,11 @@ class Journal < ApplicationRecord
   validate :images_are_images
   validate :images_cover_hours, if: -> { new_record? || duration_minutes_changed? || attachment_changes.key?("images") }
   validate :duration_was_understood
-  validate :lapse_timelapse_is_usable, if: -> { lapse_timelapse_id? && (new_record? || lapse_timelapse_id_changed?) }
+  validate :picked_timelapses_are_usable, if: -> { @picked_timelapses }
 
-  before_validation :take_hours_from_lapse, if: -> { lapse_timelapse_id? && (lapse_timelapse_id_changed? || duration_minutes_changed?) }
+  before_validation :take_hours_from_lapse
 
+  after_save :claim_picked_timelapses, if: -> { @picked_timelapses }
   after_save :sync_xp, if: -> { saved_change_to_duration_minutes? || saved_change_to_discarded_at? }
 
   scope :newest_first, -> { order(created_at: :desc, id: :desc) }
@@ -99,6 +101,11 @@ class Journal < ApplicationRecord
   def images_needed = (duration_minutes.to_f / MINUTES_PER_IMAGE).ceil
   def duration_text = Duration.format(duration_minutes)
   def multi_part? = slack_parts.size > 1
+
+  # The full set of timelapses the journal should end up with, saved along with it.
+  def picked_timelapses=(timelapses)
+    @picked_timelapses = timelapses.to_a
+  end
 
   def slack_message_edited(ts, text)
     return update(body: text) if slack_parts.empty?
@@ -124,7 +131,7 @@ class Journal < ApplicationRecord
 
   # Older journals saved without a time can still be edited from Slack and deleted; any time typed must be real.
   def duration_was_understood
-    return if lapse_timelapse_id? || duration_minutes.present? || (persisted? && @duration_text_given.nil?)
+    return if duration_minutes.present? || @picked_timelapses.present? || (persisted? && @duration_text_given.nil?)
 
     errors.add(:duration, @duration_text_given.present? ? "should be in hours, like 1.5 or 0.5" : "is needed: how long did this take?")
   end
@@ -141,16 +148,35 @@ class Journal < ApplicationRecord
 
   def sync_xp = XpEntry.sync(self)
 
+  # Hours come from the timelapses whenever they change, and win over any time typed later on a journal that has some.
   def take_hours_from_lapse
-    self.duration_minutes = lapse_timelapse.duration_minutes.nonzero?
+    timelapses = @picked_timelapses || (lapse_timelapses if persisted? && duration_minutes_changed?)
+    return if timelapses.blank?
+
+    self.duration_minutes = timelapses.sum(&:duration_minutes).nonzero?
   end
 
-  def lapse_timelapse_is_usable
-    return errors.add(:lapse_timelapse, "must be yours") unless lapse_timelapse.user_id == user_id
-    return errors.add(:lapse_timelapse, lapse_timelapse.unusable_reason) unless lapse_timelapse.usable?
+  # Ones already on this journal stay even if Lapse has since changed them; newly picked ones must be watchable and free.
+  def picked_timelapses_are_usable
+    return errors.add(:lapse_timelapses, "at most #{MAX_TIMELAPSES} per journal") if @picked_timelapses.size > MAX_TIMELAPSES
 
-    claimed = Journal.kept.where(lapse_timelapse: lapse_timelapse).where.not(id: id).exists?
-    errors.add(:lapse_timelapse, "is already on another journal") if claimed
+    added = @picked_timelapses.reject { |timelapse| persisted? && timelapse.journal_id == id }
+    taken = Journal.kept.where(id: added.filter_map(&:journal_id)).pluck(:id).to_set
+    added.each do |timelapse|
+      reason = if timelapse.user_id != user_id then "must be yours"
+      elsif taken.include?(timelapse.journal_id) then "is already on another journal"
+      else timelapse.unusable_reason
+      end
+      errors.add(:lapse_timelapses, "“#{timelapse.name.presence || 'Untitled timelapse'}” #{reason}") if reason
+    end
+  end
+
+  def claim_picked_timelapses
+    ids = @picked_timelapses.map(&:id)
+    LapseTimelapse.where(journal_id: id).where.not(id: ids).update_all(journal_id: nil)
+    LapseTimelapse.where(id: ids).update_all(journal_id: id)
+    @picked_timelapses = nil
+    lapse_timelapses.reset
   end
 
   def images_are_images

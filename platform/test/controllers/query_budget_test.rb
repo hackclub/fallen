@@ -16,7 +16,8 @@ class QueryBudgetTest < ActionDispatch::IntegrationTest
     assert_query_budget(8) { load_deferred(home_path, "Home/Index", "projects", "stats", "activity") }
     assert_query_budget(5) { load_deferred(home_path, "Home/Index", "xp") }
     assert_query_budget(6) { get projects_path }
-    assert_query_budget(10) { get project_path(projects(:station)) }
+    # 11 since journals can have several Lapse timelapses: one preload query, whatever the page holds.
+    assert_query_budget(11) { get project_path(projects(:station)) }
     assert_query_budget(4) { load_deferred(project_path(projects(:station)), "Projects/Show", "lapse") }
     assert_query_budget(2) { get new_project_path }
     assert_query_budget(3) { get edit_project_path(projects(:station)) }

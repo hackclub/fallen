@@ -13,17 +13,20 @@ require "test_helper"
 #  visibility       :string
 #  created_at       :datetime         not null
 #  updated_at       :datetime         not null
+#  journal_id       :bigint
 #  lapse_id         :string           not null
 #  user_id          :bigint           not null
 #
 # Indexes
 #
+#  index_lapse_timelapses_on_journal_id   (journal_id)
 #  index_lapse_timelapses_on_lapse_id     (lapse_id) UNIQUE
 #  index_lapse_timelapses_on_recorded_at  (recorded_at)
 #  index_lapse_timelapses_on_user_id      (user_id)
 #
 # Foreign Keys
 #
+#  fk_rails_...  (journal_id => journals.id)
 #  fk_rails_...  (user_id => users.id)
 #
 class LapseTimelapseTest < ActiveSupport::TestCase
@@ -31,7 +34,8 @@ class LapseTimelapseTest < ActiveSupport::TestCase
 
   test "sync copies what Lapse has, drops what is gone and keeps what a journal uses" do
     used = lapse_timelapses(:hidden)
-    projects(:station).journals.insert!({ user_id: users(:member).id, body: "old", source: "web", lapse_timelapse_id: used.id, discarded_at: Time.current, created_at: Time.current, updated_at: Time.current })
+    old = projects(:station).journals.create!(user: users(:member), body: "old", duration_minutes: 30, images: [ photo ], discarded_at: Time.current)
+    used.update!(journal: old)
 
     stub_method(Lapse, :timelapses, [ lapse_data("lapse_new", duration: 2700), lapse_data("lapse_desk", name: "Renamed", duration: 5400) ]) do
       LapseTimelapse.sync(users(:member))
