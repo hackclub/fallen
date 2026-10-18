@@ -28,7 +28,7 @@ Only from the token's `subject`: any `emails` (case-insensitive against `users.e
 | Slack's join and leave events for the huddle, by Slack id and time | `huddle_events` |
 | The pet's timer: when they started and stopped the site's timer, paused in the huddle, and which time milestones they were congratulated for | `timer_sessions`, `huddle_pauses`, `time_milestones` |
 | XP earned, line by line (journal XP, bonuses, streak checks) | `xp_entries`, `users.xp` |
-| Change history of the account, projects and journals (PaperTrail copies of the rows) | `versions` |
+| Change history of everything above (PaperTrail copies of the rows) | `versions` |
 | The account's row in Airtable (name, email, HCA and Slack ids, XP, project, journal and hour counts). It drops out on the next upload, within 5 minutes, since every upload replaces the table | Airtable Users table (`AirtableUsers`) |
 
 Sessions are signed cookies holding the user id, so they stop working once the row is gone.

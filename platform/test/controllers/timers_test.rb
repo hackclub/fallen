@@ -17,6 +17,10 @@ class TimersTest < ActionDispatch::IntegrationTest
     delete timer_path
     assert_nil response.parsed_body["running"]
     assert_equal 0, users(:member).timer_sessions.running.count
+
+    stop = users(:member).timer_sessions.last.versions.last
+    assert_equal [ "update", users(:member).id.to_s, "web:timers#destroy" ], [ stop.event, stop.whodunnit, stop.source ]
+    assert_nil stop.object_changes["stopped_at"].first
   end
 
   test "gives the live huddle's link" do

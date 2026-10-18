@@ -49,6 +49,8 @@
 class HuddleSession < ApplicationRecord
   include PublicIdentifiable
 
+  has_paper_trail
+
   MODES = %w[working chilling].freeze
   # event: the time on Slack's own join or leave event (HuddleEvent), to the millisecond.
   # sync: when a sync first noticed, at most a minute late.

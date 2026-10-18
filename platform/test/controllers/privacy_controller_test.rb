@@ -28,6 +28,8 @@ class PrivacyControllerTest < ActionDispatch::IntegrationTest
   test "a real run deletes the account and its history and returns the same counts as the dry run" do
     member = users(:member)
     member.update!(display_name: "Renamed")
+    xp_entry = member.xp_entries.first
+    xp_entry.update!(amount: 13)
 
     call_hub :delete, subject: { emails: [ "member@example.com" ] }
     dry = response.parsed_body["deleted"]
@@ -38,6 +40,7 @@ class PrivacyControllerTest < ActionDispatch::IntegrationTest
     assert_equal dry, response.parsed_body["deleted"]
     assert_not User.exists?(member.id)
     assert_not PaperTrail::Version.exists?(item_type: "User", item_id: member.id)
+    assert_not PaperTrail::Version.exists?(item_type: "XpEntry", item_id: xp_entry.id)
   end
 
   test "deletes projects and journals with the account" do

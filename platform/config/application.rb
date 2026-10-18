@@ -34,5 +34,8 @@ module Fallen
       g.stylesheets false
       g.test_framework :test_unit, fixture: true
     end
+
+    # So a fix typed into a production console shows up in the change history as one.
+    console { PaperTrail.request.controller_info = { source: "console" } }
   end
 end

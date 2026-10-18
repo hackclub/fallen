@@ -24,6 +24,8 @@
 #  fk_rails_...  (user_id => users.id)
 #
 class HuddlePause < ApplicationRecord
+  has_paper_trail
+
   END_REASONS = %w[resumed left].freeze
 
   belongs_to :user
@@ -48,8 +50,9 @@ class HuddlePause < ApplicationRecord
   # Ends their open pause, if any. Only ever closes a pause that is still open, so a resume and a leave racing
   # each other cannot move an end already written. One that began after `at` ends where it began.
   def self.finish(user_ids, at:, reason:)
-    ended = open.where(user_id: user_ids).pluck(:user_id)
-    open.where(user_id: ended).update_all([ "ended_at = GREATEST(started_at, ?), end_reason = ?, updated_at = ?", at, reason, Time.current ])
-    ended.each { |user_id| TimerChannel.changed(user_id) }
+    ended = transaction do
+      open.where(user_id: user_ids).lock.to_a.each { |pause| pause.update!(ended_at: [ pause.started_at, at ].max, end_reason: reason) }
+    end
+    ended.map(&:user_id).uniq.each { |user_id| TimerChannel.changed(user_id) }
   end
 end

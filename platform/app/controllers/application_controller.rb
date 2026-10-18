@@ -43,6 +43,7 @@ class ApplicationController < ActionController::Base
 
   # PaperTrail records the real admin while impersonating, not the impersonated user.
   def user_for_paper_trail = true_user&.id
+  def info_for_paper_trail = { source: "web:#{controller_path}##{action_name}" }
 
   # The frontend sends the browser's IANA zone on every Inertia visit (app/frontend/entrypoints/inertia.ts).
   def sync_browser_timezone

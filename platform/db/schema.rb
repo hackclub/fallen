@@ -456,6 +456,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_18_140000) do
     t.string "item_type", null: false
     t.string "event", null: false
     t.text "object"
+    t.jsonb "object_changes"
+    t.string "source"
     t.index ["item_type", "item_id"], name: "index_versions_on_item_type_and_item_id"
   end
 

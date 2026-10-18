@@ -23,6 +23,8 @@
 #  index_huddles_on_ended_at  (ended_at)
 #
 class Huddle < ApplicationRecord
+  has_paper_trail
+
   # Slack drops everyone when it ends a huddle, and their leave events can land just before the end does. Anyone who
   # left this close to the end was still there when it ended.
   END_GRACE = 1.minute

@@ -19,6 +19,8 @@
 #  index_huddle_events_on_slack_id                              (slack_id)
 #
 class HuddleEvent < ApplicationRecord
+  has_paper_trail
+
   KINDS = { "sh_room_join" => "joined", "sh_room_leave" => "left" }.freeze
 
   validates :call_id, :slack_id, :occurred_at, presence: true

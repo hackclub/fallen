@@ -22,6 +22,8 @@
 #  fk_rails_...  (user_id => users.id)
 #
 class TimerSession < ApplicationRecord
+  has_paper_trail
+
   # A timer left running counts no further than this; forgetting to stop it should not log a day.
   MAX_LENGTH = 8.hours
 
@@ -50,9 +52,9 @@ class TimerSession < ApplicationRecord
   def stop!(at = Time.current) = update!(stopped_at: at.clamp(started_at, started_at + MAX_LENGTH))
 
   # Stops whatever timer they have running. Only touches one still running, so a second press or another tab
-  # never moves a stop already written.
+  # never moves a stop already written: the lock makes a racing stop wait, then find nothing left running.
   def self.stop(user, at: Time.current)
-    stopped = running.where(user: user).update_all([ "stopped_at = LEAST(GREATEST(?, started_at), started_at + make_interval(secs => ?)), updated_at = ?", at, MAX_LENGTH.to_i, Time.current ])
-    TimerChannel.changed(user) if stopped.positive?
+    stopped = transaction { running.where(user: user).lock.to_a.each { |session| session.stop!(at) } }
+    TimerChannel.changed(user) if stopped.any?
   end
 end

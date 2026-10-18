@@ -32,6 +32,8 @@
 class LapseTimelapse < ApplicationRecord
   include PublicIdentifiable
 
+  has_paper_trail
+
   # Any visibility on Lapse counts, private included: Fallen never shows a timelapse anywhere public, only to the
   # person and staff. Ones still rendering or that failed can't back a journal.
 

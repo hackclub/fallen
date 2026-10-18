@@ -214,8 +214,8 @@ class Journal < ApplicationRecord
 
   def claim_picked_timelapses
     ids = @picked_timelapses.map(&:id)
-    LapseTimelapse.where(journal_id: id).where.not(id: ids).update_all(journal_id: nil)
-    LapseTimelapse.where(id: ids).update_all(journal_id: id)
+    LapseTimelapse.where(journal_id: id).where.not(id: ids).each { |timelapse| timelapse.update!(journal_id: nil) }
+    LapseTimelapse.where(id: ids).each { |timelapse| timelapse.update!(journal_id: id) }
     @picked_timelapses = nil
     lapse_timelapses.reset
   end

@@ -16,7 +16,8 @@ module SlackBot
         return nil
       end
 
-      handler_class.new(payload).run
+      handler = handler_class.new(payload)
+      SlackBot.around_handler.call(handler) { handler.run }
     rescue StandardError => e
       raise if Rails.env.local?
 

@@ -126,6 +126,11 @@ class XpTest < ActiveSupport::TestCase
     (7..13).each { |n| user.team.settle(first + n) }
     assert_equal [ Team::Lulu::WEEKLY_BONUS ], user.xp_entries.where(kind: "weekly_bonus").pluck(:amount)
     assert_equal first + 6, user.xp_entries.find_by(kind: "weekly_bonus").day
+    assert_equal 1, user.xp_entries.find_by(kind: "weekly_bonus").versions.count, "the ledger is audited"
+
+    journal_on(user, [ first - 1 ])
+    user.team.settle(first + 6)
+    assert_equal 1, user.xp_entries.where(kind: "weekly_bonus").count, "a week that moved is not paid again"
   end
 
   test "settling pays only team lulu" do

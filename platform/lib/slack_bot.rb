@@ -25,6 +25,11 @@ module SlackBot
 
     def logger = Rails.logger
 
+    # Wraps every handler run, e.g. to tag what it changes: `SlackBot.around_handler = ->(handler, &run) { run.call }`.
+    attr_writer :around_handler
+
+    def around_handler = @around_handler ||= ->(_handler, &run) { run.call }
+
     # kind: :command, :event or :interaction. Returns the inline HTTP response body (Hash) or nil.
     def handle(kind, raw_payload)
       Router.new(kind, Payload.wrap(raw_payload)).call

@@ -53,24 +53,23 @@ class PrivacyRequest
 
     project_ids = Project.where(user_id: ids).pluck(:id)
     journal_ids = Journal.where(user_id: ids).or(Journal.where(project_id: project_ids)).pluck(:id)
-    deleted["versions"] = PaperTrail::Version.where(item_type: "User", item_id: ids)
-      .or(PaperTrail::Version.where(item_type: "Project", item_id: project_ids))
-      .or(PaperTrail::Version.where(item_type: "Journal", item_id: journal_ids)).delete_all
+    @versions = PaperTrail::Version.where(item_type: "User", item_id: ids).delete_all
     Journal.where(id: journal_ids).includes(images_attachments: :blob).find_each { |journal| journal.images.purge_later } if commit?
     Project.where(id: project_ids).with_attached_banner.find_each { |project| project.banner.purge_later } if commit?
     ActiveStorage::Attachment.where(record_type: "Journal", record_id: journal_ids).delete_all
-    deleted["journal_drafts"] = JournalDraft.where(user_id: ids).or(JournalDraft.where(project_id: project_ids)).delete_all
+    deleted["journal_drafts"] = forget(JournalDraft.where(user_id: ids).or(JournalDraft.where(project_id: project_ids)))
     ActiveStorage::Attachment.where(record_type: "Project", record_id: project_ids).delete_all
-    deleted["xp_entries"] = XpEntry.where(user_id: ids).delete_all
-    deleted["huddle_sessions"] = HuddleSession.where(user_id: ids).or(HuddleSession.where(slack_id: users.filter_map(&:slack_id))).delete_all
-    deleted["huddle_events"] = HuddleEvent.where(slack_id: users.filter_map(&:slack_id)).delete_all
-    deleted["huddle_pauses"] = HuddlePause.where(user_id: ids).delete_all
-    deleted["timer_sessions"] = TimerSession.where(user_id: ids).delete_all
-    deleted["time_milestones"] = TimeMilestone.where(user_id: ids).delete_all
-    deleted["lapse_timelapses"] = LapseTimelapse.where(user_id: ids).or(LapseTimelapse.where(journal_id: journal_ids)).delete_all
-    deleted["journals"] = Journal.where(id: journal_ids).delete_all
-    deleted["projects"] = Project.where(id: project_ids).delete_all
+    deleted["xp_entries"] = forget(XpEntry.where(user_id: ids))
+    deleted["huddle_sessions"] = forget(HuddleSession.where(user_id: ids).or(HuddleSession.where(slack_id: users.filter_map(&:slack_id))))
+    deleted["huddle_events"] = forget(HuddleEvent.where(slack_id: users.filter_map(&:slack_id)))
+    deleted["huddle_pauses"] = forget(HuddlePause.where(user_id: ids))
+    deleted["timer_sessions"] = forget(TimerSession.where(user_id: ids))
+    deleted["time_milestones"] = forget(TimeMilestone.where(user_id: ids))
+    deleted["lapse_timelapses"] = forget(LapseTimelapse.where(user_id: ids).or(LapseTimelapse.where(journal_id: journal_ids)))
+    deleted["journals"] = forget(Journal.where(id: journal_ids))
+    deleted["projects"] = forget(Project.where(id: project_ids))
     deleted["users"] = User.where(id: removable.map(&:id)).delete_all
+    deleted["versions"] = @versions
 
     attributed = PaperTrail::Version.where(whodunnit: ids.map(&:to_s)).update_all(whodunnit: nil)
     if attributed.positive?
@@ -85,6 +84,13 @@ class PrivacyRequest
     end
 
     { found: true, deleted: deleted.select { |_, count| count.positive? }, retained: retained }
+  end
+
+  # Deletes the rows along with their change history, which is counted under "versions".
+  def forget(scope)
+    ids = scope.pluck(:id)
+    @versions += PaperTrail::Version.where(item_type: scope.model.name, item_id: ids).delete_all
+    scope.model.where(id: ids).delete_all
   end
 
   def matching_users

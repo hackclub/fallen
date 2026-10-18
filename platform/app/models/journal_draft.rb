@@ -31,6 +31,8 @@ class JournalDraft < ApplicationRecord
 
   set_public_id_prefix :jdr
 
+  has_paper_trail
+
   # How long someone has to stop posting before Fallen asks again about messages added to a draft.
   ASK_AFTER = 8.seconds
   # An unanswered draft this old is a different conversation: the next reply starts over instead of joining it.

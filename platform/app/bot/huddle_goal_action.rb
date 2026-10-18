@@ -39,7 +39,7 @@ class HuddleGoalAction < SlackBot::Action
 
   def answer(session, mode:, goal:)
     rows = session.huddle.sessions.where(slack_id: session.slack_id).merge(HuddleSession.ongoing.or(HuddleSession.where(id: session.id))).to_a
-    HuddleSession.where(id: rows.map(&:id)).update_all(mode: mode, goal: goal, updated_at: Time.current)
+    rows.each { |row| row.update!(mode: mode, goal: goal) }
     reply = SlackMessages.huddle_answer(session.reload)
     update_message(reply[:text], blocks: reply[:blocks])
     rows.each { |row| HuddleDmAnswerJob.perform_later(row) if row.prompt_dm_ts && row.dm_channel_id != channel_id }

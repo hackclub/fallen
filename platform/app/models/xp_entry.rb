@@ -33,6 +33,8 @@
 class XpEntry < ApplicationRecord
   include Discardable
 
+  has_paper_trail
+
   PER_HOUR = 8
   KINDS = %w[journal early_bird weekly_bonus team_win streak].freeze
 

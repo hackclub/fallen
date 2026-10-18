@@ -72,8 +72,11 @@ class Team
       pay_for(last) if last.finish < today
     end
 
+    # Never twice for the same days, even if the weeks have moved since a bonus was paid: a bonus sits on the last day
+    # of its week, so one from start to six days after finish covered some of these days.
     def pay_for(week)
       return if journal_days(week).size < DAYS_FOR_BONUS
+      return if user.xp_entries.kept.where(kind: "weekly_bonus", day: week.start..week.finish + 6).exists?
 
       user.xp_entries.create_or_find_by!(kind: "weekly_bonus", day: week.finish) { |entry| entry.amount = WEEKLY_BONUS }
     end

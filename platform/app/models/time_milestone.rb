@@ -20,6 +20,8 @@
 #  fk_rails_...  (user_id => users.id)
 #
 class TimeMilestone < ApplicationRecord
+  has_paper_trail
+
   EVERY = 30.minutes
   # `since` for someone with no journal yet, since the unique index cannot tell NULLs apart.
   BEGINNING = Time.zone.at(0)
