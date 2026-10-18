@@ -71,7 +71,7 @@ module SlackMessages
   # (lapse_picker) and kept on the draft.
   def draft_prompt(draft, duration: nil, tracked: nil, error: nil)
     return photos_prompt(draft) unless draft.written?
-    return needs_photo_prompt(draft) if draft.files.empty?
+    return needs_photo_prompt(draft, tracked: tracked) if draft.files.empty?
 
     blocks = [ SlackBot::Blocks.section(":notebook_with_decorative_cover: Is this a journal for *#{escape(draft.project.title)}*?\n#{quote(draft.text, 1500)}") ]
     blocks += photo_blocks(draft)
@@ -107,7 +107,7 @@ module SlackMessages
 
     picked = draft.picked_timelapses
     if picked.empty? && !pickable_timelapses?(user)
-      text = "*#{TIMELAPSE_LABEL}*\nNo unused timelapses on Lapse yet. <#{Lapse.web_host}|Record one>, make it unlisted so staff can watch it, then check again."
+      text = "*#{TIMELAPSE_LABEL}*\nNo unused timelapses on Lapse yet. <#{Lapse.web_host}|Record one>, then check again."
       return [ SlackBot::Blocks.section(text, accessory: draft_button("Check again", "check_lapse", draft)) ]
     end
 
@@ -120,7 +120,7 @@ module SlackMessages
   # and a checkbox for the ones that can back this journal. Ones another journal has, or Lapse can't play, say why
   # instead. Ticks are read when the page changes or on "Done" (LapsePickerAction, LapsePickerView).
   def lapse_picker(journal_draft, picker, error: nil)
-    timelapses = journal_draft.user.lapse_timelapses.newest_first.includes(:journal)
+    timelapses = journal_draft.user.lapse_timelapses.newest_first.includes(journal: :project)
     pages = [ (timelapses.count / LapsePicker::PER_PAGE.to_f).ceil, 1 ].max
     page = picker.page.clamp(0, pages - 1)
     shown = timelapses.offset(page * LapsePicker::PER_PAGE).limit(LapsePicker::PER_PAGE).to_a
@@ -133,7 +133,13 @@ module SlackMessages
     shown.each do |timelapse|
       reason = timelapse_blocked(timelapse)
       recorded = timelapse.recorded_at && " · #{timelapse.recorded_at.in_time_zone(journal_draft.user.timezone).to_date.to_fs(:long)}"
-      detail = reason ? "_#{reason.delete_prefix('is ').capitalize}_" : "#{timelapse.duration_text}#{recorded}"
+      detail = if timelapse.claimed_by
+        "_On your <#{journal_url(timelapse.claimed_by)}|journal from #{timelapse.claimed_by.created_at.in_time_zone(journal_draft.user.timezone).to_date.to_fs(:long)}>_"
+      elsif reason
+        "_#{reason.delete_prefix('is ').capitalize}_"
+      else
+        "#{timelapse.duration_text}#{recorded}"
+      end
       thumbnail = SlackBot::Blocks.image(timelapse.thumbnail_url, timelapse_name(timelapse)) if timelapse.thumbnail_url.present?
       blocks << SlackBot::Blocks.divider
       blocks << SlackBot::Blocks.section("*#{escape(timelapse_name(timelapse))}*\n#{detail}", accessory: thumbnail)
@@ -156,11 +162,14 @@ module SlackMessages
 
   def timelapse_name(timelapse) = (timelapse.name.presence || "Untitled timelapse").truncate(60)
 
-  # Every journal needs a photo, so writing without one gets a reminder instead of the time box.
-  def needs_photo_prompt(draft)
-    intro = ":frame_with_picture: Journals need a photo, one for every #{Journal::MINUTES_PER_IMAGE / 60} hours. Post one in this thread and I'll ask you about the journal."
+  # Every journal needs a photo, so writing without one gets a reminder instead of the time box: one photo per
+  # Journal::MINUTES_PER_IMAGE of the time tracked so far, at least one.
+  def needs_photo_prompt(draft, tracked: nil)
+    count = [ (tracked.to_i / Journal::MINUTES_PER_IMAGE.to_f).ceil, 1 ].max
+    photos = count == 1 ? "a photo" : "#{count} photos"
+    intro = "Nice! Please also add #{photos} for your journal :>> you can just send a message with the #{count == 1 ? 'photo' : 'photos'}!"
     blocks = [ SlackBot::Blocks.section("#{intro}\n#{quote(draft.text, 1500)}"), SlackBot::Blocks.actions(draft_button("Not a journal", "skip", draft)) ]
-    { text: "Journals need a photo. Post one in this thread.", blocks: blocks }
+    { text: "Nice! Please also add #{photos} for your journal.", blocks: blocks }
   end
 
   def photos_prompt(draft)
@@ -355,6 +364,9 @@ module SlackMessages
   def blob_url(image) = Rails.application.routes.url_helpers.rails_blob_url(image, host: ENV.fetch("APP_URL", "http://localhost:3000"))
 
   def project_url(project) = Rails.application.routes.url_helpers.project_url(project, host: ENV.fetch("APP_URL", "http://localhost:3000"))
+
+  # A journal's own message in its project's thread, or failing that the journal on its project's page.
+  def journal_url(journal) = journal.slack_url || Rails.application.routes.url_helpers.project_url(journal.project, host: app_url, anchor: "journal-#{journal.public_id}")
 
   def journal_url(journal) = Rails.application.routes.url_helpers.project_url(journal.project, anchor: "journal-#{journal.public_id}", host: ENV.fetch("APP_URL", "http://localhost:3000"))
 

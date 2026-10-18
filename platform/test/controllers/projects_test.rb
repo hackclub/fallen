@@ -132,8 +132,9 @@ class ProjectsTest < ActionDispatch::IntegrationTest
     lapse_timelapses(:hidden).update!(journal: journal)
     props = load_deferred(project_path(projects(:station)), "Projects/Show", "lapse")
     assert_equal [ lapse_timelapses(:desk).public_id, lapse_timelapses(:hidden).public_id ], props["lapse"]["timelapses"].pluck("id")
-    assert_match(/private/, props["lapse"]["timelapses"].last["unusable_reason"])
+    assert_nil props["lapse"]["timelapses"].last["unusable_reason"]
     assert_match(/\Aon your journal from /, props["lapse"]["timelapses"].last["claim_text"])
+    assert_equal "/projects/#{projects(:station).to_param}#journal-#{journal.public_id}", props["lapse"]["timelapses"].last["claim_url"]
     assert_nil props["lapse"]["timelapses"].first["claim_text"]
   end
 

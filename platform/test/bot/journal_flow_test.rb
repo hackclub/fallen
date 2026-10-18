@@ -30,18 +30,29 @@ class JournalFlowTest < ActiveSupport::TestCase
       reply("Printed the case")
       perform_enqueued_jobs
       prompt = slack.calls_to(:chat_postEphemeral).last
-      assert_includes prompt[:text], "need a photo"
+      assert_equal "Nice! Please also add a photo for your journal.", prompt[:text]
+      assert prompt[:blocks].first.dig(:text, :text).start_with?("Nice! Please also add a photo for your journal :>> you can just send a message with the photo!")
       assert_empty prompt[:blocks].select { |block| block[:type] == "input" }
       assert_equal %w[journal_draft:skip], prompt[:blocks].find { |block| block[:type] == "actions" }[:elements].pluck(:action_id)
 
       assert_no_difference -> { Journal.count } do
         press("journal", JournalDraft.last, duration: "1h")
       end
-      assert_includes slack.calls_to(:response_url).last[:body]["text"], "need a photo"
+      assert_includes slack.calls_to(:response_url).last[:body]["text"], "add a photo"
 
       reply("", ts: "1700000003.000200", files: [ PHOTO ])
       perform_enqueued_jobs(only: JournalPromptJob)
       assert_equal %w[duration], slack.calls_to(:chat_postEphemeral).last[:blocks].select { |block| block[:type] == "input" }.pluck(:block_id)
+    end
+  end
+
+  test "the photo reminder asks for one photo per two hours tracked" do
+    users(:member).journals.update_all(created_at: 1.day.ago)
+    users(:member).timer_sessions.create!(started_at: 150.minutes.ago, stopped_at: Time.current)
+    with_fake_slack do |slack|
+      reply("Printed the case")
+      perform_enqueued_jobs
+      assert slack.calls_to(:chat_postEphemeral).last[:blocks].first.dig(:text, :text).start_with?("Nice! Please also add 2 photos for your journal :>> you can just send a message with the photos!")
     end
   end
 
@@ -148,7 +159,8 @@ class JournalFlowTest < ActiveSupport::TestCase
         press_button("journal_draft:pick_lapse", draft)
         first = slack.calls_to(:views_open).last[:view]
         assert_equal 20, first[:blocks].count { |block| block[:type] == "section" }
-        assert first[:blocks].any? { |block| block.dig(:text, :text).to_s.include?("On your journal from") }
+        on_journal = first[:blocks].find { |block| block.dig(:text, :text).to_s.include?("On your <") }
+        assert_includes on_journal.dig(:text, :text), "/projects/#{projects(:station).to_param}#journal-#{used.public_id}|journal from "
         assert_not first[:blocks].any? { |block| block[:block_id] == "lapse_pick_#{older.first.public_id}" }, "a used one has no box"
 
         toggle(first, button_in(first[:blocks], "Older ›"), ticked: [ lapse_timelapses(:desk), older[1] ])
@@ -205,7 +217,9 @@ class JournalFlowTest < ActiveSupport::TestCase
 
   test "with nothing to pick, check again keeps the typed hours and redraws once Lapse has some" do
     users(:member).update!(lapse_token: "lapse-token")
-    lapse_timelapses(:desk).update!(visibility: "PRIVATE")
+    playback = lapse_timelapses(:desk).playback_url
+    lapse_timelapses(:desk).update!(playback_url: nil)
+    lapse_timelapses(:hidden).update!(playback_url: nil)
     with_env("LAPSE_CLIENT_ID" => "svc_test", "LAPSE_CLIENT_SECRET" => "scs_test") do
       with_fake_slack do |slack|
         reply("Soldered the board", files: [ PHOTO ])
@@ -215,7 +229,7 @@ class JournalFlowTest < ActiveSupport::TestCase
 
         draft = JournalDraft.last
         assert_enqueued_with(job: RefreshDraftPromptJob, args: [ draft, "1.5" ]) { press_button(check[:accessory][:action_id], draft, duration: "1.5") }
-        lapse_timelapses(:desk).update!(visibility: "UNLISTED")
+        lapse_timelapses(:desk).update!(playback_url: playback)
         stub_method(LapseTimelapse, :sync, nil) { perform_enqueued_jobs(only: RefreshDraftPromptJob) }
         blocks = slack.calls_to(:chat_postEphemeral).last[:blocks]
         assert_equal "1.5", blocks.find { |block| block[:block_id] == "duration" }.dig(:element, :initial_value)
@@ -280,7 +294,7 @@ class JournalFlowTest < ActiveSupport::TestCase
       reply("one more thing", ts: "1700000003.000400")
       pick(draft, %w[1700000003.000100 1700000003.000300], upto: "1700000003.000300")
       assert_equal [ "Printed the case", "Then sanded it", "one more thing" ], draft.reload.parts.pluck("text"), "unseen replies are kept"
-      assert slack.calls_to(:response_url).last[:body]["text"].include?("need a photo")
+      assert slack.calls_to(:response_url).last[:body]["text"].include?("add a photo")
 
       pick(draft, [], upto: "1700000003.000400")
       assert_not JournalDraft.exists?(draft.id)

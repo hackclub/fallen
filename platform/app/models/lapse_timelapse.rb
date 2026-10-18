@@ -32,8 +32,8 @@
 class LapseTimelapse < ApplicationRecord
   include PublicIdentifiable
 
-  # Lapse also lists timelapses that are private, still rendering or failed; only ones a reviewer can watch count.
-  WATCHABLE_VISIBILITIES = %w[PUBLIC UNLISTED].freeze
+  # Any visibility on Lapse counts, private included: Fallen never shows a timelapse anywhere public, only to the
+  # person and staff. Ones still rendering or that failed can't back a journal.
 
   set_public_id_prefix :lps
 
@@ -92,7 +92,6 @@ class LapseTimelapse < ApplicationRecord
   def unusable_reason
     return "failed to render on Lapse" if visibility == "FAILED_PROCESSING"
     return "is still rendering on Lapse" if playback_url.blank?
-    return "is private on Lapse; make it unlisted so staff can watch it" unless visibility.in?(WATCHABLE_VISIBILITIES)
 
     "is under a minute long" unless duration_minutes.positive?
   end

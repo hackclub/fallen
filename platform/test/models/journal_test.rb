@@ -101,10 +101,14 @@ class JournalTest < ActiveSupport::TestCase
     assert under.hours_self_claimed, "nothing tracked since the last journal"
   end
 
-  test "picked timelapses must be watchable, yours, and on one journal at a time" do
+  test "picked timelapses must be rendered, yours, and on one journal at a time, whatever their visibility" do
     journal = projects(:station).journals.build(user: users(:member), body: "x", picked_timelapses: [ lapse_timelapses(:hidden) ], images: [ photo ])
+    assert journal.valid?, "a private timelapse is fine; Fallen never shows it publicly"
+
+    lapse_timelapses(:hidden).update!(playback_url: nil)
+    journal.picked_timelapses = [ lapse_timelapses(:hidden) ]
     assert_not journal.valid?
-    assert_match(/“Private one” is private/, journal.errors[:lapse_timelapses].first)
+    assert_match(/“Private one” is still rendering/, journal.errors[:lapse_timelapses].first)
 
     journal.picked_timelapses = [ lapse_timelapses(:admins) ]
     assert_not journal.valid?

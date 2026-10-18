@@ -11,7 +11,7 @@ module LapseStatus
     return props unless timelapses
 
     # All of them, newest first: the ones already on a journal show greyed out, so none seem to go missing.
-    timelapses = current_user.lapse_timelapses.newest_first.includes(:journal)
+    timelapses = current_user.lapse_timelapses.newest_first.includes(journal: :project)
     props.merge(timelapses: LapseTimelapseSerializer.render(timelapses, claims: true))
   end
 end

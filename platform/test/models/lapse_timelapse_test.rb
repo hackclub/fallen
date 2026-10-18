@@ -62,9 +62,9 @@ class LapseTimelapseTest < ActiveSupport::TestCase
     Lapse.define_singleton_method(:timelapses, original)
   end
 
-  test "only rendered, watchable timelapses of a minute or more can back a journal" do
+  test "only rendered timelapses of a minute or more can back a journal, whatever their visibility" do
     assert_nil lapse_timelapses(:desk).unusable_reason
-    assert_match(/private/, lapse_timelapses(:hidden).unusable_reason)
+    assert_nil lapse_timelapses(:hidden).unusable_reason, "private on Lapse is fine"
     assert_match(/rendering/, LapseTimelapse.new(visibility: "UNLISTED").unusable_reason)
     assert_match(/failed/, LapseTimelapse.new(visibility: "FAILED_PROCESSING").unusable_reason)
     assert_match(/minute/, LapseTimelapse.new(visibility: "PUBLIC", playback_url: "https://x.test", duration_seconds: 20).unusable_reason)

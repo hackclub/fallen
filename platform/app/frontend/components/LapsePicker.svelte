@@ -144,7 +144,7 @@
           {#each options as timelapse (timelapse.id)}
             {@const active = selected.includes(timelapse.id)}
             {@const reason = blocked(timelapse)}
-            <li>
+            <li class="relative">
               <button
                 type="button"
                 role="checkbox"
@@ -176,6 +176,16 @@
                   </span>
                 </span>
               </button>
+              {#if reason && timelapse.claim_url}
+                <!-- Where it went: the journal that has it, in a new tab so this one keeps the draft. -->
+                <a
+                  href={timelapse.claim_url}
+                  target="_blank"
+                  rel="noopener"
+                  class="absolute top-1/2 right-2 -translate-y-1/2 font-outfit text-xs text-ink underline hover:text-ink-soft"
+                  >See journal ↗</a
+                >
+              {/if}
             </li>
           {/each}
         </ul>

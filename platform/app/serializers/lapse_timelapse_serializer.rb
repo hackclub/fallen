@@ -30,7 +30,7 @@
 class LapseTimelapseSerializer < ApplicationSerializer
   typelize_from LapseTimelapse
   typelize id: :string, duration_minutes: :number, duration_text: [ :string, nullable: true ], url: :string, unusable_reason: [ :string, nullable: true ],
-           claim_text: [ :string, nullable: true ]
+           claim_text: [ :string, nullable: true ], claim_url: [ :string, nullable: true ]
   attributes :name, :duration_minutes, :thumbnail_url, :recorded_at
   attribute(:id) { |timelapse| timelapse.public_id }
   attribute(:duration_text, &:duration_text)
@@ -38,4 +38,9 @@ class LapseTimelapseSerializer < ApplicationSerializer
   attribute(:unusable_reason, &:unusable_reason)
   # Only where a picker lists them (LapseStatus), which preloads the journals.
   attribute(:claim_text) { |timelapse| timelapse.claim_text if params[:claims] }
+  # The journal it is on, on its project's page, so the person can see where it went.
+  attribute(:claim_url) do |timelapse|
+    journal = timelapse.claimed_by if params[:claims]
+    journal && Rails.application.routes.url_helpers.project_path(journal.project, anchor: "journal-#{journal.public_id}")
+  end
 end
