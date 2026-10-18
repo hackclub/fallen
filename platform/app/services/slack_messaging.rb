@@ -24,11 +24,25 @@ module SlackMessaging
     thread_ts.present? && thread_ts != ts ? "#{url}?thread_ts=#{thread_ts}&cid=#{channel_id}" : url
   end
 
-  # Returns the posted message's ts.
+  # Returns the posted message's ts. A user token can only post where its owner is a member, so someone who never
+  # joined the channel (or left it) is invited by the bot and the post is tried once more.
   def post(user, channel:, text:, blocks: nil, thread_ts: nil)
+    invited = false
     as(user) do |client|
       client.chat_postMessage({ channel: channel, text: text, blocks: blocks, thread_ts: thread_ts, unfurl_links: false, unfurl_media: true }.compact).ts
+    rescue Slack::Web::Api::Errors::NotInChannel
+      raise if invited || user.slack_id.blank?
+
+      invite(user, channel)
+      invited = true
+      retry
     end
+  end
+
+  def invite(user, channel)
+    SlackBot.client.conversations_invite(channel: channel, users: user.slack_id)
+  rescue Slack::Web::Api::Errors::AlreadyInChannel
+    nil
   end
 
   def update(user, channel:, ts:, text:, blocks: nil)

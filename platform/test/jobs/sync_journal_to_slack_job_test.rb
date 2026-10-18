@@ -39,6 +39,22 @@ class SyncJournalToSlackJobTest < ActiveJob::TestCase
     end
   end
 
+  test "invites someone who is not in the journals channel and posts again" do
+    with_fake_slack do |slack|
+      refused = false
+      slack.define_singleton_method(:chat_postMessage) do |params|
+        next super(**params) if refused
+
+        refused = true
+        raise Slack::Web::Api::Errors::NotInChannel, "not_in_channel"
+      end
+
+      PostProjectToSlackJob.perform_now(projects(:unlinked))
+      assert_equal [ { channel: "CJOURNALS", users: projects(:unlinked).user.slack_id } ], slack.calls_to(:conversations_invite)
+      assert projects(:unlinked).reload.slack_linked?
+    end
+  end
+
   test "edits and deletes follow the message" do
     with_fake_slack do |slack|
       SyncJournalToSlackJob.perform_now(journals(:first), "update")
