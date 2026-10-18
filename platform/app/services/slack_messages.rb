@@ -192,7 +192,7 @@ module SlackMessages
   end
 
   def huddle_answer(session)
-    text = session.mode == "working" ? ":dart: Working on: #{escape(session.goal)}" : ":relaxed: Have fun hanging out!"
+    text = session.mode == "working" ? ":dart: Working on: #{escape(session.goal)}" : ":heh: Have fun hanging out!"
     { text: text, blocks: [ SlackBot::Blocks.section(text) ] }
   end
 
