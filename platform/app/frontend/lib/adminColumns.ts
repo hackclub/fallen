@@ -6,6 +6,14 @@ import { renderComponent } from '@/components/admin/ui/data-table'
 import { formatDate, formatMinutes, timeAgo } from '@/lib/format'
 import type { AdminProject, AdminUser } from '@/types'
 
+// A trial account has not signed in with Hack Club Auth. Soft signups (User::SOFT_SIGNUPS) were made for them.
+const SOFT_SIGNUP_LABELS: Record<string, string> = { slack_join: 'Slack join', fallout_link: 'Fallout link' }
+
+export function trialLabel(user: AdminUser) {
+  const source = user.soft_signup && (SOFT_SIGNUP_LABELS[user.soft_signup] ?? user.soft_signup)
+  return source ? `Trial · ${source}` : 'Trial'
+}
+
 // Column sets for DataTable, shared by the admin pages that list the same records.
 
 export const userColumns: ColumnDef<AdminUser>[] = [

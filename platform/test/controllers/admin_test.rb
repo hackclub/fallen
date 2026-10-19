@@ -14,6 +14,14 @@ class AdminTest < ActionDispatch::IntegrationTest
     assert_equal 1, users["pagy"]["page"]
   end
 
+  test "user list marks trial accounts and where a soft signup came from" do
+    trial = User.create!(email: "fallout@example.com", display_name: "fallout", roles: [ "user" ], soft_signup: "fallout_link")
+    rows = load_deferred(admin_users_path, "Admin/Users/Index", "users")["users"].index_by { it["id"] }
+
+    assert_equal [ true, "fallout_link" ], rows[trial.public_id].values_at("is_trial", "soft_signup")
+    assert_equal [ false, nil ], rows[users(:member).public_id].values_at("is_trial", "soft_signup")
+  end
+
   test "deleted users are hidden unless asked for" do
     users(:member).discard
     rows = load_deferred(admin_users_path, "Admin/Users/Index", "users")["users"].pluck("id")

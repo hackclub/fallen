@@ -15,7 +15,7 @@
   import * as Card from '@/components/admin/ui/card'
   import { Checkbox } from '@/components/admin/ui/checkbox'
   import { Label } from '@/components/admin/ui/label'
-  import { projectColumns } from '@/lib/adminColumns'
+  import { projectColumns, trialLabel } from '@/lib/adminColumns'
   import { formatDate, formatDateTime } from '@/lib/format'
   import { adminUsers, impersonateAdminUser } from '@/routes'
   import type { AdminProject, AdminUserDetail } from '@/types'
@@ -48,7 +48,7 @@
 
   const details = $derived([
     { label: 'Public ID', value: user.id, mono: true },
-    { label: 'HCA ID', value: user.hca_id, mono: true },
+    { label: 'HCA ID', value: user.hca_id ?? '—', mono: true },
     { label: 'Slack ID', value: user.slack_id ?? '—', mono: true },
     { label: 'Timezone', value: user.timezone },
     { label: 'Verification', value: user.verification_status ?? 'unknown' },
@@ -108,6 +108,7 @@
   <div class="min-w-0">
     <div class="flex items-center gap-2">
       <h1 class="text-2xl font-semibold tracking-tight">{user.display_name}</h1>
+      {#if user.is_trial}<Badge variant="secondary">{trialLabel(user)}</Badge>{/if}
       {#if user.is_banned}<Badge variant="destructive">Banned</Badge>{/if}
       {#if user.discarded_at}<Badge variant="destructive">Deleted</Badge>{/if}
     </div>
