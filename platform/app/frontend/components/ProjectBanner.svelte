@@ -57,7 +57,7 @@
 
 {#if editable}
   <div
-    class="group relative h-52 cursor-pointer overflow-hidden rounded-t-[4px] outline-none md:h-72"
+    class="group relative isolate h-52 cursor-pointer overflow-hidden rounded-t-[4px] outline-none md:h-72"
     role="button"
     tabindex="0"
     aria-label="Upload a new banner"
@@ -73,7 +73,7 @@
   >
     {@render picture()}
     <div
-      class="pointer-events-none absolute inset-0 z-10 flex flex-col justify-center transition-colors duration-300 {dragging ||
+      class="pointer-events-none absolute inset-0 z-10 flex flex-col justify-center [mask-image:linear-gradient(to_bottom,black_45%,transparent)] transition-colors duration-300 {dragging ||
       uploading
         ? 'bg-sky-night/70'
         : 'group-hover:bg-sky-night/70 group-focus-visible:bg-sky-night/70'}"
