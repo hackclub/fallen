@@ -8,7 +8,7 @@ class LandingController < ApplicationController
     render inertia: "Landing/Index", props: {
       whoami_url: "#{HCA.host}/api/external/whoami", check_email_url: HCA.check_email_url,
       # Arrived from a Fallout email link, and whether its soft signup waits for a person (FalloutLinksController)
-      continue_with_hca: flash[:continue_with_hca].present?, fallout_link: session[FalloutLinksController::SESSION_KEY].present?
+      continue_with_hca: flash[:continue_with_hca].present?, pending_welcome: session[FalloutLinksController::SESSION_KEY].present?
     }
   end
 end

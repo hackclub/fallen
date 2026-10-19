@@ -12,7 +12,7 @@ Rails.application.routes.draw do
 
   # Fallout's email links, /?email=…&code=… (FalloutLinksController)
   get "/" => "fallout_links#show", constraints: ->(req) { req.query_parameters.key?("code") }
-  post "fallout_link" => "fallout_links#create", as: :fallout_link
+  post "welcome" => "fallout_links#create", as: :welcome # The landing page, once a person is on it
   root "landing#index"
   get "home" => "home#index", as: :home
   get "docs(/:page)" => "docs#show", as: :docs, constraints: { page: /[a-z0-9-]+/ }

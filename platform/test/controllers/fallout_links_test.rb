@@ -11,12 +11,12 @@ class FalloutLinksTest < ActionDispatch::IntegrationTest
   test "following the link makes nothing, so a mail scanner opening it signs no one up" do
     assert_no_difference("User.count") { get root_path(email: "fan@example.com", code: "PPTMPR") }
     assert_redirected_to root_path
-    assert inertia_props(root_path, "Landing/Index")["fallout_link"]
+    assert inertia_props(root_path, "Landing/Index")["pending_welcome"]
   end
 
   test "the page's post for a person makes a trial account without signing in" do
     get root_path(email: " Fan@Example.com ", code: "pptmpr", utm_source: "fallout-email")
-    assert_difference("User.count", 1) { post fallout_link_path }
+    assert_difference("User.count", 1) { post welcome_path }
     assert_response :no_content
     assert_nil session[:user_id]
 
@@ -26,8 +26,8 @@ class FalloutLinksTest < ActionDispatch::IntegrationTest
     assert_equal "fan", user.display_name
     assert_equal({ "ref" => "fallout-link", "utm_source" => "fallout-email", "landing_path" => "/" }, user.signup_source)
 
-    assert_no_difference("User.count") { post fallout_link_path }
-    assert_not inertia_props(root_path, "Landing/Index")["fallout_link"]
+    assert_no_difference("User.count") { post welcome_path }
+    assert_not inertia_props(root_path, "Landing/Index")["pending_welcome"]
   end
 
   test "a wrong code or email leaves nothing to make and lands the same way" do
@@ -35,19 +35,19 @@ class FalloutLinksTest < ActionDispatch::IntegrationTest
       { email: [ "fan@example.com" ], code: { a: "PPTMPR" } } ].each do |params|
       get root_path(params)
       assert_redirected_to root_path
-      assert_not inertia_props(root_path, "Landing/Index")["fallout_link"]
-      assert_no_difference("User.count") { post fallout_link_path }
+      assert_not inertia_props(root_path, "Landing/Index")["pending_welcome"]
+      assert_no_difference("User.count") { post welcome_path }
     end
   end
 
   test "an email with any account already makes nothing" do
     User.start_trial!(email: "fan@example.com")
     get root_path(email: "fan@example.com", code: "PPTMPR")
-    assert_no_difference("User.count") { post fallout_link_path }
+    assert_no_difference("User.count") { post welcome_path }
 
     FalloutInvite.create!(digest: FalloutInvite.digest(users(:member).email, "HKXDDX"))
     get root_path(email: users(:member).email, code: "HKXDDX")
-    assert_no_difference("User.count") { post fallout_link_path }
+    assert_no_difference("User.count") { post welcome_path }
   end
 
   test "someone signed in stays who they are" do
@@ -61,12 +61,12 @@ class FalloutLinksTest < ActionDispatch::IntegrationTest
     10.times { |i| get root_path(email: "fan@example.com", code: "AAAAA#{('A'..'Z').to_a[i]}") }
     get root_path(email: "fan@example.com", code: "PPTMPR")
     assert_response :too_many_requests
-    assert_no_difference("User.count") { post fallout_link_path }
+    assert_no_difference("User.count") { post welcome_path }
   end
 
   test "signing in with Hack Club Auth claims it by email, and a trial made from the email form hands its project over" do
     get root_path(email: "fan@example.com", code: "PPTMPR")
-    post fallout_link_path
+    post welcome_path
     joined = User.find_by!(email: "fan@example.com")
     post trial_session_path, params: { email: "fan@example.com" }
     typed = User.find(session[:user_id])
@@ -101,7 +101,7 @@ class FalloutLinksTest < ActionDispatch::IntegrationTest
   test "the landing page without a code is untouched" do
     props = inertia_props(root_path(email: "fan@example.com"), "Landing/Index")
     assert_not props["continue_with_hca"]
-    assert_not props["fallout_link"]
+    assert_not props["pending_welcome"]
   end
 
   private

@@ -15,7 +15,7 @@
   import Recap from '@/components/Recap.svelte'
   // import Store from '@/components/Store.svelte'
   import Wordmark from '@/components/Wordmark.svelte'
-  import { docs, falloutLink, home, signIn, slackAvatar } from '@/routes'
+  import { docs, home, signIn, slackAvatar, welcome } from '@/routes'
   import { csrfToken } from '@/lib/csrf'
   import { buildTime, travellers } from '@/lib/program'
   import { shared } from '@/lib/shared.svelte'
@@ -27,12 +27,12 @@
     whoami_url,
     check_email_url,
     continue_with_hca,
-    fallout_link,
+    pending_welcome,
   }: {
     whoami_url: string
     check_email_url: string
     continue_with_hca: boolean
-    fallout_link: boolean
+    pending_welcome: boolean
   } = $props()
 
   // Everything that follows the scroll is plain arithmetic on scrollY, so a scroll costs no layout: the only
@@ -148,13 +148,13 @@
   // A Fallout email link's soft signup (FalloutLinksController) waits for a person: mail scanners open links, and some
   // render the page, but none move a mouse, touch or type on it.
   onMount(() => {
-    if (!fallout_link || shared().auth.user || navigator.webdriver) return
+    if (!pending_welcome || shared().auth.user || navigator.webdriver) return
     const events = ['pointermove', 'pointerdown', 'wheel', 'touchstart', 'keydown'] as const
     const stop = () => events.forEach((name) => removeEventListener(name, person))
     const person = (event: Event) => {
       if (!event.isTrusted || document.visibilityState !== 'visible') return
       stop()
-      void fetch(falloutLink().url, { method: 'POST', headers: { 'X-CSRF-Token': csrfToken() } })
+      void fetch(welcome().url, { method: 'POST', headers: { 'X-CSRF-Token': csrfToken() } })
     }
     events.forEach((name) => addEventListener(name, person, { passive: true }))
     return stop
