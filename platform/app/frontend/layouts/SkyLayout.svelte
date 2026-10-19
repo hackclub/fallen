@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, type Snippet } from 'svelte'
   import { Link, page } from '@inertiajs/svelte'
-  import Toasts from '@/components/Toasts.svelte'
+  import Toaster from '@/components/Toaster.svelte'
   import OnboardingOverlay from '@/components/onboarding/OnboardingOverlay.svelte'
   import HatchOverlay from '@/components/hatch/HatchOverlay.svelte'
   import SlackGate from '@/components/onboarding/SlackGate.svelte'
@@ -80,7 +80,7 @@
         <main
           class="mx-auto w-full max-w-5xl flex-1 has-[[data-wide]]:max-w-[1360px] px-4 py-8 md:pr-[59px] md:pl-0"
         >
-          <Toasts />
+          <Toaster />
           <DesktopPet />
           <OnboardingOverlay greet={!readingDocs} />
           <HatchOverlay />

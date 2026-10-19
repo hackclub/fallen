@@ -2,7 +2,7 @@
   import type { Snippet } from 'svelte'
   import { BitsConfig } from 'bits-ui'
   import AdminCommandPalette from '@/components/admin/AdminCommandPalette.svelte'
-  import AdminFlash from '@/components/admin/AdminFlash.svelte'
+  import AdminToaster from '@/components/admin/AdminToaster.svelte'
   import AdminSidebar from '@/components/admin/AdminSidebar.svelte'
   import { adminDark } from '@/lib/adminDark.svelte'
 
@@ -19,6 +19,7 @@
   <BitsConfig defaultPortalTo=".admin">
     <AdminSidebar onSearch={() => (paletteOpen = true)} bind:collapsed={sidebarCollapsed} />
     <AdminCommandPalette bind:open={paletteOpen} />
+    <AdminToaster />
 
     <div
       class={[
@@ -27,7 +28,6 @@
       ]}
     >
       <main class="t-admin-page p-6">
-        <AdminFlash />
         {@render children?.()}
       </main>
     </div>

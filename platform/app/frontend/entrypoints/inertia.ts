@@ -1,6 +1,6 @@
 import { createInertiaApp, router, type ResolvedComponent } from '@inertiajs/svelte'
 import DefaultLayout from '@/layouts/DefaultLayout.svelte'
-import '@/lib/toasts.svelte'
+import '@/lib/toasts'
 import '@/entrypoints/application.css'
 
 // Lazy: each page is its own chunk, so the admin tables, the landing shaders and so on only download when

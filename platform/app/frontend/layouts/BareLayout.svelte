@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte'
-  import Toasts from '@/components/Toasts.svelte'
+  import Toaster from '@/components/Toaster.svelte'
   import OnboardingOverlay from '@/components/onboarding/OnboardingOverlay.svelte'
   import HatchOverlay from '@/components/hatch/HatchOverlay.svelte'
   import ImpersonationBanner from '@/components/ImpersonationBanner.svelte'
@@ -11,7 +11,7 @@
 <!-- No nav, footer or content width, for full-bleed pages like the landing hero. -->
 <ImpersonationBanner />
 <main>
-  <Toasts />
+  <Toaster />
   <OnboardingOverlay />
   <HatchOverlay />
   {@render children?.()}
