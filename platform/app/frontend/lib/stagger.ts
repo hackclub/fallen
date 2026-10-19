@@ -1,6 +1,6 @@
 // Numbers an element's children (--i) for the `stagger-in` utility, which fades them in one after another. A child
 // that has arrived is marked, so the fade comes off it: otherwise a hover animation (`tile`) replacing it would play
-// the fade again when the pointer leaves.
+// the fade again when the pointer leaves. Hovering before the fade is over cancels it, which counts as arriving too.
 export function stagger(el: HTMLElement) {
   for (const [i, child] of [...el.children].entries())
     (child as HTMLElement).style.setProperty('--i', String(i))
@@ -14,5 +14,9 @@ export function stagger(el: HTMLElement) {
       event.target.dataset.staggered = ''
   }
   el.addEventListener('animationend', arrived)
-  return () => el.removeEventListener('animationend', arrived)
+  el.addEventListener('animationcancel', arrived)
+  return () => {
+    el.removeEventListener('animationend', arrived)
+    el.removeEventListener('animationcancel', arrived)
+  }
 }
