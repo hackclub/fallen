@@ -117,11 +117,13 @@ message is the project; each reply by the owner is a journal. Both sides stay in
   Airtable right away. Signing in with Hack Club Auth later claims it by Slack ID.
 - Fallout email links: `/?email=…&code=…` with the `verifyCode` Fallout's Airtable has for that email is a soft signup
   like the Slack join button: it makes a trial account for the email and signs nobody in (`FalloutLinksController`,
-  `User.join_from_fallout!`). Signing in with Hack Club Auth later claims it by email. `SyncFalloutInvitesJob` copies
-  HMACs of every email and code pair every 15 minutes with `FALLOUT_AIRTABLE_API_KEY` (read-only on Fallout's base), so
-  a link never waits on Airtable. Every link lands on the page the same way, and Rack::Attack limits tries per IP and
-  per email. Soft-signup accounts are marked (`users.soft_signup`) because only those are claimed at sign-in: a trial
-  from the email form could be anyone's.
+  `User.join_from_fallout!`). Signing in with Hack Club Auth later claims it by email. Mail scanners open links, so
+  following one only keeps the checked email in the session and redirects to a clean URL; the landing page posts it
+  back once a person moves the mouse, touches or types. Someone already signed in to Hack Club Auth goes straight on to
+  sign in instead. `SyncFalloutInvitesJob` copies HMACs of every email and code pair every 15 minutes with
+  `AIRTABLE_API_KEY`, which needs `data.records:read` on Fallout's base too, so a link never waits on Airtable. Every
+  link lands on the page the same way, and Rack::Attack limits tries per IP and per email. Soft-signup accounts are
+  marked (`users.soft_signup`) because only those are claimed at sign-in: a trial from the email form could be anyone's.
 
 Every journal has a time. It is typed, never picked from presets ("1.5", "1h 30m", `Duration.parse`), and stored as minutes.
 It also needs a photo for every two hours of it (`Journal::MINUTES_PER_IMAGE`).

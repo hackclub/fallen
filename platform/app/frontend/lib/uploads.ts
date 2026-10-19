@@ -1,3 +1,5 @@
+import { csrfToken } from '@/lib/csrf'
+
 export interface UploadedImage {
   id: string
   url: string
@@ -6,13 +8,6 @@ export interface UploadedImage {
 
 export const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp']
 export const MAX_IMAGE_BYTES = 10 * 1024 * 1024
-
-// The <meta> CSRF token goes stale once sign-in resets the session, since Inertia never re-renders it.
-// inertia_rails keeps the XSRF-TOKEN cookie current, so read that instead.
-function csrfToken() {
-  const token = document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]*)/)?.[1]
-  return token ? decodeURIComponent(token) : ''
-}
 
 // Posts the file to UploadsController, which stores it and returns the blob's signed id. The URL is Active
 // Storage's own redirect route, not one of ours. (Direct uploads to R2 come back once the bucket allows CORS.)

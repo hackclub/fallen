@@ -2,6 +2,7 @@ import { router } from '@inertiajs/svelte'
 import { huddleInvite, huddlePauses, huddlePrompt, timerWrapUp, timers } from '@/routes'
 import type { RouteDefinition } from '@/routes/runtime'
 import type { TrackedTime } from '@/types'
+import { csrfToken } from '@/lib/csrf'
 
 // The pet's timer (components/PetTimer.svelte): the time put in since the last journal, from the huddle and the
 // site's own timer (TrackedTime on the server). The server says when it changes over Action Cable (TimerChannel),
@@ -34,13 +35,6 @@ export const timer = $state({
 
 let sent = 0
 let applied = 0
-
-function csrfToken() {
-  const cookie = document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]*)/)?.[1]
-  return cookie
-    ? decodeURIComponent(cookie)
-    : (document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '')
-}
 
 // Throws the server's `error` for a refused answer (422), so a prompt can show it.
 async function call(route: RouteDefinition<'get' | 'post' | 'delete'>, body?: Record<string, unknown>) {

@@ -2,7 +2,8 @@
 
 # Airtable, where staff look at program data. Tables are filled through the Sync API: each upload is the whole table
 # as CSV, and Airtable adds, updates and (with the table's default deletion setting) removes records to match it.
-# AIRTABLE_API_KEY is a personal access token with data.records:write and schema.bases:write on AIRTABLE_BASE_ID.
+# AIRTABLE_API_KEY is a personal access token with data.records:write and schema.bases:write on AIRTABLE_BASE_ID, and
+# data.records:read on Fallout's base (FalloutInvite).
 # https://airtable.com/developers/web/api/post-sync-api-endpoint
 module Airtable
   class Error < StandardError; end
@@ -30,11 +31,11 @@ module Airtable
 
   # Every record's fields, keyed by field id so a renamed column keeps working. A page is 100 records, and Airtable
   # allows 5 requests a second per base.
-  def records(base, table, fields:, token:)
+  def records(base, table, fields:)
     pages = []
     offset = nil
     loop do
-      response = connection(token).get("v0/#{base}/#{table}", { pageSize: 100, returnFieldsByFieldId: true, fields: fields, offset: offset }.compact)
+      response = connection.get("v0/#{base}/#{table}", { pageSize: 100, returnFieldsByFieldId: true, fields: fields, offset: offset }.compact)
       raise Error, "Airtable read of #{table} failed: #{response.status} #{response.body.to_s.truncate(300)}" unless response.success?
 
       page = JSON.parse(response.body)
@@ -54,8 +55,8 @@ module Airtable
     text.match?(/[",\r\n]/) ? "\"#{text.gsub('"', '""')}\"" : text
   end
 
-  def connection(token = ENV.fetch("AIRTABLE_API_KEY"))
-    Faraday.new(url: "https://api.airtable.com", headers: { "Authorization" => "Bearer #{token}" }) do |f|
+  def connection
+    Faraday.new(url: "https://api.airtable.com", headers: { "Authorization" => "Bearer #{ENV.fetch('AIRTABLE_API_KEY')}" }) do |f|
       f.options.timeout = 60
       f.options.open_timeout = 5
     end

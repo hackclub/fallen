@@ -26,7 +26,7 @@ class FalloutInviteTest < ActiveSupport::TestCase
     FalloutInvite.create!(digest: FalloutInvite.digest("gone@example.com", "ZZZZZZ"))
     stubs = Faraday::Adapter::Test::Stubs.new
     stubs.get("/v0/#{FalloutInvite::BASE}/#{FalloutInvite::USERS_TABLE}") do |env|
-      assert_equal "Bearer pat-fallout", env.request_headers["Authorization"]
+      assert_equal "Bearer pat", env.request_headers["Authorization"]
       assert_equal [ FalloutInvite::EMAIL_FIELD, FalloutInvite::CODE_FIELD ], env.params["fields"]
       page = env.params["offset"] ? { records: [ record("two@example.com", "HMXMHZ"), record("", "TTXXKX"), record("bad@example.com", "no") ] } : { records: [ record("One@Example.com", "RPZRTK") ], offset: "p2" }
       [ 200, {}, page.to_json ]
@@ -55,8 +55,8 @@ class FalloutInviteTest < ActiveSupport::TestCase
   def record(email, code) = { id: "rec#{code}", fields: { FalloutInvite::EMAIL_FIELD => email, FalloutInvite::CODE_FIELD => code }.compact_blank }
 
   def with_fallout_airtable(stubs, &block)
-    with_env("FALLOUT_AIRTABLE_API_KEY" => "pat-fallout") do
-      connection = Airtable.connection("pat-fallout")
+    with_env("AIRTABLE_API_KEY" => "pat") do
+      connection = Airtable.connection
       connection.adapter(:test, stubs)
       stub_method(Airtable, :connection, connection, &block)
     end

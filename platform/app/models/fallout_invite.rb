@@ -20,7 +20,7 @@ class FalloutInvite < ApplicationRecord
   CODE_FIELD = "flduf8V2BRdcNOhGZ"
   CODE = /\A[A-Z]{6}\z/
 
-  def self.configured? = ENV["FALLOUT_AIRTABLE_API_KEY"].present?
+  def self.configured? = Airtable.configured?
 
   def self.match?(email, code)
     code = code.to_s.strip.upcase
@@ -30,7 +30,7 @@ class FalloutInvite < ApplicationRecord
   # Replaces every pair at once, so a code gone from Fallout's Airtable stops working. Rows Fallout marked deleted are
   # kept: most are duplicates of a live row for the same email, and their code was emailed to that address all the same.
   def self.sync
-    records = Airtable.records(BASE, USERS_TABLE, fields: [ EMAIL_FIELD, CODE_FIELD ], token: ENV.fetch("FALLOUT_AIRTABLE_API_KEY"))
+    records = Airtable.records(BASE, USERS_TABLE, fields: [ EMAIL_FIELD, CODE_FIELD ])
     digests = records.filter_map { |fields| digest(fields[EMAIL_FIELD], fields[CODE_FIELD]) if fields[EMAIL_FIELD].present? && fields[CODE_FIELD].to_s.strip.upcase.match?(CODE) }.uniq
     raise Airtable::Error, "Fallout's Users table had no codes, so the old ones were kept" if digests.empty?
 
