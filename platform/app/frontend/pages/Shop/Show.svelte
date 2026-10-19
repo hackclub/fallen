@@ -4,34 +4,36 @@
 
 <script lang="ts">
   // The shop isn't open yet: what it will sell sits out of focus around a lock. Prizes and prices wait on
-  // program/the-plan.md. Item art is OpenMoji (CC BY-SA 4.0), except the CNC mill, drawn to match.
+  // program/the-plan.md. Photo credits are in assets/shop/CREDITS.md.
   import PageTitle from '@/components/PageTitle.svelte'
   import SolarLockKeyhole from '@/components/icons/SolarLockKeyhole.svelte'
-  import printer from '@/assets/shop/3d-printer.svg'
-  import camera from '@/assets/shop/camera.svg'
-  import circuit from '@/assets/shop/circuit.svg'
-  import cncMill from '@/assets/shop/cnc-mill.svg'
-  import drone from '@/assets/shop/drone.svg'
-  import headphone from '@/assets/shop/headphone.svg'
-  import keyboard from '@/assets/shop/keyboard.svg'
-  import laptop from '@/assets/shop/laptop.svg'
-  import raspberryPi from '@/assets/shop/raspberry-pi.svg'
-  import robot from '@/assets/shop/robot.svg'
-  import tShirt from '@/assets/shop/t-shirt.svg'
+  import arduino from '@/assets/shop/arduino-uno.webp'
+  import bambu from '@/assets/shop/bambu-x1c.webp'
+  import drone from '@/assets/shop/drone.webp'
+  import flipper from '@/assets/shop/flipper-zero.webp'
+  import gameBoy from '@/assets/shop/game-boy-color.webp'
+  import macbook from '@/assets/shop/macbook.webp'
+  import mill from '@/assets/shop/milling-machine.webp'
+  import oscilloscope from '@/assets/shop/oscilloscope.webp'
+  import prusa from '@/assets/shop/prusa-mini.webp'
+  import raspberryPi from '@/assets/shop/raspberry-pi.webp'
+  import steamDeck from '@/assets/shop/steam-deck.webp'
+  import tShirt from '@/assets/shop/t-shirt.webp'
 
-  // x and y are the item's centre in % of the area, size in px, tilt in degrees. Kept clear of the middle.
+  // x and y are the item's centre in % of the area, size its width in px, tilt in degrees. Kept clear of the middle.
   const items = [
-    { src: printer, x: 14, y: 16, size: 150, tilt: -8 },
-    { src: tShirt, x: 50, y: 9, size: 120, tilt: 6 },
-    { src: cncMill, x: 85, y: 18, size: 160, tilt: 5 },
-    { src: keyboard, x: 9, y: 50, size: 110, tilt: 10 },
-    { src: drone, x: 91, y: 52, size: 120, tilt: -12 },
-    { src: headphone, x: 20, y: 84, size: 120, tilt: 12 },
-    { src: raspberryPi, x: 50, y: 92, size: 110, tilt: -6 },
-    { src: robot, x: 80, y: 86, size: 130, tilt: -4 },
-    { src: camera, x: 33, y: 32, size: 80, tilt: -14 },
-    { src: circuit, x: 68, y: 34, size: 80, tilt: 14 },
-    { src: laptop, x: 69, y: 70, size: 90, tilt: 8 },
+    { src: prusa, x: 13, y: 17, size: 170, tilt: -6 },
+    { src: tShirt, x: 48, y: 10, size: 120, tilt: 5 },
+    { src: mill, x: 85, y: 19, size: 180, tilt: 4 },
+    { src: gameBoy, x: 31, y: 36, size: 70, tilt: -12 },
+    { src: flipper, x: 69, y: 36, size: 100, tilt: 12 },
+    { src: oscilloscope, x: 10, y: 54, size: 170, tilt: 8 },
+    { src: drone, x: 90, y: 53, size: 190, tilt: -8 },
+    { src: arduino, x: 30, y: 72, size: 110, tilt: 10 },
+    { src: raspberryPi, x: 71, y: 71, size: 130, tilt: -10 },
+    { src: macbook, x: 14, y: 89, size: 170, tilt: -4 },
+    { src: steamDeck, x: 50, y: 92, size: 190, tilt: 3 },
+    { src: bambu, x: 87, y: 87, size: 130, tilt: 6 },
   ]
 </script>
 
@@ -39,15 +41,13 @@
 
 <PageTitle title="Shop" />
 
-<section
-  class="relative isolate min-h-[640px] overflow-hidden rounded-2xl border border-white/10 bg-sky-night/60 md:h-[calc(100dvh-14rem)]"
->
+<section class="relative isolate min-h-[640px] md:h-[calc(100dvh-14rem)]">
   {#each items as item (item.src)}
     <img
       src={item.src}
       alt=""
       aria-hidden="true"
-      class="pointer-events-none absolute -translate-1/2 blur-[5px] brightness-125 select-none max-md:scale-75"
+      class="pointer-events-none absolute -translate-1/2 opacity-80 blur-[9px] select-none max-md:scale-75"
       style:left="{item.x}%"
       style:top="{item.y}%"
       style:width="{item.size}px"
@@ -55,14 +55,10 @@
     />
   {/each}
 
-  <div class="absolute inset-0 flex flex-col items-center justify-center gap-5 px-6 text-center">
-    <div
-      class="grid size-24 place-items-center rounded-full border border-gold/60 bg-sky-night/80 text-gold shadow-[0_0_60px_rgb(218_183_113/0.25)]"
-    >
-      <SolarLockKeyhole size={44} />
-    </div>
+  <div class="absolute inset-0 flex flex-col items-center justify-center gap-4 px-6 text-center">
+    <SolarLockKeyhole size={56} class="text-white drop-shadow-[0_2px_12px_rgb(0_0_0/0.5)]" />
     <h2
-      class="font-display text-4xl text-white drop-shadow-[0_2px_12px_rgb(0_0_0/0.5)] sm:text-5xl md:text-6xl"
+      class="font-montserrat text-4xl font-semibold tracking-[-0.03em] text-white drop-shadow-[0_2px_12px_rgb(0_0_0/0.5)] md:text-5xl"
     >
       Coming Soon!
     </h2>
