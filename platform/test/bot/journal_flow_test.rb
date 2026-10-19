@@ -419,6 +419,20 @@ class JournalFlowTest < ActiveSupport::TestCase
     end
   end
 
+  test "fallen's own rewrite of a web journal does not come back as an edit" do
+    journal = projects(:station).journals.create!(user: users(:member), body: journal_text("**Soldered** the board\n![board.png](/rails/active_storage/blobs/redirect/x/board.png)"),
+                                                  duration_minutes: 60, source: "web", images: [ photo ], slack_channel_id: CHANNEL, slack_ts: "1700000020.000100")
+    with_fake_slack do
+      SlackBot.handle(:event, { "event" => { "type" => "message", "subtype" => "message_changed", "channel" => CHANNEL,
+                                              "message" => { "ts" => journal.slack_ts, "text" => SlackMessages.journal(journal)[:text], "user" => "U0MEMBER" } } })
+      assert_includes journal.reload.body, "**Soldered**"
+
+      SlackBot.handle(:event, { "event" => { "type" => "message", "subtype" => "message_changed", "channel" => CHANNEL,
+                                              "message" => { "ts" => journal.slack_ts, "text" => journal_text("Soldered it twice"), "user" => "U0MEMBER" } } })
+      assert_equal journal_text("Soldered it twice"), journal.reload.body
+    end
+  end
+
   test "/project points at the site" do
     with_fake_slack do
       response = SlackBot.handle(:command, { "command" => "/project", "user_id" => "U0MEMBER", "channel_id" => CHANNEL })
