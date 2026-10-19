@@ -115,6 +115,10 @@ message is the project; each reply by the owner is a journal. Both sides stay in
   alongside are kept as the account's signup source, like a tagged link's (`ref` is `slack-join` when none is sent).
   `SlackJoinJob` makes a trial account from their Slack profile (email through `SLACK_LOOKUP_TOKEN`), so they are in
   Airtable right away. Signing in with Hack Club Auth later claims it by Slack ID.
+- Fallout email links: `/?email=…&code=…` with the `verifyCode` Fallout's Airtable has for that email makes a trial
+  account and signs the visitor in (`FalloutLinksController`). `SyncFalloutInvitesJob` copies HMACs of every email and
+  code pair every 15 minutes with `FALLOUT_AIRTABLE_API_KEY` (read-only on Fallout's base), so a link never waits on
+  Airtable. A wrong code lands on the page, and Rack::Attack limits tries per IP and per email.
 
 Every journal has a time. It is typed, never picked from presets ("1.5", "1h 30m", `Duration.parse`), and stored as minutes.
 It also needs a photo for every two hours of it (`Journal::MINUTES_PER_IMAGE`).

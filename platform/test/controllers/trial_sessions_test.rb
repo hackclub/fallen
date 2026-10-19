@@ -68,7 +68,7 @@ class TrialSessionsTest < ActionDispatch::IntegrationTest
     assert_not trial.trial?
     assert_equal "hca_up", trial.hca_id
     assert_equal "sami", trial.pet
-    assert cookies[TrialSessionsController::COOKIE].blank?
+    assert cookies[TrialCookie::COOKIE].blank?
   end
 
   test "signing in with an existing HCA account moves the trial account's project over" do

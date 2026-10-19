@@ -1,5 +1,6 @@
 class AuthController < ApplicationController
   include OauthState
+  include TrialCookie
 
   allow_unauthenticated_access only: %i[new create] # The OAuth flow runs before there is a session
   allow_trial_access only: %i[new create destroy] # Signing in with HCA is how a trial account becomes a real one
@@ -25,7 +26,7 @@ class AuthController < ApplicationController
     return redirect_to root_path, alert: "Sign in was cancelled." if params[:error].present?
 
     user = User.from_hca_code!(params[:code], hca_callback_url, signup_source: take_signup_source, trial: (current_user if current_user&.trial?))
-    cookies.delete(TrialSessionsController::COOKIE)
+    forget_trial
     sign_in(user)
     Rails.logger.info({ event: "auth.signed_in", user_id: user.id }.to_json)
     redirect_to after_sign_in_path, notice: "Welcome back, #{user.display_name}!"

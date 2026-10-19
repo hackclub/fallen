@@ -12,12 +12,19 @@ class RackAttackTest < ActiveSupport::TestCase
     assert_equal "203.0.113.7", discriminator("req/ip", request)
   end
 
+  test "Fallout email links count per IP and per email, whoever is signed in" do
+    link = request(path: "/?email=Fan%40Example.com&code=PPTMPR", user_id: 1)
+    assert_equal "203.0.113.7", discriminator("fallout_link/ip", link)
+    assert_equal "fan@example.com", discriminator("fallout_link/email", link)
+    assert_nil discriminator("fallout_link/ip", request(path: "/?email=fan%40example.com"))
+  end
+
   private
 
   def discriminator(name, req) = Rack::Attack.throttles.fetch(name).block.call(req)
 
-  def request(user_id: nil)
-    env = Rack::MockRequest.env_for("/home", "REMOTE_ADDR" => "203.0.113.7")
+  def request(path: "/home", user_id: nil)
+    env = Rack::MockRequest.env_for(path, "REMOTE_ADDR" => "203.0.113.7")
     env["rack.session"] = user_id ? { user_id: user_id } : {}
     Rack::Attack::Request.new(env)
   end

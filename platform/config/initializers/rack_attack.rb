@@ -36,6 +36,10 @@ class Rack::Attack
     req.ip if req.post? && req.path == "/trial_session"
   end
 
+  # A Fallout email link (FalloutLinksController) signs in with a six-letter code, so guesses are few per IP and per email.
+  throttle("fallout_link/ip", limit: 10, period: 10.minutes) { |req| req.ip if fallout_link?(req) }
+  throttle("fallout_link/email", limit: 10, period: 1.hour) { |req| req.GET["email"].to_s.strip.downcase.presence if fallout_link?(req) }
+
   throttle("auth/callback/ip", limit: 60, period: 1.minute) do |req|
     req.ip if req.path == "/auth/hca/callback"
   end
@@ -49,6 +53,8 @@ class Rack::Attack
         req.path.end_with?(".php")
     end
   end
+
+  def self.fallout_link?(req) = req.get? && req.path == "/" && req.GET.key?("code")
 
   # Since rack-attack 6.7 the responders get the Rack::Attack::Request, not the env hash.
   self.throttled_responder = lambda do |request|

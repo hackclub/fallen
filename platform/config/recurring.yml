@@ -29,6 +29,11 @@ production:
     queue: background
     schedule: every 5 minutes
 
+  sync_fallout_invites:
+    class: SyncFalloutInvitesJob
+    queue: background
+    schedule: every 15 minutes
+
   sync_huddle:
     class: HuddleSyncJob
     queue: realtime

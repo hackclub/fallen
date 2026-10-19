@@ -22,10 +22,28 @@ module Airtable
     body = csv(rows)
     raise Error, "Airtable sync of #{table} is #{body.bytesize} bytes, over #{MAX_BYTES}" if body.bytesize > MAX_BYTES
 
-    response = connection.post("v0/#{ENV.fetch('AIRTABLE_BASE_ID')}/#{ERB::Util.url_encode(table)}/sync/#{ERB::Util.url_encode(sync_id)}", body)
+    response = connection.post("v0/#{ENV.fetch('AIRTABLE_BASE_ID')}/#{ERB::Util.url_encode(table)}/sync/#{ERB::Util.url_encode(sync_id)}", body, "Content-Type" => "text/csv")
     raise Error, "Airtable sync of #{table} failed: #{response.status} #{response.body.to_s.truncate(300)}" unless response.success?
 
     JSON.parse(response.body)
+  end
+
+  # Every record's fields, keyed by field id so a renamed column keeps working. A page is 100 records, and Airtable
+  # allows 5 requests a second per base.
+  def records(base, table, fields:, token:)
+    pages = []
+    offset = nil
+    loop do
+      response = connection(token).get("v0/#{base}/#{table}", { pageSize: 100, returnFieldsByFieldId: true, fields: fields, offset: offset }.compact)
+      raise Error, "Airtable read of #{table} failed: #{response.status} #{response.body.to_s.truncate(300)}" unless response.success?
+
+      page = JSON.parse(response.body)
+      pages << page["records"].map { it["fields"] }
+      break unless (offset = page["offset"])
+
+      sleep 0.25
+    end
+    pages.flatten(1)
   end
 
   def csv(rows) = ([ rows.first.keys ] + rows.map(&:values)).map { |cells| cells.map { |cell| csv_cell(cell) }.join(",") + "\n" }.join
@@ -36,8 +54,8 @@ module Airtable
     text.match?(/[",\r\n]/) ? "\"#{text.gsub('"', '""')}\"" : text
   end
 
-  def connection
-    Faraday.new(url: "https://api.airtable.com", headers: { "Authorization" => "Bearer #{ENV.fetch('AIRTABLE_API_KEY')}", "Content-Type" => "text/csv" }) do |f|
+  def connection(token = ENV.fetch("AIRTABLE_API_KEY"))
+    Faraday.new(url: "https://api.airtable.com", headers: { "Authorization" => "Bearer #{token}" }) do |f|
       f.options.timeout = 60
       f.options.open_timeout = 5
     end

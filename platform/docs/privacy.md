@@ -31,6 +31,9 @@ Only from the token's `subject`: any `emails` (case-insensitive against `users.e
 | Change history of everything above (PaperTrail copies of the rows) | `versions` |
 | The account's row in Airtable (name, email, HCA and Slack ids, whether it is a trial account, XP, project, journal and hour counts, where they came from). It drops out on the next upload, within 5 minutes, since every upload replaces the table | Airtable Users table (`AirtableUsers`) |
 
+Fallout's email link codes (`fallout_invites`) are HMACs of an email and code pair copied from Fallout's Airtable, not
+anyone's account, and are replaced every 15 minutes.
+
 Sessions are signed cookies holding the user id, so they stop working once the row is gone.
 
 ## Kept
