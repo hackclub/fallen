@@ -4,6 +4,7 @@
 
 <script lang="ts">
   import { Link, router } from '@inertiajs/svelte'
+  import EditProjectModal from '@/components/EditProjectModal.svelte'
   import JournalComposer from '@/components/JournalComposer.svelte'
   import JournalItem from '@/components/JournalItem.svelte'
   import type { LapseStatus } from '@/components/LapsePicker.svelte'
@@ -11,7 +12,7 @@
   import ProjectBanner from '@/components/ProjectBanner.svelte'
   import SlackConnect, { type SlackStatus } from '@/components/SlackConnect.svelte'
   import SolarNotebook from '@/components/icons/SolarNotebook.svelte'
-  import { editProject, projects, project as projectRoute } from '@/routes'
+  import { projects, project as projectRoute } from '@/routes'
   import { formatMinutes } from '@/lib/format'
   import { pages } from '@/lib/pages'
   import * as sfx from '@/lib/sfx'
@@ -41,6 +42,7 @@
   } = $props()
 
   let composer: { open: boolean; journal: Journal | null } = $state({ open: false, journal: null })
+  let editing = $state(false)
 
   function write(journal: Journal | null = null) {
     composer = { open: true, journal }
@@ -92,11 +94,8 @@
         {#if can?.update || can?.destroy}
           <div class="pointer-events-auto flex items-center gap-2">
             {#if can?.update}
-              <Link
-                href={editProject(project.id)}
-                component={pages.projectForm}
-                pageProps={(_, shared) => ({ ...shared, project })}
-                class="pill-glass h-10 text-sm">Edit</Link
+              <button type="button" class="pill-glass h-10 text-sm" onclick={() => (editing = true)}
+                >Edit</button
               >
             {/if}
             {#if can?.destroy}
@@ -212,4 +211,8 @@
     {lapse}
     onClose={() => (composer = { open: false, journal: null })}
   />
+{/if}
+
+{#if editing}
+  <EditProjectModal {project} directUploadUrl={direct_upload_url} onClose={() => (editing = false)} />
 {/if}

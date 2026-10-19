@@ -3,12 +3,14 @@
   import HelpTip from '@/components/HelpTip.svelte'
   import type { ProjectForm } from '@/lib/projectForm'
 
-  // `brief` is the create form: just what the project is. The banner and links wait for the edit page.
+  // `brief` is the create form: just what the project is. The banner and links wait for editing. The edit popup
+  // leaves out the banner too, since the project page's own banner takes uploads (ProjectBanner.svelte).
   let {
     form,
     directUploadUrl,
     brief = false,
-  }: { form: ProjectForm; directUploadUrl: string | undefined; brief?: boolean } = $props()
+    banner = !brief,
+  }: { form: ProjectForm; directUploadUrl: string | undefined; brief?: boolean; banner?: boolean } = $props()
 
   const links = [
     {
@@ -69,7 +71,7 @@
     {@render foot(false, form.errors.description)}
   </div>
 
-  {#if !brief}
+  {#if banner}
     <div>
       <div class="mb-1 flex items-center gap-1.5">
         <span class="font-outfit text-sm text-ink">Banner</span>
@@ -78,7 +80,9 @@
       <BannerPicker bind:value={form.banner} {directUploadUrl} />
       {@render foot(false, form.errors.banner)}
     </div>
+  {/if}
 
+  {#if !brief}
     {#each links as link (link.key)}
       <div>
         {@render head(`project-${link.key}`, link.label, link.help)}
