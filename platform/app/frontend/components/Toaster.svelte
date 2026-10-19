@@ -6,21 +6,21 @@
   import LoaderCircle from '@lucide/svelte/icons/loader-circle'
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert'
 
-  // Sonner's own styles are unlayered, so they beat Tailwind's layered utilities: colours and the close button's place
-  // go through its variables and the rest needs `!`. The close button sits inside on the right, not on the corner.
+  // Sonner's own styles are unlayered, so they beat Tailwind's layered utilities: colours and the close button's corner
+  // (top right) go through its variables and the rest needs `!`.
 </script>
 
 <Toaster
   position="top-center"
   closeButton
-  style="--normal-bg: var(--color-paper); --normal-border: var(--color-paper-rim); --normal-text: var(--color-ink); --border-radius: var(--radius-xl); --width: 24rem; --toast-close-button-start: unset; --toast-close-button-end: 0.75rem; --toast-close-button-transform: translateY(-50%)"
+  style="--normal-bg: var(--color-paper); --normal-border: var(--color-paper-rim); --normal-text: var(--color-ink); --border-radius: var(--radius-xl); --width: 24rem; --toast-close-button-start: unset; --toast-close-button-end: 0; --toast-close-button-transform: translate(35%, -35%)"
   toastOptions={{
     classes: {
-      toast: 'font-outfit! text-sm! border-2! gap-3! pr-12! shadow-[0_12px_40px_-12px_rgba(0,0,0,0.6)]!',
+      toast: 'font-outfit! text-sm! border-2! gap-3! shadow-[0_12px_40px_-12px_rgba(0,0,0,0.6)]!',
       error: 'border-hc-red/60!',
       description: 'text-ink-soft!',
       closeButton:
-        'top-1/2! size-7! rounded-full! border-0! bg-transparent! text-ink-soft! hover:bg-ink/5! hover:text-ink!',
+        'size-6! border-2! border-paper-rim! bg-paper! text-ink-soft! shadow-[0_4px_10px_-4px_rgba(0,0,0,0.5)]! hover:bg-paper-well! hover:border-paper-rim! hover:text-ink!',
     },
   }}
 >
