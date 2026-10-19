@@ -1,16 +1,27 @@
 <script lang="ts">
-  import Markdown from '@/components/Markdown.svelte'
+  import Bold from '@lucide/svelte/icons/bold'
+  import Code from '@lucide/svelte/icons/code'
+  import ImagePlus from '@lucide/svelte/icons/image-plus'
+  import Italic from '@lucide/svelte/icons/italic'
+  import Link from '@lucide/svelte/icons/link'
+  import List from '@lucide/svelte/icons/list'
+  import ListOrdered from '@lucide/svelte/icons/list-ordered'
+  import LoaderCircle from '@lucide/svelte/icons/loader-circle'
+  import Strikethrough from '@lucide/svelte/icons/strikethrough'
+  import type { Editor } from '@tiptap/core'
+  import { onMount, type Component } from 'svelte'
   import { uploadImage, type UploadedImage } from '@/lib/uploads'
 
+  // Writes like a rich text box and stores Markdown, which is what the site renders and Slack gets a copy of.
   let {
-    id,
+    labelledby,
     value = $bindable(''),
     directUploadUrl,
     onUpload,
     onError,
     placeholder = '',
   }: {
-    id?: string
+    labelledby?: string
     value: string
     directUploadUrl: string
     onUpload: (image: UploadedImage) => void
@@ -18,73 +29,130 @@
     placeholder?: string
   } = $props()
 
-  let textarea: HTMLTextAreaElement | undefined = $state()
-  let preview = $state(false)
-  let dragging = $state(false)
+  let mount: HTMLDivElement | undefined = $state()
+  let fileInput: HTMLInputElement | undefined = $state()
+  let editor: Editor | undefined = $state.raw()
+  // Tiptap's editor isn't reactive; this ticks on every transaction so the toolbar re-reads it.
+  let redraws = $state(0)
   let uploading = $state(0)
+  let dragging = $state(false)
+  let linking = $state(false)
+  let linkUrl = $state('')
+  // What the editor last wrote, so a change from outside (a restored draft, a removed photo) is told apart.
+  let written = value
+
+  onMount(() => {
+    let destroyed = false
+    import('@/lib/journal-editor').then(({ createJournalEditor }) => {
+      if (destroyed || !mount) return
+      editor = createJournalEditor({
+        element: mount,
+        markdown: value,
+        placeholder,
+        onChange: (markdown) => (value = written = markdown.trimEnd()),
+        onRedraw: () => redraws++,
+        onFiles: addFiles,
+      })
+      if (labelledby) editor.view.dom.setAttribute('aria-labelledby', labelledby)
+    })
+    return () => {
+      destroyed = true
+      editor?.destroy()
+    }
+  })
+
+  $effect(() => {
+    if (!editor || value === written) return
+    written = value
+    editor.commands.setContent(value, { contentType: 'markdown', emitUpdate: false })
+  })
 
   type Tool = {
     label: string
-    title: string
-    apply: (s: string, start: number, end: number) => [string, number, number]
+    keys: string
+    icon: Component
+    active: string
+    run: (e: Editor) => void
   }
 
-  const wrap =
-    (before: string, after = before) =>
-    (s: string, start: number, end: number): [string, number, number] => {
-      const selected = s.slice(start, end) || 'text'
-      return [
-        s.slice(0, start) + before + selected + after + s.slice(end),
-        start + before.length,
-        start + before.length + selected.length,
-      ]
-    }
-
-  const linePrefix =
-    (prefix: string) =>
-    (s: string, start: number, end: number): [string, number, number] => {
-      const lineStart = s.lastIndexOf('\n', start - 1) + 1
-      const block = s.slice(lineStart, end)
-      const lines = block
-        .split('\n')
-        .map((line) => (line.startsWith(prefix) ? line.slice(prefix.length) : prefix + line))
-      const next = lines.join('\n')
-      return [s.slice(0, lineStart) + next + s.slice(end), lineStart, lineStart + next.length]
-    }
-
-  const tools: Tool[] = [
-    { label: 'B', title: 'Bold', apply: wrap('**') },
-    { label: 'I', title: 'Italic', apply: wrap('_') },
-    { label: 'H', title: 'Heading', apply: linePrefix('## ') },
-    { label: '•', title: 'List', apply: linePrefix('- ') },
-    { label: '<>', title: 'Code', apply: wrap('`') },
-    {
-      label: 'link',
-      title: 'Link',
-      apply: (s, start, end) => {
-        const selected = s.slice(start, end) || 'text'
-        const insert = `[${selected}](https://)`
-        const urlStart = start + selected.length + 3
-        return [s.slice(0, start) + insert + s.slice(end), urlStart, urlStart + 8]
+  const tools: Tool[][] = [
+    [
+      {
+        label: 'Bold',
+        keys: 'B',
+        icon: Bold,
+        active: 'bold',
+        run: (e) => e.chain().focus().toggleBold().run(),
       },
-    },
+      {
+        label: 'Italic',
+        keys: 'I',
+        icon: Italic,
+        active: 'italic',
+        run: (e) => e.chain().focus().toggleItalic().run(),
+      },
+      {
+        label: 'Strikethrough',
+        keys: 'Shift S',
+        icon: Strikethrough,
+        active: 'strike',
+        run: (e) => e.chain().focus().toggleStrike().run(),
+      },
+      {
+        label: 'Code',
+        keys: 'E',
+        icon: Code,
+        active: 'code',
+        run: (e) => e.chain().focus().toggleCode().run(),
+      },
+      { label: 'Link', keys: 'K', icon: Link, active: 'link', run: () => openLink() },
+    ],
+    [
+      {
+        label: 'Bulleted list',
+        keys: 'Shift 8',
+        icon: List,
+        active: 'bulletList',
+        run: (e) => e.chain().focus().toggleBulletList().run(),
+      },
+      {
+        label: 'Numbered list',
+        keys: 'Shift 7',
+        icon: ListOrdered,
+        active: 'orderedList',
+        run: (e) => e.chain().focus().toggleOrderedList().run(),
+      },
+    ],
   ]
 
-  function run(tool: Tool) {
-    if (!textarea) return
-    const [next, selStart, selEnd] = tool.apply(value, textarea.selectionStart, textarea.selectionEnd)
-    value = next
-    requestAnimationFrame(() => {
-      textarea?.focus()
-      textarea?.setSelectionRange(selStart, selEnd)
-    })
+  const mod = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl '
+
+  function isActive(name: string) {
+    void redraws
+    return editor?.isActive(name) ?? false
   }
 
-  function insertAtCursor(text: string) {
-    const pos = textarea?.selectionStart ?? value.length
-    const before = value.slice(0, pos)
-    const needsNewline = before.length > 0 && !before.endsWith('\n')
-    value = before + (needsNewline ? '\n' : '') + text + '\n' + value.slice(pos)
+  function openLink() {
+    if (!editor) return
+    linkUrl = editor.getAttributes('link').href ?? ''
+    linking = true
+  }
+
+  function closeLink() {
+    linking = false
+    editor?.view.focus()
+  }
+
+  function applyLink() {
+    if (!editor) return
+    const typed = linkUrl.trim()
+    const href = typed && !/^[a-z][a-z\d+.-]*:/i.test(typed) ? `https://${typed}` : typed
+    const chain = editor.chain().focus().extendMarkRange('link')
+    if (!href) chain.unsetLink().run()
+    else if (editor.state.selection.empty && !editor.isActive('link'))
+      chain.insertContent({ type: 'text', text: typed, marks: [{ type: 'link', attrs: { href } }] }).run()
+    else chain.setLink({ href }).run()
+    closeLink()
   }
 
   export async function addFiles(files: FileList | File[]) {
@@ -92,7 +160,7 @@
       uploading += 1
       try {
         const image = await uploadImage(file, directUploadUrl)
-        insertAtCursor(`![${image.filename}](${image.url})`)
+        editor?.chain().focus().setImage({ src: image.url, alt: image.filename }).run()
         onUpload(image)
       } catch (error) {
         onError(error instanceof Error ? error.message : 'Upload failed')
@@ -102,58 +170,80 @@
     }
   }
 
-  function onDrop(event: DragEvent) {
-    event.preventDefault()
-    dragging = false
-    if (event.dataTransfer?.files.length) addFiles(event.dataTransfer.files)
+  export function focus() {
+    editor?.commands.focus('end')
   }
-
-  function onPaste(event: ClipboardEvent) {
-    const files = Array.from(event.clipboardData?.files ?? []).filter((f) => f.type.startsWith('image/'))
-    if (files.length === 0) return
-    event.preventDefault()
-    addFiles(files)
-  }
-
-  function onKeydown(event: KeyboardEvent) {
-    if (!(event.metaKey || event.ctrlKey)) return
-    const tool =
-      event.key === 'b' ? tools[0] : event.key === 'i' ? tools[1] : event.key === 'k' ? tools[5] : null
-    if (!tool) return
-    event.preventDefault()
-    run(tool)
-  }
-
-  let fileInput: HTMLInputElement | undefined = $state()
 
   export function pickFiles() {
     fileInput?.click()
   }
+
+  function onKeydown(event: KeyboardEvent) {
+    if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
+      event.preventDefault()
+      openLink()
+    }
+  }
 </script>
 
-<div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border-2 border-paper-edge bg-paper-well">
-  <div class="flex items-center gap-1 border-b-2 border-paper-edge/60 px-2 py-1.5">
-    {#each tools as tool (tool.title)}
-      <button
-        type="button"
-        title={tool.title}
-        onclick={() => run(tool)}
-        class="rounded-lg px-2 py-1 font-outfit text-xs font-semibold text-ink-soft hover:bg-ink/10 hover:text-ink {tool.label ===
-        'I'
-          ? 'italic'
-          : ''}"
-      >
-        {tool.label}
+<div
+  class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border-2 border-paper-edge bg-paper-well transition-colors focus-within:border-[var(--sb-ring)]"
+>
+  <div class="flex h-11 shrink-0 items-center gap-0.5 border-b-2 border-paper-edge/60 px-1.5">
+    {#if linking}
+      <div class="flex flex-1 items-center gap-2 pl-1.5">
+        <Link class="size-4 shrink-0 text-ink-soft" />
+        <input
+          {@attach (input) => input.select()}
+          bind:value={linkUrl}
+          type="text"
+          inputmode="url"
+          placeholder="Paste a link"
+          aria-label="Link address"
+          onkeydown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              applyLink()
+            } else if (e.key === 'Escape') {
+              e.stopPropagation()
+              closeLink()
+            }
+          }}
+          class="min-w-0 flex-1 border-0 bg-transparent p-0 font-outfit text-sm text-ink placeholder:text-ink-soft/50 focus:ring-0"
+        />
+        <button type="button" class="tool-text" onclick={applyLink}
+          >{linkUrl.trim() ? 'Apply' : 'Remove'}</button
+        >
+        <button type="button" class="tool-text" onclick={closeLink}>Cancel</button>
+      </div>
+    {:else}
+      {#each tools as group, i (i)}
+        {#if i > 0}<span class="mx-1 h-5 w-px bg-paper-edge/70" aria-hidden="true"></span>{/if}
+        {#each group as tool (tool.label)}
+          <button
+            type="button"
+            class="tool"
+            aria-label={tool.label}
+            aria-pressed={isActive(tool.active)}
+            title="{tool.label} ({mod}{tool.keys})"
+            disabled={!editor}
+            onclick={() => editor && tool.run(editor)}
+          >
+            <tool.icon class="size-4" strokeWidth={2.4} />
+          </button>
+        {/each}
+      {/each}
+      <span class="mx-1 h-5 w-px bg-paper-edge/70" aria-hidden="true"></span>
+      <button type="button" class="tool" aria-label="Add a photo" title="Add a photo" onclick={pickFiles}>
+        <ImagePlus class="size-4" strokeWidth={2.4} />
       </button>
-    {/each}
-    <button
-      type="button"
-      title="Add a photo"
-      onclick={() => fileInput?.click()}
-      class="rounded-lg px-2 py-1 font-outfit text-xs font-semibold text-ink-soft hover:bg-ink/10 hover:text-ink"
-    >
-      photo
-    </button>
+      {#if uploading > 0}
+        <span class="ml-auto flex items-center gap-1.5 pr-2 font-outfit text-xs text-ink-soft">
+          <LoaderCircle class="size-3.5 animate-spin" />
+          Uploading {uploading === 1 ? 'a photo' : `${uploading} photos`}
+        </span>
+      {/if}
+    {/if}
     <input
       bind:this={fileInput}
       type="file"
@@ -166,63 +256,158 @@
         input.value = ''
       }}
     />
-    <span class="ml-auto flex items-center gap-2 font-outfit text-xs text-ink-soft">
-      {#if uploading > 0}<span>uploading {uploading}…</span>{/if}
-      <button
-        type="button"
-        onclick={() => (preview = !preview)}
-        class="rounded-lg px-2 py-1 hover:bg-ink/10 hover:text-ink"
-      >
-        {preview ? 'write' : 'preview'}
-      </button>
-    </span>
   </div>
 
-  {#if preview}
-    <div class="min-h-[280px] flex-1 overflow-y-auto px-4 py-3">
-      {#if value.trim()}
-        <Markdown source={value} />
-      {:else}
-        <p class="font-outfit text-sm text-ink-soft/60">Nothing to preview yet.</p>
-      {/if}
-    </div>
-  {:else}
-    <div
-      class="relative flex min-h-[280px] flex-1 flex-col"
-      role="presentation"
-      ondragover={(e) => {
-        e.preventDefault()
-        dragging = true
-      }}
-      ondragleave={() => (dragging = false)}
-      ondrop={onDrop}
-    >
-      <textarea
-        bind:this={textarea}
-        bind:value
-        {id}
-        {placeholder}
-        onpaste={onPaste}
-        onkeydown={onKeydown}
-        class="ruled flex-1 resize-none border-0 bg-transparent px-4 pt-[5px] pb-3 font-outfit text-[15px] leading-[28px] text-ink placeholder:text-ink-soft/50 focus:ring-0"
-      ></textarea>
-      {#if dragging}
-        <div
-          class="pointer-events-none absolute inset-1 flex items-center justify-center rounded-lg border-2 border-dashed border-ink/50 bg-paper/80 font-outfit text-sm text-ink"
-        >
-          Drop photos to add them
-        </div>
-      {/if}
-    </div>
-  {/if}
+  <div
+    class="ruled relative min-h-[280px] flex-1 overflow-y-auto"
+    role="presentation"
+    onkeydown={onKeydown}
+    ondragover={(e) => {
+      if (!e.dataTransfer?.types.includes('Files')) return
+      e.preventDefault()
+      dragging = true
+    }}
+    ondragleave={(e) => {
+      if (!e.currentTarget.contains(e.relatedTarget as Node | null)) dragging = false
+    }}
+    ondrop={() => (dragging = false)}
+  >
+    <div bind:this={mount} class="min-h-full"></div>
+    {#if dragging}
+      <div
+        class="pointer-events-none absolute inset-1 flex items-center justify-center rounded-lg border-2 border-dashed border-ink/50 bg-paper/80 font-outfit text-sm text-ink"
+      >
+        Drop photos to add them
+      </div>
+    {/if}
+  </div>
 </div>
 
 <style>
+  .tool {
+    display: flex;
+    width: 2rem;
+    height: 2rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.5rem;
+    color: var(--color-ink-soft);
+    transition:
+      background-color 120ms,
+      color 120ms;
+  }
+  .tool:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--color-ink) 9%, transparent);
+    color: var(--color-ink);
+  }
+  .tool[aria-pressed='true'] {
+    background: color-mix(in srgb, var(--sb-ring) 18%, transparent);
+    color: var(--sb-ring-deep);
+  }
+  .tool:disabled {
+    opacity: 0.5;
+  }
+  .tool-text {
+    border-radius: 0.5rem;
+    padding: 0.25rem 0.5rem;
+    font-family: var(--font-outfit);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-ink-soft);
+  }
+  .tool-text:hover {
+    background: color-mix(in srgb, var(--color-ink) 9%, transparent);
+    color: var(--color-ink);
+  }
+
+  /* Everything sits on a 28px line so the ruling under it stays true, photos included. */
   /* Lines under the text, one per line of it, that scroll with it. */
   .ruled {
     background-image: linear-gradient(transparent 27px, rgba(204, 141, 68, 0.28) 27px);
     background-size: 100% 28px;
     background-position: 0 2px;
     background-attachment: local;
+  }
+  .min-h-full :global(.journal-editor) {
+    padding: 5px 1rem 0.75rem;
+    color: var(--color-ink);
+    font-family: var(--font-outfit);
+    font-size: 15px;
+    line-height: 28px;
+    outline: none;
+    overflow-wrap: anywhere;
+  }
+  .min-h-full :global(.journal-editor > * + *) {
+    margin-top: 0;
+  }
+  .min-h-full :global(.journal-editor p.is-editor-empty:first-child::before) {
+    content: attr(data-placeholder);
+    float: left;
+    height: 0;
+    pointer-events: none;
+    color: color-mix(in srgb, var(--color-ink-soft) 50%, transparent);
+  }
+  .min-h-full :global(.journal-editor strong) {
+    font-weight: 700;
+  }
+  .min-h-full :global(.journal-editor a) {
+    color: var(--sb-ring-deep);
+    text-decoration: underline;
+    text-decoration-color: color-mix(in srgb, var(--sb-ring-deep) 40%, transparent);
+    text-underline-offset: 3px;
+  }
+  .min-h-full :global(.journal-editor code) {
+    border-radius: 0.25rem;
+    background: color-mix(in srgb, var(--color-ink) 9%, transparent);
+    padding: 0.1rem 0.3rem;
+    font-family: var(--font-mono);
+    font-size: 13px;
+  }
+  .min-h-full :global(.journal-editor pre) {
+    border-radius: 0.5rem;
+    background: color-mix(in srgb, var(--color-ink) 7%, transparent);
+    padding: 0 0.75rem;
+    overflow-x: auto;
+  }
+  .min-h-full :global(.journal-editor pre code) {
+    background: none;
+    padding: 0;
+  }
+  .min-h-full :global(.journal-editor ul) {
+    list-style: disc;
+    padding-left: 1.4rem;
+  }
+  .min-h-full :global(.journal-editor ol) {
+    list-style: decimal;
+    padding-left: 1.4rem;
+  }
+  .min-h-full :global(.journal-editor li::marker) {
+    color: var(--color-ink-soft);
+  }
+  .min-h-full :global(.journal-editor h1),
+  .min-h-full :global(.journal-editor h2),
+  .min-h-full :global(.journal-editor h3) {
+    font-family: var(--font-display);
+    font-size: 1.15rem;
+  }
+  .min-h-full :global(.journal-editor blockquote) {
+    border-left: 2px solid color-mix(in srgb, var(--color-ink) 30%, transparent);
+    padding-left: 0.75rem;
+    color: var(--color-ink-soft);
+  }
+  .min-h-full :global(.journal-editor hr) {
+    margin: 13px 0;
+    border: 0;
+    border-top: 2px dashed var(--color-paper-edge);
+  }
+  .min-h-full :global(.journal-editor img) {
+    display: block;
+    height: 196px;
+    max-width: 100%;
+    border-radius: 0.5rem;
+    object-fit: cover;
+  }
+  .min-h-full :global(.journal-editor img.ProseMirror-selectednode) {
+    outline: 3px solid var(--sb-ring);
   }
 </style>

@@ -17,6 +17,9 @@ export function writtenLength(markdown: string): number {
 // The least writing a journal needs (Journal::MIN_BODY_LENGTH).
 export const MIN_JOURNAL_LENGTH = 100
 
+// A photo for every this many minutes logged (Journal::MINUTES_PER_IMAGE).
+export const MINUTES_PER_PHOTO = 120
+
 export function countWords(markdown: string): number {
   const text = markdown
     .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')

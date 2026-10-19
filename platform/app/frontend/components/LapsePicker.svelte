@@ -108,7 +108,9 @@
 {:else if lapse?.configured}
   <div class="flex flex-1 flex-col lg:min-h-0">
     <div class="flex items-baseline justify-between gap-2">
-      <p class="font-display text-xl text-ink">Timelapses</p>
+      <p class="font-display text-xl text-ink">
+        Timelapses <span class="font-outfit text-xs text-ink-soft">(optional)</span>
+      </p>
       {#if lapse.connected}
         <button
           type="button"

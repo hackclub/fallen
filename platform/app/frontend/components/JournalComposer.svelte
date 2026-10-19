@@ -5,7 +5,7 @@
   import MarkdownEditor from '@/components/MarkdownEditor.svelte'
   import Sketchbook from '@/components/Sketchbook.svelte'
   import { formatDate } from '@/lib/format'
-  import { MIN_JOURNAL_LENGTH, countWords, writtenLength } from '@/lib/markdown'
+  import { MINUTES_PER_PHOTO, MIN_JOURNAL_LENGTH, countWords, writtenLength } from '@/lib/markdown'
   import { trackedHours } from '@/lib/timer.svelte'
   import type { UploadedImage } from '@/lib/uploads'
   import { journals, project as projectRoute, projectJournals } from '@/routes'
@@ -98,17 +98,19 @@
       !form.processing,
   )
 
+  // Photos live in the writing; deleting one there drops it. Photos a Slack journal brought along aren't in its
+  // writing, so they stay.
+  // svelte-ignore state_referenced_locally
+  const unembedded = new Set(
+    (journal?.images ?? []).filter((i) => !journal?.body.includes(i.id)).map((i) => i.id),
+  )
+  const photos = $derived(form.images.filter((i) => unembedded.has(i.id) || form.body.includes(i.id)))
+  const hours = $derived(form.duration.trim().match(/^(\d*\.?\d+)\s*h?$/i)?.[1])
+  const photosNeeded = $derived(hours ? Math.ceil((parseFloat(hours) * 60) / MINUTES_PER_PHOTO) : null)
+
   function addImage(image: UploadedImage) {
     uploadError = null
     form.images = [...form.images, image]
-  }
-
-  function removeImage(image: UploadedImage) {
-    form.images = form.images.filter((i) => i.id !== image.id)
-    form.body = form.body.replace(
-      new RegExp(`!\\[[^\\]]*\\]\\(${image.url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\)\\n?`, 'g'),
-      '',
-    )
   }
 
   function submit(event: SubmitEvent) {
@@ -116,7 +118,7 @@
     if (!canSubmit) return
     const target = editing && journal ? journals.update(journal.id) : projectJournals(project.id)
     form
-      .transform((data) => ({ journal: { ...data, images: data.images.map((i) => i.id) } }))
+      .transform((data) => ({ journal: { ...data, images: photos.map((i) => i.id) } }))
       .submit(target, {
         preserveScroll: true,
         onSuccess: () => {
@@ -158,10 +160,16 @@
     <div
       class="grid min-h-0 flex-1 gap-x-7 overflow-y-auto pt-4 lg:grid-cols-[minmax(0,1fr)_minmax(290px,38%)] lg:overflow-hidden"
     >
-      <section class="flex min-h-[340px] flex-col gap-2 lg:min-h-0">
-        <label for="journal-body" class="font-display text-xl text-ink">What did you do?</label>
+      <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+      <section
+        class="flex min-h-[340px] cursor-text flex-col gap-2 lg:min-h-0"
+        onclick={(e) => {
+          if (!(e.target as Element).closest('button, input, a, .ProseMirror')) editor?.focus()
+        }}
+      >
+        <h3 id="journal-body-label" class="font-display text-xl text-ink">What did you do?</h3>
         <MarkdownEditor
-          id="journal-body"
+          labelledby="journal-body-label"
           bind:this={editor}
           bind:value={form.body}
           {directUploadUrl}
@@ -172,47 +180,20 @@
         <div class="flex items-center justify-between gap-3 font-outfit text-xs text-ink-soft">
           <span>
             {#if form.errors.body}<span class="text-red-700">{form.errors.body}</span>
+            {:else if form.errors.images}<span class="text-red-700">{form.errors.images}</span>
             {:else if uploadError}<span class="text-red-700">{uploadError}</span>
-            {:else if !longEnough && written > 0}Write at least {MIN_JOURNAL_LENGTH} characters so a reviewer can
-              follow what you did.
             {:else if draftRestored}Draft restored.{/if}
           </span>
-          <span class="shrink-0 tabular-nums">
-            {#if longEnough}{words} {words === 1 ? 'word' : 'words'}{:else}{written}/{MIN_JOURNAL_LENGTH} characters{/if}
+          <span class="flex shrink-0 gap-3 tabular-nums">
+            <span>
+              {#if photosNeeded !== null}{photos.length}/{photosNeeded}
+                {photosNeeded === 1 ? 'photo' : 'photos'}
+              {:else}{photos.length} {photos.length === 1 ? 'photo' : 'photos'}{/if}
+            </span>
+            <span>
+              {#if longEnough}{words} {words === 1 ? 'word' : 'words'}{:else}{written}/{MIN_JOURNAL_LENGTH} characters{/if}
+            </span>
           </span>
-        </div>
-        <div class="mt-2 flex items-center gap-3">
-          <ul class="sketch-scroll flex min-w-0 gap-2 overflow-x-auto p-0.5" aria-label="Photos">
-            <li class="shrink-0">
-              <button
-                type="button"
-                onclick={() => editor?.pickFiles()}
-                class="flex size-14 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-paper-edge font-outfit text-[11px] leading-tight text-ink-soft transition-colors hover:border-[var(--sb-ring)] hover:text-[var(--sb-ring-deep)]"
-              >
-                <span class="text-lg leading-none">+</span>
-                photo
-              </button>
-            </li>
-            {#each form.images as image (image.id)}
-              <li
-                class="group relative size-14 shrink-0 overflow-hidden rounded-lg border-2 border-paper-edge"
-              >
-                <img src={image.url} alt={image.filename} class="h-full w-full object-cover" />
-                <button
-                  type="button"
-                  aria-label="Remove {image.filename}"
-                  onclick={() => removeImage(image)}
-                  class="absolute top-0.5 right-0.5 flex size-5 items-center justify-center rounded-full bg-ink/80 text-xs text-paper opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
-                >
-                  ×
-                </button>
-              </li>
-            {/each}
-          </ul>
-          <p class="min-w-32 shrink-0 font-outfit text-xs text-ink-soft">
-            {#if form.errors.images}<span class="text-red-700">{form.errors.images}</span>
-            {:else}One photo for every 2 hours logged.{/if}
-          </p>
         </div>
       </section>
 
@@ -243,13 +224,13 @@
                 <span class="font-outfit text-sm text-ink-soft">h</span>
               </span>
             </div>
-            <p id="duration-help" class="mt-1 font-outfit text-xs text-ink-soft">
-              {#if form.errors.duration}<span class="text-red-700">{form.errors.duration}</span>
-              {:else if fromTracking}Filled in from the time you tracked.
-              {:else if timelapsed}Leave it empty to use your timelapses' time.
-              {:else}Every journal needs some: 1.5, 0.5, 0.1.{/if}
-              A thin journal can get its hours deflated.
-            </p>
+            {#if form.errors.duration || fromTracking || timelapsed}
+              <p id="duration-help" class="mt-1 font-outfit text-xs text-ink-soft">
+                {#if form.errors.duration}<span class="text-red-700">{form.errors.duration}</span>
+                {:else if fromTracking}Filled in from the time you tracked.
+                {:else}Leave it empty to use your timelapses' time.{/if}
+              </p>
+            {/if}
           </div>
         </div>
 
@@ -257,9 +238,6 @@
           <button type="submit" class="sketch-button w-full" disabled={!canSubmit}>
             {form.processing ? 'Logging…' : editing ? 'Save journal' : 'Log journal'}
           </button>
-          <p class="mt-2 text-center font-outfit text-xs text-ink-soft">
-            Posts to your project thread in Slack as you.
-          </p>
         </div>
       </aside>
     </div>
