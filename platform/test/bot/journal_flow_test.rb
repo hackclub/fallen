@@ -424,7 +424,7 @@ class JournalFlowTest < ActiveSupport::TestCase
                                                   duration_minutes: 60, source: "web", images: [ photo ], slack_channel_id: CHANNEL, slack_ts: "1700000020.000100")
     with_fake_slack do
       SlackBot.handle(:event, { "event" => { "type" => "message", "subtype" => "message_changed", "channel" => CHANNEL,
-                                              "message" => { "ts" => journal.slack_ts, "text" => SlackMessages.journal(journal)[:text], "user" => "U0MEMBER" } } })
+                                              "message" => { "ts" => journal.slack_ts, "text" => SlackMessages.journal(journal)[:text].tr("\n", " "), "user" => "U0MEMBER" } } })
       assert_includes journal.reload.body, "**Soldered**"
 
       SlackBot.handle(:event, { "event" => { "type" => "message", "subtype" => "message_changed", "channel" => CHANNEL,

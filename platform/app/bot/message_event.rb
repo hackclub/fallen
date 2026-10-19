@@ -63,9 +63,10 @@ class MessageEvent < SlackBot::Event
   def message_changed
     changed = event.message or return
     if (journal = Journal.find_by_slack_message(channel_id, changed.ts))
-      # Fallen rewriting a web journal's message (SyncJournalToSlackJob) comes back as an edit too. Its Slack text is a
-      # lossy copy of the Markdown, so only a change someone made in Slack is taken back.
-      return if journal.discarded? || (journal.from_web? && changed.text.to_s == SlackMessages.journal(journal)[:text])
+      # Fallen rewriting a web journal's message (SyncJournalToSlackJob) comes back as an edit too, with its newlines
+      # turned into spaces. Its Slack text is a lossy copy of the Markdown, so only a change someone made in Slack is
+      # taken back.
+      return if journal.discarded? || (journal.from_web? && changed.text.to_s.squish == SlackMessages.journal(journal)[:text].squish)
 
       journal.slack_message_edited(changed.ts, changed.text.to_s)
       # Editing in Slack drops blocks the person didn't write, the footer among them.
