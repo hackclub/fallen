@@ -6,7 +6,7 @@ class JournalFlowTest < ActiveSupport::TestCase
   CHANNEL = "CJOURNALS"
   # Enough writing for a journal (Journal::MIN_BODY_LENGTH).
   WRITTEN = "Printed the case, sanded the edges smooth and test fitted the board. The lid was tight so I filed the clips."
-  PHOTO = { "id" => "F1", "name" => "case.png", "mimetype" => "image/png", "url_private_download" => "https://files.slack.test/case.png", "size" => 3 }.freeze
+  PHOTO = { "id" => "F1", "name" => "case.png", "mimetype" => "image/png", "url_private_download" => "https://files.slack.com/case.png", "size" => 3 }.freeze
 
   test "a thread reply by the owner waits for them to say it is a journal" do
     with_fake_slack do |slack|
