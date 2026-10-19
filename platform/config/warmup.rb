@@ -17,6 +17,15 @@ module Warmup
   def self.run
     return if ROUNDS.zero?
 
+    # Nothing raised here reaches a person, and Sentry would file it under whoever the warmup signed in as. Mostly
+    # that is a SIGTERM from a quick second push replacing this pod before it was ready.
+    Sentry.with_scope do |scope|
+      scope.add_event_processor { nil }
+      warm
+    end
+  end
+
+  def self.warm
     user = User.on_a_team.order(last_seen_at: :desc).first
     return Rails.logger.info("[warmup] skipped: nobody to sign in as") unless user
 

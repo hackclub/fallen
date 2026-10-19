@@ -13,10 +13,11 @@ production:
     command: "[ActiveInsights::Request, ActiveInsights::Job].each { it.where(started_at: ...30.days.ago).delete_all }"
     schedule: every day at 4:17am
 
+  # Hourly for the rest of Monday, so a worker restarting at noon doesn't skip the week; settling is once per week.
   close_week:
     class: CloseWeekJob
     queue: background
-    schedule: "0 12 * * 1"
+    schedule: "0 12-23 * * 1"
 
   settle_lulu_weeks:
     class: SettleLuluWeeksJob

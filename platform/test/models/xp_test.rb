@@ -187,6 +187,16 @@ class XpTest < ActiveSupport::TestCase
     assert_equal 20 + 40 + Team::WIN_BONUS, users(:member).reload.xp
   end
 
+  test "a week is won once, even if the other team pulls ahead before the job runs again" do
+    week = Week.of(Date.new(2026, 9, 7))
+    journal_on(users(:member), [ week.start ], hours: "5h")
+    CloseWeekJob.perform_now(week.finish)
+
+    journal_on(users(:admin), [ week.start + 1 ], hours: "10h")
+    CloseWeekJob.perform_now(week.finish)
+    assert_equal [ users(:member) ], XpEntry.where(kind: "team_win").map(&:user)
+  end
+
   private
 
   def journal_on(user, days, hours: "1h")

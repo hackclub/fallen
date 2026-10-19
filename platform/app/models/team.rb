@@ -31,15 +31,21 @@ class Team
     User.on_a_team.where(pet: "lulu").find_each { |user| user.team.settle }
   end
 
+  # Once per week, all or nothing: CloseWeekJob runs again until it gets through, and XP that lands after the first
+  # run must not hand a second team the win.
   def self.reward_winners(week)
+    return if XpEntry.exists?(kind: "team_win", day: week.finish)
+
     totals = XpEntry.team_totals(week)
     best = totals.values.max.to_i
     return if best.zero?
 
     winners = totals.select { |_, xp| xp == best }.keys
     contributors = User.on_a_team.where(pet: winners).where(id: XpEntry.during(week).where("amount > 0").select(:user_id))
-    contributors.find_each do |user|
-      user.xp_entries.create_or_find_by!(kind: "team_win", day: week.finish) { |entry| entry.amount = WIN_BONUS }
+    XpEntry.transaction do
+      contributors.find_each do |user|
+        user.xp_entries.create_or_find_by!(kind: "team_win", day: week.finish) { |entry| entry.amount = WIN_BONUS }
+      end
     end
   end
 

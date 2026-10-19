@@ -57,6 +57,9 @@ Rails.application.configure do
 
   # Replace the default in-process and non-durable queuing backend for Active Job.
   config.active_job.queue_adapter = :solid_queue
+  # Every deploy stops the worker. A job still running when this runs out goes back on the queue and starts over
+  # on the new one, so give it most of Kubernetes' 30 seconds to finish instead of Solid Queue's 5.
+  config.solid_queue.shutdown_timeout = 25.seconds
 
   # Mail goes out through Loops (https://loops.so) over SMTP. Set LOOPS_API_KEY and MAILER_FROM.
   config.action_mailer.raise_delivery_errors = true

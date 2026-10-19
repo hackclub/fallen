@@ -4,9 +4,11 @@ class CollectSlackJournalJob < ApplicationJob
   retry_on Slack::Web::Api::Errors::TooManyRequestsError, wait: :polynomially_longer, attempts: 5
 
   # The third argument was the replies to react to; jobs queued before that stopped still pass it.
+  # A run cut short by a deploy starts over, so photos it already copied are skipped by their Slack file id.
   def perform(journal, files, _message_ts = nil)
+    copied = journal.images.blobs.filter_map { |blob| blob.metadata["slack_file_id"] }
     room = Journal::MAX_IMAGES - journal.images.count
-    files.first([ room, 0 ].max).each { |file| attach(journal, file) }
+    files.reject { |file| copied.include?(file["id"]) }.first([ room, 0 ].max).each { |file| attach(journal, file) }
   end
 
   private
@@ -22,7 +24,7 @@ class CollectSlackJournalJob < ApplicationJob
     # Without files:read Slack answers with its sign-in page instead of the file.
     return unless response.success? && response.headers["content-type"].to_s.start_with?("image/") && response.body.bytesize <= Journal::MAX_IMAGE_BYTES
 
-    journal.images.attach(io: StringIO.new(response.body), filename: file["name"].presence || "photo", content_type: file["mimetype"])
+    journal.images.attach(io: StringIO.new(response.body), filename: file["name"].presence || "photo", content_type: file["mimetype"], metadata: { slack_file_id: file["id"] })
   rescue Faraday::Error, Slack::Web::Api::Errors::FileNotFound
     nil
   end

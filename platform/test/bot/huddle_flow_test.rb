@@ -202,7 +202,7 @@ class HuddleFlowTest < ActiveSupport::TestCase
     SlackHuddle.instance_variable_set(:@client, browser)
     with_fake_slack do |slack|
       with_env("SLACK_HUDDLE_CHANNEL_ID" => "CHUDDLE", "SLACK_BROWSER_TOKEN" => "xoxc-test", "SLACK_BROWSER_COOKIE" => "xoxd-test") do
-        HuddleHandoffJob.perform_now(@huddle, %w[U0MEMBER U0STRANGER])
+        perform_enqueued_jobs(only: HuddleRingJob) { HuddleHandoffJob.perform_now(@huddle, %w[U0MEMBER U0STRANGER]) }
       end
       assert_equal [ { channel_id: "CHUDDLE", user_id: "U0MEMBER" }, { channel_id: "CHUDDLE", user_id: "U0STRANGER" } ],
                    browser.calls.map { |_, fields| fields.slice(:channel_id, :user_id) }
