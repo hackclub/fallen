@@ -34,7 +34,7 @@
 </script>
 
 <script lang="ts">
-  import { starPath } from '@/components/GoldFrame.svelte'
+  import GoldFrame, { starPath } from '@/components/GoldFrame.svelte'
   import { gestures } from '@/components/dialog/gestures'
   import { enter, exit, styler } from '@/components/dialog/motion'
   import { shared } from '@/lib/shared.svelte'
@@ -100,14 +100,14 @@
 </script>
 
 {#snippet star()}
-  <svg aria-hidden="true" viewBox="0 0 29.1 29.1" class="size-3 rotate-45 fill-current"
+  <svg aria-hidden="true" viewBox="0 0 29.1 29.1" class="size-2.5 rotate-45 fill-current"
     ><path d={starPath} /></svg
   >
 {/snippet}
 
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 <div
-  class="absolute inset-x-0 top-0 z-[5] flex items-center justify-center px-3 pt-9 pb-3 sm:px-6 sm:pt-10 sm:pb-4"
+  class="absolute inset-x-0 top-0 z-[5] flex items-center justify-center px-3 py-3 sm:px-6 sm:py-4"
   style:bottom="calc(var(--dlg-clear) + {ABOVE_BUBBLE})"
   style:container-type="size"
   onclick={(event) => event.stopPropagation()}
@@ -119,26 +119,32 @@
 >
   <div
     bind:this={card}
-    class="game-card relative flex max-h-full w-full max-w-[560px] flex-col items-center gap-4 px-4 pb-5 sm:gap-5 sm:px-7 sm:pb-6"
+    class="relative flex max-h-full w-full max-w-[640px] flex-col items-center gap-3 rounded-2xl bg-dark-blue px-5 py-6 sm:gap-4 sm:px-10 sm:py-8 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.8)]"
     style:transform-origin="50% 100%"
     {@attach enter(
       { opacity: 0, scale: 0.85, y: 40 },
       { opacity: 1, scale: 1, y: 0 },
-      { type: 'spring', stiffness: 320, damping: 20 },
+      { type: 'spring', stiffness: 320, damping: 24 },
     )}
   >
+    <GoldFrame />
+
     <h2
-      class="game-tab -mt-6 shrink-0"
+      class="relative z-4 font-lora text-2xl font-bold sm:text-3xl text-parchment text-shadow-md text-shadow-dark-purple/40"
       {@attach enter(
-        { opacity: 0, y: 14, scale: 0.5 },
-        { opacity: 1, y: 0, scale: 1 },
-        { type: 'spring', stiffness: 420, damping: 16, delay: 0.12 },
+        { opacity: 0, y: 12 },
+        { opacity: 1, y: 0 },
+        { type: 'spring', stiffness: 400, damping: 26, delay: 0.15 },
       )}
     >
       Choose your egg
     </h2>
 
-    <div role="radiogroup" aria-label="Eggs" class="grid min-h-0 w-full grid-cols-2 gap-3 sm:gap-5">
+    <div
+      role="radiogroup"
+      aria-label="Eggs"
+      class="relative z-4 flex min-h-0 items-end justify-center gap-8 pt-2 sm:gap-12 sm:pt-4"
+    >
       {#each EGGS as option, i (option.value)}
         {@const selected = pick === option.value}
         <button
@@ -146,11 +152,11 @@
           role="radio"
           aria-checked={selected}
           aria-label={option.label}
-          class="egg-tile relative flex cursor-pointer flex-col items-center rounded-3xl px-2 pt-4 pb-3 outline-none"
+          class="group relative flex cursor-pointer flex-col items-center outline-none"
           {@attach enter(
             { opacity: 0, y: 50, scale: 0.6 },
             { opacity: 1, y: 0, scale: 1 },
-            { type: 'spring', stiffness: 420, damping: 18, delay: 0.2 + i * 0.08 },
+            { type: 'spring', stiffness: 420, damping: 18, delay: 0.25 + i * 0.1 },
           )}
           onclick={() => !launching && (pick = option.value)}
           onpointerenter={() => (hover = option.value)}
@@ -158,16 +164,34 @@
           onfocus={() => (hover = option.value)}
           onblur={() => hover === option.value && (hover = null)}
         >
-          <!-- Hops on hover and dips when pressed, on its own element so it composes with the entrance. -->
+          <!-- Lifts on hover and dips when pressed, on its own element so it composes with the entrance. -->
           <span
             class="relative flex flex-col items-center"
             {@attach gestures({
-              rest: { y: selected ? -4 : 0 },
-              hover: { y: -6 },
+              rest: { y: selected ? -10 : 0 },
+              hover: { y: selected ? -14 : -8 },
               press: { y: 2 },
-              transition: { type: 'spring', stiffness: 500, damping: 14 },
+              transition: { type: 'spring', stiffness: 500, damping: 20 },
             })}
           >
+            <!-- A spotlight from above, pale while the egg is hovered or focused and warm gold once it is chosen.
+                 Blurred as a whole so the beam's sides are soft; the mask fades it in from above and out below. -->
+            <span
+              aria-hidden="true"
+              class={[
+                'pointer-events-none absolute -bottom-[14%] left-1/2 h-[155%] w-[160%] -translate-x-1/2 mix-blend-screen blur-[6px] transition-opacity duration-300 [mask-image:linear-gradient(to_bottom,transparent,black_45%,black_80%,transparent)]',
+                selected
+                  ? 'opacity-100'
+                  : 'opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100',
+              ]}
+            >
+              <span
+                class={[
+                  'absolute inset-0 [clip-path:polygon(40%_0,60%_0,100%_100%,0_100%)]',
+                  selected ? 'bg-gold/45' : 'bg-pale-blue/25',
+                ]}
+              ></span>
+            </span>
             {#if selected}
               {#key pick}
                 {#each { length: SPARKS }, s (s)}
@@ -188,31 +212,30 @@
               alt=""
               draggable="false"
               class={[
-                // Shrinks on short screens so the card fits above the speech bubble: 21rem is everything else in it.
-                'relative h-[clamp(4.5rem,calc(100cqh-21rem),9.5rem)] w-auto drop-shadow-[0_6px_0_rgba(80,60,30,0.15)] transition-opacity duration-300 select-none',
-                pick && !selected && 'opacity-60',
+                // Shrinks on short screens so the card fits above the speech bubble: 22rem is everything else in it.
+                'relative h-[clamp(5rem,calc(100cqh-22rem),11rem)] w-auto drop-shadow-[0_10px_18px_rgba(0,0,0,0.45)] transition-[opacity] duration-300 select-none',
+                pick && !selected && 'opacity-55',
               ]}
               style:transform-origin="50% 90%"
               {@attach rock(selected)}
             />
           </span>
-          <span class="mt-2 font-dialog text-2xl leading-none text-ink">{option.label}</span>
-          <span class="egg-tagline mt-1 font-outfit text-sm text-ink-soft">{option.tagline}</span>
-          {#if selected}
-            <span
-              aria-hidden="true"
-              class="absolute -top-2.5 -right-2.5 grid size-9 place-items-center rounded-full border-[3px] border-white bg-[#1cb0f6] text-white shadow-[0_3px_0_#1683c0]"
-              {@attach enter(
-                { scale: 0, rotate: -45 },
-                { scale: 1, rotate: 0 },
-                { type: 'spring', stiffness: 600, damping: 14 },
-              )}
-            >
-              <svg viewBox="0 0 16 16" class="size-4" fill="none" stroke="currentColor" stroke-width="3">
-                <path d="M3 8.5l3.2 3L13 4.5" stroke-linecap="round" stroke-linejoin="round" />
-              </svg>
-            </span>
-          {/if}
+          <span
+            class={[
+              'mt-2 font-lora text-lg font-semibold transition-colors',
+              selected ? 'text-gold' : 'text-pale-blue/70 group-hover:text-pale-blue',
+            ]}
+          >
+            {option.label}
+          </span>
+          <span
+            class={[
+              'text-sm transition-colors',
+              selected ? 'text-pale-blue' : 'text-pale-blue/50 group-hover:text-pale-blue/80',
+            ]}
+          >
+            {option.tagline}
+          </span>
           {#if rules}
             <span class="sr-only">{option.perks(rules).join('. ')}.</span>
           {/if}
@@ -224,11 +247,11 @@
     {#if rules}
       <div
         aria-hidden="true"
-        class="flex min-h-[4.75rem] w-full shrink-0 items-center rounded-2xl bg-paper-well px-4 py-3 font-outfit text-sm text-ink sm:text-[15px]"
+        class="relative z-4 flex min-h-[4.5rem] w-full max-w-md items-center justify-center text-sm text-pale-blue sm:text-base"
         {@attach enter(
           { opacity: 0, y: 12 },
           { opacity: 1, y: 0 },
-          { type: 'spring', stiffness: 400, damping: 26, delay: 0.35 },
+          { type: 'spring', stiffness: 400, damping: 26, delay: 0.4 },
         )}
       >
         {#key shown?.value}
@@ -240,13 +263,13 @@
               <ul class="flex flex-col gap-1.5">
                 {#each shown.perks(rules) as perk (perk)}
                   <li class="flex items-baseline gap-2.5">
-                    <span class="translate-y-[1px] text-saffron">{@render star()}</span>
+                    <span class="translate-y-[-1px] text-gold">{@render star()}</span>
                     <span>{perk}</span>
                   </li>
                 {/each}
               </ul>
             {:else}
-              <p class="text-center text-ink-soft">
+              <p class="text-center text-pale-blue/60">
                 Each one rewards journaling its own way. Tap one to see how.
               </p>
             {/if}
@@ -258,42 +281,23 @@
     <button
       type="button"
       disabled={!pick}
-      class="game-btn game-btn-blue min-w-52 shrink-0 text-xl"
+      class="relative z-4 mt-2 flex cursor-pointer items-center gap-4 sm:gap-7 rounded-full border border-gold bg-gradient-to-b from-[#f3dea2] to-gold px-5 py-2.5 font-lora text-lg font-bold text-dark-blue shadow-[0_0_18px_color-mix(in_oklab,var(--color-gold)_45%,transparent)] transition-opacity disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
       {@attach enter(
         { opacity: 0, y: 16 },
         { opacity: 1, y: 0 },
-        { type: 'spring', stiffness: 400, damping: 22, delay: 0.45 },
+        { type: 'spring', stiffness: 400, damping: 24, delay: 0.5 },
       )}
+      {@attach gestures({
+        rest: {},
+        hover: pick ? { scale: 1.05 } : undefined,
+        press: pick ? { scale: 0.95 } : undefined,
+        transition: { type: 'spring', stiffness: 500, damping: 20 },
+      })}
       onclick={confirm}
     >
+      {@render star()}
       This one!
+      {@render star()}
     </button>
   </div>
 </div>
-
-<style>
-  /* The dialog's option cards (dialog.css .dlg-option) at egg size: white on a hard ledge, lit blue once picked. */
-  .egg-tile {
-    --egg-edge: #e9dfc8;
-    border: 3px solid var(--egg-edge);
-    background: #fffdf8;
-    box-shadow: 0 5px 0 var(--egg-edge);
-    transition:
-      background-color 0.15s,
-      border-color 0.15s,
-      box-shadow 0.15s;
-  }
-  .egg-tile:hover {
-    background: #fff;
-  }
-  .egg-tile:focus-visible {
-    --egg-edge: #84d8ff;
-  }
-  .egg-tile[aria-checked='true'] {
-    --egg-edge: #84d8ff;
-    background: #ddf4ff;
-  }
-  .egg-tile[aria-checked='true'] .egg-tagline {
-    color: #1683c0;
-  }
-</style>
