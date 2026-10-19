@@ -62,5 +62,9 @@
     >
       Coming Soon!
     </h2>
+    <p class="max-w-md text-sm text-white/50 drop-shadow-[0_2px_12px_rgb(0_0_0/0.5)]">
+      You’ll be able to redeem special and awesome Fallen merch, or tools like 3d printer and CNC mills with
+      XP if you’re not able to come!
+    </p>
   </div>
 </section>
