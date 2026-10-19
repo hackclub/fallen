@@ -110,6 +110,11 @@ message is the project; each reply by the owner is a journal. Both sides stay in
   `chat:write`, needs `SLACK_CLIENT_ID` / `SLACK_CLIENT_SECRET` and the redirect URL from the manifest). Someone who
   skips that has the bot post under their name and avatar (`chat:write.customize`); each message records which one
   posted it (`slack_posted_by_bot`), since only the poster can edit or delete it.
+- Slack "join" button: point its webhook at `POST /api/slack/join` with `Authorization: Bearer <SLACK_JOIN_SECRET>`
+  (or `?secret=`) and the Slack ID as `slack_id`, in a JSON or form body or the query string. UTM tags and `ref` sent
+  alongside are kept as the account's signup source, like a tagged link's (`ref` is `slack-join` when none is sent).
+  `SlackJoinJob` makes a trial account from their Slack profile (email through `SLACK_LOOKUP_TOKEN`), so they are in
+  Airtable right away. Signing in with Hack Club Auth later claims it by Slack ID.
 
 Every journal has a time. It is typed, never picked from presets ("1.5", "1h 30m", `Duration.parse`), and stored as minutes.
 It also needs a photo for every two hours of it (`Journal::MINUTES_PER_IMAGE`).

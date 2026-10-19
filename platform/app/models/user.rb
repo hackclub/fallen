@@ -50,6 +50,7 @@ class User < ApplicationRecord
   # The desktop pet picked during onboarding, an egg until the first journal (Evolution). It is also the team (Team),
   # so switching it is limited (PetSwitch).
   PETS = %w[lulu sami].freeze
+  SLACK_ID = /\A[UW][A-Z0-9]{6,20}\z/
 
   include PublicIdentifiable
   include Discardable
@@ -101,13 +102,33 @@ class User < ApplicationRecord
   def reviewer? = has_role?(:reviewer)
   def staff? = admin? || reviewer?
 
-  # Started with just an email (TrialSessionsController): can do the onboarding and make a project, nothing more,
-  # until they sign in with Hack Club Auth.
+  # Started with just an email (TrialSessionsController) or from the Slack join button (join_from_slack!): can do the
+  # onboarding and make a project, nothing more, until they sign in with Hack Club Auth.
   def trial? = hca_id.nil?
 
   def self.start_trial!(email:, signup_source: {})
     create!(email: email, display_name: email.split("@").first, roles: [ "user" ], signup_source: signup_source)
   end
+
+  # The Slack join button (Api::SlackJoinsController) makes a trial account from their Slack profile, so they are in
+  # Airtable before they visit. Signing in with Hack Club Auth claims it by Slack ID (from_hca_code!). Nothing is made
+  # when an account already has the Slack ID or the email, or Slack has no email for them. `signup_source` is the UTM
+  # tags and `ref` the button sent; `ref` is "slack-join" when it sent none.
+  def self.join_from_slack!(slack_id, signup_source: {})
+    return if kept.exists?(slack_id: slack_id)
+
+    info = SlackAvatars.client.users_info(user: slack_id).user
+    email = info.profile.email.to_s.strip.downcase
+    return if email.blank? || kept.exists?(email: email)
+
+    create!(
+      email: email, slack_id: slack_id, roles: [ "user" ], signup_source: { "ref" => "slack-join", **signup_source, "landing_path" => "/api/slack/join" },
+      display_name: info.profile.display_name.presence || info.profile.real_name.presence || email.split("@").first,
+      timezone: ActiveSupport::TimeZone[info.tz.to_s] ? info.tz : "UTC"
+    )
+  end
+
+  def self.joined_from_slack(slack_id) = slack_id.present? ? kept.trial.find_by(slack_id: slack_id) : nil
 
   def add_role(role)
     return true if has_role?(role)
@@ -178,6 +199,7 @@ class User < ApplicationRecord
   # then creates or updates the local user. Slack profile details are refreshed in a background job.
   # `signup_source` (SignupSource) is kept only when this sign-in creates the account. A `trial` account signing in
   # becomes the HCA account: in place if it's new here, otherwise its projects and pet move over to the one there is.
+  # One made by the Slack join button for their Slack ID counts as the one there is.
   def self.from_hca_code!(code, redirect_uri, signup_source: {}, trial: nil)
     token_data = HCA.exchange_code_for_token(code, redirect_uri)
     access_token = token_data&.dig("access_token")
@@ -186,7 +208,7 @@ class User < ApplicationRecord
     identity = HCA.identity(access_token)
     raise HCA::Error, "HCA did not return an identity" if identity.blank? || identity["id"].blank?
 
-    user = find_by(hca_id: identity["id"]) || trial || new
+    user = find_by(hca_id: identity["id"]) || joined_from_slack(identity["slack_id"]) || trial || new
     user.hca_id = identity["id"]
     user.assign_from_hca(identity, access_token)
     user.signup_source = signup_source if user.new_record?

@@ -64,6 +64,9 @@ Rails.application.routes.draw do
     post "export", action: :export
   end
 
+  # The Slack "join" button's soft signup. Secret checked in the controller, no session.
+  post "api/slack/join" => "api/slack_joins#create", as: :slack_join
+
   constraints Constraints::Admin.new do
     namespace :admin do
       root "dashboard#index"

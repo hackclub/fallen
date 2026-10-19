@@ -8,6 +8,8 @@ class Rack::Attack
 
   # Slack webhooks are signature-verified in SlackController; never throttle them by IP.
   safelist("slack webhooks") { |req| req.path.start_with?("/slack/") }
+  # One sender posts every Slack signup and the controller checks its secret first; never throttle it by IP.
+  safelist("slack join webhook") { |req| req.post? && req.path == "/api/slack/join" }
   safelist("health check") { |req| req.path == "/up" }
   # Puma's boot-time requests (config/warmup.rb); only an in-process request can carry this env key.
   safelist("warmup") { |req| req.env["fallen.warmup"] }
