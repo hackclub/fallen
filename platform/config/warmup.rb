@@ -7,8 +7,8 @@
 # the old pod keeps serving until this one is warm.
 #
 # The requests go through the whole Rack stack as the most recently seen person, each inside a transaction that is
-# rolled back, so nothing they write (last_seen_at, cache entries, jobs) is kept. Sentry tracing, Active Insights and
-# Rack::Attack skip them (the "fallen.warmup" env key, which only an in-process request can set).
+# rolled back, so nothing they write (last_seen_at, cache entries, jobs) is kept. Sentry tracing, the insights
+# recorder and Rack::Attack skip them (the "fallen.warmup" env key, which only an in-process request can set).
 module Warmup
   ROUNDS = Integer(ENV.fetch("WARMUP_ROUNDS", 150)) # YJIT compiles a method after 120 calls in an app this size
   TIME_LIMIT = 120 # seconds; the startup probe gives up after 450
@@ -23,7 +23,6 @@ module Warmup
     requests = requests_for(user)
     return Rails.logger.warn("[warmup] skipped: every request failed") if requests.empty?
 
-    insights, ActiveInsights.enabled = ActiveInsights.enabled, false
     started = now
     times = []
 
@@ -40,7 +39,6 @@ module Warmup
     # Never keep the pod from booting: a cold worker is slow, not broken.
     Rails.logger.error("[warmup] stopped: #{error.class}: #{error.message}")
   ensure
-    ActiveInsights.enabled = insights unless insights.nil?
     ActiveRecord::Base.connection_handler.connection_pool_list(:all).each(&:disconnect!)
   end
 

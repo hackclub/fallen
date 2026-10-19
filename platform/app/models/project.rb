@@ -67,8 +67,8 @@ class Project < ApplicationRecord
 
   # Minutes and journal counts per project id for a list, as ProjectSerializer's params.
   def self.journal_totals(projects)
-    kept = Journal.kept.where(project_id: projects.map(&:id)).group(:project_id)
-    { totals: kept.sum(:duration_minutes), counts: kept.count }
+    rows = Journal.kept.where(project_id: projects.map(&:id)).group(:project_id).pluck(:project_id, Arel.sql("COALESCE(SUM(duration_minutes), 0)"), Arel.sql("COUNT(*)"))
+    { totals: rows.to_h { |id, minutes, _| [ id, minutes ] }, counts: rows.to_h { |id, _, count| [ id, count ] } }
   end
 
   # The first photo from each project's journals, keyed by project id, for cards whose project has no banner.

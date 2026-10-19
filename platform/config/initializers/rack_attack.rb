@@ -1,9 +1,10 @@
 # frozen_string_literal: true
 
 class Rack::Attack
-  # Puma runs several workers (WEB_CONCURRENCY), so production counts in the shared Solid Cache; a per-process store
-  # would hand every worker its own allowance. Tests use the null store, so they get a MemoryStore.
-  Rack::Attack.cache.store = Rails.env.production? ? Rails.cache : ActiveSupport::Cache::MemoryStore.new
+  # Counted in memory, per Puma worker. Counting in Solid Cache was a locked row write and a commit on every request,
+  # about 16ms in production, most of a page's server time. One person's requests land on any of the WEB_CONCURRENCY
+  # workers, so the effective limit is up to that many times the number here: these stop abuse, they do not meter.
+  Rack::Attack.cache.store = ActiveSupport::Cache::MemoryStore.new(size: 32.megabytes)
 
   # Slack webhooks are signature-verified in SlackController; never throttle them by IP.
   safelist("slack webhooks") { |req| req.path.start_with?("/slack/") }

@@ -52,7 +52,9 @@ These are enforced, not aspirational. The mechanism is in brackets.
    through `deferred_table`. Aggregates over a list are one grouped query passed to the serializer as params
    (`ProjectSerializer` takes `totals:` and `counts:`), never a per-row `count`/`sum`.
 4. **The page shell renders from cheap queries.** Counts, charts, tables and anything over a few milliseconds are
-   `InertiaRails.defer` props, so the person sees the page and the data streams in.
+   `InertiaRails.defer` props, so the person sees the page and the data streams in. A deferred prop is a second
+   request, 100-300ms for most people, so a handful of indexed queries over one person's own rows stay inline
+   (`HomeController`).
 5. **Nothing in a request waits on the network.** Slack, HCA, email and HTTP go in a job. `inertia_share` runs on
    every request, so it holds only the session user and flash.
 6. **Every statement finishes in 5 seconds or is killed** [`statement_timeout` in `config/database.yml`]. A page that

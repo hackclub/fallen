@@ -25,9 +25,11 @@
   <ul {@attach flashOnClick} class="rail flex overflow-hidden rounded-[4px] bg-white/10 md:flex-col">
     {#each items as item (item.label)}
       <li {@attach nudge(item.x)} class="md:w-full">
+        <!-- prefetch: the page's props are asked for on hover, so the click itself feels instant. -->
         <Link
           href={item.href}
           component={item.component}
+          prefetch
           class="rail-item md:w-full"
           data-tour={item.component === pages.projects ? 'projects-tab' : undefined}
           aria-current={current(item.href.url) ? 'page' : undefined}

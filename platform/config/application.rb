@@ -22,9 +22,6 @@ module Fallen
     config.active_record.encryption.deterministic_key = ENV.fetch("ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY") { "fallen-local-deterministic-key" if Rails.env.local? }
     config.active_record.encryption.key_derivation_salt = ENV.fetch("ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT") { "fallen-local-salt" if Rails.env.local? }
 
-    # Rate limiting + request filtering (config/initializers/rack_attack.rb)
-    config.middleware.use Rack::Attack
-
     # Jobs run through Solid Queue in every environment (bin/jobs). Tests use the inline test adapter.
     config.active_job.queue_adapter = :solid_queue
 

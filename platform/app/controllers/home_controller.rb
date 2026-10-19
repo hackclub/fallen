@@ -5,13 +5,10 @@ class HomeController < ApplicationController
 
   ACTIVITY_DAYS = 49
 
+  # Nothing deferred: these are a dozen indexed queries over one person's own rows, about 15ms together, and a
+  # deferred prop costs the browser another round trip to the server, 100-300ms for most people.
   def index
-    render inertia: "Home/Index", props: {
-      projects: InertiaRails.defer { projects },
-      stats: InertiaRails.defer { stats },
-      xp: InertiaRails.defer { xp },
-      activity: InertiaRails.defer { activity }
-    }
+    render inertia: "Home/Index", props: { projects: projects, stats: stats, xp: xp, activity: activity }
   end
 
   private

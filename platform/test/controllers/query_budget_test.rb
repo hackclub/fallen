@@ -12,9 +12,8 @@ class QueryBudgetTest < ActionDispatch::IntegrationTest
   test "member pages" do
     sign_in_as users(:member)
 
-    assert_query_budget(4) { get home_path }
-    assert_query_budget(8) { load_deferred(home_path, "Home/Index", "projects", "stats", "activity") }
-    assert_query_budget(5) { load_deferred(home_path, "Home/Index", "xp") }
+    # Nothing deferred (HomeController#index): the whole page in one round trip.
+    assert_query_budget(12) { get home_path }
     assert_query_budget(6) { get projects_path }
     # 11 since journals can have several Lapse timelapses: one preload query, whatever the page holds.
     assert_query_budget(11) { get project_path(projects(:station)) }
@@ -30,7 +29,7 @@ class QueryBudgetTest < ActionDispatch::IntegrationTest
 
   test "onboarding pages" do
     sign_in_as users(:newcomer)
-    assert_query_budget(5) { get home_path }
+    assert_query_budget(7) { get home_path }
   end
 
   test "banned page" do

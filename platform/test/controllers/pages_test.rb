@@ -63,11 +63,9 @@ class PagesTest < ActionDispatch::IntegrationTest
     assert_response :not_found
   end
 
-  test "home streams in my projects, totals and daily activity" do
+  test "home comes with my projects, totals and daily activity in one request" do
     sign_in_as users(:member)
-    assert_nil inertia_props(home_path, "Home/Index")["stats"]
-
-    props = load_deferred(home_path, "Home/Index", "projects", "stats", "activity")
+    props = inertia_props(home_path, "Home/Index")
     assert_equal [ projects(:station), projects(:unlinked) ].map(&:public_id).sort, props["projects"].pluck("id").sort
     assert_equal({ "minutes" => 150, "journals" => 3, "missing_hours" => 1 }, props["stats"].except("last_journal_at"))
     assert_equal HomeController::ACTIVITY_DAYS, props["activity"].size
@@ -75,9 +73,9 @@ class PagesTest < ActionDispatch::IntegrationTest
     assert_equal 150, props["activity"].last["minutes"]
   end
 
-  test "home streams in where I stand" do
+  test "home comes with where I stand" do
     sign_in_as users(:member)
-    xp = load_deferred(home_path, "Home/Index", "xp")["xp"]
+    xp = inertia_props(home_path, "Home/Index")["xp"]
     assert_equal 20, xp["total"]
     assert_equal 1, xp["form"]
     assert_equal 200, xp["next_stage_xp"]
