@@ -36,6 +36,8 @@
   let redraws = $state(0)
   let uploading = $state(0)
   let dragging = $state(false)
+  // Chrome marks a dragged <img> as carrying files, so a photo moved within the writing looks like one dropped in.
+  let movingInside = false
   let linking = $state(false)
   let linkUrl = $state('')
   // What the editor last wrote, so a change from outside (a restored draft, a removed photo) is told apart.
@@ -262,8 +264,10 @@
     class="ruled relative min-h-[280px] flex-1 overflow-y-auto"
     role="presentation"
     onkeydown={onKeydown}
+    ondragstart={() => (movingInside = true)}
+    ondragend={() => (movingInside = false)}
     ondragover={(e) => {
-      if (!e.dataTransfer?.types.includes('Files')) return
+      if (movingInside || !e.dataTransfer?.types.includes('Files')) return
       e.preventDefault()
       dragging = true
     }}
