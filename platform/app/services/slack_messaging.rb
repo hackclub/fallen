@@ -26,10 +26,10 @@ module SlackMessaging
 
   # Returns the posted message's ts. A user token can only post where its owner is a member, so someone who never
   # joined the channel (or left it) is invited by the bot and the post is tried once more.
-  def post(user, channel:, text:, blocks: nil, thread_ts: nil)
+  def post(user, channel:, text:, blocks: nil, attachments: nil, thread_ts: nil)
     invited = false
     as(user) do |client|
-      client.chat_postMessage({ channel: channel, text: text, blocks: blocks, thread_ts: thread_ts, unfurl_links: false, unfurl_media: true }.compact).ts
+      client.chat_postMessage({ channel: channel, text: text, blocks: blocks, attachments: attachments, thread_ts: thread_ts, unfurl_links: false, unfurl_media: true }.compact).ts
     rescue Slack::Web::Api::Errors::NotInChannel
       raise if invited || user.slack_id.blank?
 
@@ -45,8 +45,8 @@ module SlackMessaging
     nil
   end
 
-  def update(user, channel:, ts:, text:, blocks: nil)
-    as(user) { |client| client.chat_update({ channel: channel, ts: ts, text: text, blocks: blocks }.compact) }
+  def update(user, channel:, ts:, text:, blocks: nil, attachments: nil)
+    as(user) { |client| client.chat_update({ channel: channel, ts: ts, text: text, blocks: blocks, attachments: attachments }.compact) }
   end
 
   def delete(user, channel:, ts:)

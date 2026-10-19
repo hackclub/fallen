@@ -11,10 +11,26 @@ class SyncJournalToSlackJobTest < ActiveJob::TestCase
       assert_equal projects(:station).slack_thread_ts, call[:thread_ts]
       assert_nil call[:username]
       assert call[:text].start_with?("*Soldered* the <https://x.test|board>. Wrote down"), call[:text]
-      assert_includes call[:text], "photo.png>"
+      assert_equal [ "photo.png" ], call[:attachments].map { |attachment| attachment[:fallback] }
+      assert call[:attachments].sole[:image_url].start_with?("http"), call[:attachments]
       refute_includes call[:blocks].to_s, "lapse.hackclub.com"
     end
     assert journal.reload.on_slack?
+  end
+
+  test "leaves the photos the editor embedded out of the text, since they go under the message" do
+    upload = "/rails/active_storage/blobs/redirect/abc--123/board.png"
+    body = "#{journal_text('Soldered the board')}\n![board.png](#{upload})\n![power](image.p\n![wiring.png](#{upload})\nng)\n\n\n![logo](https://x.test/logo.png) done"
+    journal = projects(:station).journals.create!(user: users(:member), body: body, duration_minutes: 60, source: "web", images: [ photo ])
+
+    with_fake_slack do |slack|
+      SyncJournalToSlackJob.perform_now(journal, "create")
+      text = slack.calls_to(:chat_postMessage).sole[:text]
+      refute_includes text, "active_storage"
+      refute_includes text, "image.p"
+      assert_includes text, "<https://x.test/logo.png|logo> done"
+      refute_includes text, "\n\n\n"
+    end
   end
 
   test "splits a journal longer than one slack section across several" do
@@ -26,7 +42,6 @@ class SyncJournalToSlackJobTest < ActiveJob::TestCase
       sections = slack.calls_to(:chat_postMessage).sole[:blocks].select { |block| block[:type] == "section" }
       assert_operator sections.size, :>, 1
       assert sections.all? { |section| section[:text][:text].length <= SlackBot::Blocks::SECTION_LIMIT }
-      assert_includes sections.last[:text][:text], "photo.png>"
     end
   end
 

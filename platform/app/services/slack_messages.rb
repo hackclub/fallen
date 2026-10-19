@@ -9,14 +9,15 @@ module SlackMessages
     { text: text, blocks: [ SlackBot::Blocks.section(text) ] }
   end
 
+  # The photos go under the message as image attachments rather than links, so the ones the editor embedded in the
+  # body (as Markdown images pointing at the site) are taken out of the text.
   def journal(journal)
-    body = mrkdwn(journal.body)
-    image_links = journal.images.map { |image| "<#{blob_url(image)}|:frame_with_picture: #{image.filename}>" }
-    text = [ body, image_links.join("  ") ].select(&:present?).join("\n")
+    text = mrkdwn(without_embedded_images(journal.body)).gsub(/\n{3,}/, "\n\n").strip
     blocks = SlackBot::Blocks.sections(text)
     # Timelapses are private to the person and staff, so the public thread never links one.
     blocks << footer(journal_url(journal), *(":stopwatch: #{journal.duration_text}" if journal.hours_logged?))
-    { text: text, blocks: blocks }
+    attachments = journal.images.map { |image| { fallback: image.filename.to_s, image_url: blob_url(image) } }
+    { text: text, blocks: blocks, attachments: attachments }
   end
 
   FOOTER_BLOCK_ID = "fallen_footer"
@@ -405,6 +406,13 @@ module SlackMessages
     text = text.gsub(/~~(.+?)~~/, '~\1~')
     text = text.gsub(/^\#{1,6}\s+(.+)$/, '*\1*')
     text.gsub(/^\s*[-*]\s+/, "• ").gsub(/^\s*(\d+)\.\s+/, '\1. ')
+  end
+
+  # Uploads the editor embedded (relative links to the site, which Slack can't open) and Markdown images with no
+  # web address. The editor drops an upload in at the cursor, which can land inside another image's Markdown, so the
+  # uploads go first and the second match spans lines.
+  def without_embedded_images(markdown)
+    markdown.to_s.gsub(%r{!?\[[^\]\n]*\]\(/rails/active_storage/[^)\s]*\)}, "").gsub(%r{!\[[^\]]*\]\((?!https?://)[^)]*\)}, "")
   end
 
   def blob_url(image) = Rails.application.routes.url_helpers.rails_blob_url(image, host: ENV.fetch("APP_URL", "http://localhost:3000"))
