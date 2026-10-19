@@ -66,6 +66,8 @@ You can still be a faller! Level up your character to earn prizes like 3D printe
 Ask in [#fallen-help](https://hackclub.enterprise.slack.com/archives/C0C9JQEPFL6) on Slack or email us at
 [fallen@hackclub.com](mailto:fallen@hackclub.com)!
 
+<img src="platform/app/frontend/assets/docs/banner-you-got-this.webp" alt="You got this!">
+
 ## Local development
 
 ```sh
