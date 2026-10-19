@@ -21,6 +21,14 @@ class SetupTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "nothing left once Slack is skipped" do
+    users(:newcomer).update!(pet: "lulu", slack_skipped_at: Time.current)
+    sign_in_as users(:newcomer)
+    with_env("SLACK_CLIENT_ID" => "id", "SLACK_CLIENT_SECRET" => "secret") do
+      assert_nil setup_prop
+    end
+  end
+
   test "nothing left once Slack is connected" do
     sign_in_as users(:member)
     assert_nil setup_prop

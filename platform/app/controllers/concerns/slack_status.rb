@@ -11,6 +11,7 @@ module SlackStatus
       configured: SlackMessaging.configured?,
       oauth_available: SlackMessaging.oauth_configured?,
       connected: current_user.slack_connected?,
+      ready: current_user.slack_ready?,
       linked: current_user.slack_id.present?
     }
   end

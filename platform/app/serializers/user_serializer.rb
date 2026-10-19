@@ -20,6 +20,7 @@
 #  pet                     :string
 #  roles                   :string           default([]), not null, is an Array
 #  signup_source           :jsonb            not null
+#  slack_skipped_at        :datetime
 #  slack_user_token        :text
 #  slack_user_token_scopes :string
 #  streak_freezes          :integer          default(3), not null

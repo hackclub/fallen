@@ -54,6 +54,58 @@ class SyncJournalToSlackJobTest < ActiveJob::TestCase
     end
   end
 
+  test "posts through the bot under their name for someone who skipped slack, and edits and deletes as the bot" do
+    users(:member).disconnect_slack!
+    users(:member).skip_slack!
+    journal = projects(:station).journals.create!(user: users(:member), body: journal_text("Tuned the strings"), duration_minutes: 30, source: "web", images: [ photo ])
+
+    with_fake_slack do |slack|
+      SyncJournalToSlackJob.perform_now(journal, "create")
+      call = slack.calls_to(:chat_postMessage).sole
+      assert_equal "Member Person", call[:username]
+      assert_equal "#{User::CACHET_URL}/users/U0MEMBER/r", call[:icon_url]
+      assert journal.reload.slack_posted_by_bot?
+
+      # The user client would refuse: they are not connected. The bot owns these messages.
+      SyncJournalToSlackJob.perform_now(journal, "update")
+      SyncJournalToSlackJob.perform_now(journal, "delete")
+      assert_equal [ journal.slack_ts ], slack.calls_to(:chat_update).map { |update| update[:ts] }
+      assert_equal [ journal.slack_ts ], slack.calls_to(:chat_delete).map { |delete| delete[:ts] }
+    end
+  end
+
+  test "falls back to the bot when the token stops working for someone who skipped before" do
+    users(:member).skip_slack!
+    journal = projects(:station).journals.create!(user: users(:member), body: journal_text("x"), duration_minutes: 30, source: "web", images: [ photo ])
+
+    with_fake_slack do |slack|
+      revoked = false
+      slack.define_singleton_method(:chat_postMessage) do |params|
+        next super(**params) if revoked
+
+        revoked = true
+        raise Slack::Web::Api::Errors::TokenRevoked, "token_revoked"
+      end
+
+      SyncJournalToSlackJob.perform_now(journal, "create")
+      assert_equal "Member Person", slack.calls_to(:chat_postMessage).sole[:username]
+    end
+    assert_not users(:member).reload.slack_connected?
+    assert journal.reload.slack_posted_by_bot?
+  end
+
+  test "does not post through the bot for someone whose slack account was deactivated" do
+    users(:member).disconnect_slack!
+    users(:member).skip_slack!
+    journal = projects(:station).journals.create!(user: users(:member), body: journal_text("x"), duration_minutes: 30, source: "web", images: [ photo ])
+
+    with_fake_slack do |slack|
+      slack.define_singleton_method(:users_info) { |**| Slack::Messages::Message.new("ok" => true, "user" => { "id" => "U0MEMBER", "deleted" => true }) }
+      assert_raises(SlackMessaging::Deactivated) { SyncJournalToSlackJob.perform_now(journal, "create") }
+      assert_empty slack.calls_to(:chat_postMessage)
+    end
+  end
+
   test "posts the project anchor first when the project is not on slack yet" do
     journal = journals(:web_only)
     with_fake_slack do |slack|

@@ -53,6 +53,13 @@ class LapseTimelapseTest < ActiveSupport::TestCase
     assert_equal users(:admin), lapse_timelapses(:admins).reload.user
   end
 
+  test "sync takes a timelapse Lapse lists twice once" do
+    stub_method(Lapse, :timelapses, [ lapse_data("lapse_new", name: "First"), lapse_data("lapse_new", name: "Again") ]) do
+      LapseTimelapse.sync(users(:member))
+    end
+    assert_equal "First", users(:member).lapse_timelapses.find_by!(lapse_id: "lapse_new").name
+  end
+
   test "an expired token disconnects Lapse" do
     original = Lapse.method(:timelapses)
     Lapse.define_singleton_method(:timelapses) { |_token| raise Lapse::Unauthorized }

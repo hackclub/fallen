@@ -46,6 +46,17 @@
   const page = usePage()
 
   let hole = $state({ x: 0, y: 0, w: 0, h: 0 })
+  // Where the target really is. The window springs after it, so while the page scrolls the button can be outside
+  // the window it is heading for; clicks go by this instead, and one that still misses by a frame is passed on.
+  let exact = $state({ x: 0, y: 0, w: 0, h: 0 })
+  let target: HTMLElement | undefined
+
+  function passOn(event: MouseEvent) {
+    const r = target?.getBoundingClientRect()
+    if (!r) return
+    const { clientX: x, clientY: y } = event
+    if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) target!.click()
+  }
   let ready = $state(false)
   let pointUp = $state(false)
   // The rail sits at the window's edge: point at it from the right instead of from above.
@@ -72,7 +83,7 @@
   $effect(() => {
     tour.spotlight = true
     let frame = 0
-    let target: HTMLElement | undefined
+    target = undefined
     const edges = springs(untrack(() => tour.lastHole) ?? { x: 0, y: 0, w: innerWidth, h: innerHeight })
     let last = performance.now()
     const began = performance.now()
@@ -110,6 +121,7 @@
       if (target) {
         const r = target.getBoundingClientRect()
         const to: Rect = { x: r.left - PAD, y: r.top - PAD, w: r.width + PAD * 2, h: r.height + PAD * 2 }
+        exact = to
         for (const k of ['x', 'y', 'w', 'h'] as const) {
           if (prefersReducedMotion()) edges[k].pos = to[k]
           else step(edges[k], to[k], dt)
@@ -131,15 +143,14 @@
     }
   })
 
-  // The dark layer with the window cut out of it. Clipping also limits where it can be clicked, so clicks in the
+  // The screen with a window cut out of it. Clipping a layer also limits where it can be clicked, so clicks in the
   // window reach the page.
-  const clip = $derived.by(() => {
-    const { x, y, w, h } = hole
+  function cutOut({ x, y, w, h }: Rect) {
     const r = Math.min(RADIUS, w / 2, h / 2)
     const W = innerWidth
     const H = innerHeight
     return `path(evenodd, "M0 0H${W}V${H}H0Z M${x + r} ${y}H${x + w - r}A${r} ${r} 0 0 1 ${x + w} ${y + r}V${y + h - r}A${r} ${r} 0 0 1 ${x + w - r} ${y + h}H${x + r}A${r} ${r} 0 0 1 ${x} ${y + h - r}V${y + r}A${r} ${r} 0 0 1 ${x + r} ${y}Z")`
-  })
+  }
 </script>
 
 {#snippet star(className: string)}
@@ -149,11 +160,9 @@
 {/snippet}
 
 <div class="pointer-events-none fixed inset-0 z-[5]" aria-hidden="true">
-  <div
-    class="tour-fade pointer-events-auto absolute inset-0"
-    style:background={DIM}
-    style:clip-path={clip}
-  ></div>
+  <div class="tour-fade absolute inset-0" style:background={DIM} style:clip-path={cutOut(hole)}></div>
+  <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+  <div class="pointer-events-auto absolute inset-0" style:clip-path={cutOut(exact)} onclick={passOn}></div>
 
   {#if ready}
     <div

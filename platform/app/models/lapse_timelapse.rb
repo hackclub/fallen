@@ -49,9 +49,10 @@ class LapseTimelapse < ApplicationRecord
   scope :unclaimed, -> { where(journal_id: nil).or(where(journal_id: Journal.discarded.select(:id))) }
 
   # Replaces the person's copies with what Lapse has now. A timelapse already claimed by another Fallen account
-  # stays theirs; one gone from Lapse is dropped unless a journal points at it.
+  # stays theirs; one gone from Lapse is dropped unless a journal points at it. Lapse's pages can overlap when a
+  # recording lands mid-sync, so the newest copy of each wins.
   def self.sync(user)
-    rows = Lapse.timelapses(user.lapse_token).map { |data| attributes_from(data).merge(user_id: user.id) }
+    rows = Lapse.timelapses(user.lapse_token).map { |data| attributes_from(data).merge(user_id: user.id) }.uniq { it[:lapse_id] }
     upsert_all(rows, unique_by: :lapse_id, update_only: %i[name duration_seconds visibility playback_url thumbnail_url recorded_at]) if rows.any?
     user.lapse_timelapses.where.not(lapse_id: rows.pluck(:lapse_id)).where(journal_id: nil).delete_all
     user.update!(lapse_synced_at: Time.current)

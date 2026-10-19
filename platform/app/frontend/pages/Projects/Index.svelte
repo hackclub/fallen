@@ -68,14 +68,8 @@
     <p class="mb-6 max-w-xl text-center font-outfit text-lg text-ink sm:mb-8 sm:text-xl">
       No projects yet, Create one here!
     </p>
-    {#if !slack.connected}
-      <p class="-mt-3 mb-6 max-w-xl text-center font-outfit text-sm text-ink/70 sm:-mt-5 sm:mb-8">
-        Your project lives as a thread in the Slack journals channel, and every journal is a reply posted as
-        you. Connect Slack first so we can post for you.
-      </p>
-    {/if}
     {@render createButton()}
-    {#if !slack.oauth_available && !slack.connected}
+    {#if !slack.oauth_available && !slack.ready}
       <p class="font-outfit text-xs text-red-700">Slack sign-in is not configured on this server yet.</p>
     {/if}
   </div>

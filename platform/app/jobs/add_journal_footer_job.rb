@@ -13,7 +13,7 @@ class AddJournalFooterJob < ApplicationJob
     return if SlackMessages.footer?(message.blocks)
 
     blocks = Array(message.blocks).map(&:to_h) + [ SlackMessages.footer(SlackMessages.journal_url(journal)) ]
-    SlackMessaging.update(journal.user, channel: journal.slack_channel_id, ts: ts, text: message.text.to_s, blocks: blocks)
+    SlackMessaging.update(journal.user, channel: journal.slack_channel_id, ts: ts, text: message.text.to_s, blocks: blocks, by_bot: false)
   rescue Slack::Web::Api::Errors::CantUpdateMessage, Slack::Web::Api::Errors::MessageNotFound, Slack::Web::Api::Errors::EditWindowClosed
     nil
   end

@@ -21,6 +21,22 @@ class SlackAuthTest < ActionDispatch::IntegrationTest
     assert_nil user.reload.slack_id
   end
 
+  test "skipping slack posts the threads of projects made before, through the bot" do
+    user = User.create!(hca_id: "hca_fresh", email: "fresh@example.com", display_name: "Fresh", roles: [ "user" ], pet: "lulu")
+    project = user.projects.create!(title: "Made during onboarding")
+    sign_in_as user
+
+    assert_enqueued_with(job: PostProjectToSlackJob, args: [ project ]) { post skip_slack_path }
+    assert user.reload.slack_ready?
+  end
+
+  test "disconnecting counts as choosing the bot" do
+    sign_in_as users(:member)
+    with_fake_slack { delete disconnect_slack_path }
+    assert users(:member).reload.slack_ready?
+    assert_not users(:member).slack_connected?
+  end
+
   private
 
   def connect(user, slack_id:)

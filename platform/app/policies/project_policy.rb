@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-# Journals are mirrored into Slack as the person, so they need Slack connected (User#slack_connected?). A project
-# does not: onboarding makes one before Slack is connected, and its thread is posted once it is (PostProjectToSlackJob).
+# Journals are mirrored into Slack as the person, so they need Slack connected or skipped (User#slack_ready?). A
+# project does not: onboarding makes one before that, and its thread is posted once it is (PostProjectToSlackJob).
 class ProjectPolicy < ApplicationPolicy
   def index? = user.present?
   def show? = owner? || staff?

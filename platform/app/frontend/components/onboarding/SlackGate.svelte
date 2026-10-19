@@ -4,7 +4,7 @@
   import OrnateModal from '@/components/OrnateModal.svelte'
   import { shared } from '@/lib/shared.svelte'
   import { slackGateDue } from '@/lib/slackGate.svelte'
-  import { connectSlack, devSkipSlack, signIn, signOut } from '@/routes'
+  import { connectSlack, devSkipSlack, signIn, signOut, skipSlack } from '@/routes'
 
   const setup = $derived(shared().setup)
   const due = $derived(slackGateDue())
@@ -31,15 +31,27 @@
           </OrnateButton>
         </div>
       {:else}
-        <p class="font-outfit text-sm text-ink-soft">
-          Your project lives as a thread in the journals channel and every journal is a reply in it, posted as
-          you.
-        </p>
-        <div class="mt-6 flex justify-center">
+        <div class="flex justify-center">
           <OrnateButton kind="confirm" href={connectSlack({ query: { return_to: page.url } }).url}>
             Connect Slack
           </OrnateButton>
         </div>
+        <p class="mt-5 font-outfit text-xs text-ink-soft">
+          Rather not? Skip it and Fallen's bot posts them under your name and picture. They still go to Hack
+          Club Slack, so its <a
+            href="https://hackclub.com/conduct/"
+            target="_blank"
+            rel="noopener"
+            class="underline">code of conduct</a
+          >
+          applies. You can connect later in Settings.
+        </p>
+        <button
+          type="button"
+          class="mt-3 font-outfit text-sm text-ink-soft underline hover:text-ink"
+          onclick={() => router.post(skipSlack().url, {}, { preserveScroll: true })}
+          >Skip, post through the bot</button
+        >
       {/if}
       <div class="mt-4 flex justify-center gap-4 font-outfit text-xs text-ink-soft">
         <button type="button" class="underline hover:text-ink" onclick={() => router.visit(signOut())}

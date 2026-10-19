@@ -7,6 +7,7 @@ class RewriteProjectAnchorJob < ApplicationJob
 
   def perform(project, dry_run: false)
     return :not_linked if project.discarded? || !project.slack_linked?
+    return :already_rewritten if project.slack_posted_by_bot?
     return :not_connected unless project.user.slack_connected?
 
     message = find_anchor(project) or return :gone
@@ -15,7 +16,7 @@ class RewriteProjectAnchorJob < ApplicationJob
     return :edited_in_slack if message.edited.present?
     return :would_rewrite if dry_run
 
-    SlackMessaging.update(project.user, channel: project.slack_channel_id, ts: project.slack_thread_ts, **SlackMessages.project_anchor(project))
+    SlackMessaging.update(project.user, channel: project.slack_channel_id, ts: project.slack_thread_ts, by_bot: false, **SlackMessages.project_anchor(project))
     :rewritten
   rescue SlackMessaging::NotConnected
     :not_connected

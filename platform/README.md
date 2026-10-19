@@ -107,8 +107,9 @@ message is the project; each reply by the owner is a journal. Both sides stay in
   huddle channel.
 - Web -> Slack: `PostProjectToSlackJob` posts the thread anchor, `SyncJournalToSlackJob` posts, edits and deletes
   journal replies. Messages go out as the person when they have connected Slack (`SlackAuthController`, user scope
-  `chat:write`, needs `SLACK_CLIENT_ID` / `SLACK_CLIENT_SECRET` and the redirect URL from the manifest); otherwise the
-  bot posts under their name and avatar (`chat:write.customize`).
+  `chat:write`, needs `SLACK_CLIENT_ID` / `SLACK_CLIENT_SECRET` and the redirect URL from the manifest). Someone who
+  skips that has the bot post under their name and avatar (`chat:write.customize`); each message records which one
+  posted it (`slack_posted_by_bot`), since only the poster can edit or delete it.
 
 Every journal has a time. It is typed, never picked from presets ("1.5", "1h 30m", `Duration.parse`), and stored as minutes.
 It also needs a photo for every two hours of it (`Journal::MINUTES_PER_IMAGE`).

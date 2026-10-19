@@ -32,7 +32,9 @@
 {:else}
   <SettingRow
     title="Not connected"
-    description="Connect Slack to create projects and write journals. They post to your project's thread as you."
+    description={slack.ready
+      ? "Fallen's bot posts your journals to your project's thread under your name. Connect Slack to post them as you."
+      : "Connect Slack to write journals. They post to your project's thread as you."}
   >
     {#snippet lead()}
       <span class="size-3 rounded-full bg-white/30" aria-hidden="true"></span>

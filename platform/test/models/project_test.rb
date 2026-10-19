@@ -4,18 +4,19 @@ require "test_helper"
 #
 # Table name: projects
 #
-#  id               :bigint           not null, primary key
-#  approved_at      :datetime
-#  demo_url         :string
-#  description      :text
-#  discarded_at     :datetime
-#  repo_url         :string
-#  slack_thread_ts  :string
-#  title            :string           not null
-#  created_at       :datetime         not null
-#  updated_at       :datetime         not null
-#  slack_channel_id :string
-#  user_id          :bigint           not null
+#  id                  :bigint           not null, primary key
+#  approved_at         :datetime
+#  demo_url            :string
+#  description         :text
+#  discarded_at        :datetime
+#  repo_url            :string
+#  slack_posted_by_bot :boolean          default(FALSE), not null
+#  slack_thread_ts     :string
+#  title               :string           not null
+#  created_at          :datetime         not null
+#  updated_at          :datetime         not null
+#  slack_channel_id    :string
+#  user_id             :bigint           not null
 #
 # Indexes
 #

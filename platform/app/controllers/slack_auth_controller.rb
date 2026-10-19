@@ -1,4 +1,5 @@
-# "Connect Slack": a user token so journals written on the web land in Slack as the person, not the bot.
+# "Connect Slack": a user token so journals written on the web land in Slack as the person. Skipping it has the bot
+# post them under the person's name and picture instead (SlackMessaging.post).
 class SlackAuthController < ApplicationController
   include OauthState
 
@@ -30,22 +31,34 @@ class SlackAuthController < ApplicationController
 
     current_user.update!(slack_id: authed["id"], slack_user_token: authed["access_token"], slack_user_token_scopes: authed["scope"])
     SyncSlackProfileJob.perform_later(current_user)
-    current_user.projects.kept.where(slack_thread_ts: nil).find_each { |project| PostProjectToSlackJob.perform_later(project) }
+    post_waiting_projects
     redirect_to return_path, notice: "Slack connected. Journals you write here now post as you."
   rescue Slack::Web::Api::Errors::SlackError, Faraday::Error => e
     Sentry.capture_exception(e)
     redirect_to return_path, alert: "Connecting Slack failed: #{e.message}"
   end
 
+  def skip
+    current_user.skip_slack!
+    post_waiting_projects
+    redirect_back fallback_location: projects_path, notice: "Skipped. Fallen will post your journals in Slack under your name."
+  end
+
+  # Disconnecting is choosing the bot, so they are not asked again.
   def destroy
     SlackMessaging.revoke(current_user) if current_user.slack_connected?
     current_user.disconnect_slack!
+    current_user.skip_slack!
     redirect_back fallback_location: projects_path, notice: "Slack disconnected. Journals will post through the bot."
   end
 
   private
 
   def return_path = session.delete(:return_to).presence || projects_path
+
+  def post_waiting_projects
+    current_user.projects.kept.where(slack_thread_ts: nil).find_each { |project| PostProjectToSlackJob.perform_later(project) }
+  end
 
   # Slack only redirects to the URLs in the manifest, which are built from APP_URL, so use that rather than
   # whatever host this request came in on.

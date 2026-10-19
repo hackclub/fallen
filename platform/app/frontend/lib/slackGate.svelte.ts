@@ -4,7 +4,7 @@ import { tour } from '@/lib/tour.svelte'
 
 // Someone who started with just an email signs in with Hack Club Auth first, which keeps their pet and project
 // (User.from_hca_code!). After the onboarding, Slack: journals are posted as the person, so until it is connected
-// there is nothing else to do. The server only asks for either when it applies (ApplicationController#setup_props).
+// or skipped there is nothing else to do. The server only asks for either when it applies (ApplicationController#setup_props).
 // A project's own pages are let through: the onboarding ends on one, and they explain Slack in place. So are the
 // docs, for someone just reading them.
 const OPEN_PAGES = ['Projects/Show', 'Projects/Form', 'Docs/Show']

@@ -4,21 +4,22 @@ require "test_helper"
 #
 # Table name: journals
 #
-#  id                 :bigint           not null, primary key
-#  body               :text             not null
-#  discarded_at       :datetime
-#  duration_minutes   :integer
-#  hours_self_claimed :boolean
-#  lapse_url          :string
-#  slack_parts        :jsonb            not null
-#  slack_ts           :string
-#  source             :string           default("web"), not null
-#  tracked_minutes    :integer
-#  created_at         :datetime         not null
-#  updated_at         :datetime         not null
-#  project_id         :bigint           not null
-#  slack_channel_id   :string
-#  user_id            :bigint           not null
+#  id                  :bigint           not null, primary key
+#  body                :text             not null
+#  discarded_at        :datetime
+#  duration_minutes    :integer
+#  hours_self_claimed  :boolean
+#  lapse_url           :string
+#  slack_parts         :jsonb            not null
+#  slack_posted_by_bot :boolean          default(FALSE), not null
+#  slack_ts            :string
+#  source              :string           default("web"), not null
+#  tracked_minutes     :integer
+#  created_at          :datetime         not null
+#  updated_at          :datetime         not null
+#  project_id          :bigint           not null
+#  slack_channel_id    :string
+#  user_id             :bigint           not null
 #
 # Indexes
 #

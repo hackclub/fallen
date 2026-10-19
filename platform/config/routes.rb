@@ -29,6 +29,7 @@ Rails.application.routes.draw do
   # Slack user token (post journals as yourself)
   get "auth/slack/start" => "slack_auth#new", as: :connect_slack
   get "auth/slack/callback" => "slack_auth#create", as: :slack_callback
+  post "auth/slack/skip" => "slack_auth#skip", as: :skip_slack
   delete "auth/slack" => "slack_auth#destroy", as: :disconnect_slack
 
   # Lapse (pick a timelapse for a journal's hours)

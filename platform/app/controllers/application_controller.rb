@@ -31,7 +31,7 @@ class ApplicationController < ActionController::Base
   private
 
   # What someone has left to do before the rest of the site: the onboarding, which picking a pet finishes, then
-  # signing in with Hack Club Auth if they started with just an email, then connecting Slack. Where the onboarding
+  # signing in with Hack Club Auth if they started with just an email, then connecting Slack or choosing not to. Where the onboarding
   # resumes comes from here rather than the browser, so leaving halfway (closing the tab, another device) picks up at
   # the same place. Costs one query, and only while onboarding.
   # Never while impersonating: the admin would be picking a pet or linking Slack for someone else. `rules` explain the
@@ -43,7 +43,7 @@ class ApplicationController < ActionController::Base
       { step: "onboarding", project: current_user.projects.kept.order(:created_at).pick(:title), rules: Team.rules }
     elsif current_user.trial?
       { step: "verify", email: current_user.email }
-    elsif !current_user.slack_connected? && SlackMessaging.oauth_configured?
+    elsif !current_user.slack_ready? && SlackMessaging.oauth_configured?
       { step: "slack" }
     end
   end

@@ -17,6 +17,7 @@
 #  pet                     :string
 #  roles                   :string           default([]), not null, is an Array
 #  signup_source           :jsonb            not null
+#  slack_skipped_at        :datetime
 #  slack_user_token        :text
 #  slack_user_token_scopes :string
 #  streak_freezes          :integer          default(3), not null
@@ -148,8 +149,13 @@ class User < ApplicationRecord
     where(id: ids).update_all("xp = (SELECT COALESCE(SUM(amount), 0) FROM xp_entries WHERE xp_entries.user_id = users.id AND xp_entries.discarded_at IS NULL)")
   end
 
-  # Journals posted from the web go to Slack as this person when they have connected Slack (SlackAuthController).
+  # Journals posted from the web go to Slack as this person when they have connected Slack (SlackAuthController),
+  # or by the bot under their name once they chose to skip that (SlackMessaging.post). Either lets them journal.
   def slack_connected? = slack_user_token.present?
+  def slack_skipped? = slack_skipped_at.present?
+  def slack_ready? = slack_connected? || slack_skipped?
+
+  def skip_slack! = slack_skipped? || update!(slack_skipped_at: Time.current)
 
   def disconnect_slack! = update!(slack_user_token: nil, slack_user_token_scopes: nil)
 

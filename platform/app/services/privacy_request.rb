@@ -13,6 +13,7 @@ class PrivacyRequest
     hca_token: nil,
     slack_user_token: nil,
     slack_user_token_scopes: nil,
+    slack_skipped_at: nil,
     lapse_token: nil,
     lapse_synced_at: nil,
     timezone: "UTC",
