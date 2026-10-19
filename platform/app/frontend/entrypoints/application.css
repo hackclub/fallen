@@ -510,6 +510,11 @@
     animation-delay: calc(min(var(--i, 0), 14) * var(--stagger-step, 45ms));
   }
 
+  /* Arrived (lib/stagger.ts). :where keeps it weaker than a child's own hover animation. */
+  & > :where([data-staggered]) {
+    animation: none;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     & > * {
       animation: none;
