@@ -1,29 +1,31 @@
 # Be sure to restart your server when you modify this file.
+# See https://guides.rubyonrails.org/security.html#content-security-policy-header
 
-# Define an application-wide content security policy.
-# See the Securing Rails Applications Guide for more information:
-# https://guides.rubyonrails.org/security.html#content-security-policy-header
+# Report-only until the Sentry reports come back clean; then delete the last line to enforce it.
+Rails.application.configure do
+  # Uploads are served through the app (rails_storage_proxy); the R2 endpoint is here in case that ever becomes a redirect.
+  r2_host = ENV["R2_ENDPOINT"].presence && URI(ENV["R2_ENDPOINT"]).then { |uri| "#{uri.scheme}://#{uri.host}" }
+  # Browser errors and CSP reports go to the frontend Sentry project.
+  sentry = ENV["SENTRY_FRONTEND_DSN"].presence && URI(ENV["SENTRY_FRONTEND_DSN"])
+  vite = "#{ViteRuby.config.host}:#{ViteRuby.config.port}" if Rails.env.development?
 
-# Rails.application.configure do
-#   config.content_security_policy do |policy|
-#     policy.default_src :self, :https
-#     policy.font_src    :self, :https, :data
-#     policy.img_src     :self, :https, :data
-#     policy.object_src  :none
-#     policy.script_src  :self, :https
-#     policy.style_src   :self, :https
-#     # Specify URI for violation reports
-#     # policy.report_uri "/csp-violation-report-endpoint"
-#   end
-#
-#   # Generate session nonces for permitted importmap, inline scripts, and inline styles.
-#   config.content_security_policy_nonce_generator = ->(request) { request.session.id.to_s }
-#   config.content_security_policy_nonce_directives = %w(script-src style-src)
-#
-#   # Automatically add `nonce` to `javascript_tag`, `javascript_include_tag`, and `stylesheet_link_tag`
-#   # if the corresponding directives are specified in `content_security_policy_nonce_directives`.
-#   # config.content_security_policy_nonce_auto = true
-#
-#   # Report violations without enforcing the policy.
-#   # config.content_security_policy_report_only = true
-# end
+  config.content_security_policy do |policy|
+    policy.default_src :self
+    policy.base_uri :self
+    policy.object_src :none
+    policy.frame_ancestors :self
+    policy.script_src :self, *([ :unsafe_eval, "http://#{vite}" ] if vite)
+    # Svelte's style: directives and SSR output write inline style attributes.
+    policy.style_src :self, :unsafe_inline, "https://fonts.googleapis.com"
+    policy.font_src :self, :data, "https://fonts.gstatic.com"
+    policy.img_src :self, :data, :blob,
+                   "https://cachet.hackclub.com", "https://*.slack-edge.com", # avatars: Cachet redirects to Slack's CDN
+                   "https://lookout.hackclub.com", "https://public.lapse-hackclub.link", # Lapse thumbnails
+                   "https://i.ytimg.com", *r2_host
+    policy.frame_src "https://www.youtube-nocookie.com"
+    policy.connect_src :self, *("https://#{sentry.host}" if sentry), *([ "ws://#{vite}", "http://#{vite}" ] if vite)
+    policy.report_uri "https://#{sentry.host}/api#{sentry.path}/security/?sentry_key=#{sentry.user}" if sentry
+  end
+
+  config.content_security_policy_report_only = true
+end
