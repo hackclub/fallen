@@ -239,7 +239,7 @@ class User < ApplicationRecord
 
   def pet_switch_allowed
     switch = pet_switch
-    errors.add(:pet, "You can switch pets again on #{switch.next_on.to_fs(:long)}.") unless switch.allowed?
+    errors.add(:pet, "You can switch pets again on #{switch.resets_on.to_fs(:long)}.") unless switch.allowed?
   end
 
   def roles_are_known

@@ -1,12 +1,21 @@
 <script lang="ts" module>
-  // SettingsController#pet_switch_props: whether the pet (and team) can be switched now, or the day it can again.
-  export type PetSwitch = { allowed: boolean; next_on: string | null }
+  import type { TeamRules } from '@/types'
+
+  // SettingsController#pet_switch_props. `free` until the second journal; after that one switch a week, which
+  // comes back on `resets_on`.
+  export type PetSwitch = {
+    free: boolean
+    allowed: boolean
+    resets_on: string | null
+    multiplier: number
+    rules: TeamRules
+  }
 </script>
 
 <script lang="ts">
   import { router } from '@inertiajs/svelte'
-  import HoldButton from '@/components/settings/HoldButton.svelte'
   import SettingRow from '@/components/settings/SettingRow.svelte'
+  import SwitchPetModal from '@/components/settings/SwitchPetModal.svelte'
   import Toggle from '@/components/settings/Toggle.svelte'
   import { FINAL_FORM, PET_FORMS, PET_NAMES, petState } from '@/lib/pet.svelte'
   import { PET_HOME_EVENT, preferences, setPreference } from '@/lib/preferences.svelte'
@@ -18,18 +27,34 @@
 
   const petName = $derived(PET_NAMES[pet])
   const other = $derived(Object.keys(PET_NAMES).find((name) => name !== pet)!)
-  const nextSwitch = $derived(
-    petSwitch?.next_on
-      ? new Date(`${petSwitch.next_on}T00:00`).toLocaleDateString(undefined, {
-          weekday: 'long',
-          month: 'long',
-          day: 'numeric',
-        })
-      : null,
+  const resets = $derived(petSwitch?.resets_on ? new Date(`${petSwitch.resets_on}T00:00`) : null)
+  const resetsOn = $derived(
+    resets?.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' }) ?? null,
   )
+  const weekday = $derived(resets?.toLocaleDateString(undefined, { weekday: 'long' }))
+  const daysLeft = $derived.by(() => {
+    if (!resets) return null
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const days = Math.round((resets.getTime() - today.getTime()) / 86_400_000)
+    return days <= 1 ? 'tomorrow' : `in ${days} days`
+  })
+  const weeks = $derived(`Your weeks start on ${weekday}s, the day of your first journal.`)
+  const switchRule = $derived(
+    petSwitch?.free
+      ? 'Switch as often as you like until your second journal. After that, once a week.'
+      : petSwitch?.allowed
+        ? `One switch a week. ${weeks}`
+        : `Your next switch opens ${resetsOn}, ${daysLeft}. ${weeks}`,
+  )
+  const switchStatus = $derived(
+    petSwitch?.free ? 'Free for now' : petSwitch?.allowed ? '1 switch left this week' : 'Used this week',
+  )
+  let confirming = $state(false)
 
   // The desktop pet shows `picked` over the saved pet, so it is cleared once the server has answered.
   function switchPet() {
+    confirming = false
     router.patch(
       petRoute(),
       { pet: other },
@@ -94,16 +119,33 @@
   </div>
 </SettingRow>
 {#if petSwitch}
-  <SettingRow
-    title="Switch to {PET_NAMES[other]}"
-    description={petSwitch.allowed
-      ? `Join Team ${PET_NAMES[other]} instead. Your XP comes with you${pet === 'sami' ? ', your multiplier goes back to 1x' : ''}. You can switch once a week.`
-      : `You've switched this week. You can switch again on ${nextSwitch}.`}
-  >
-    {#if petSwitch.allowed}
-      <HoldButton label="Hold to switch" done="Switching" onconfirm={switchPet} />
-    {/if}
+  <SettingRow title="Team {petName}" description={switchRule}>
+    <div class="flex flex-col items-end gap-1.5">
+      <button
+        type="button"
+        class="pill-glass"
+        disabled={!petSwitch.allowed}
+        onclick={() => {
+          sfx.select()
+          confirming = true
+        }}>Switch to {PET_NAMES[other]}</button
+      >
+      <p class="font-montserrat text-xs font-semibold {petSwitch.allowed ? 'text-mint' : 'text-cream/60'}">
+        {switchStatus}
+      </p>
+    </div>
   </SettingRow>
+  {#if confirming}
+    <SwitchPetModal
+      {user}
+      {pet}
+      {other}
+      {petSwitch}
+      {resetsOn}
+      onconfirm={switchPet}
+      onClose={() => (confirming = false)}
+    />
+  {/if}
 {/if}
 <SettingRow title="Show {petName} on screen" description="{petName} hangs out at the bottom of every page.">
   <Toggle

@@ -15,6 +15,9 @@ class SettingsController < ApplicationController
 
   def pet_switch_props
     switch = current_user.pet_switch
-    { allowed: switch.allowed?, next_on: switch.next_on&.iso8601 }
+    {
+      free: switch.free?, allowed: switch.allowed?, resets_on: switch.resets_on&.iso8601,
+      multiplier: current_user.xp_multiplier.to_f, rules: Team.rules
+    }
   end
 end

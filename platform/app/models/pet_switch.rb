@@ -13,10 +13,11 @@ class PetSwitch
     @today = today
   end
 
-  def allowed? = journal_count <= FREE_JOURNALS || last_switch.nil? || !week.days.cover?(last_switch)
+  def free? = journal_count <= FREE_JOURNALS
+  def allowed? = free? || last_switch.nil? || !week.days.cover?(last_switch)
 
-  # The day the next switch opens, while one is not allowed.
-  def next_on = allowed? ? nil : week.finish + 1
+  # The day the week's switch comes back, whether or not it has been used. None while switching is free.
+  def resets_on = free? ? nil : week.finish + 1
 
   private
 

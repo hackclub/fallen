@@ -54,10 +54,10 @@ class PetsTest < ActionDispatch::IntegrationTest
     user.update!(pet_switched_at: Time.zone.local(2026, 10, 19, 12))
 
     travel_to Time.zone.local(2026, 10, 20, 12) do
-      assert user.pet_switch.allowed?, "one journal left, so switching is still free"
+      assert user.pet_switch.free?, "one journal left, so switching is still free"
       second.update!(discarded_at: nil, day: Date.new(2026, 10, 16))
       assert_not user.pet_switch.allowed?
-      assert_equal Date.new(2026, 10, 26), user.pet_switch.next_on
+      assert_equal Date.new(2026, 10, 26), user.pet_switch.resets_on
     end
   end
 
