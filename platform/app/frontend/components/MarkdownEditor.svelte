@@ -3,12 +3,14 @@
   import { uploadImage, type UploadedImage } from '@/lib/uploads'
 
   let {
+    id,
     value = $bindable(''),
     directUploadUrl,
     onUpload,
     onError,
     placeholder = '',
   }: {
+    id?: string
     value: string
     directUploadUrl: string
     onUpload: (image: UploadedImage) => void
@@ -129,8 +131,8 @@
   }
 </script>
 
-<div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl bg-paper-well">
-  <div class="flex items-center gap-1 border-b border-ink/10 px-2 py-1.5">
+<div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border-2 border-paper-edge bg-paper-well">
+  <div class="flex items-center gap-1 border-b-2 border-paper-edge/60 px-2 py-1.5">
     {#each tools as tool (tool.title)}
       <button
         type="button"
@@ -198,10 +200,11 @@
       <textarea
         bind:this={textarea}
         bind:value
+        {id}
         {placeholder}
         onpaste={onPaste}
         onkeydown={onKeydown}
-        class="flex-1 resize-none border-0 bg-transparent px-4 py-3 font-outfit text-[15px] leading-relaxed text-ink placeholder:text-ink-soft/50 focus:ring-0"
+        class="ruled flex-1 resize-none border-0 bg-transparent px-4 pt-[5px] pb-3 font-outfit text-[15px] leading-[28px] text-ink placeholder:text-ink-soft/50 focus:ring-0"
       ></textarea>
       {#if dragging}
         <div
@@ -213,3 +216,13 @@
     </div>
   {/if}
 </div>
+
+<style>
+  /* Lines under the text, one per line of it, that scroll with it. */
+  .ruled {
+    background-image: linear-gradient(transparent 27px, rgba(204, 141, 68, 0.28) 27px);
+    background-size: 100% 28px;
+    background-position: 0 2px;
+    background-attachment: local;
+  }
+</style>

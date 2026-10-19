@@ -3,8 +3,8 @@
   import { onMount } from 'svelte'
   import LapsePicker, { type LapseStatus } from '@/components/LapsePicker.svelte'
   import MarkdownEditor from '@/components/MarkdownEditor.svelte'
-  import OrnateButton from '@/components/OrnateButton.svelte'
-  import OrnateModal from '@/components/OrnateModal.svelte'
+  import Sketchbook from '@/components/Sketchbook.svelte'
+  import { formatDate } from '@/lib/format'
   import { MIN_JOURNAL_LENGTH, countWords, writtenLength } from '@/lib/markdown'
   import { trackedHours } from '@/lib/timer.svelte'
   import type { UploadedImage } from '@/lib/uploads'
@@ -137,21 +137,31 @@
 
 <svelte:window onkeydown={onKeydown} />
 
-<OrnateModal
-  titleId="composer-title"
-  title={project.title}
-  eyebrow={editing ? 'Editing a journal for' : 'Journaling for'}
-  {onClose}
-  class="max-w-5xl lg:h-[min(760px,100%)]"
->
-  <form
-    onsubmit={submit}
-    class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-b-[20px] border-t-2 border-[#070b24]"
-  >
-    <div class="grid min-h-0 flex-1 overflow-y-auto lg:grid-cols-[1fr_300px] lg:overflow-hidden">
-      <section class="flex min-h-0 flex-col gap-2 px-5 py-4 sm:px-7 lg:border-r-2 lg:border-[#070b24]">
-        <label for="journal-body" class="font-display text-lg text-ink">What did you do?</label>
+<Sketchbook titleId="composer-title" {onClose}>
+  <form onsubmit={submit} class="flex min-h-0 flex-1 flex-col">
+    <header
+      class="mr-12 flex items-end justify-between gap-4 border-b-2 border-dashed border-paper-edge/70 pb-3"
+    >
+      <div class="min-w-0">
+        <p class="font-outfit text-[11px] font-bold tracking-[0.18em] text-ink-soft uppercase">
+          {editing ? 'Editing a journal for' : 'Journaling for'}
+        </p>
+        <h2 id="composer-title" class="truncate font-display text-3xl leading-tight text-ink">
+          {project.title}
+        </h2>
+      </div>
+      <p class="shrink-0 pb-1 font-display text-lg text-ink-soft">
+        {formatDate(journal?.created_at ?? new Date().toISOString())}
+      </p>
+    </header>
+
+    <div
+      class="grid min-h-0 flex-1 gap-x-7 overflow-y-auto pt-4 lg:grid-cols-[minmax(0,1fr)_minmax(290px,38%)] lg:overflow-hidden"
+    >
+      <section class="flex min-h-[340px] flex-col gap-2 lg:min-h-0">
+        <label for="journal-body" class="font-display text-xl text-ink">What did you do?</label>
         <MarkdownEditor
+          id="journal-body"
           bind:this={editor}
           bind:value={form.body}
           {directUploadUrl}
@@ -159,7 +169,7 @@
           onError={(message) => (uploadError = message)}
           placeholder="What you built, what broke, what you figured out. Drop or paste photos anywhere in here."
         />
-        <div class="flex items-center justify-between font-outfit text-xs text-ink-soft">
+        <div class="flex items-center justify-between gap-3 font-outfit text-xs text-ink-soft">
           <span>
             {#if form.errors.body}<span class="text-red-700">{form.errors.body}</span>
             {:else if uploadError}<span class="text-red-700">{uploadError}</span>
@@ -171,86 +181,110 @@
             {#if longEnough}{words} {words === 1 ? 'word' : 'words'}{:else}{written}/{MIN_JOURNAL_LENGTH} characters{/if}
           </span>
         </div>
+        <div class="mt-2 flex items-center gap-3">
+          <ul class="sketch-scroll flex min-w-0 gap-2 overflow-x-auto p-0.5" aria-label="Photos">
+            <li class="shrink-0">
+              <button
+                type="button"
+                onclick={() => editor?.pickFiles()}
+                class="flex size-14 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-paper-edge font-outfit text-[11px] leading-tight text-ink-soft transition-colors hover:border-[var(--sb-ring)] hover:text-[var(--sb-ring-deep)]"
+              >
+                <span class="text-lg leading-none">+</span>
+                photo
+              </button>
+            </li>
+            {#each form.images as image (image.id)}
+              <li
+                class="group relative size-14 shrink-0 overflow-hidden rounded-lg border-2 border-paper-edge"
+              >
+                <img src={image.url} alt={image.filename} class="h-full w-full object-cover" />
+                <button
+                  type="button"
+                  aria-label="Remove {image.filename}"
+                  onclick={() => removeImage(image)}
+                  class="absolute top-0.5 right-0.5 flex size-5 items-center justify-center rounded-full bg-ink/80 text-xs text-paper opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+                >
+                  ×
+                </button>
+              </li>
+            {/each}
+          </ul>
+          <p class="min-w-32 shrink-0 font-outfit text-xs text-ink-soft">
+            {#if form.errors.images}<span class="text-red-700">{form.errors.images}</span>
+            {:else}One photo for every 2 hours logged.{/if}
+          </p>
+        </div>
       </section>
 
-      <aside class="flex flex-col gap-5 bg-black/15 px-5 py-4 sm:px-7 lg:overflow-y-auto">
-        <LapsePicker
-          {lapse}
-          current={journal?.lapse_timelapses}
-          bind:selected={form.lapse_timelapses}
-          returnTo={`${projectRoute(project.id).url}#write`}
-          error={form.errors.lapse_timelapses}
-        />
-
-        <div>
-          <p class="font-display text-lg text-ink">Time spent (hours)</p>
-          <p class="mb-2 font-outfit text-xs text-ink-soft">
-            {timelapsed
-              ? 'In hours. Leave it empty to use your timelapses’ time.'
-              : 'Every journal needs one, in hours: 1.5, 0.5, 0.1.'}
-          </p>
-          <input
-            type="text"
-            bind:value={form.duration}
-            placeholder={timelapsed ? 'From your timelapses' : '1.5'}
-            inputmode="decimal"
-            required={!timelapsed}
-            aria-describedby={fromTracking ? 'duration-source' : undefined}
-            class="paper-input"
+      <aside class="mt-6 flex flex-col lg:mt-0 lg:min-h-0">
+        <div class="flex flex-1 flex-col gap-5 lg:min-h-0">
+          <LapsePicker
+            {lapse}
+            current={journal?.lapse_timelapses}
+            bind:selected={form.lapse_timelapses}
+            returnTo={`${projectRoute(project.id).url}#write`}
+            error={form.errors.lapse_timelapses}
           />
-          {#if fromTracking}
-            <p id="duration-source" class="mt-1 font-outfit text-xs text-ink-soft">
-              (based on tracked recorded hours)
+
+          <div class="shrink-0">
+            <div class="flex items-center justify-between gap-3">
+              <label for="journal-duration" class="font-display text-xl text-ink">Hours</label>
+              <span class="flex items-baseline gap-1.5">
+                <input
+                  id="journal-duration"
+                  type="text"
+                  bind:value={form.duration}
+                  placeholder={timelapsed ? 'auto' : '1.5'}
+                  inputmode="decimal"
+                  required={!timelapsed}
+                  aria-describedby="duration-help"
+                  class="hours-input"
+                />
+                <span class="font-outfit text-sm text-ink-soft">h</span>
+              </span>
+            </div>
+            <p id="duration-help" class="mt-1 font-outfit text-xs text-ink-soft">
+              {#if form.errors.duration}<span class="text-red-700">{form.errors.duration}</span>
+              {:else if fromTracking}Filled in from the time you tracked.
+              {:else if timelapsed}Leave it empty to use your timelapses' time.
+              {:else}Every journal needs some: 1.5, 0.5, 0.1.{/if}
+              A thin journal can get its hours deflated.
             </p>
-          {/if}
-          {#if form.errors.duration}<p class="mt-1 font-outfit text-xs text-red-700">
-              {form.errors.duration}
-            </p>{/if}
-        </div>
-        <p class="-mt-3 font-outfit text-xs text-ink-soft">
-          If your journal isn't detailed enough, its hours might be deflated.
-        </p>
-
-        <div>
-          <p class="font-display text-lg text-ink">Photos</p>
-          <p class="mb-2 font-outfit text-xs text-ink-soft">
-            One for every 2 hours logged.
-            {form.images.length === 0
-              ? 'None yet. Drop them in the editor or'
-              : `${form.images.length} attached.`}
-            <button type="button" class="underline hover:text-ink" onclick={() => editor?.pickFiles()}>
-              {form.images.length === 0 ? 'pick a file' : 'Add more'}
-            </button>
-          </p>
-          {#if form.images.length > 0}
-            <ul class="grid grid-cols-3 gap-2">
-              {#each form.images as image (image.id)}
-                <li class="group relative aspect-square overflow-hidden rounded-lg bg-paper-well">
-                  <img src={image.url} alt={image.filename} class="h-full w-full object-cover" />
-                  <button
-                    type="button"
-                    aria-label="Remove {image.filename}"
-                    onclick={() => removeImage(image)}
-                    class="absolute top-1 right-1 hidden h-6 w-6 items-center justify-center rounded-full bg-ink text-xs text-paper group-hover:flex"
-                  >
-                    ×
-                  </button>
-                </li>
-              {/each}
-            </ul>
-          {/if}
-          {#if form.errors.images}<p class="mt-1 font-outfit text-xs text-red-700">
-              {form.errors.images}
-            </p>{/if}
+          </div>
         </div>
 
-        <div class="mt-auto flex items-center gap-3 pt-2">
-          <OrnateButton kind="confirm" type="submit" class="flex-1" disabled={!canSubmit}>
+        <div class="mt-4 border-t-2 border-dashed border-paper-edge/70 pt-4">
+          <button type="submit" class="sketch-button w-full" disabled={!canSubmit}>
             {form.processing ? 'Logging…' : editing ? 'Save journal' : 'Log journal'}
-          </OrnateButton>
+          </button>
+          <p class="mt-2 text-center font-outfit text-xs text-ink-soft">
+            Posts to your project thread in Slack as you.
+          </p>
         </div>
-        <p class="font-outfit text-xs text-ink-soft">Posts to your project thread in Slack as you.</p>
       </aside>
     </div>
   </form>
-</OrnateModal>
+</Sketchbook>
+
+<style>
+  .hours-input {
+    width: 4.5rem;
+    border: 0;
+    border-bottom: 2px solid var(--color-paper-edge);
+    background: transparent;
+    padding: 0 0.25rem;
+    color: var(--color-ink);
+    font-family: var(--font-display);
+    font-size: 1.6rem;
+    line-height: 1.2;
+    text-align: right;
+  }
+  .hours-input::placeholder {
+    color: color-mix(in srgb, var(--color-ink-soft) 45%, transparent);
+  }
+  .hours-input:focus {
+    border-color: var(--sb-ring);
+    outline: none;
+    box-shadow: none;
+  }
+</style>

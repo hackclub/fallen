@@ -12,6 +12,7 @@
 <script lang="ts">
   import { router } from '@inertiajs/svelte'
   import { untrack } from 'svelte'
+  import { formatDate } from '@/lib/format'
   import { connectLapse, lapseSync } from '@/routes'
 
   let {
@@ -44,10 +45,12 @@
     return null
   }
 
-  const options = $derived([
-    ...current,
-    ...(lapse?.timelapses ?? []).filter((t) => !current.some((c) => c.id === t.id)),
-  ])
+  // The ones that can still be picked first.
+  const options = $derived(
+    [...current, ...(lapse?.timelapses ?? []).filter((t) => !current.some((c) => c.id === t.id))].sort(
+      (a, b) => Number(Boolean(blocked(a))) - Number(Boolean(blocked(b))),
+    ),
+  )
   // Same decimal hours as Duration.format on the server, which does the real sum.
   const totalMinutes = $derived(
     options.filter((t) => selected.includes(t.id)).reduce((sum, t) => sum + t.duration_minutes, 0),
@@ -97,22 +100,21 @@
 {#if lapse === undefined}
   <div aria-busy="true">
     <div class="skeleton-ink h-6 w-28"></div>
-    <div class="mt-2 skeleton-ink h-4 w-full"></div>
+    <div class="mt-3 grid grid-cols-2 gap-2.5">
+      <div class="skeleton-ink aspect-video"></div>
+      <div class="skeleton-ink aspect-video"></div>
+    </div>
   </div>
 {:else if lapse?.configured}
-  <div>
+  <div class="flex flex-1 flex-col lg:min-h-0">
     <div class="flex items-baseline justify-between gap-2">
-      <p class="font-display text-lg text-ink">
-        Timelapses <span class="font-outfit text-xs whitespace-nowrap text-ink-soft"
-          >(helps you not get deflated)</span
-        >
-      </p>
+      <p class="font-display text-xl text-ink">Timelapses</p>
       {#if lapse.connected}
         <button
           type="button"
           onclick={sync}
           disabled={syncing}
-          class="font-outfit text-xs text-ink-soft underline hover:text-ink disabled:no-underline"
+          class="cursor-pointer font-outfit text-xs text-ink-soft underline hover:text-ink disabled:cursor-default disabled:no-underline"
         >
           {syncing ? 'Checking Lapse…' : 'Refresh'}
         </button>
@@ -120,31 +122,38 @@
     </div>
 
     {#if !lapse.connected}
-      <p class="mb-2 font-outfit text-xs text-ink-soft">
-        Recorded the session on Lapse? Connect it and pick the timelapses to back up your hours.
-      </p>
-      <a
-        href={connectLapse({ query: { return_to: returnTo } }).url}
-        class="btn-paper block py-1.5 text-center">Connect Lapse</a
-      >
+      <div class="mt-2 rounded-xl border-2 border-dashed border-paper-edge p-3 text-center">
+        <p class="font-outfit text-xs text-ink-soft">
+          Recorded the session on Lapse? Connect it and pick the timelapses that back up your hours.
+        </p>
+        <a
+          href={connectLapse({ query: { return_to: returnTo } }).url}
+          class="sketch-button mt-3 py-1.5 text-sm">Connect Lapse</a
+        >
+      </div>
     {:else}
-      <p class="mb-2 font-outfit text-xs text-ink-soft">
-        Pick every one from this session. They back up the hours you log.
-        {#if syncFailed}<span class="text-amber-700">Couldn't reach Lapse just now.</span>{/if}
+      <p class="mb-2.5 font-outfit text-xs text-ink-soft">
+        Pick every one from this session, so you don't get deflated.
+        {#if syncFailed}<span class="text-red-700">Couldn't reach Lapse just now.</span>{/if}
       </p>
       {#if options.length === 0}
-        <p class="rounded-lg bg-paper-well px-3 py-2 font-outfit text-xs text-ink-soft">
+        <p
+          class="rounded-xl border-2 border-dashed border-paper-edge px-3 py-4 text-center font-outfit text-xs text-ink-soft"
+        >
           {syncing ? 'Looking for your timelapses…' : 'No timelapses yet.'}
           <a href="https://lapse.hackclub.com" target="_blank" rel="noopener" class="underline hover:text-ink"
             >Record one on Lapse ↗</a
           >
         </p>
       {:else}
-        <ul class="max-h-64 space-y-1.5 overflow-y-auto" aria-label="Timelapses">
+        <ul
+          class="sketch-scroll grid max-h-[18.5rem] grid-cols-2 content-start gap-2 overflow-y-auto p-0.5 lg:max-h-none lg:min-h-0 lg:flex-1"
+          aria-label="Timelapses"
+        >
           {#each options as timelapse (timelapse.id)}
             {@const active = selected.includes(timelapse.id)}
             {@const reason = blocked(timelapse)}
-            <li class="relative">
+            <li class="min-w-0">
               <button
                 type="button"
                 role="checkbox"
@@ -152,29 +161,32 @@
                 disabled={Boolean(reason)}
                 title={reason ? `This timelapse ${reason}` : undefined}
                 onclick={() => toggle(timelapse)}
-                class={[
-                  'flex w-full items-center gap-2.5 rounded-lg border-2 p-1.5 text-left transition-colors',
-                  active ? 'border-ink bg-paper-well' : 'border-transparent hover:bg-paper-well/60',
-                  reason && 'cursor-not-allowed opacity-50 hover:bg-transparent',
-                ]}
+                class={['lapse-tile', active && 'active', reason && 'blocked']}
               >
-                <span class="aspect-video w-16 shrink-0 overflow-hidden rounded bg-ink/10">
+                <span class="lapse-thumb">
                   {#if timelapse.thumbnail_url}
-                    <img
-                      src={timelapse.thumbnail_url}
-                      alt=""
-                      loading="lazy"
-                      class="h-full w-full object-cover"
-                    />
+                    <img src={timelapse.thumbnail_url} alt="" loading="lazy" />
+                  {/if}
+                  {#if timelapse.duration_text}<span class="lapse-length">{timelapse.duration_text}</span
+                    >{/if}
+                  {#if active}
+                    <span class="lapse-check" aria-hidden="true">
+                      <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.4">
+                        <path d="M2.5 6.5l2.5 2.5 4.5-5.5" stroke-linecap="round" stroke-linejoin="round" />
+                      </svg>
+                    </span>
                   {/if}
                 </span>
-                <span class="min-w-0 flex-1 font-outfit text-xs">
-                  <span class="block truncate text-sm text-ink">{timelapse.name || 'Untitled timelapse'}</span
-                  >
-                  <span class="text-ink-soft">
-                    {reason ? reason.replace(/^is /, '') : timelapse.duration_text}
+                <span class="block truncate px-0.5 pt-1.5 font-outfit text-[13px] font-semibold text-ink"
+                  >{timelapse.name || 'Untitled timelapse'}</span
+                >
+                {#if !reason || !timelapse.claim_url}
+                  <span class="block truncate px-0.5 font-outfit text-[11px] text-ink-soft">
+                    {reason
+                      ? reason.replace(/^is /, '')
+                      : timelapse.recorded_at && formatDate(timelapse.recorded_at)}
                   </span>
-                </span>
+                {/if}
               </button>
               {#if reason && timelapse.claim_url}
                 <!-- Where it went: the journal that has it, in a new tab so this one keeps the draft. -->
@@ -182,21 +194,107 @@
                   href={timelapse.claim_url}
                   target="_blank"
                   rel="noopener"
-                  class="absolute top-1/2 right-2 -translate-y-1/2 font-outfit text-xs text-ink underline hover:text-ink-soft"
-                  >See journal ↗</a
+                  title="This timelapse {reason}"
+                  class="block truncate px-1.5 font-outfit text-[11px] text-ink-soft underline hover:text-ink"
+                  >Used in a journal ↗</a
                 >
               {/if}
             </li>
           {/each}
         </ul>
-        {#if selected.length > 0}
-          <p class="mt-2 font-outfit text-sm text-ink" aria-live="polite">
-            {totalText} from {selected.length}
+        <p class="mt-2 font-outfit text-sm text-ink" aria-live="polite">
+          {#if selected.length > 0}
+            <strong>{totalText}</strong> from {selected.length}
             {selected.length === 1 ? 'timelapse' : 'timelapses'}
-          </p>
-        {/if}
+          {:else}
+            <span class="text-ink-soft">None picked yet.</span>
+          {/if}
+        </p>
       {/if}
     {/if}
     {#if error}<p class="mt-1 font-outfit text-xs text-red-700">{error}</p>{/if}
   </div>
 {/if}
+
+<style>
+  .lapse-tile {
+    display: block;
+    width: 100%;
+    cursor: pointer;
+    border-radius: 0.75rem;
+    padding: 0.3rem 0.3rem 0.4rem;
+    text-align: left;
+    transition:
+      background-color 0.15s,
+      transform 0.15s;
+  }
+  .lapse-tile:hover:not(:disabled) {
+    background: rgba(255, 241, 222, 0.8);
+    transform: translateY(-1px);
+  }
+  .lapse-tile:focus-visible {
+    outline: 2px solid var(--sb-ring, currentColor);
+    outline-offset: 1px;
+  }
+  .lapse-thumb {
+    position: relative;
+    display: block;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    border: 2px solid var(--color-paper-edge);
+    border-radius: 0.55rem;
+    background: rgba(75, 46, 26, 0.12);
+    transition:
+      border-color 0.15s,
+      box-shadow 0.15s;
+  }
+  .lapse-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .active .lapse-thumb {
+    border-color: var(--sb-ring-deep, currentColor);
+    box-shadow: 0 0 0 2px var(--sb-ring, currentColor);
+  }
+  .active {
+    background: rgba(120, 128, 242, 0.13);
+  }
+  .lapse-length {
+    position: absolute;
+    right: 0.25rem;
+    bottom: 0.25rem;
+    border-radius: 9999px;
+    padding: 0 0.4rem;
+    background: rgba(40, 24, 12, 0.75);
+    color: #fff1de;
+    font-family: var(--font-outfit);
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.5;
+  }
+  .lapse-check {
+    position: absolute;
+    top: 0.25rem;
+    left: 0.25rem;
+    display: flex;
+    width: 1.25rem;
+    height: 1.25rem;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid var(--sb-ring-deep, currentColor);
+    border-radius: 9999px;
+    background: var(--sb-ring, currentColor);
+    color: #fff;
+  }
+  .lapse-check svg {
+    width: 0.65rem;
+  }
+  .blocked {
+    cursor: not-allowed;
+  }
+  .blocked .lapse-thumb {
+    filter: grayscale(1);
+    opacity: 0.45;
+  }
+</style>
