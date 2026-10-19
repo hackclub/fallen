@@ -1,6 +1,6 @@
 <script lang="ts">
-  import OrnateButton from '@/components/OrnateButton.svelte'
-  import OrnateModal from '@/components/OrnateModal.svelte'
+  import ModalButton from '@/components/ModalButton.svelte'
+  import Modal from '@/components/Modal.svelte'
   import ProjectFields from '@/components/ProjectFields.svelte'
   import { projectForm, saveProject } from '@/lib/projectForm'
   import { tick } from 'svelte'
@@ -46,10 +46,9 @@
 
 <svelte:window onkeydown={escape} />
 
-<OrnateModal
+<Modal
   titleId="create-project-title"
   title={confirming ? 'Post this to Slack?' : 'Create New Project'}
-  eyebrow={confirming ? 'Double check' : 'A new adventure'}
   {onClose}
 >
   <form
@@ -91,26 +90,26 @@
 
       <div class="mt-6 flex flex-col-reverse justify-center gap-3 sm:flex-row md:mt-8">
         {#if bare}
-          <OrnateButton kind="cancel" type="submit" disabled={form.processing}>
+          <ModalButton kind="cancel" type="submit" disabled={form.processing}>
             {form.processing ? 'Creating...' : 'Post it anyway'}
-          </OrnateButton>
-          <OrnateButton kind="confirm" onclick={addDescription} autofocus>Add a description</OrnateButton>
+          </ModalButton>
+          <ModalButton kind="confirm" onclick={addDescription} autofocus>Add a description</ModalButton>
         {:else}
-          <OrnateButton kind="cancel" onclick={() => (confirming = false)}>Change it</OrnateButton>
-          <OrnateButton kind="confirm" type="submit" disabled={form.processing} autofocus>
+          <ModalButton kind="cancel" onclick={() => (confirming = false)}>Change it</ModalButton>
+          <ModalButton kind="confirm" type="submit" disabled={form.processing} autofocus>
             {form.processing ? 'Creating...' : 'Yes, post it'}
-          </OrnateButton>
+          </ModalButton>
         {/if}
       </div>
     {:else}
       <ProjectFields {form} {directUploadUrl} brief />
 
       <div class="mt-6 flex flex-col-reverse justify-center gap-3 sm:flex-row md:mt-8">
-        <OrnateButton kind="cancel" onclick={onClose}>Cancel</OrnateButton>
-        <OrnateButton kind="confirm" type="submit" disabled={form.processing || form.title.trim() === ''}>
+        <ModalButton kind="cancel" onclick={onClose}>Cancel</ModalButton>
+        <ModalButton kind="confirm" type="submit" disabled={form.processing || form.title.trim() === ''}>
           {form.processing ? 'Creating...' : 'Create Project'}
-        </OrnateButton>
+        </ModalButton>
       </div>
     {/if}
   </form>
-</OrnateModal>
+</Modal>

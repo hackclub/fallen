@@ -10,7 +10,16 @@
     done: doneLabel,
     seconds = 1,
     onconfirm,
-  }: { label: string; holding?: string; done: string; seconds?: number; onconfirm: () => void } = $props()
+    game = false,
+  }: {
+    label: string
+    holding?: string
+    done: string
+    seconds?: number
+    onconfirm: () => void
+    // Dressed as a game-btn, for the cream popups (Modal.svelte), instead of glass for the settings panel.
+    game?: boolean
+  } = $props()
 
   let progress = $state(0)
   let shake = $state(0)
@@ -77,7 +86,12 @@
   }}
   onkeyup={(event) => isKey(event) && release()}
   onblur={release}
-  class="relative h-11 cursor-pointer touch-none overflow-hidden rounded-full border border-white/25 bg-white/10 px-5 font-montserrat font-semibold text-cream outline-offset-4 outline-cream select-none focus-visible:outline-2 disabled:cursor-default"
+  class={[
+    'relative cursor-pointer touch-none overflow-hidden select-none disabled:cursor-default',
+    game
+      ? 'game-btn game-btn-white min-w-40'
+      : 'h-11 rounded-full border border-white/25 bg-white/10 px-5 font-montserrat font-semibold text-cream outline-offset-4 outline-cream focus-visible:outline-2',
+  ]}
   style:transform="translateX({shake}px) scale({1 + progress * 0.05})"
 >
   <span class="absolute inset-y-0 left-0 bg-hc-red" style:width="{progress * 100}%" aria-hidden="true"></span>

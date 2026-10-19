@@ -280,6 +280,91 @@
   @apply btn border-ink/30 bg-transparent font-outfit text-ink hover:bg-ink/5 focus-visible:ring-ink/30;
 }
 
+/* Popups (Modal.svelte, the egg picker) in the onboarding dialog's game style: a cream tile with a white rim and a
+   hard ledge under it, so it reads as a solid thing rather than a window. Uses the dialog's Jua, which the
+   component loads with components/dialog/dialog.css. */
+@utility game-card {
+  @apply rounded-[30px] bg-paper text-ink;
+  border: 5px solid #fffaf0;
+  box-shadow:
+    0 8px 0 #c9b88f,
+    0 30px 60px -12px rgba(0, 0, 0, 0.7);
+}
+
+/* A game-card's title: a tilted pill on its top edge, like the dialog's name tag. */
+@utility game-tab {
+  @apply inline-block rounded-full px-6 pt-2 pb-1.5 text-xl text-white md:text-2xl;
+  font-family: 'Jua', ui-sans-serif, system-ui, sans-serif;
+  font-synthesis: none;
+  background: #ff427d;
+  box-shadow: 0 4px 0 #c92c5d;
+  rotate: -2deg;
+}
+
+/* A chunky button that sinks onto its ledge when pressed. The ledge is a hard shadow, so pressing moves no layout. */
+@utility game-btn {
+  --gb-edge: 5px;
+  display: inline-flex;
+  min-height: 3rem;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: var(--gb-edge);
+  border-radius: 1rem;
+  padding: 0.25rem 1.5rem 0;
+  background: var(--gb-face);
+  color: var(--gb-text);
+  font-family: 'Jua', ui-sans-serif, system-ui, sans-serif;
+  font-synthesis: none;
+  font-size: 1.15rem;
+  line-height: 1;
+  text-decoration: none;
+  user-select: none;
+  box-shadow:
+    0 var(--gb-edge) 0 var(--gb-ledge),
+    inset 0 2px 0 rgba(255, 255, 255, 0.35);
+  transition:
+    transform 0.08s ease-out,
+    box-shadow 0.08s ease-out,
+    filter 0.15s;
+  &:hover:not(:disabled) {
+    filter: brightness(1.05);
+    transform: translateY(-1px);
+    box-shadow:
+      0 calc(var(--gb-edge) + 1px) 0 var(--gb-ledge),
+      inset 0 2px 0 rgba(255, 255, 255, 0.35);
+  }
+  &:active:not(:disabled) {
+    transform: translateY(var(--gb-edge));
+    box-shadow:
+      0 0 0 var(--gb-ledge),
+      inset 0 2px 0 rgba(255, 255, 255, 0.35);
+  }
+  &:focus-visible {
+    outline: 3px solid #84d8ff;
+    outline-offset: 3px;
+  }
+  &:disabled {
+    --gb-face: #e6dcc6;
+    --gb-ledge: #cbbd9f;
+    --gb-text: #a3967f;
+    cursor: not-allowed;
+    text-shadow: none;
+  }
+}
+@utility game-btn-blue {
+  --gb-face: linear-gradient(#20c7ff, #1cb0f6);
+  --gb-ledge: #1683c0;
+  --gb-text: #fff;
+  text-shadow: 0 2px 0 rgba(9, 71, 110, 0.35);
+}
+@utility game-btn-white {
+  --gb-face: #fffaf0;
+  --gb-ledge: #d6c7a6;
+  --gb-text: #6b5d4e;
+}
+
 @utility prose-journal {
   @apply font-outfit text-[15px] leading-relaxed text-ink;
   & h1,
