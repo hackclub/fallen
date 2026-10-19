@@ -5,6 +5,9 @@ class LandingController < ApplicationController
   skip_after_action :verify_policy_scoped # Nothing to scope
 
   def index
-    render inertia: "Landing/Index", props: { whoami_url: "#{HCA.host}/api/external/whoami", check_email_url: HCA.check_email_url }
+    render inertia: "Landing/Index", props: {
+      whoami_url: "#{HCA.host}/api/external/whoami", check_email_url: HCA.check_email_url,
+      continue_with_hca: flash[:continue_with_hca].present? # Arrived from a Fallout email link (FalloutLinksController)
+    }
   end
 end

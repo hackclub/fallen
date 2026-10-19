@@ -73,9 +73,16 @@ class FalloutLinksTest < ActionDispatch::IntegrationTest
     assert typed.reload.trial?
   end
 
+  test "the page it lands on sends someone signed in to Hack Club Auth on to sign in, right code or not" do
+    [ "PPTMPR", "PPTMPX" ].each do |code|
+      get root_path(email: "fan@example.com", code: code)
+      assert inertia_props(root_path, "Landing/Index")["continue_with_hca"]
+      assert_not inertia_props(root_path, "Landing/Index")["continue_with_hca"]
+    end
+  end
+
   test "the landing page without a code is untouched" do
-    get root_path(email: "fan@example.com")
-    assert_response :success
+    assert_not inertia_props(root_path(email: "fan@example.com"), "Landing/Index")["continue_with_hca"]
   end
 
   private

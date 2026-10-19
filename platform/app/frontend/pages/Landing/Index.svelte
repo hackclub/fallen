@@ -22,7 +22,11 @@
   import { onMount } from 'svelte'
   import type { Component } from 'svelte'
 
-  let { whoami_url, check_email_url }: { whoami_url: string; check_email_url: string } = $props()
+  let {
+    whoami_url,
+    check_email_url,
+    continue_with_hca,
+  }: { whoami_url: string; check_email_url: string; continue_with_hca: boolean } = $props()
 
   // Everything that follows the scroll is plain arithmetic on scrollY, so a scroll costs no layout: the only
   // measurements are the intro's and How It Works' places on the page, taken again whenever the page changes height.
@@ -102,13 +106,18 @@
   }
 
   // Someone signed in to Hack Club Auth but not here gets started as their Slack picture, if they've set one. HCA's
-  // whoami says who they are; the picture is looked up in a job, so it is asked for again until it's ready.
+  // whoami says who they are; the picture is looked up in a job, so it is asked for again until it's ready. Arriving
+  // from a Fallout email link, they go straight on to sign in with it instead.
   let avatar: { src: string; alt: string; before: string } | undefined = $state()
   onMount(async () => {
     if (shared().auth.user) return
     try {
       const me = await (await fetch(whoami_url, { credentials: 'include' })).json()
       hcaSignedIn = !!me.signed_in
+      if (hcaSignedIn && continue_with_hca) {
+        window.location.href = signIn().url
+        return
+      }
       if (!me.signed_in || !me.email) return
       for (let tries = 0; tries < 8; tries++) {
         const response = await fetch(slackAvatar().url, {
