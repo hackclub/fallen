@@ -234,7 +234,8 @@
           </div>
         </div>
 
-        <div class="mt-4 border-t-2 border-dashed border-paper-edge/70 pt-4">
+        <!-- Room for the button's press-down edge and focus ring, which the scrolling grid would clip. -->
+        <div class="mt-4 border-t-2 border-dashed border-paper-edge/70 px-1.5 pt-4 pb-2">
           <button type="submit" class="sketch-button w-full" disabled={!canSubmit}>
             {form.processing ? 'Logging…' : editing ? 'Save journal' : 'Log journal'}
           </button>
