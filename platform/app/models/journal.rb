@@ -90,12 +90,14 @@ class Journal < ApplicationRecord
 
   before_validation :take_hours_from_lapse
   before_validation :snapshot_tracked_time, on: :create
+  before_save -> { @attached_images = attachment_changes["images"]&.attachments&.select(&:new_record?) }
   before_save :mark_self_claimed, if: -> { new_record? || duration_minutes_changed? || @picked_timelapses }
 
   after_save :claim_picked_timelapses, if: -> { @picked_timelapses }
   after_save :sync_xp, if: -> { saved_change_to_duration_minutes? || saved_change_to_discarded_at? }
   # A new journal starts the pet's timer from zero; deleting the newest one brings its time back.
   after_commit -> { TimerChannel.changed(user_id) }, if: -> { previous_changes.key?("id") || previous_changes.key?("discarded_at") }
+  after_commit :analyze_images_later, if: -> { @attached_images.present? }
 
   scope :newest_first, -> { order(created_at: :desc, id: :desc) }
   scope :needing_hours, -> { where(duration_minutes: nil) }
@@ -174,6 +176,13 @@ class Journal < ApplicationRecord
   end
 
   def sync_xp = XpEntry.sync(self)
+
+  # In one insert rather than one per photo (config/initializers/active_storage.rb).
+  def analyze_images_later
+    blobs = @attached_images.map(&:blob).reject(&:analyzed?)
+    @attached_images = nil
+    ActiveJob.perform_all_later(blobs.map { |blob| ActiveStorage::AnalyzeJob.new(blob) })
+  end
 
   # Picked timelapses fill in the hours only when none were typed. Typed hours always stand; reviewers compare them
   # with the timelapses and the tracked time (hours_self_claimed).

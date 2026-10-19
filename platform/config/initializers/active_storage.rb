@@ -6,3 +6,17 @@ Rails.application.config.to_prepare do
     head :unauthorized if user.nil? || user.is_banned?
   end
 end
+
+# Rails queues one analyze job per attachment as each commits, an insert apiece. Journals queue theirs together
+# instead (Journal#analyze_images_later).
+module AnalyzeJournalImagesTogether
+  private
+
+  def analyze_blob_later
+    super unless record_type == "Journal" && name == "images"
+  end
+end
+
+Rails.application.config.to_prepare do
+  ActiveStorage::Attachment.prepend(AnalyzeJournalImagesTogether) unless ActiveStorage::Attachment < AnalyzeJournalImagesTogether
+end

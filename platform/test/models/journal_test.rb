@@ -37,6 +37,8 @@ require "test_helper"
 #  fk_rails_...  (user_id => users.id)
 #
 class JournalTest < ActiveSupport::TestCase
+  include ActiveJob::TestHelper
+
   test "duration is typed and shown as decimal hours" do
     assert_equal 90, Duration.parse("1.5")
     assert_equal 30, Duration.parse("0.5")
@@ -168,6 +170,17 @@ class JournalTest < ActiveSupport::TestCase
     journal.update!(images: [ photo ])
     assert_not journal.update(body: "edited", images: [])
     assert journal.reload.update(body: "edited", images: journal.images.map(&:signed_id))
+  end
+
+  test "photos are queued for analysis together, once" do
+    journal = projects(:station).journals.build(user: users(:member), body: journal_text("x"), duration: "1", images: [ photo, photo("b.png") ])
+    assert_enqueued_jobs 2, only: ActiveStorage::AnalyzeJob do
+      journal.save!
+    end
+    assert_enqueued_jobs 1, only: ActiveStorage::AnalyzeJob do
+      journal.images.attach(io: StringIO.new("png"), filename: "slack.png", content_type: "image/png")
+    end
+    assert_no_enqueued_jobs(only: ActiveStorage::AnalyzeJob) { journal.update!(body: journal_text("edited")) }
   end
 
   test "author must own the project" do
