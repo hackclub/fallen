@@ -5,6 +5,7 @@ export const pages = {
   projects: 'Projects/Index',
   project: 'Projects/Show',
   projectForm: 'Projects/Form',
+  shop: 'Shop/Show',
   docs: 'Docs/Show',
   settings: 'Settings/Show',
 } as const
@@ -16,6 +17,7 @@ export function warmPages() {
     void import('@/pages/Projects/Index.svelte')
     void import('@/pages/Projects/Show.svelte')
     void import('@/pages/Projects/Form.svelte')
+    void import('@/pages/Shop/Show.svelte')
     void import('@/pages/Docs/Show.svelte')
     void import('@/pages/Settings/Show.svelte')
   }

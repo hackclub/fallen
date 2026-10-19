@@ -28,6 +28,13 @@ class PagesTest < ActionDispatch::IntegrationTest
     assert_redirected_to docs_path
   end
 
+  test "shop renders for members" do
+    sign_in_as users(:member)
+    get shop_path
+    assert_response :success
+    assert_includes response.body, "Shop/Show"
+  end
+
   test "settings require sign in" do
     get settings_path
     assert_redirected_to root_path

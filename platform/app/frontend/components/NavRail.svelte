@@ -3,8 +3,9 @@
   import SolarHome from '@/components/icons/SolarHome.svelte'
   import SolarDocument from '@/components/icons/SolarDocument.svelte'
   import SolarSettings from '@/components/icons/SolarSettings.svelte'
+  import SolarShop from '@/components/icons/SolarShop.svelte'
   import SolarSledgehammer from '@/components/icons/SolarSledgehammer.svelte'
-  import { docs, home, projects, settings } from '@/routes'
+  import { docs, home, projects, settings, shop } from '@/routes'
   import { pages } from '@/lib/pages'
   import { flashOnClick, nudge, nudgeSpring } from '@/lib/rail'
 
@@ -13,6 +14,7 @@
   const items = [
     { label: 'Home', icon: SolarHome, href: home.index(), component: pages.home },
     { label: 'Projects', icon: SolarSledgehammer, href: projects.index(), component: pages.projects },
+    { label: 'Shop', icon: SolarShop, href: shop.show(), component: pages.shop },
     { label: 'Docs', icon: SolarDocument, href: docs.show({}), component: pages.docs },
     { label: 'Settings', icon: SolarSettings, href: settings.show(), component: pages.settings },
   ].map((item) => ({ ...item, x: nudgeSpring() }))
