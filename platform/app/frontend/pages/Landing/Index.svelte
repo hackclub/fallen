@@ -271,10 +271,10 @@
       <div class="max-w-2xl space-y-5 font-lora md:space-y-6">
         <p class="font-bold">Welcome to Fallen!</p>
         <p>
-          This December you & {travellers} teens will travel to China, to showcase your projects at
+          This December you & {travellers} teens will travel to China, to showcase your project at
           <a class="text-periwinkle underline" href="https://makerfaire.com/">Maker Faire Shenzhen!</a>
-          For the next {buildTime}, you, other fallers, and we will work together to
-          <span class="text-periwinkle underline">build our own interactive hardware projects!</span>
+          For the next {buildTime}, you, other fallers, and us will work together to
+          <span class="text-periwinkle underline">build our own interactive hardware project!</span>
         </p>
         <p>
           Then, we'll meet up with our projects in Shenzhen, China to demo at Maker Faire's flagship

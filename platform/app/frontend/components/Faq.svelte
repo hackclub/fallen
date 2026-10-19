@@ -49,7 +49,7 @@
     }
   }
 
-  const qualifyingHours = '90–110'
+  const qualifyingHours = '80-120'
 
   const faqs: { question: string; answer: Snippet }[] = [
     { question: 'Who can join?', answer: whoCanJoin },
@@ -57,6 +57,7 @@
     { question: "Is this really free? What's the catch?", answer: isItFree },
     { question: 'Why Shenzhen, China?', answer: whyShenzhen },
     { question: 'What do I build?', answer: whatToBuild },
+    { question: 'Can I make multiple projects?', answer: multipleProjects },
     { question: 'Can I follow a tutorial?', answer: tutorials },
     { question: 'Can I work in teams?', answer: teams },
     { question: 'How long do I need to spend on my project?', answer: howLong },
@@ -101,6 +102,11 @@
   in Shenzhen!
 {/snippet}
 
+{#snippet multipleProjects()}
+  Yes, but pick one main project to focus on! You can also build smaller projects on the side to get started
+  with hardware, make trinkets to hand out, or for fun!
+{/snippet}
+
 {#snippet tutorials()}
   You can learn from tutorials, but your project must be your own.
 {/snippet}
@@ -112,8 +118,8 @@
 
 {#snippet howLong()}
   Your character levels up with the hours you put in, and you qualify once it reaches its final form.
-  Journaling every day builds a streak that speeds up its progress, so qualifying takes about 80-120 hours
-  depending on how well you keep your streak & your character's bonus!
+  Journaling every day builds a streak that speeds up its progress, so qualifying takes about {qualifyingHours}
+  hours depending on how well you keep your streak & your character's bonus!
 {/snippet}
 
 {#snippet cantTravel()}
