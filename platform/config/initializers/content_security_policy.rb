@@ -21,7 +21,8 @@ Rails.application.configure do
     policy.font_src :self, :data, "https://fonts.gstatic.com"
     policy.img_src :self, :data, :blob,
                    "https://cachet.hackclub.com", "https://*.slack-edge.com", # avatars: Cachet redirects to Slack's CDN
-                   "https://lookout.hackclub.com", "https://public.lapse-hackclub.link", # Lapse thumbnails
+                   "https://lookout.hackclub.com", "https://lookout.hackclub-assets.com", # Lookout thumbnails redirect to its asset host
+                   "https://public.lapse-hackclub.link", # Lapse thumbnails
                    "https://i.ytimg.com", *r2_host
     policy.frame_src "https://www.youtube-nocookie.com"
     policy.connect_src :self, "https://cloudflareinsights.com", *("https://#{sentry.host}" if sentry), *([ "ws://#{vite}", "http://#{vite}" ] if vite)
