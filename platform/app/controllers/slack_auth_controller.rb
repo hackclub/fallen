@@ -10,7 +10,7 @@ class SlackAuthController < ApplicationController
   def new
     return redirect_to projects_path, alert: "Slack sign-in is not configured (SLACK_CLIENT_ID / SLACK_CLIENT_SECRET)." unless SlackMessaging.oauth_configured?
 
-    session[:return_to] = params[:return_to] if params[:return_to].present? && params[:return_to].start_with?("/")
+    remember_return_to(params[:return_to])
     # ?install=1 (admins) also installs the bot into the workspace; everyone else only grants their user token.
     url = params[:install].present? && current_user.admin? ? SlackMessaging.install_url(callback_url, issue_oauth_state) : SlackMessaging.authorize_url(callback_url, issue_oauth_state)
     redirect_to url, allow_other_host: true
@@ -54,7 +54,7 @@ class SlackAuthController < ApplicationController
 
   private
 
-  def return_path = session.delete(:return_to).presence || projects_path
+  def return_path = take_return_to || projects_path
 
   def post_waiting_projects
     current_user.projects.kept.where(slack_thread_ts: nil).find_each { |project| PostProjectToSlackJob.perform_later(project) }

@@ -14,6 +14,20 @@ class SlackAuthTest < ActionDispatch::IntegrationTest
     assert_enqueued_with(job: PostProjectToSlackJob, args: [ project ]) { connect(user, slack_id: "U0FRESH") }
   end
 
+  test "returns to the page that asked" do
+    user = User.create!(hca_id: "hca_fresh", email: "fresh@example.com", display_name: "Fresh", roles: [ "user" ])
+    connect(user, slack_id: "U0FRESH", return_to: "/settings#slack")
+    assert_redirected_to "/settings#slack"
+  end
+
+  test "ignores a return_to on another host" do
+    user = User.create!(hca_id: "hca_fresh", email: "fresh@example.com", display_name: "Fresh", roles: [ "user" ])
+    [ "//evil.example/phish", "/\\evil.example/phish", "https://evil.example" ].each do |target|
+      connect(user, slack_id: "U0FRESH", return_to: target)
+      assert_redirected_to projects_path
+    end
+  end
+
   test "refuses a Slack account already connected to someone else" do
     user = User.create!(hca_id: "hca_fresh", email: "fresh@example.com", display_name: "Fresh", roles: [ "user" ])
     connect(user, slack_id: users(:member).slack_id)
@@ -39,10 +53,10 @@ class SlackAuthTest < ActionDispatch::IntegrationTest
 
   private
 
-  def connect(user, slack_id:)
+  def connect(user, slack_id:, return_to: nil)
     sign_in_as user
     with_env("SLACK_CLIENT_ID" => "id", "SLACK_CLIENT_SECRET" => "secret") do
-      get connect_slack_path
+      get connect_slack_path(return_to: return_to)
       state = Rack::Utils.parse_query(URI(response.location).query)["state"]
       stub_method(SlackMessaging, :exchange_code, { "id" => slack_id, "access_token" => "xoxp-new", "scope" => "chat:write" }) do
         get slack_callback_path(code: "abc", state: state)

@@ -45,7 +45,7 @@ module Authentication
   def authenticate_user!
     return if user_signed_in?
 
-    session[:return_to] = request.fullpath if request.get? && !request.xhr?
+    remember_return_to(request.fullpath) if request.get? && !request.xhr?
     redirect_to root_path, alert: "You need to sign in first."
   end
 
@@ -56,7 +56,7 @@ module Authentication
   def authenticate_verified_user!
     return unless current_user&.trial?
 
-    session[:return_to] = request.fullpath if request.get? && !request.xhr?
+    remember_return_to(request.fullpath) if request.get? && !request.xhr?
     url = sign_in_path(login_hint: current_user.email)
     request.inertia? ? inertia_location(url) : redirect_to(url)
   end
@@ -74,5 +74,18 @@ module Authentication
     Current.user = Current.true_user = nil
   end
 
-  def after_sign_in_path = session.delete(:return_to).presence || home_path
+  def after_sign_in_path = take_return_to || home_path
+
+  # Only a path on this site: `//host` and `/\host` are other hosts to a browser, and Rails raises on redirecting there.
+  def local_path?(path) = path.is_a?(String) && path.match?(%r{\A/(?![/\\])})
+
+  def remember_return_to(path)
+    session[:return_to] = path if local_path?(path)
+  end
+
+  # Checked again on the way out in case a session saved before this check still holds one.
+  def take_return_to
+    path = session.delete(:return_to)
+    path if local_path?(path)
+  end
 end

@@ -9,7 +9,7 @@ class LapseAuthController < ApplicationController
   def new
     return redirect_to return_path, alert: "Lapse sign-in is not configured (LAPSE_CLIENT_ID / LAPSE_CLIENT_SECRET)." unless Lapse.configured?
 
-    session[:return_to] = params[:return_to] if params[:return_to].present? && params[:return_to].start_with?("/")
+    remember_return_to(params[:return_to])
     state = issue_oauth_state
     redirect_to Lapse.authorize_url(callback_url, state, code_verifier: code_verifier(state)), allow_other_host: true
   end
@@ -38,7 +38,7 @@ class LapseAuthController < ApplicationController
 
   private
 
-  def return_path = session.delete(:return_to).presence || settings_path
+  def return_path = take_return_to || settings_path
 
   # PKCE verifier tied to the OAuth state, so the state cookie is all the flow needs to remember.
   def code_verifier(state) = OpenSSL::HMAC.hexdigest("SHA256", Rails.application.secret_key_base, "lapse-pkce:#{state}")
