@@ -18,6 +18,7 @@
 #  lapse_token             :text
 #  last_seen_at            :datetime
 #  pet                     :string
+#  pet_switched_at         :datetime
 #  roles                   :string           default([]), not null, is an Array
 #  signup_source           :jsonb            not null
 #  slack_skipped_at        :datetime

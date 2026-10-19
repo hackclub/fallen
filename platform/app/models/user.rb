@@ -15,6 +15,7 @@
 #  lapse_token             :text
 #  last_seen_at            :datetime
 #  pet                     :string
+#  pet_switched_at         :datetime
 #  roles                   :string           default([]), not null, is an Array
 #  signup_source           :jsonb            not null
 #  slack_skipped_at        :datetime
@@ -46,7 +47,8 @@ class User < ApplicationRecord
   FALLBACK_AVATAR = "/static-assets/pfp_fallback.webp"
   # Cachet redirects to the current Slack profile picture, so stored Slack image URLs never go stale.
   CACHET_URL = "https://cachet.hackclub.com"
-  # The desktop pet picked during onboarding, an egg until the first journal (Evolution). It is also the team (Team).
+  # The desktop pet picked during onboarding, an egg until the first journal (Evolution). It is also the team (Team),
+  # so switching it is limited (PetSwitch).
   PETS = %w[lulu sami].freeze
 
   include PublicIdentifiable
@@ -75,10 +77,13 @@ class User < ApplicationRecord
   validates :hca_id, uniqueness: true, allow_nil: true
   validates :email, format: { with: URI::MailTo::EMAIL_REGEXP }
   validates :roles, presence: true
-  validates :pet, inclusion: { in: PETS }, allow_nil: true
+  validates :pet, inclusion: { in: PETS, message: "That pet doesn't exist." }, allow_nil: true
+  validate :pet_switch_allowed, if: :switching_pet?
   validate :roles_are_known
 
   # Huddle visits are recorded by Slack id before anyone signs up (HuddleSyncJob); they become theirs once linked.
+  # Sami's multiplier stays with Sami, so a switch starts the new team at 1x.
+  before_save -> { assign_attributes(pet_switched_at: Time.current, xp_multiplier: 1.0) }, if: :switching_pet?
   after_save -> { HuddleSession.where(slack_id: slack_id, user_id: nil).update_all(user_id: id) }, if: -> { saved_change_to_slack_id? && slack_id.present? }
   # Finishing onboarding (picking a pet) or linking Slack while sitting in the huddle gets a welcome (HuddleWelcomeJob).
   after_commit -> { HuddleWelcomeJob.perform_later(self) }, on: %i[create update], if: :just_joined_fallen?
@@ -125,6 +130,7 @@ class User < ApplicationRecord
   def local_date(time = Time.current) = time.in_time_zone(timezone).to_date
 
   def team = Team.for(self)
+  def pet_switch = PetSwitch.new(self)
   def hatched? = xp.positive?
 
   # The first time they watch their egg hatch on the site, their pet thanks them in their project's thread.
@@ -227,6 +233,13 @@ class User < ApplicationRecord
     return false if slack_id.blank? || pet.blank?
 
     (saved_change_to_pet? && pet_before_last_save.nil?) || (saved_change_to_slack_id? && slack_id_before_last_save.nil?)
+  end
+
+  def switching_pet? = will_save_change_to_pet? && pet_in_database.present? && pet.present?
+
+  def pet_switch_allowed
+    switch = pet_switch
+    errors.add(:pet, "You can switch pets again on #{switch.next_on.to_fs(:long)}.") unless switch.allowed?
   end
 
   def roles_are_known

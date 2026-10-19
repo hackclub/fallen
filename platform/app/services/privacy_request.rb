@@ -9,6 +9,7 @@ class PrivacyRequest
     display_name: "Deleted user",
     avatar: nil,
     pet: nil,
+    pet_switched_at: nil,
     slack_id: nil,
     hca_token: nil,
     slack_user_token: nil,

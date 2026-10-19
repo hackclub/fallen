@@ -12,14 +12,19 @@
   import SolarVideocamera from '@/components/icons/SolarVideocamera.svelte'
   import SolarVolume from '@/components/icons/SolarVolume.svelte'
   import LapseSection from '@/components/settings/LapseSection.svelte'
-  import PetSection from '@/components/settings/PetSection.svelte'
+  import PetSection, { type PetSwitch } from '@/components/settings/PetSection.svelte'
   import ProfileSection from '@/components/settings/ProfileSection.svelte'
   import SlackSection from '@/components/settings/SlackSection.svelte'
   import SoundSection from '@/components/settings/SoundSection.svelte'
   import { PET_FORMS } from '@/lib/pet.svelte'
   import { shared } from '@/lib/shared.svelte'
 
-  let { slack, lapse, timezone }: { slack?: SlackStatus; lapse?: LapseStatus; timezone?: string } = $props()
+  let {
+    slack,
+    lapse,
+    timezone,
+    pet_switch,
+  }: { slack?: SlackStatus; lapse?: LapseStatus; timezone?: string; pet_switch?: PetSwitch | null } = $props()
 
   const user = $derived(shared().auth.user)
   const pet = $derived(user?.pet ?? null)
@@ -61,7 +66,7 @@
     {:else if id === 'lapse' && lapse}
       <LapseSection {lapse} />
     {:else if id === 'pet' && pet && user}
-      <PetSection {user} {pet} />
+      <PetSection {user} {pet} petSwitch={pet_switch} />
     {:else if id === 'sound'}
       <SoundSection />
     {/if}
