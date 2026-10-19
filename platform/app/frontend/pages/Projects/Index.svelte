@@ -8,6 +8,8 @@
   import ProjectCard from '@/components/ProjectCard.svelte'
   import type { SlackStatus } from '@/components/SlackConnect.svelte'
   import { connectSlack, projects } from '@/routes'
+  import * as sfx from '@/lib/sfx'
+  import { stagger } from '@/lib/stagger'
   import type { Project } from '@/types'
   import soup from '@/assets/hero/soup-falling.webp'
 
@@ -32,16 +34,19 @@
   {#if can?.create}
     <button
       type="button"
-      class="btn-ink px-8 py-2.5 {extra}"
+      class="pill-cream {extra}"
       data-tour="new-project"
-      onclick={() => (creating = true)}
+      onclick={() => {
+        sfx.select()
+        creating = true
+      }}
     >
-      <span class="text-lg leading-none">+</span> Create Project
+      <span class="mr-2 text-2xl leading-none">+</span> Create Project
     </button>
   {:else if slack?.oauth_available}
     <a
       href={connectSlack({ query: { return_to: projects.index().url } }).url}
-      class="btn-ink px-8 py-2.5 {extra}"
+      class="pill-cream {extra}"
       data-tour="new-project">Connect Slack</a
     >
   {/if}
@@ -50,38 +55,39 @@
 <PageTitle title="My Projects" subtitle="What are you building?" />
 
 {#if !list || !slack}
-  <div class="grid auto-rows-fr grid-cols-1 gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-3" aria-busy="true">
+  <div class="grid auto-rows-fr grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3" aria-busy="true">
     {#each { length: 3 }, i (i)}
-      <div class="paper">
-        <div class="h-36 animate-pulse rounded-xl bg-ink/10 md:h-48"></div>
-        <div class="space-y-3 p-4 md:p-6">
-          <div class="skeleton-ink h-7 w-40"></div>
-          <div class="skeleton-ink h-4 w-full"></div>
-          <div class="skeleton-ink h-4 w-20"></div>
+      <div class="glass">
+        <div class="h-36 animate-pulse rounded-t-[4px] bg-white/10 md:h-44"></div>
+        <div class="space-y-3 px-5 pt-4 pb-5">
+          <div class="skeleton h-6 w-40"></div>
+          <div class="skeleton h-4 w-full"></div>
+          <div class="skeleton h-5 w-28"></div>
         </div>
       </div>
     {/each}
   </div>
 {:else if list.length === 0}
-  <div class="paper flex flex-col items-center p-6 md:p-10">
-    <img src={soup} alt="" class="mb-4 h-32 w-32 object-contain sm:mb-6 sm:h-48 sm:w-48" />
-    <p class="mb-6 max-w-xl text-center font-outfit text-lg text-ink sm:mb-8 sm:text-xl">
-      No projects yet, Create one here!
-    </p>
+  <div class="glass flex flex-col items-center px-6 py-10 md:py-14">
+    <img src={soup} alt="" class="mb-4 h-32 w-32 object-contain sm:mb-6 sm:h-44 sm:w-44" />
+    <p class="mb-8 font-display text-3xl text-white">No projects yet</p>
     {@render createButton()}
     {#if !slack.oauth_available && !slack.ready}
-      <p class="font-outfit text-xs text-red-700">Slack sign-in is not configured on this server yet.</p>
+      <p class="mt-4 font-outfit text-xs text-red-300">Slack sign-in is not configured on this server yet.</p>
     {/if}
   </div>
 {:else}
-  <div class="grid auto-rows-fr grid-cols-1 gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-3">
+  <div
+    {@attach stagger}
+    class="stagger-in grid auto-rows-fr grid-cols-1 gap-5 [--stagger-step:60ms] md:grid-cols-2 lg:grid-cols-3"
+  >
     {#each list as project (project.id)}
       <ProjectCard {project} />
     {/each}
     <div
-      class="paper flex h-full min-h-48 flex-col items-center justify-center p-6 transition-transform duration-300 hover:scale-[1.02]"
+      class="flex h-full min-h-48 flex-col items-center justify-center rounded-[4px] border-2 border-dashed border-white/20 p-6"
     >
-      {@render createButton()}
+      {@render createButton('h-11 text-base')}
     </div>
   </div>
 {/if}

@@ -81,95 +81,105 @@
   )
 </script>
 
-<section class="mb-8 paper p-4 font-outfit md:p-6" aria-label="Your XP">
-  <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-    <h3 class="font-display text-3xl text-ink">{xp.total} <span class="text-xl">XP</span></h3>
-    <p class="text-sm text-ink-soft">
-      {#if xp.form === 0}
-        Egg · hatches with your first journal
-      {:else if xp.next_stage_xp}
-        Stage {stage} · {xp.next_stage_xp - xp.total} XP to stage {stage + 1}
-      {:else if xp.form < FINAL_FORM}
-        Stage {stage} · final form once your project is approved
-      {:else}
-        Final form
-      {/if}
-    </p>
-  </div>
-  <div
-    class="mt-3 h-2 overflow-hidden rounded-full bg-ink/10"
-    role="progressbar"
-    aria-valuenow={Math.round(xp.progress * 100)}
-    aria-valuemin={0}
-    aria-valuemax={100}
-  >
-    <div
-      class="h-full rounded-full bg-ink transition-[width] duration-700"
-      style:width="{xp.progress * 100}%"
-    ></div>
+<section class="glass divide-y divide-white/10 font-outfit" aria-label="Your XP">
+  <div class="setting-row">
+    <div class="w-full">
+      <div class="flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
+        <p class="font-display text-5xl leading-none text-white">
+          {xp.total}<span class="ml-2 font-montserrat text-lg font-semibold text-cream">XP</span>
+        </p>
+        <p class="font-montserrat text-sm font-semibold text-cream/70">
+          {#if xp.form === 0}
+            Egg · hatches with your first journal
+          {:else if xp.next_stage_xp}
+            Stage {stage} · {xp.next_stage_xp - xp.total} XP to stage {stage + 1}
+          {:else if xp.form < FINAL_FORM}
+            Stage {stage} · final form once your project is approved
+          {:else}
+            Final form
+          {/if}
+        </p>
+      </div>
+      <div
+        class="meter mt-4 h-3"
+        role="progressbar"
+        aria-label="Progress to the next stage"
+        aria-valuenow={Math.round(xp.progress * 100)}
+        aria-valuemin={0}
+        aria-valuemax={100}
+      >
+        <div style:width="{xp.progress * 100}%"></div>
+      </div>
+    </div>
   </div>
 
   {#if xp.team}
-    <div class="mt-5 grid gap-x-10 gap-y-5 border-t border-ink/10 pt-5 sm:grid-cols-2">
-      <div>
-        <h4 class="text-xs font-semibold tracking-wide text-ink-soft uppercase">
-          This week · Team {TEAM_NAMES[xp.team]}
-        </h4>
-        <ol class="mt-2 flex gap-1.5">
-          {#each days as d (d.day)}
-            <li
-              title="{dayFormatter.format(d.date)}: {d.journaled
-                ? 'journaled'
-                : d.missed
-                  ? 'missed, a freeze used'
-                  : d.today
-                    ? 'today'
-                    : 'nothing yet'}"
-              class={[
-                'grid size-7 place-items-center rounded-full text-[11px] font-semibold',
-                d.journaled && 'bg-ink text-paper',
-                d.missed && 'bg-amber-200 text-amber-900',
-                !d.journaled && !d.missed && 'bg-ink/10 text-ink-soft',
-                d.today && 'ring-2 ring-ink ring-offset-2 ring-offset-paper',
-                d.future && 'opacity-50',
-              ]}
-            >
-              {weekdayFormatter.format(d.date)}
-            </li>
-          {/each}
-        </ol>
-        <p
-          class="mt-2 cursor-help text-sm text-ink underline decoration-ink/30 decoration-dotted underline-offset-4"
-          title={rule}
-        >
-          {goal}
-        </p>
+    <div class="grid sm:grid-cols-2 sm:divide-x sm:divide-white/10 max-sm:divide-y max-sm:divide-white/10">
+      <div class="setting-row">
+        <div class="w-full">
+          <div class="flex flex-wrap items-center gap-3">
+            <h3 class="font-montserrat text-lg font-semibold tracking-[-0.02em] text-white">This week</h3>
+            <span class="chip">Team {TEAM_NAMES[xp.team]}</span>
+          </div>
+          <ol class="mt-3 flex gap-1.5 sm:gap-2">
+            {#each days as d (d.day)}
+              <li
+                title="{dayFormatter.format(d.date)}: {d.journaled
+                  ? 'journaled'
+                  : d.missed
+                    ? 'missed, a freeze used'
+                    : d.today
+                      ? 'today'
+                      : 'nothing yet'}"
+                class={[
+                  'grid size-8 place-items-center rounded-full font-montserrat text-xs font-semibold',
+                  d.journaled && 'bg-cream text-slate-ink shadow-[0_0_12px_rgb(252_249_239/0.45)]',
+                  d.missed && 'bg-saffron/80 text-slate-ink',
+                  !d.journaled && !d.missed && 'bg-white/10 text-sky-ice/60',
+                  d.today && 'outline-2 outline-offset-2 outline-cream',
+                  d.future && 'opacity-50',
+                ]}
+              >
+                {weekdayFormatter.format(d.date)}
+              </li>
+            {/each}
+          </ol>
+          <p
+            class="mt-3 w-fit cursor-help text-sm text-pale-blue underline decoration-cream/30 decoration-dotted underline-offset-4"
+            title={rule}
+          >
+            {goal}
+          </p>
+        </div>
       </div>
 
-      <div>
-        <h4 class="text-xs font-semibold tracking-wide text-ink-soft uppercase">Teams this week</h4>
-        <ol class="mt-2 space-y-1.5">
-          {#each race as team (team.name)}
-            <li class="grid grid-cols-[3rem_1fr_auto] items-center gap-2 text-sm">
-              <span class={team.name === xp.team ? 'font-semibold text-ink' : 'text-ink-soft'}
-                >{team.label}</span
-              >
-              <div class="h-2 overflow-hidden rounded-full bg-ink/10">
-                <div
-                  class={[
-                    'h-full rounded-full transition-[width] duration-700',
-                    team.name === xp.team ? 'bg-ink' : 'bg-ink/40',
-                  ]}
-                  style:width="{team.share * 100}%"
-                ></div>
-              </div>
-              <span class="tabular-nums text-ink-soft">{team.xp} XP</span>
-            </li>
-          {/each}
-        </ol>
-        <p class="mt-2 text-sm text-ink-soft">
-          +{xp.rules.win_bonus} XP to everyone on the leading team on Monday.
-        </p>
+      <div class="setting-row">
+        <div class="w-full">
+          <h3 class="font-montserrat text-lg font-semibold tracking-[-0.02em] text-white">Teams this week</h3>
+          <ol class="mt-3 space-y-2.5">
+            {#each race as team (team.name)}
+              <li class="grid grid-cols-[3rem_1fr_auto] items-center gap-3 text-sm">
+                <span
+                  class={team.name === xp.team
+                    ? 'font-montserrat font-semibold text-white'
+                    : 'font-montserrat font-semibold text-sky-ice/60'}>{team.label}</span
+                >
+                <div class="meter">
+                  <div
+                    class={[team.name !== xp.team && 'bg-white/40! shadow-none!']}
+                    style:width="{team.share * 100}%"
+                  ></div>
+                </div>
+                <span class="font-montserrat text-xs font-semibold text-cream/80 tabular-nums"
+                  >{team.xp} XP</span
+                >
+              </li>
+            {/each}
+          </ol>
+          <p class="mt-3 text-sm text-sky-ice/60">
+            +{xp.rules.win_bonus} XP to everyone on the leading team on Monday.
+          </p>
+        </div>
       </div>
     </div>
   {/if}

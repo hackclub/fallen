@@ -2,11 +2,13 @@
   import { Link } from '@inertiajs/svelte'
   import { formatMinutes } from '@/lib/format'
   import { pages } from '@/lib/pages'
+  import * as sfx from '@/lib/sfx'
   import { project as projectRoute } from '@/routes'
   import type { Project } from '@/types'
   import defaultBanner from '@/assets/hero/default-banner.jpg'
 
-  // summer-of-making's project card. The picture is the banner, else the first journal photo, else the hero art.
+  // A tile on the glass: the banner (else the first journal photo, else the hero art), the title and what has been
+  // logged. Hover or focus lights the tile's frame.
   let { project }: { project: Project } = $props()
 </script>
 
@@ -14,33 +16,29 @@
   href={projectRoute(project.id)}
   component={pages.project}
   pageProps={(_, shared) => ({ ...shared, project })}
-  class="paper flex h-full flex-col transition-transform duration-300 hover:scale-[1.02]"
+  onclick={sfx.select}
+  class="tile flex h-full flex-col"
 >
-  <div class="relative h-36 overflow-hidden md:h-48">
-    <img
-      src={project.cover_url ?? defaultBanner}
-      alt={project.title}
-      loading="lazy"
-      class="h-full w-full rounded-xl object-cover"
-    />
+  <div class="relative h-36 overflow-hidden rounded-t-[4px] md:h-44">
+    <img src={project.cover_url ?? defaultBanner} alt="" loading="lazy" class="h-full w-full object-cover" />
+    <div class="pointer-events-none absolute inset-0 bg-gradient-to-t from-sky-night/50 to-transparent"></div>
   </div>
 
-  <div class="flex flex-grow flex-col p-4 md:p-6">
-    <h2 class="mb-2 line-clamp-1 font-display text-xl md:mb-3 md:text-2xl">{project.title}</h2>
+  <div class="flex flex-grow flex-col px-5 pt-4 pb-5">
+    <h2
+      class="line-clamp-1 font-montserrat text-xl font-semibold tracking-[-0.02em] text-white drop-shadow-[0_1.5px_4px_rgba(0,0,0,0.35)]"
+    >
+      {project.title}
+    </h2>
     {#if project.description}
-      <p class="mb-4 line-clamp-3 font-outfit text-sm break-words text-ink-soft md:mb-6 md:text-base">
-        {project.description}
-      </p>
+      <p class="mt-1 line-clamp-2 font-outfit text-sm break-words text-sky-ice/60">{project.description}</p>
+    {:else if project.journal_count === 0}
+      <p class="mt-1 font-outfit text-sm text-sky-ice/60">Write a journal after your next session!</p>
     {/if}
 
-    <p class="mt-auto font-outfit text-ink-soft/70">
-      {formatMinutes(project.total_minutes)}
-      <br />
-      {project.journal_count}
-      {project.journal_count === 1 ? 'journal' : 'journals'}
+    <p class="mt-auto flex flex-wrap gap-2 pt-4">
+      <span class="chip">{formatMinutes(project.total_minutes)}</span>
+      <span class="chip">{project.journal_count} {project.journal_count === 1 ? 'journal' : 'journals'}</span>
     </p>
-    {#if project.journal_count === 0}
-      <p class="font-outfit text-ink-soft/70">Write a journal after your next session!</p>
-    {/if}
   </div>
 </Link>

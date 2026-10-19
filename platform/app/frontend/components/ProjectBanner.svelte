@@ -5,8 +5,8 @@
   import type { Project } from '@/types'
   import defaultBanner from '@/assets/hero/default-banner.jpg'
 
-  // The top of the project page, after summer-of-making's: the picture fades into the card, and the owner can click,
-  // drag or paste an image onto it to replace the banner.
+  // The top of the project page, after summer-of-making's: the picture fades into the glass below it, and the owner
+  // can click, drag or paste an image onto it to replace the banner.
   let {
     project,
     editable,
@@ -51,17 +51,13 @@
   <img
     src={project.cover_url ?? defaultBanner}
     alt={project.title}
-    class="h-full w-full object-cover object-center"
+    class="h-full w-full object-cover object-center [mask-image:linear-gradient(to_bottom,black_45%,transparent)]"
   />
-{/snippet}
-
-{#snippet fade()}
-  <div class="pointer-events-none absolute inset-0 bg-gradient-to-t from-paper to-transparent"></div>
 {/snippet}
 
 {#if editable}
   <div
-    class="group relative h-48 cursor-pointer overflow-hidden md:h-64"
+    class="group relative h-52 cursor-pointer overflow-hidden rounded-t-[4px] outline-none md:h-72"
     role="button"
     tabindex="0"
     aria-label="Upload a new banner"
@@ -79,19 +75,20 @@
     <div
       class="pointer-events-none absolute inset-0 z-10 flex flex-col justify-center transition-colors duration-300 {dragging ||
       uploading
-        ? 'bg-paper/75'
-        : 'group-hover:bg-paper/75'}"
+        ? 'bg-sky-night/70'
+        : 'group-hover:bg-sky-night/70 group-focus-visible:bg-sky-night/70'}"
     >
       <p
-        class="text-center font-outfit transition-colors duration-300 {dragging || uploading || error
-          ? 'text-ink'
-          : 'text-transparent group-hover:text-ink'}"
+        class="text-center font-montserrat font-semibold transition-colors duration-300 {dragging ||
+        uploading ||
+        error
+          ? 'text-cream'
+          : 'text-transparent group-hover:text-cream group-focus-visible:text-cream'}"
       >
         {error ??
           (uploading ? 'Uploading... hold on tight!' : 'Click, drag, or paste to upload a new banner image')}
       </p>
     </div>
-    {@render fade()}
   </div>
   <input
     bind:this={input}
@@ -104,8 +101,7 @@
     }}
   />
 {:else}
-  <div class="relative h-48 overflow-hidden md:h-64">
+  <div class="relative h-52 overflow-hidden rounded-t-[4px] md:h-72">
     {@render picture()}
-    {@render fade()}
   </div>
 {/if}

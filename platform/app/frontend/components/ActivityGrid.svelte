@@ -19,22 +19,26 @@
   const lead = $derived(days.length ? (parse(days[0].date).getDay() + 6) % 7 : 0)
 
   function level(minutes: number) {
-    if (minutes <= 0) return 'bg-ink/10'
-    if (minutes < 60) return 'bg-ink/30'
-    if (minutes < 120) return 'bg-ink/50'
-    if (minutes < 180) return 'bg-ink/75'
-    return 'bg-ink'
+    if (minutes <= 0) return 'bg-white/10'
+    if (minutes < 60) return 'bg-cream/30'
+    if (minutes < 120) return 'bg-cream/55'
+    if (minutes < 180) return 'bg-cream/80'
+    return 'bg-cream shadow-[0_0_8px_rgb(252_249_239/0.5)]'
   }
 </script>
 
 <div class="overflow-x-auto">
   <ol class="grid w-max grid-flow-col grid-rows-7 gap-1.5">
     {#each { length: lead }, i (i)}
-      <li aria-hidden="true" class="h-5 w-5"></li>
+      <li aria-hidden="true" class="h-4 w-4 md:h-5 md:w-5"></li>
     {/each}
     {#each days as day (day.date)}
       {@const label = `${dayFormatter.format(parse(day.date))}: ${day.minutes ? formatMinutes(day.minutes) : 'nothing logged'}`}
-      <li title={label} aria-label={label} class="h-5 w-5 rounded-[4px] {level(day.minutes)}"></li>
+      <li
+        title={label}
+        aria-label={label}
+        class="h-4 w-4 rounded-[3px] md:h-5 md:w-5 {level(day.minutes)}"
+      ></li>
     {/each}
   </ol>
 </div>
