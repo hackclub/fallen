@@ -14,7 +14,8 @@ Rails.application.configure do
     policy.base_uri :self
     policy.object_src :none
     policy.frame_ancestors :self
-    policy.script_src :self, *([ :unsafe_eval, "http://#{vite}" ] if vite)
+    # Cloudflare injects its Web Analytics beacon into every page it proxies.
+    policy.script_src :self, "https://static.cloudflareinsights.com", *([ :unsafe_eval, "http://#{vite}" ] if vite)
     # Svelte's style: directives and SSR output write inline style attributes.
     policy.style_src :self, :unsafe_inline, "https://fonts.googleapis.com"
     policy.font_src :self, :data, "https://fonts.gstatic.com"
@@ -23,7 +24,7 @@ Rails.application.configure do
                    "https://lookout.hackclub.com", "https://public.lapse-hackclub.link", # Lapse thumbnails
                    "https://i.ytimg.com", *r2_host
     policy.frame_src "https://www.youtube-nocookie.com"
-    policy.connect_src :self, *("https://#{sentry.host}" if sentry), *([ "ws://#{vite}", "http://#{vite}" ] if vite)
+    policy.connect_src :self, "https://cloudflareinsights.com", *("https://#{sentry.host}" if sentry), *([ "ws://#{vite}", "http://#{vite}" ] if vite)
     policy.report_uri "https://#{sentry.host}/api#{sentry.path}/security/?sentry_key=#{sentry.user}" if sentry
   end
 
