@@ -4,6 +4,7 @@
 
 <script lang="ts">
   import { Link } from '@inertiajs/svelte'
+  import '@/components/dialog/dialog.css'
   import ProjectFields from '@/components/ProjectFields.svelte'
   import { projectForm, saveProject } from '@/lib/projectForm'
   import { project as projectRoute, projects } from '@/routes'
@@ -34,42 +35,44 @@
 
 <svelte:head><title>{project ? `Edit ${project.title}` : 'Create New Project'} · Fallen</title></svelte:head>
 
-<div bind:this={root} class="mx-auto max-w-xl">
-  <div class="paper shadow-[0_30px_80px_-20px_rgba(0,0,0,0.8)]">
-    <div class="flex items-center justify-between border-b border-ink/10 p-3 md:p-6">
-      <h1 class="font-display text-lg text-ink md:text-2xl">
-        {project ? 'Edit Project' : 'Create New Project'}
-      </h1>
-      <Link
-        href={back}
-        component={project ? pages.project : pages.projects}
-        pageProps={project ? (_, shared) => ({ ...shared, project }) : null}
-        aria-label="Close"
-        class="flex h-8 w-8 items-center justify-center rounded-full text-2xl leading-none text-ink-soft hover:bg-ink/5 hover:text-ink"
-        >×</Link
-      >
-    </div>
+<!-- Dressed like the popups (components/Modal.svelte), since this is the same prompt reached by its own URL. -->
+<div bind:this={root} class="mx-auto max-w-xl pt-6">
+  <div class="game-card relative">
+    <header class="relative -mt-7 mb-2 flex justify-center px-14">
+      <h1 class="game-tab max-w-full truncate">{project ? 'Edit Project' : 'Create New Project'}</h1>
+    </header>
+    <Link
+      href={back}
+      component={project ? pages.project : pages.projects}
+      pageProps={project ? (_, shared) => ({ ...shared, project }) : null}
+      aria-label="Close"
+      class="game-btn game-btn-white absolute -top-4 -right-3 z-10 size-11 min-h-0 rounded-full p-0 md:-right-4"
+    >
+      <svg viewBox="0 0 12 12" class="size-3.5" fill="none" stroke="currentColor" stroke-width="2.6">
+        <path d="M2.5 2.5l7 7M9.5 2.5l-7 7" stroke-linecap="round" />
+      </svg>
+    </Link>
 
-    <form onsubmit={submit} novalidate class="p-3 md:p-6">
+    <form onsubmit={submit} novalidate class="px-5 pt-2 pb-6 md:px-9 md:pb-8">
       <ProjectFields {form} directUploadUrl={direct_upload_url} />
 
       {#if !project}
-        <p class="mt-4 border-t border-ink/10 pt-3 font-outfit text-xs text-ink-soft md:text-sm">
+        <p class="mt-4 text-center font-outfit text-xs text-balance text-ink-soft md:text-sm">
           Only the title is required. Everything else can be added later. Creating it posts a thread for it in
           the journals channel, as you.
         </p>
       {/if}
 
-      <div class="mt-3 flex justify-end gap-2 md:mt-4 md:gap-3">
+      <div class="mt-6 flex flex-col-reverse justify-center gap-3 sm:flex-row md:mt-8">
         <Link
           href={back}
           component={project ? pages.project : pages.projects}
           pageProps={project ? (_, shared) => ({ ...shared, project }) : null}
-          class="btn-paper px-5 py-2">Cancel</Link
+          class="game-btn game-btn-white min-w-40">Cancel</Link
         >
         <button
           type="submit"
-          class="btn-ink px-5 py-2"
+          class="game-btn game-btn-blue min-w-40"
           disabled={form.processing || form.title.trim() === ''}
         >
           {form.processing ? 'Saving...' : project ? 'Save' : 'Create Project'}

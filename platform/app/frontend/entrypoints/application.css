@@ -289,6 +289,14 @@
   box-shadow:
     0 8px 0 #c9b88f,
     0 30px 60px -12px rgba(0, 0, 0, 0.7);
+  /* Inputs stand out from the cream as white wells, lit blue when focused like the dialog's choices. */
+  & .paper-input {
+    border: 2px solid var(--color-paper-rim);
+    background: #fffdf8;
+  }
+  & .paper-input:focus {
+    border-color: #1cb0f6;
+  }
 }
 
 /* A game-card's title: a tilted pill on its top edge, like the dialog's name tag. */

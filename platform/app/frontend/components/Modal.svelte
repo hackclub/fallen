@@ -113,14 +113,6 @@
   .modal-tab {
     animation: modal-tab 0.45s cubic-bezier(0.34, 1.7, 0.64, 1) 0.08s both;
   }
-  /* Inputs stand out from the cream as white wells, lit blue when focused like the dialog's choices. */
-  .modal-card :global(.paper-input) {
-    border: 2px solid var(--color-paper-rim);
-    background: #fffdf8;
-  }
-  .modal-card :global(.paper-input:focus) {
-    border-color: #1cb0f6;
-  }
   @keyframes modal-fade {
     from {
       opacity: 0;
