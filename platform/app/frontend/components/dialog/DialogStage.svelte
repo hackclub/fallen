@@ -1,10 +1,10 @@
 <script lang="ts">
   import { untrack, type Snippet } from 'svelte'
   import './dialog.css'
-  import { SCENE, u } from './geometry'
+  import { BUBBLE, COMPACT, NAME_TAG, SCENE, u } from './geometry'
   import { Dialog } from './dialog.svelte'
   import { enter, exit, styler } from './motion'
-  import Avatar from './Avatar.svelte'
+  import Avatar, { poseKey } from './Avatar.svelte'
   import SpeechBubble from './SpeechBubble.svelte'
   import ChoiceBox from './ChoiceBox.svelte'
   import Popup from './Popup.svelte'
@@ -109,9 +109,33 @@
   const showArrow = $derived(phase === 'idle' && !node.choices?.length && !node.panel)
   const showPopup = $derived(phase === 'popup' && !!node.popup)
 
+  // The stage fills the window wherever it is used, so the window stands in for it until it has been measured.
+  let stageWidth = $state(typeof window === 'undefined' ? 0 : innerWidth)
+  let stageHeight = $state(typeof window === 'undefined' ? 0 : innerHeight)
+  const compact = $derived(
+    Math.min((fit.width * stageWidth) / SCENE.width, (fit.height * stageHeight) / SCENE.height) <
+      COMPACT.belowUnit,
+  )
+
   // One design unit in px (see geometry.ts). Container units keep it tied to the stage rather than the viewport.
   const unit = $derived(
-    `min(calc(${fit.width * 100}cqw / ${SCENE.width}), calc(${fit.height * 100}cqh / ${SCENE.height}))`,
+    compact
+      ? `${COMPACT.stage}px`
+      : `min(calc(${fit.width * 100}cqw / ${SCENE.width}), calc(${fit.height * 100}cqh / ${SCENE.height}))`,
+  )
+
+  // In the phone layout the name tag starts just past the character standing on the bubble.
+  const tagLeft = $derived.by(() => {
+    const character = dialog.character
+    if (!character) return COMPACT.bubblePadding.x
+    const spec = character.avatars[poseKey(character, dialog.emotion)]
+    return (spec?.width ?? 0) * COMPACT.character + COMPACT.tagGap
+  })
+
+  // How far up from the stage's bottom edge the bubble starts, for panels that sit above it (EggPicker).
+  let compactBubble = $state(0)
+  const clear = $derived(
+    compact ? `${COMPACT.inset + compactBubble}px` : u(bottom + SCENE.height - BUBBLE.top),
   )
 </script>
 
@@ -123,6 +147,9 @@
   data-dialog-stage
   style:container-type="size"
   style:--dlg-u={unit}
+  style:--dlg-clear={clear}
+  bind:clientWidth={stageWidth}
+  bind:clientHeight={stageHeight}
   onclick={phase === 'done' ? undefined : dialog.advance}
 >
   {@render children?.()}
@@ -134,7 +161,68 @@
     {/if}
   {/key}
 
-  {#if phase !== 'done'}
+  {#if phase !== 'done' && compact}
+    <!-- The phone layout: the character stands on a full-width bubble pinned to the bottom, with the choices beside
+         it, so the bubble never moves as choices come and go. Click-through like the scene below. -->
+    <div
+      class="pointer-events-none absolute inset-x-0 z-10 mx-auto flex flex-col"
+      style:bottom="calc({COMPACT.inset}px + env(safe-area-inset-bottom))"
+      style:max-width="{COMPACT.maxWidth}px"
+      style:padding-inline="{COMPACT.inset}px"
+      out:exit={{
+        target: { y: 80, opacity: 0 },
+        transition: { duration: 0.25, ease: 'easeIn' },
+        duration: 0.25,
+      }}
+    >
+      <div class="flex items-end justify-between" style:gap="{COMPACT.inset}px">
+        <div
+          style:--dlg-u="{COMPACT.character}px"
+          style:margin-bottom="-{COMPACT.overlap}px"
+          class="relative z-10"
+        >
+          {#if dialog.character}
+            <Avatar
+              character={dialog.character}
+              emotion={dialog.emotion}
+              talking={phase === 'revealing'}
+              compact
+            />
+          {/if}
+        </div>
+        {#if showChoices}
+          <!-- Lifted clear of the name tag, which pokes up out of the bubble beside the character. -->
+          <div
+            class="flex min-w-0 justify-end"
+            style:--dlg-u="{COMPACT.choices}px"
+            style:margin-bottom="{-NAME_TAG.top * COMPACT.nameTag + COMPACT.inset}px"
+          >
+            {#key dialog.revealKey}
+              <ChoiceBox
+                choices={node.choices!}
+                {selected}
+                onSelect={setSelected}
+                onChoose={dialog.choose}
+                compact
+              />
+            {/key}
+          </div>
+        {/if}
+      </div>
+      <div bind:offsetHeight={compactBubble}>
+        <SpeechBubble
+          character={dialog.character}
+          text={dialog.text}
+          revealKey={dialog.revealKey}
+          skipped={dialog.skipped}
+          {showArrow}
+          onRevealComplete={dialog.finishReveal}
+          compact
+          {tagLeft}
+        />
+      </div>
+    </div>
+  {:else if phase !== 'done'}
     <!-- Composited separately from whatever the caller paints behind it, so the floating avatar and wobbling bubble
          never force the (often full-screen) background to repaint. Above panels, so the character stands in front of
          them, and click-through, so its empty area never blocks a panel's controls; the bubble and choice box opt

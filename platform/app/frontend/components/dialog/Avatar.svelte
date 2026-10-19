@@ -1,21 +1,29 @@
+<script module lang="ts">
+  import type { Character } from './types'
+
+  // The pose shown for an emotion, falling back to the character's default.
+  export function poseKey(character: Character, emotion?: string) {
+    return emotion && character.avatars[emotion]
+      ? emotion
+      : (character.defaultEmotion ?? Object.keys(character.avatars)[0])
+  }
+</script>
+
 <script lang="ts">
   import { u } from './geometry'
   import { enter, exit, styler } from './motion'
-  import type { Character } from './types'
 
   type Props = {
     character: Character
     emotion?: string
     talking: boolean
+    // In the phone layout it stands in the flow, on top of the bubble, instead of at the scene's corner.
+    compact?: boolean
   }
 
-  let { character, emotion, talking }: Props = $props()
+  let { character, emotion, talking, compact = false }: Props = $props()
 
-  const key = $derived(
-    emotion && character.avatars[emotion]
-      ? emotion
-      : (character.defaultEmotion ?? Object.keys(character.avatars)[0]),
-  )
+  const key = $derived(poseKey(character, emotion))
   const spec = $derived(character.avatars[key])
 
   // Squash-and-stretch from the feet while words are appearing.
@@ -44,7 +52,7 @@
 {#if spec}
   <!-- Click-through: the character overlaps the bubble and any panel below it. -->
   <div
-    class="pointer-events-none absolute bottom-0 left-0 z-10"
+    class={['pointer-events-none z-10', compact ? 'relative shrink-0' : 'absolute bottom-0 left-0']}
     style:width={u(spec.width)}
     style:height={u(spec.height)}
     style:transform-origin="50% 100%"

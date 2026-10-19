@@ -1,5 +1,5 @@
 <script module lang="ts">
-  import { ARROW, BODY_TEXT, BUBBLE, NAME_TAG, u } from './geometry'
+  import { ARROW, BODY_TEXT, BUBBLE, COMPACT, NAME_TAG, u } from './geometry'
   import { buildWobblePath, WOBBLE_CANVAS } from './wobble'
 
   const SPRING = { type: 'spring', stiffness: 380, damping: 24 } as const
@@ -56,9 +56,40 @@
     skipped: boolean
     showArrow: boolean
     onRevealComplete: () => void
+    // The phone layout (geometry.ts COMPACT): full width, as tall as its copy, with the name tag `tagLeft` px in so it
+    // clears the character standing on the bubble.
+    compact?: boolean
+    tagLeft?: number
   }
 
-  let { character, text, revealKey, skipped, showArrow, onRevealComplete }: Props = $props()
+  let {
+    character,
+    text,
+    revealKey,
+    skipped,
+    showArrow,
+    onRevealComplete,
+    compact = false,
+    tagLeft = 0,
+  }: Props = $props()
+
+  // A compact bubble takes its shape from its copy, so the outline is drawn for the box it ends up as.
+  let boxWidth = $state(0)
+  let boxHeight = $state(0)
+  const inner = $derived(
+    compact && boxWidth ? { w: boxWidth / COMPACT.wobble, h: boxHeight / COMPACT.wobble } : null,
+  )
+  const svgStyle = $derived.by(() => {
+    if (!inner) return canvasStyle
+    const pad = WOBBLE_CANVAS.pad * COMPACT.wobble
+    return `left: ${-pad}px; top: ${-pad}px; width: ${boxWidth + 2 * pad}px; height: ${boxHeight + 2 * pad}px`
+  })
+  const viewBox = $derived(
+    inner
+      ? `0 0 ${inner.w + 2 * WOBBLE_CANVAS.pad} ${inner.h + 2 * WOBBLE_CANVAS.pad}`
+      : `0 0 ${WOBBLE_CANVAS.width} ${WOBBLE_CANVAS.height}`,
+  )
+  const restingPath = $derived(inner ? buildWobblePath(0, inner.w, inner.h) : initialPath)
 
   let path: SVGPathElement
   $effect(() => {
@@ -70,7 +101,10 @@
       const time = timestamp - start
       if (time - last < WOBBLE_INTERVAL_MS) return
       last = time
-      path.setAttribute('d', buildWobblePath(time / 1000))
+      path.setAttribute(
+        'd',
+        inner ? buildWobblePath(time / 1000, inner.w, inner.h) : buildWobblePath(time / 1000),
+      )
     }
     frame.update(tick, true)
     return () => cancelFrame(tick)
@@ -78,7 +112,7 @@
 
   // A small bounce every time a new line lands, so the bubble reads as "speaking" rather than as a static panel
   // whose text changed.
-  let inner: HTMLElement
+  let bounce: HTMLElement
   let first = true
   $effect(() => {
     void revealKey
@@ -86,19 +120,21 @@
       first = false
       return
     }
-    styler(inner).animate({ scale: [0.975, 1] }, { type: 'spring', stiffness: 600, damping: 16 })
+    styler(bounce).animate({ scale: [0.975, 1] }, { type: 'spring', stiffness: 600, damping: 16 })
   })
 
   let textBox: HTMLElement
   let textSize = $state(BODY_TEXT.fontSize)
   $effect(() => {
     void text
+    void compact
     untrack(fit)
   })
+  // A compact bubble grows to fit instead, so its copy stays at full size.
   function fit() {
     const box = textBox
     let candidate = BODY_TEXT.fontSize
-    for (;;) {
+    while (!compact) {
       box.style.fontSize = u(candidate)
       if (countLines(box) <= MAX_LINES) break
       if (candidate <= BODY_TEXT.minFontSize) {
@@ -125,11 +161,12 @@
 </script>
 
 <div
-  class="pointer-events-auto absolute"
-  style:left={u(BUBBLE.left)}
-  style:top={u(BUBBLE.top)}
-  style:width={u(BUBBLE.width)}
-  style:height={u(BUBBLE.height)}
+  class={['pointer-events-auto', compact ? 'relative w-full' : 'absolute']}
+  data-dialog-bubble
+  style:left={compact ? undefined : u(BUBBLE.left)}
+  style:top={compact ? undefined : u(BUBBLE.top)}
+  style:width={compact ? undefined : u(BUBBLE.width)}
+  style:height={compact ? undefined : u(BUBBLE.height)}
   style:transform-origin="50% 100%"
   {@attach enter(
     { scale: 0.6, y: 60, opacity: 0 },
@@ -137,24 +174,30 @@
     { ...SPRING, delay: 0.1 },
   )}
 >
-  <div class="relative size-full" bind:this={inner}>
+  <div
+    class={['relative', !compact && 'size-full']}
+    bind:this={bounce}
+    bind:clientWidth={boxWidth}
+    bind:clientHeight={boxHeight}
+  >
     <!-- Its own compositor layer, so the per-frame repaint stays inside this rectangle instead of invalidating the
          text and background around it. -->
     <svg
       aria-hidden="true"
       class="absolute overflow-visible will-change-transform"
-      style={canvasStyle}
-      viewBox="0 0 {WOBBLE_CANVAS.width} {WOBBLE_CANVAS.height}"
+      style={svgStyle}
+      {viewBox}
       preserveAspectRatio="none"
     >
-      <path bind:this={path} d={initialPath} fill={BUBBLE.fill} />
+      <path bind:this={path} d={restingPath} fill={BUBBLE.fill} />
     </svg>
 
     {#if character}
       {#key character.id}
         <div
           class="absolute flex justify-center font-dialog font-medium whitespace-nowrap text-white"
-          style:left={u(NAME_TAG.left)}
+          style:--dlg-u={compact ? `${COMPACT.nameTag}px` : undefined}
+          style:left={compact ? `${tagLeft}px` : u(NAME_TAG.left)}
           style:top={u(NAME_TAG.top)}
           style:min-width={u(NAME_TAG.minWidth)}
           style:height={u(NAME_TAG.height)}
@@ -176,11 +219,16 @@
       {/key}
     {/if}
 
-    <div class="absolute inset-0 flex flex-col items-center justify-center">
+    <div
+      class={['flex flex-col items-center justify-center', compact ? 'relative' : 'absolute inset-0']}
+      style:min-height={compact ? `${COMPACT.bubbleMinHeight}px` : undefined}
+      style:padding={compact ? `${COMPACT.bubblePadding.y}px ${COMPACT.bubblePadding.x}px` : undefined}
+    >
       <div
         bind:this={textBox}
         class="text-center font-dialog font-semibold [word-break:break-word] text-white [text-wrap:balance]"
-        style:width={u(BODY_TEXT.width)}
+        style:--dlg-u={compact ? `${COMPACT.text}px` : undefined}
+        style:width={compact ? '100%' : u(BODY_TEXT.width)}
         style:font-size={u(textSize)}
         style:line-height={BODY_TEXT.lineHeight}
       >
@@ -195,6 +243,7 @@
     {#if showArrow}
       <div
         class="absolute flex items-center justify-center"
+        style:--dlg-u={compact ? `${COMPACT.arrow}px` : undefined}
         style:right={u(ARROW.right)}
         style:bottom={u(ARROW.bottom)}
         style:width={u(ARROW.width)}

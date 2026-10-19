@@ -64,6 +64,31 @@ export const POPUP = {
   accent: '#FF427D',
 }
 
+// Phones and short windows. Scaled as one picture the copy would shrink to a
+// few px, so once a unit would be smaller than `belowUnit` the stage stacks the
+// same pieces instead (DialogStage): the character standing on a full-width
+// bubble, the choices beside it. Each piece keeps its design-unit sizes and
+// gets its own unit in px, so it stays readable and thumb-sized. `inset` and
+// `maxWidth` are px; `wobble` is px per wobble-canvas unit (wobble.ts).
+export const COMPACT = {
+  belowUnit: 0.5,
+  inset: 12,
+  maxWidth: 560,
+  stage: 0.5,
+  character: 0.34,
+  text: 0.5,
+  nameTag: 0.5,
+  choices: 0.64,
+  arrow: 0.6,
+  bubblePadding: { x: 36, y: 22 },
+  bubbleMinHeight: 116,
+  // How far the character's feet come down over the bubble, and the gap
+  // between the name tag and the character, in px.
+  overlap: 34,
+  tagGap: 4,
+  wobble: 0.4,
+}
+
 // Outside a DialogStage the variable is unset and one unit is one px, so the
 // game-styled pieces (GameButton, StripPanel) render at design size anywhere.
 export const u = (n: number) => `calc(var(--dlg-u, 1px) * ${n})`

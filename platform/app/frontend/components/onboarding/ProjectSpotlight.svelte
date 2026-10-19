@@ -1,6 +1,4 @@
 <script module lang="ts">
-  import { SCENE } from '@/components/dialog/geometry'
-
   // The tutorial spotlight: the screen goes dark except a rounded window on one thing to click, which closes in on it
   // from the whole screen like a camera iris. A gold frame with reticle corners pulses round it and an arrow bobs
   // beside it. Outside the window nothing can be clicked; inside, the page works as usual. Two steps use it: the
@@ -20,10 +18,9 @@
   type Spring = { pos: number; vel: number }
 
   // Where the speech bubble starts, from the top of the window: the button is scrolled to the middle of the space
-  // above it. Mirrors DialogStage's default fit and the stage's `bottom` in Onboarding.svelte.
+  // above it.
   function bubbleTop() {
-    const unit = Math.min((innerWidth * 0.94) / SCENE.width, (innerHeight * 0.5) / SCENE.height)
-    return innerHeight - unit * (24 + SCENE.height - 267)
+    return document.querySelector('[data-dialog-bubble]')?.getBoundingClientRect().top ?? innerHeight / 2
   }
 
   function findTarget(name: SpotlightTarget) {

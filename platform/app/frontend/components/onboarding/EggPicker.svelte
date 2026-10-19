@@ -28,14 +28,13 @@
     },
   ]
 
-  // How far up the stage the picker stops, in design units: above the speech bubble's top edge, with a gap.
-  const ABOVE_BUBBLE = 330
+  // Gap between the picker and the top of the speech bubble, which DialogStage gives as --dlg-clear.
+  const ABOVE_BUBBLE = '2rem'
   const SPARKS = 6
 </script>
 
 <script lang="ts">
   import GoldFrame, { starPath } from '@/components/GoldFrame.svelte'
-  import { u } from '@/components/dialog/geometry'
   import { gestures } from '@/components/dialog/gestures'
   import { enter, exit, styler } from '@/components/dialog/motion'
   import { shared } from '@/lib/shared.svelte'
@@ -108,8 +107,8 @@
 
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 <div
-  class="absolute inset-x-0 top-0 z-[5] flex items-center justify-center px-6 py-4"
-  style:bottom={u(ABOVE_BUBBLE)}
+  class="absolute inset-x-0 top-0 z-[5] flex items-center justify-center px-3 py-3 sm:px-6 sm:py-4"
+  style:bottom="calc(var(--dlg-clear) + {ABOVE_BUBBLE})"
   style:container-type="size"
   onclick={(event) => event.stopPropagation()}
   out:exit|global={{
@@ -120,7 +119,7 @@
 >
   <div
     bind:this={card}
-    class="relative flex max-h-full w-full max-w-[640px] flex-col items-center gap-4 rounded-2xl bg-dark-blue px-10 py-8 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.8)]"
+    class="relative flex max-h-full w-full max-w-[640px] flex-col items-center gap-3 rounded-2xl bg-dark-blue px-5 py-6 sm:gap-4 sm:px-10 sm:py-8 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.8)]"
     style:transform-origin="50% 100%"
     {@attach enter(
       { opacity: 0, scale: 0.85, y: 40 },
@@ -131,7 +130,7 @@
     <GoldFrame />
 
     <h2
-      class="relative z-4 font-lora text-3xl font-bold text-parchment text-shadow-md text-shadow-dark-purple/40"
+      class="relative z-4 font-lora text-2xl font-bold sm:text-3xl text-parchment text-shadow-md text-shadow-dark-purple/40"
       {@attach enter(
         { opacity: 0, y: 12 },
         { opacity: 1, y: 0 },
@@ -144,7 +143,7 @@
     <div
       role="radiogroup"
       aria-label="Eggs"
-      class="relative z-4 flex min-h-0 items-end justify-center gap-12 pt-4"
+      class="relative z-4 flex min-h-0 items-end justify-center gap-8 pt-2 sm:gap-12 sm:pt-4"
     >
       {#each EGGS as option, i (option.value)}
         {@const selected = pick === option.value}
@@ -248,7 +247,7 @@
     {#if rules}
       <div
         aria-hidden="true"
-        class="relative z-4 flex min-h-[4.5rem] w-full max-w-md items-center justify-center text-pale-blue"
+        class="relative z-4 flex min-h-[4.5rem] w-full max-w-md items-center justify-center text-sm text-pale-blue sm:text-base"
         {@attach enter(
           { opacity: 0, y: 12 },
           { opacity: 1, y: 0 },
@@ -282,7 +281,7 @@
     <button
       type="button"
       disabled={!pick}
-      class="relative z-4 mt-2 flex cursor-pointer items-center gap-7 rounded-full border border-gold bg-gradient-to-b from-[#f3dea2] to-gold px-5 py-2.5 font-lora text-lg font-bold text-dark-blue shadow-[0_0_18px_color-mix(in_oklab,var(--color-gold)_45%,transparent)] transition-opacity disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
+      class="relative z-4 mt-2 flex cursor-pointer items-center gap-4 sm:gap-7 rounded-full border border-gold bg-gradient-to-b from-[#f3dea2] to-gold px-5 py-2.5 font-lora text-lg font-bold text-dark-blue shadow-[0_0_18px_color-mix(in_oklab,var(--color-gold)_45%,transparent)] transition-opacity disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
       {@attach enter(
         { opacity: 0, y: 16 },
         { opacity: 1, y: 0 },

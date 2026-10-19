@@ -1,6 +1,8 @@
 // Port of the bubble generator (chat-bubble.html) at its default settings:
 // wobble 19, smoothness 6, corner 45, speed 1, with the canvas shortened so
-// the inner rectangle has the bubble's 974:201 aspect ratio.
+// the inner rectangle has the bubble's 974:201 aspect ratio. A bubble of
+// another shape (the phone layout, see geometry.ts COMPACT) passes its own
+// inner size, so the corners stay round instead of being stretched.
 const W = 1200
 const H = 295
 const PAD = 30
@@ -16,9 +18,7 @@ function rand(i: number) {
   return x - Math.floor(x)
 }
 
-function basePoint(t: number, r: number): [number, number] {
-  const w = W - 2 * PAD
-  const h = H - 2 * PAD
+function basePoint(t: number, r: number, w: number, h: number): [number, number] {
   const sw = w - 2 * r
   const sh = h - 2 * r
   const arc = (Math.PI * r) / 2
@@ -74,14 +74,14 @@ function noise(t: number, time: number) {
 
 // `time` is in seconds. Deterministic, so the server-rendered path at t=0
 // matches the first client frame and hydration stays clean.
-export function buildWobblePath(time: number): string {
+export function buildWobblePath(time: number, w = W - 2 * PAD, h = H - 2 * PAD): string {
   const n = 12 + SMOOTH * 4
-  const cx = W / 2
-  const cy = H / 2
+  const cx = PAD + w / 2
+  const cy = PAD + h / 2
   const pts: [number, number][] = []
   for (let i = 0; i < n; i++) {
     const t = i / n
-    const [x, y] = basePoint(t, CORNER)
+    const [x, y] = basePoint(t, CORNER, w, h)
     const dx = x - cx
     const dy = y - cy
     const len = Math.hypot(dx, dy) || 1

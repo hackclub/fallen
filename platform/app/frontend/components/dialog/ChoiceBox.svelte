@@ -8,9 +8,11 @@
     selected: number
     onSelect: (index: number) => void
     onChoose: (index: number) => void
+    // In the phone layout it sits in the flow beside the character, sized by the unit the stage gives it.
+    compact?: boolean
   }
 
-  let { choices, selected, onSelect, onChoose }: Props = $props()
+  let { choices, selected, onSelect, onChoose, compact = false }: Props = $props()
 
   let pressed = $state<number | null>(null)
   // The highlight tracks the pointer, so it has to clear when the pointer leaves the card entirely; keyboard focus
@@ -51,9 +53,9 @@
 <svelte:window onkeydown={onKeyDown} />
 
 <div
-  class="pointer-events-auto absolute flex items-center justify-center"
-  style:right={u(CHOICES.right)}
-  style:bottom={u(CHOICES.bottom)}
+  class={['pointer-events-auto flex items-center justify-center', compact ? 'relative min-w-0' : 'absolute']}
+  style:right={compact ? undefined : u(CHOICES.right)}
+  style:bottom={compact ? undefined : u(CHOICES.bottom)}
   {@attach enter(
     { scale: 0.4, opacity: 0, y: 40, rotate: CHOICES.rotate + 10 },
     { scale: 1, opacity: 1, y: 0, rotate: CHOICES.rotate },
@@ -77,7 +79,7 @@
     }}
     style:width="max-content"
     style:min-width={u(CHOICES.minWidth)}
-    style:max-width={u(CHOICES.maxWidth)}
+    style:max-width={compact ? `min(${u(CHOICES.maxWidth)}, 100%)` : u(CHOICES.maxWidth)}
     style:border-radius={u(CHOICES.radius)}
     style:background={CHOICES.fill}
     style:transform-origin="0% 100%"
