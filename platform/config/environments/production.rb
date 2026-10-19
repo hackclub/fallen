@@ -82,6 +82,12 @@ Rails.application.configure do
   config.active_record.attributes_for_inspect = [ :id ]
 
   # DNS rebinding protection: only serve the configured host (APP_HOST), always allow the health check.
-  config.hosts << ENV["APP_HOST"] if ENV["APP_HOST"].present?
+  # Without APP_HOST the allowlist is empty and Rails would accept any Host header, so refuse to boot. The image build
+  # (assets:precompile with SECRET_KEY_BASE_DUMMY) never serves requests and has no APP_HOST.
+  if ENV["APP_HOST"].present?
+    config.hosts << ENV["APP_HOST"]
+  elsif ENV["SECRET_KEY_BASE_DUMMY"].blank?
+    raise "APP_HOST must be set in production"
+  end
   config.host_authorization = { exclude: ->(request) { request.path == "/up" } }
 end
