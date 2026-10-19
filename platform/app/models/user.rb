@@ -21,6 +21,7 @@
 #  slack_skipped_at        :datetime
 #  slack_user_token        :text
 #  slack_user_token_scopes :string
+#  soft_signup             :string
 #  streak_freezes          :integer          default(3), not null
 #  timezone                :string           default("UTC"), not null
 #  verification_status     :string
@@ -51,6 +52,10 @@ class User < ApplicationRecord
   # so switching it is limited (PetSwitch).
   PETS = %w[lulu sami].freeze
   SLACK_ID = /\A[UW][A-Z0-9]{6,20}\z/
+  # Soft signups make a trial account before the person visits, so they are in Airtable right away, and never sign
+  # anyone in: nobody holds a session for one, so signing in with Hack Club Auth can claim it (from_hca_code!). A trial
+  # from the email form could be anyone's, so it is never claimed like that.
+  SOFT_SIGNUPS = %w[slack_join fallout_link].freeze
 
   include PublicIdentifiable
   include Discardable
@@ -78,6 +83,7 @@ class User < ApplicationRecord
   validates :hca_id, uniqueness: true, allow_nil: true
   validates :email, format: { with: URI::MailTo::EMAIL_REGEXP }
   validates :roles, presence: true
+  validates :soft_signup, inclusion: { in: SOFT_SIGNUPS }, allow_nil: true
   validates :pet, inclusion: { in: PETS, message: "That pet doesn't exist." }, allow_nil: true
   validate :pet_switch_allowed, if: :switching_pet?
   validate :roles_are_known
@@ -102,8 +108,8 @@ class User < ApplicationRecord
   def reviewer? = has_role?(:reviewer)
   def staff? = admin? || reviewer?
 
-  # Started with just an email (TrialSessionsController) or from the Slack join button (join_from_slack!): can do the
-  # onboarding and make a project, nothing more, until they sign in with Hack Club Auth.
+  # Started with just an email (TrialSessionsController), or made by a soft signup: can do the onboarding and make a
+  # project, nothing more, until they sign in with Hack Club Auth.
   def trial? = hca_id.nil?
 
   def self.start_trial!(email:, signup_source: {})
@@ -122,13 +128,31 @@ class User < ApplicationRecord
     return if email.blank? || kept.exists?(email: email)
 
     create!(
-      email: email, slack_id: slack_id, roles: [ "user" ], signup_source: { "ref" => "slack-join", **signup_source, "landing_path" => "/api/slack/join" },
+      email: email, slack_id: slack_id, roles: [ "user" ], soft_signup: "slack_join", signup_source: { "ref" => "slack-join", **signup_source, "landing_path" => "/api/slack/join" },
       display_name: info.profile.display_name.presence || info.profile.real_name.presence || email.split("@").first,
       timezone: ActiveSupport::TimeZone[info.tz.to_s] ? info.tz : "UTC"
     )
   end
 
   def self.joined_from_slack(slack_id) = slack_id.present? ? kept.trial.find_by(slack_id: slack_id) : nil
+
+  # A Fallout email link with the right code (FalloutLinksController, FalloutInvite) makes a trial account for its
+  # email, like the Slack join button. Claimed by email at sign-in (from_hca_code!). Nothing is made when an account
+  # already has the email. Mail scanners often fetch a link several times at once, so one email is made one at a time.
+  # `ref` is "fallout-link" when the link sent none.
+  def self.join_from_fallout!(email, signup_source: {})
+    transaction do
+      connection.execute("SELECT pg_advisory_xact_lock(hashtext(#{connection.quote("fallout_link:#{email}")}))")
+      next if kept.exists?(email: email)
+
+      create!(
+        email: email, display_name: email.split("@").first, roles: [ "user" ], soft_signup: "fallout_link",
+        signup_source: { "ref" => "fallout-link", **signup_source, "landing_path" => "/" }
+      )
+    end
+  end
+
+  def self.joined_from_fallout(email) = email.present? ? kept.trial.find_by(soft_signup: "fallout_link", email: email.strip.downcase) : nil
 
   def add_role(role)
     return true if has_role?(role)
@@ -199,7 +223,7 @@ class User < ApplicationRecord
   # then creates or updates the local user. Slack profile details are refreshed in a background job.
   # `signup_source` (SignupSource) is kept only when this sign-in creates the account. A `trial` account signing in
   # becomes the HCA account: in place if it's new here, otherwise its projects and pet move over to the one there is.
-  # One made by the Slack join button for their Slack ID counts as the one there is.
+  # One a soft signup made for their Slack ID or email counts as the one there is.
   def self.from_hca_code!(code, redirect_uri, signup_source: {}, trial: nil)
     token_data = HCA.exchange_code_for_token(code, redirect_uri)
     access_token = token_data&.dig("access_token")
@@ -208,7 +232,7 @@ class User < ApplicationRecord
     identity = HCA.identity(access_token)
     raise HCA::Error, "HCA did not return an identity" if identity.blank? || identity["id"].blank?
 
-    user = find_by(hca_id: identity["id"]) || joined_from_slack(identity["slack_id"]) || trial || new
+    user = find_by(hca_id: identity["id"]) || joined_from_slack(identity["slack_id"]) || joined_from_fallout(identity["primary_email"]) || trial || new
     user.hca_id = identity["id"]
     user.assign_from_hca(identity, access_token)
     user.signup_source = signup_source if user.new_record?

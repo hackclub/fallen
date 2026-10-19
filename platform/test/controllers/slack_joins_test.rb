@@ -26,6 +26,7 @@ class SlackJoinsTest < ActionDispatch::IntegrationTest
       assert_difference("User.count", 1) { perform_enqueued_jobs }
       user = User.find_by!(slack_id: "U0JOINER1")
       assert user.trial?
+      assert_equal "slack_join", user.soft_signup
       assert_equal "joiner@example.com", user.email
       assert_equal "joiner", user.display_name
       assert_equal "America/New_York", user.timezone

@@ -24,6 +24,7 @@
 #  slack_skipped_at        :datetime
 #  slack_user_token        :text
 #  slack_user_token_scopes :string
+#  soft_signup             :string
 #  streak_freezes          :integer          default(3), not null
 #  timezone                :string           default("UTC"), not null
 #  verification_status     :string

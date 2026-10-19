@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_19_180000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_19_190000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -452,6 +452,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_19_180000) do
     t.jsonb "signup_source", default: {}, null: false
     t.datetime "slack_skipped_at"
     t.datetime "pet_switched_at"
+    t.string "soft_signup"
     t.index ["airtable_synced_at"], name: "index_users_on_airtable_synced_at"
     t.index ["created_at"], name: "index_users_on_created_at"
     t.index ["discarded_at"], name: "index_users_on_discarded_at"
