@@ -39,7 +39,7 @@
 {:else}
   <SettingRow
     title="Not connected"
-    description="Record your sessions on Lapse, then pick a timelapse when you journal instead of typing your hours."
+    description="(Optional) Record your sessions on Lapse, then pick a timelapse when you journal instead of typing your hours or tracking in the huddle. If you use lapse for most of your journals, we'll send you an exclusive sticker "
   >
     {#snippet lead()}
       <span class="size-3 rounded-full bg-white/30" aria-hidden="true"></span>
