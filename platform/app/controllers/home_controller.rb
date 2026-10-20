@@ -8,7 +8,7 @@ class HomeController < ApplicationController
   # Nothing deferred: these are a dozen indexed queries over one person's own rows, about 15ms together, and a
   # deferred prop costs the browser another round trip to the server, 100-300ms for most people.
   def index
-    render inertia: "Home/Index", props: { projects: projects, stats: stats, xp: xp, activity: activity }
+    render inertia: "Home/Index", props: { projects: projects, stats: stats, xp: xp, goal: goal, activity: activity }
   end
 
   private
@@ -29,7 +29,6 @@ class HomeController < ApplicationController
   # race between the teams this Monday-to-Sunday week.
   def xp
     today = current_user.local_date
-    team = current_user.team
     week = team ? team.week(today) : Week.of(today)
     {
       total: current_user.xp, form: current_user.pet_form, next_stage_xp: current_user.next_stage_xp, progress: current_user.stage_progress,
@@ -43,6 +42,11 @@ class HomeController < ApplicationController
       }
     }
   end
+
+  def goal = DailyGoal.for(current_user, team: team)&.as_json
+
+  # One instance for both, so they share what it looks up.
+  def team = @team ||= current_user.team
 
   # Minutes logged per day in the person's own timezone, oldest first.
   def activity

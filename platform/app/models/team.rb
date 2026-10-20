@@ -57,8 +57,12 @@ class Team
 
   def name = self.class.name.demodulize.downcase
 
-  # Days of the week with a journal, on the person's calendar.
-  def journal_days(week) = user.xp_entries.journals.during(week).distinct.pluck(:day).sort
+  # Journal XP on each day of the week that has some, on the person's calendar. Kept per week, as the home page asks
+  # twice (DailyGoal).
+  def journal_xp(week) = (@journal_xp ||= {})[week] ||= user.xp_entries.journals.during(week).group(:day).sum(:amount)
+
+  # Days of the week with a journal.
+  def journal_days(week) = journal_xp(week).keys.sort
 
   # The streak starts with the first journal.
   def first_journal_day = user.xp_entries.kept.journals.minimum(:day)
@@ -69,6 +73,12 @@ class Team
   # Judges a Monday-to-Sunday week that has ended.
   def close_week(week) = nil
 
+  # The multiplier on each of `days` if the team's reward pays out in full from now on (DailyGoal).
+  def best_multipliers(days) = [ user.xp_multiplier ] * days.count
+
+  # Bonus XP the team's reward could still pay during `days`.
+  def best_bonus_xp(days) = 0
+
   class Lulu < Team
     DAYS_FOR_BONUS = 5
     WEEKLY_BONUS = 30
@@ -76,8 +86,17 @@ class Team
     # Seven days from the first journal, then the next seven, and so on. Before any journal, the week would start
     # today. Discarded journals still count as the first, so deleting one never shifts weeks already paid.
     def week(day)
-      first = user.xp_entries.journals.minimum(:day) || day
+      first = first_day_counted || day
       Week.new(start: first + (day - first).to_i / 7 * 7)
+    end
+
+    # A bonus for each week that can still reach DAYS_FOR_BONUS and is paid by the last day, the day after it ends.
+    # Only this week can be out of reach already: the days left in it with the ones journaled before today.
+    def best_bonus_xp(days)
+      current = week(days.first)
+      reachable = journal_days(current).count { |day| day < days.first } + (current.finish - days.first).to_i + 1 >= DAYS_FOR_BONUS
+      weeks = Enumerator.produce(current) { |w| Week.new(start: w.start + 7) }.take_while { |w| w.finish < days.last }
+      weeks.count { |w| w != current || reachable } * WEEKLY_BONUS
     end
 
     # Pays the last week that has ended on the person's calendar. Run daily; each week is checked seven times and
@@ -95,11 +114,24 @@ class Team
 
       user.xp_entries.create_or_find_by!(kind: "weekly_bonus", day: week.finish) { |entry| entry.amount = WEEKLY_BONUS }
     end
+
+    private
+
+    def first_day_counted
+      return @first_day_counted if defined?(@first_day_counted)
+
+      @first_day_counted = user.xp_entries.journals.minimum(:day)
+    end
   end
 
   class Sami < Team
     STEP = 0.1
     MAX_MULTIPLIER = 1.5
+
+    # Up STEP every Monday, when the week before is closed, to MAX_MULTIPLIER.
+    def best_multipliers(days)
+      days.map { |day| [ user.xp_multiplier + STEP * ((day.beginning_of_week - days.first.beginning_of_week).to_i / 7), MAX_MULTIPLIER ].min }
+    end
 
     # Each missed day spends a freeze; a miss with none left drops the multiplier back to 1. A week kept (freezes or
     # not) raises it. The result is written once per week as a `streak` entry worth 0 XP.

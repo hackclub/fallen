@@ -4,6 +4,7 @@
 
 <script lang="ts">
   import ActivityGrid from '@/components/ActivityGrid.svelte'
+  import GoalCard, { type Goal } from '@/components/GoalCard.svelte'
   import PageTitle from '@/components/PageTitle.svelte'
   import ProjectCard from '@/components/ProjectCard.svelte'
   import SettingRow from '@/components/settings/SettingRow.svelte'
@@ -26,11 +27,13 @@
     stats,
     activity,
     xp,
+    goal,
   }: {
     projects?: Project[]
     stats?: Stats
     activity?: { date: string; minutes: number }[]
     xp?: Standing
+    goal?: Goal | null
   } = $props()
 
   const firstName = $derived(shared().auth.user?.display_name.split(' ')[0] ?? '')
@@ -58,6 +61,10 @@
   </div>
 {:else}
   <div {@attach stagger} class="stagger-in space-y-6 [--stagger-step:70ms]">
+    {#if goal && xp?.team}
+      <GoalCard {goal} {today} team={xp.team} rules={xp.rules} />
+    {/if}
+
     {#if xp}
       <XpCard {xp} />
     {/if}
