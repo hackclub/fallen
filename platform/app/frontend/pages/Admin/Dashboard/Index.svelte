@@ -8,11 +8,11 @@
   import ActivityChart from '@/components/admin/ActivityChart.svelte'
   import NumberPopIn from '@/components/admin/NumberPopIn.svelte'
   import { Badge } from '@/components/admin/ui/badge'
-  import { Button } from '@/components/admin/ui/button'
+  import { buttonVariants } from '@/components/admin/ui/button'
   import * as Card from '@/components/admin/ui/card'
   import { Skeleton } from '@/components/admin/ui/skeleton'
   import { formatMinutes } from '@/lib/format'
-  import { adminProjects, adminUsers } from '@/routes'
+  import { adminInsights, adminJobs, adminProjects, adminUsers } from '@/routes'
 
   type ActivityPoint = { date: string; minutes: number; signups: number }
 
@@ -110,12 +110,15 @@
   <Card.Root>
     <Card.Header>
       <Card.Title>Background jobs</Card.Title>
-      <Card.Description>Solid Queue, through Mission Control.</Card.Description>
+      <Card.Description>Failed, running and scheduled jobs, the queues and their workers.</Card.Description>
     </Card.Header>
-    <Card.Footer>
-      <Button variant="outline" size="sm" href="/admin/jobs">
+    <Card.Footer class="gap-2">
+      <Link href={adminJobs.index()} class={buttonVariants({ variant: 'outline', size: 'sm' })}>
         Open jobs <ArrowUpRight data-icon="inline-end" />
-      </Button>
+      </Link>
+      <Link href={adminInsights.show({})} class={buttonVariants({ variant: 'ghost', size: 'sm' })}>
+        Timings
+      </Link>
     </Card.Footer>
   </Card.Root>
   <Card.Root>

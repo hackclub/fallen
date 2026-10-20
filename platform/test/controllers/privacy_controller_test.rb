@@ -53,6 +53,15 @@ class PrivacyControllerTest < ActionDispatch::IntegrationTest
     assert_not PaperTrail::Version.exists?(item_type: "Journal")
   end
 
+  test "takes the person off flags turned on for them by name" do
+    Flipper.enable_actor(:beta, users(:member))
+    Flipper.enable_actor(:beta, users(:admin))
+    call_hub :delete, dry_run: false, subject: { emails: [ "member@example.com" ] }
+
+    assert_equal 1, response.parsed_body["deleted"]["feature_flags"]
+    assert_equal [ users(:admin).public_id ], Flipper[:beta].actors_value.to_a
+  end
+
   test "echoes the request id" do
     call_hub :delete, request_id: "req-123", subject: { emails: [ "member@example.com" ] }
     assert_equal "req-123", response.parsed_body["request_id"]

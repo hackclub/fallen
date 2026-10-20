@@ -79,10 +79,26 @@ Rails.application.routes.draw do
         post :impersonate, on: :member
       end
       resources :projects, only: %i[index show update]
-      mount MissionControl::Jobs::Engine, at: "jobs"
+
+      get "insights(/:kind)" => "insights#show", as: :insights, constraints: { kind: /requests|jobs/ }
+
+      resources :jobs, only: %i[index show destroy] do
+        member do
+          post :retry
+          post :run
+        end
+        collection do
+          post :retry_all
+          post :discard_all
+        end
+      end
+      resources :job_queues, only: :update, param: :name, constraints: { name: %r{[^/]+} }
+      resources :recurring_tasks, only: [], param: :key do
+        post :run, on: :member
+      end
+
+      resources :flags, only: %i[index show create update destroy], param: :key, constraints: { key: %r{[^/]+} }
     end
-    # Outside the namespace so the route proxy keeps the name the engine's views call (`active_insights`).
-    mount ActiveInsights::Engine, at: "admin/insights"
   end
 
   # Development/test only: sign in without Hack Club Auth (see DevController and db/seeds.rb).

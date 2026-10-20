@@ -59,6 +59,7 @@ export interface Pagy {
 export interface AdminStats {
   users_count: number
   projects_count: number
+  failed_jobs_count: number
 }
 
 export interface AdminSharedProps extends SharedProps {

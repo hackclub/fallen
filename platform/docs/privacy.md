@@ -28,6 +28,7 @@ Only from the token's `subject`: any `emails` (case-insensitive against `users.e
 | Slack's join and leave events for the huddle, by Slack id and time | `huddle_events` |
 | The pet's timer: when they started and stopped the site's timer, what they said they would work on and got done with it and how many of its hours were really work, paused in the huddle, and their hourly check-ins (what they said they had got done so far, and the Slack DM that asked) | `timer_sessions`, `huddle_pauses`, `time_milestones` |
 | XP earned, line by line (journal XP, bonuses, streak checks) | `xp_entries`, `users.xp` |
+| Feature flags an admin turned on for them by name (their public id on the flag) | `flipper_gates` |
 | Change history of everything above (PaperTrail copies of the rows) | `versions` |
 | The account's row in Airtable (name, email, HCA and Slack ids, whether it is a trial account, XP, project, journal and hour counts, where they came from). It drops out on the next upload, within 5 minutes, since every upload replaces the table | Airtable Users table (`AirtableUsers`) |
 

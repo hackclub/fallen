@@ -52,5 +52,14 @@ class QueryBudgetTest < ActionDispatch::IntegrationTest
     assert_query_budget(3) { get admin_projects_path }
     assert_query_budget(8) { load_deferred(admin_projects_path, "Admin/Projects/Index", "projects", "pagy", "total_count") }
     assert_query_budget(9) { get admin_project_path(projects(:station)) }
+
+    assert_query_budget(3) { get admin_insights_path }
+    # One aggregate per panel, whatever the number of requests recorded.
+    assert_query_budget(6) { load_deferred(admin_insights_path, "Admin/Insights/Show", "summary", "series", "breakdown", "slowest", "statuses") }
+    assert_query_budget(3) { get admin_jobs_path }
+    # A count per status tab, the queue names, then the page of jobs with the execution its status shows.
+    assert_query_budget(11) { load_deferred(admin_jobs_path, "Admin/Jobs/Index", "jobs", "pagy", "counts", "queue_names") }
+    assert_query_budget(4) { load_deferred(admin_jobs_path(status: "queues"), "Admin/Jobs/Index", "queues") }
+    assert_query_budget(3) { get admin_flags_path }
   end
 end

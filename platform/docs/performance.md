@@ -56,8 +56,10 @@ other modes, including flame graphs.
 
 In production:
 
-- `/admin/insights` (ActiveInsights) charts requests per minute and p50/p95/p99 per controller action and job, by
-  day. Start here to find which page or job is slow. Rows older than 30 days are deleted nightly.
+- `/admin/insights` charts throughput and median/p95 response times over the last hour to 30 days, lists the
+  controller actions and jobs that cost the most time in total, and drills into one to show its slowest requests.
+  Start here to find which page or job is slow. It reads the ActiveInsights tables that `InsightsBuffer` fills; rows
+  older than 30 days are deleted nightly.
 - Sentry traces every request and job (not `/up`) with a span per query, and profiles them, so a slow trace shows
   the Ruby stack that spent the time. The browser side traces page loads, Inertia visits and Web Vitals, joined to
   the Rails trace. `SENTRY_TRACES_SAMPLE_RATE` and `SENTRY_PROFILES_SAMPLE_RATE` turn these down when traffic grows.

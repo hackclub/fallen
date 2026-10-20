@@ -7,7 +7,7 @@ class Admin::ApplicationController < ApplicationController
   end
 
   def self.sidebar_counts
-    { users_count: User.kept.count, projects_count: Project.kept.count }
+    { users_count: User.kept.count, projects_count: Project.kept.count, failed_jobs_count: SolidQueue::FailedExecution.count }
   end
 
   private

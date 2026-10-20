@@ -1,9 +1,10 @@
 import BriefcaseBusiness from '@lucide/svelte/icons/briefcase-business'
+import Flag from '@lucide/svelte/icons/flag'
 import FolderOpen from '@lucide/svelte/icons/folder-open'
 import Gauge from '@lucide/svelte/icons/gauge'
 import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard'
 import Users from '@lucide/svelte/icons/users'
-import { adminProjects, adminRoot, adminUsers } from '@/routes'
+import { adminFlags, adminInsights, adminJobs, adminProjects, adminRoot, adminUsers } from '@/routes'
 import type { AdminStats } from '@/types'
 
 export type AdminNavItem = {
@@ -11,8 +12,8 @@ export type AdminNavItem = {
   href: string
   icon: typeof LayoutDashboard
   statKey?: keyof AdminStats
-  // Not an Inertia page (mounted engine), so it needs a full page load.
-  external?: boolean
+  // The count is a problem to look at, not a total, so it stands out (and hides at zero).
+  alert?: boolean
 }
 
 export type AdminNavSection = { title: string; items: AdminNavItem[] }
@@ -30,8 +31,15 @@ export const adminNav: AdminNavSection[] = [
   {
     title: 'System',
     items: [
-      { label: 'Jobs', href: '/admin/jobs', icon: BriefcaseBusiness, external: true },
-      { label: 'Insights', href: '/admin/insights', icon: Gauge, external: true },
+      {
+        label: 'Jobs',
+        href: adminJobs.index().url,
+        icon: BriefcaseBusiness,
+        statKey: 'failed_jobs_count',
+        alert: true,
+      },
+      { label: 'Insights', href: adminInsights.show({}).url, icon: Gauge },
+      { label: 'Flags', href: adminFlags.index().url, icon: Flag },
     ],
   },
 ]

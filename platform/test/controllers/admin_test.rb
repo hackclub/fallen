@@ -85,14 +85,11 @@ class AdminTest < ActionDispatch::IntegrationTest
     assert_response :not_found
   end
 
-  test "insights render for admins" do
-    get "/admin/insights"
-    assert_response :success
-  end
-
-  test "members get a 404 on insights" do
+  test "members get a 404 on insights, jobs and flags" do
     sign_in_as users(:member)
-    get "/admin/insights"
-    assert_response :not_found
+    [ admin_insights_path, admin_jobs_path, admin_flags_path ].each do |path|
+      get path
+      assert_response :not_found
+    end
   end
 end

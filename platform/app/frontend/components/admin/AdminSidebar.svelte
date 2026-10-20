@@ -113,12 +113,19 @@
           }`}
           {#snippet content()}
             <item.icon class="size-4 shrink-0" />
+            {#if collapsed && item.alert && stat}
+              <span class="absolute top-1.5 left-5 size-1.5 rounded-full bg-destructive ring-2 ring-sidebar"
+              ></span>
+            {/if}
             {#if !collapsed}
               <span class="flex-1">{item.label}</span>
-              {#if stat != null}
+              {#if stat != null && !(item.alert && stat === 0)}
                 {#key stat}
                   <span
-                    class="t-nav-badge rounded-full bg-muted px-1.5 py-0.5 text-[10px] leading-none font-medium text-muted-foreground"
+                    class={[
+                      't-nav-badge rounded-full px-1.5 py-0.5 text-[10px] leading-none font-medium',
+                      item.alert ? 'bg-destructive text-white' : 'bg-muted text-muted-foreground',
+                    ]}
                   >
                     {stat}
                   </span>
@@ -126,22 +133,16 @@
               {/if}
             {/if}
           {/snippet}
-          {#if item.external}
-            <a href={item.href} title={item.label} data-active={active} class={itemClass}
-              >{@render content()}</a
-            >
-          {:else}
-            <Link
-              href={item.href}
-              prefetch
-              cacheFor="30s"
-              title={item.label}
-              data-active={active}
-              class={itemClass}
-            >
-              {@render content()}
-            </Link>
-          {/if}
+          <Link
+            href={item.href}
+            prefetch
+            cacheFor="30s"
+            title={item.label}
+            data-active={active}
+            class={itemClass}
+          >
+            {@render content()}
+          </Link>
         {/each}
       </div>
     {/each}

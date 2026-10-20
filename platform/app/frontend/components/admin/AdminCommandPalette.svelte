@@ -17,8 +17,7 @@
 
   function go(item: AdminNavItem) {
     open = false
-    if (item.external) window.location.href = item.href
-    else router.visit(item.href)
+    router.visit(item.href)
   }
 
   function toggleDark() {

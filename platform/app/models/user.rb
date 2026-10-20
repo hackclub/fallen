@@ -108,6 +108,19 @@ class User < ApplicationRecord
   def reviewer? = has_role?(:reviewer)
   def staff? = admin? || reviewer?
 
+  # Feature flags (FeatureFlag) name people by public_id, so the admin page can show who a flag is on for.
+  def flipper_id = public_id
+
+  def flipper_group?(name)
+    case name.to_sym
+    when :admins then admin?
+    when :staff then staff?
+    when :verified then !trial?
+    when :trial then trial?
+    else false
+    end
+  end
+
   # Started with just an email (TrialSessionsController), or made by a soft signup: can do the onboarding and make a
   # project, nothing more, until they sign in with Hack Club Auth.
   def trial? = hca_id.nil?

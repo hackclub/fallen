@@ -34,6 +34,7 @@ domain, not to keep going.
 - Records expose `public_id` (`usr_…`) to the frontend and in URLs, never the integer id. Look records up with `find_by_public_id!`.
 - Soft delete with `Discardable` (`kept`/`discarded` scopes). Every model with an integer id uses `has_paper_trail`, and `PrivacyRequest` deletes the history of what it deletes.
 - Long or external work (Slack API, HCA, email) goes in a job under `app/jobs` (Solid Queue). Queues: `realtime`, `slack`, `default`, `background`.
+- Feature flags are Flipper: `Flipper.enabled?(:key, current_user)`, made and turned on at /admin/flags (`FeatureFlag`). People are actors by `public_id`; the groups an admin can pick are `FeatureFlag::GROUPS`.
 - Slack bot handlers live in `app/bot` and are found by name: `/foo` -> `FooCommand`, event `foo_bar` -> `FooBarEvent`, action_id `foo` -> `FooAction`, view callback_id `foo` -> `FooView`, shortcut `foo` -> `FooShortcut`. Framework is `lib/slack_bot`.
 - Frontend pages are `app/frontend/pages/<Controller>/<Action>.svelte` (Svelte 5 runes). Shared props come from `shared()` in `app/frontend/lib/shared.svelte.ts`; prop types from `@/types`. URLs always come from the generated helpers in `@/routes` (`adminUser(id)`, `adminUsers.index()`), which `Link`, `router.visit` and `useForm().submit` accept directly. Never hand-write a path string.
 - Impersonation: `current_user` is who the page is for, `true_user` is the human at the keyboard. Audit trails and permission checks that concern the admin use `true_user`.
