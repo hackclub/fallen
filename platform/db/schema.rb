@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_19_190000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_20_025638) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -406,6 +406,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_19_190000) do
     t.datetime "since", null: false
     t.integer "minutes", null: false
     t.datetime "created_at", null: false
+    t.text "done"
+    t.datetime "answered_at"
+    t.string "dm_channel_id"
+    t.string "dm_ts"
     t.index ["user_id", "since", "minutes"], name: "index_time_milestones_on_user_id_and_since_and_minutes", unique: true
   end
 

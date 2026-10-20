@@ -6,7 +6,15 @@
 <script lang="ts">
   import { untrack } from 'svelte'
   import { enter, exit } from '@/components/dialog/motion'
-  import { inviteToHuddle, pauseHuddle, startTimer, timer, wrapUpTimer } from '@/lib/timer.svelte'
+  import {
+    answerCheckIn,
+    inviteToHuddle,
+    pauseHuddle,
+    startTimer,
+    stopFromCheckIn,
+    timer,
+    wrapUpTimer,
+  } from '@/lib/timer.svelte'
 
   // A bubble above the desktop pet, pointing down at it, for the pet's timer (PetTimer):
   // - join: Start was pressed. Join the huddle, where time counts by itself, or "I'd prefer not" and count it on
@@ -14,6 +22,8 @@
   // - start: the site's timer. What they are working on, and a tick that they know it stops at timer.maxHours.
   // - wrapUp: the site's timer stopped (or ran out). What they got done, and on a slider how many of the counted
   //   hours were really work; fewer comes off their time. No skip: closing it brings it back on the next Start.
+  // - checkIn: every hour it counts, what they have got done so far (also asked in their Slack DMs, and answering
+  //   either one answers both), or stop counting. Opens by itself once per check-in.
   // - goal: Start was pressed while chilling in the huddle. It counts now, and Slack asks what they are working on.
   // - pause: Pause was pressed in the huddle. Stay and stop counting, or leave.
   // - leave: the site cannot take anyone out of a Slack huddle, so it says how; counting stops once Slack says
@@ -27,6 +37,7 @@
   let goal = $state('')
   let aware = $state(false)
   let done = $state('')
+  let soFar = $state('')
   // The honest-hours slider, in minutes so it moves smoothly; it starts on everything the timer counted.
   let minutes = $state(0)
   const counted = $derived(Math.round(Number(timer.wrapUp?.hours ?? 0) * 60))
@@ -40,6 +51,7 @@
       error = ''
       if (prompt === 'start') [goal, aware] = ['', false]
       if (prompt === 'wrapUp') [done, minutes] = ['', counted]
+      if (prompt === 'checkIn') soFar = ''
     })
   })
 
@@ -67,6 +79,7 @@
     join: 'Join the huddle?',
     start: 'Start the timer',
     wrapUp: 'What did you get done?',
+    checkIn: "How's it going?",
     goal: 'What are you working on?',
     pause: 'Stop counting?',
     leave: 'Leave from Slack',
@@ -186,6 +199,33 @@
           {#if error}<p class="mt-2 text-xs text-gold">{error}</p>{/if}
           <div class="mt-4 flex justify-end">
             <button type="submit" class={[primary, 'disabled:opacity-50']} disabled={busy || !done.trim()}
+              >Save</button
+            >
+          </div>
+        </form>
+      {:else if timer.prompt === 'checkIn' && timer.checkIn}
+        <form onsubmit={(event) => (event.preventDefault(), submit(() => answerCheckIn(soFar)))}>
+          <p class="mt-1 text-sm leading-snug text-pale-blue">
+            {timer.running === 'huddle'
+              ? 'Fallen is tracking your time in the huddle'
+              : 'Your timer is running'},
+            <strong class="text-cream">{timer.checkIn.so_far}</strong> so far. What have you gotten done?
+          </p>
+          <!-- svelte-ignore a11y_autofocus -->
+          <textarea
+            class={[field, 'mt-2 w-full resize-none']}
+            placeholder="So far I've..."
+            rows="3"
+            bind:value={soFar}
+            maxlength="1000"
+            required
+            autofocus></textarea>
+          {#if error}<p class="mt-2 text-xs text-gold">{error}</p>{/if}
+          <div class="mt-4 flex items-center justify-between gap-3">
+            <button type="button" class={secondary} onclick={stopFromCheckIn}
+              >{timer.running === 'huddle' ? 'Stop counting' : 'Stop the timer'}</button
+            >
+            <button type="submit" class={[primary, 'disabled:opacity-50']} disabled={busy || !soFar.trim()}
               >Save</button
             >
           </div>

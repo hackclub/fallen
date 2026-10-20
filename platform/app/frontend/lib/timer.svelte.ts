@@ -1,5 +1,5 @@
 import { router } from '@inertiajs/svelte'
-import { huddleInvite, huddlePauses, huddlePrompt, timerWrapUp, timers } from '@/routes'
+import { huddleInvite, huddlePauses, huddlePrompt, timeCheckIn, timerWrapUp, timers } from '@/routes'
 import type { RouteDefinition } from '@/routes/runtime'
 import type { TrackedTime } from '@/types'
 import { csrfToken } from '@/lib/csrf'
@@ -26,9 +26,11 @@ export const timer = $state({
   canRing: false,
   // Their stopped site timer, waiting to be asked what they got done (TimerPrompt's wrapUp).
   wrapUp: null as TrackedTime['wrap_up'],
+  // The hourly check-in waiting for an answer, also asked in their Slack DMs (TimerPrompt's checkIn).
+  checkIn: null as TrackedTime['check_in'],
   maxHours: 0,
   // Which bubble TimerPrompt shows.
-  prompt: null as 'join' | 'start' | 'wrapUp' | 'goal' | 'pause' | 'leave' | null,
+  prompt: null as 'join' | 'start' | 'wrapUp' | 'checkIn' | 'goal' | 'pause' | 'leave' | null,
   // When `seconds` was last set, for ticking between answers.
   at: 0,
 })
@@ -36,8 +38,23 @@ export const timer = $state({
 let sent = 0
 let applied = 0
 
+// The check-in the pet last popped up for, so each one opens by itself once, even across reloads.
+const CHECK_IN_ASKED = 'fallen:check-in-asked'
+function askedAlready(id: string) {
+  try {
+    if (localStorage.getItem(CHECK_IN_ASKED) === id) return true
+    localStorage.setItem(CHECK_IN_ASKED, id)
+  } catch {
+    /* storage unavailable: ask on every reload */
+  }
+  return false
+}
+
 // Throws the server's `error` for a refused answer (422), so a prompt can show it.
-async function call(route: RouteDefinition<'get' | 'post' | 'delete'>, body?: Record<string, unknown>) {
+async function call(
+  route: RouteDefinition<'get' | 'post' | 'patch' | 'delete'>,
+  body?: Record<string, unknown>,
+) {
   const number = ++sent
   const response = await fetch(route.url, {
     method: route.method.toUpperCase(),
@@ -63,6 +80,9 @@ async function call(route: RouteDefinition<'get' | 'post' | 'delete'>, body?: Re
   // A newly stopped timer asks what they got done once; closing the bubble leaves it for the next Start.
   if (time.wrap_up && !timer.wrapUp && !timer.prompt) timer.prompt = 'wrapUp'
   timer.wrapUp = time.wrap_up
+  if (time.check_in && !timer.prompt && !askedAlready(time.check_in.id)) timer.prompt = 'checkIn'
+  else if (!time.check_in && timer.prompt === 'checkIn') timer.prompt = null
+  timer.checkIn = time.check_in
   timer.maxHours = time.max_hours
   timer.at = Date.now()
   timer.loaded = true
@@ -168,6 +188,21 @@ export function stopTimer() {
 export async function wrapUpTimer(answer: { done: string; hours: string }) {
   await call(timerWrapUp(), answer)
   timer.prompt = null
+}
+
+// What they have got done so far, for the hourly check-in. Rejects with the server's reason.
+export async function answerCheckIn(done: string) {
+  if (!timer.checkIn) return
+  await call(timeCheckIn(timer.checkIn.id), { done })
+  timer.prompt = null
+}
+
+// Stop from the check-in: the timer stops (and asks what they got done), the huddle asks whether to stay.
+export function stopFromCheckIn() {
+  if (timer.running === 'timer') {
+    timer.prompt = null
+    stopTimer()
+  } else timer.prompt = 'pause'
 }
 
 // Stay in the huddle, stop counting.

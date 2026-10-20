@@ -19,7 +19,7 @@ class TrackedTime
     @since = user.journals.kept.maximum(:created_at)
   end
 
-  def seconds = self.class.total(huddle_stretches + timer_stretches)
+  def seconds = @seconds ||= self.class.total(huddle_stretches + timer_stretches)
 
   # What is going on now: "huddle" (in it and counting), "timer", "paused" (in the huddle, not counting) or nil.
   def running
@@ -40,6 +40,13 @@ class TrackedTime
   def wrap_up
     last = timers.max_by(&:started_at)
     last if last && last != timer && !last.wrapped_up_at && last.counted_seconds(now) >= TimerSession::WRAP_UP_MIN
+  end
+
+  # Their newest unanswered hourly check-in while something is counting (TimeMilestone.pending), if any.
+  def check_in
+    return @check_in if defined?(@check_in)
+
+    @check_in = TimeMilestone.pending(self)
   end
 
   # Seconds covered by `stretches`, overlaps once.

@@ -359,9 +359,36 @@ module SlackMessages
     { text: "<@#{session.slack_id}> got this done in the huddle: #{escape(session.done)} :tada:", **pet_persona(session.user&.pet) }
   end
 
-  # Only they see it, from their pet, each TimeMilestone::EVERY since their last journal (TimeMilestoneJob).
-  def time_milestone(user, minutes)
-    { text: "#{duration_words(minutes)} since your last journal :tada: keep going!", **pet_persona(user.pet) }
+  TIME_CHECK_IN_INPUT = "check_in_done"
+
+  # The hourly check-in in their DMs, from their pet (TimeMilestoneJob): what they have got done so far, and a
+  # button to stop counting. `running` is TrackedTime#running now, so redrawing it after a Stop or an answer on
+  # the site (TimeCheckInAction, TimeCheckInDmJob) shows where things stand. `action_id`s are "time_check_in:save"
+  # and "time_check_in:stop", the value the TimeMilestone's public id.
+  def time_check_in(check_in, running, error: nil)
+    so_far = "*#{duration_words(check_in.minutes)}*"
+    question = case running
+    when "huddle" then ":stopwatch: Fallen is tracking your time in the huddle, #{so_far} so far. What have you gotten done?"
+    when "timer" then ":stopwatch: Your Fallen timer is running, #{so_far} so far. What have you gotten done?"
+    else ":stopwatch: Fallen tracked #{so_far} for you. What did you get done?"
+    end
+    buttons = []
+    if check_in.answered?
+      blocks = [ SlackBot::Blocks.section(":white_check_mark: #{so_far} in, you got done: #{escape(check_in.done)}") ]
+    else
+      blocks = [ SlackBot::Blocks.section(question),
+                 SlackBot::Blocks.input("So far I've", SlackBot::Blocks.plain_text_input(TIME_CHECK_IN_INPUT, multiline: true, max_length: 1000), block_id: TIME_CHECK_IN_INPUT) ]
+      buttons << SlackBot::Blocks.button("Save", "time_check_in:save", value: check_in.public_id, style: "primary")
+    end
+    case running
+    when "huddle" then buttons << SlackBot::Blocks.button("Stop counting", "time_check_in:stop", value: check_in.public_id)
+    when "timer" then buttons << SlackBot::Blocks.button("Stop the timer", "time_check_in:stop", value: check_in.public_id)
+    when "paused" then blocks << SlackBot::Blocks.context("Paused. You're still in the huddle; resume from your pet on Fallen.")
+    else blocks << SlackBot::Blocks.context("Stopped. Your time isn't counting.")
+    end
+    blocks << SlackBot::Blocks.context(":warning: #{escape(error)}") if error
+    blocks << SlackBot::Blocks.actions(*buttons) if buttons.any?
+    { text: check_in.answered? ? "#{duration_words(check_in.minutes)} in, you got done: #{escape(check_in.done)}" : question.delete("*"), blocks: blocks, **pet_persona(check_in.user.pet) }
   end
 
   # "30 minutes", "1 hour", "1.5 hours".
