@@ -89,7 +89,7 @@ module SlackMessages
       draft_button("Not a journal", "skip", draft)
     )
     blocks << SlackBot::Blocks.context("#{draft_counts(draft)}. Anything else you post here joins it until you pick.")
-    { text: "Is this a journal for #{draft.project.title}?", blocks: blocks }
+    { text: "Is this a journal for #{escape(draft.project.title)}?", blocks: blocks }
   end
 
   TIMELAPSE_LABEL = "Timelapses (helps you not get deflated)"
@@ -193,7 +193,7 @@ module SlackMessages
       draft_button("Skip", "skip", draft)
     ].compact
     blocks = [ SlackBot::Blocks.section(":frame_with_picture: Want #{photos} in a journal for *#{escape(draft.project.title)}*?"), *photo_blocks(draft), SlackBot::Blocks.actions(*buttons) ]
-    blocks << SlackBot::Blocks.context("Last journal (#{previous.created_at.to_date.to_fs(:long)}): #{(previous.from_slack? ? previous.body : escape(previous.body)).squish.truncate(120)}") if previous
+    blocks << SlackBot::Blocks.context("Last journal (#{previous.created_at.to_date.to_fs(:long)}): #{(previous.from_slack? ? defang(previous.body) : escape(previous.body)).squish.truncate(120)}") if previous
     { text: "Want #{photos} in a journal?", blocks: blocks }
   end
 
@@ -216,7 +216,7 @@ module SlackMessages
   end
 
   def part_label(part)
-    text = part["text"].to_s.squish
+    text = defang(part["text"].to_s).squish
     photos = Array(part["files"]).size
     text = [ text.presence, (":frame_with_picture: #{photos == 1 ? '1 photo' : "#{photos} photos"}" if photos.positive?) ].compact.join(" ")
     text.presence&.truncate(72) || "(empty message)"
@@ -237,7 +237,7 @@ module SlackMessages
   end
 
   # Slack hands message text over already escaped.
-  def quote(text, limit) = text.strip.truncate(limit).gsub(/^/, "> ")
+  def quote(text, limit) = defang(text).strip.truncate(limit).gsub(/^/, "> ")
 
   # Ephemeral, shown while someone types a top-level post in the journals channel (TypingHintJob).
   def typing_hint(projects, slack_user_id)
@@ -422,11 +422,14 @@ module SlackMessages
     { username: pet.capitalize, icon_url: PET_PFPS.fetch(pet) }
   end
 
+  # Only web links become Slack links: `<!channel|x>` or `<@U123|x>` from a Markdown link would ping.
+  LINKABLE = %r{(?:https?://|mailto:)}i
+
   # Enough of Markdown to read well in Slack: bold, italics, strike, code, links, images, headings, lists.
   def mrkdwn(markdown)
     text = escape(markdown)
-    text = text.gsub(/!\[([^\]]*)\]\(([^)\s]+)\)/) { "<#{$2}|#{$1.presence || 'image'}>" }
-    text = text.gsub(/\[([^\]]+)\]\(([^)\s]+)\)/) { "<#{$2}|#{$1}>" }
+    text = text.gsub(/!\[([^\]]*)\]\((#{LINKABLE}[^)\s]+)\)/) { "<#{$2}|#{$1.presence || 'image'}>" }
+    text = text.gsub(/\[([^\]]+)\]\((#{LINKABLE}[^)\s]+)\)/) { "<#{$2}|#{$1}>" }
     text = text.gsub(/\*\*(.+?)\*\*/, "\u0000\\1\u0000").gsub(/__(.+?)__/, "\u0000\\1\u0000")
     text = text.gsub(/(?<![*\w])\*(?!\*)([^*\n]+?)\*(?!\*)/, '_\1_')
     text = text.tr("\u0000", "*")
@@ -459,5 +462,13 @@ module SlackMessages
   # Back to Settings' Lapse tab afterwards, where the notice says to head back to Slack.
   def connect_lapse_url = Rails.application.routes.url_helpers.connect_lapse_url(host: app_url, return_to: "/settings#lapse")
 
-  def escape(text) = text.to_s.gsub("&", "&amp;").gsub("<", "&lt;").gsub(">", "&gt;")
+  # Anything a person wrote goes through this before Slack sees it. `<` and `>` are how Slack spells mentions
+  # (`<!channel>`, `<@U123>`, `<!subteam^S123>`), and a bare @channel, @here or @everyone gets a word joiner so
+  # it reads the same but pings nobody.
+  BROADCAST = /@(?=(?:channel|here|everyone)\b)/i
+  def escape(text) = text.to_s.gsub("&", "&amp;").gsub("<", "&lt;").gsub(">", "&gt;").gsub(BROADCAST, "@\u2060")
+
+  # Text Slack handed over is already escaped, so its mentions are real ones. Broadcasts and group pings come back
+  # as plain words.
+  def defang(text) = text.to_s.gsub(/<!([^>|]*)(?:\|([^>]*))?>/) { $2.presence || "@#{$1.sub(/\^.*/, '')}" }.gsub(BROADCAST, "@\u2060")
 end

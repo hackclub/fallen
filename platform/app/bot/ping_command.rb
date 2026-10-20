@@ -4,7 +4,7 @@ class PingCommand < SlackBot::Command
   usage_hint "[loud]"
 
   def call
-    greeting = user ? "Hey #{user.display_name}!" : "Hey! You haven't signed in to Fallen yet."
+    greeting = user ? "Hey #{SlackMessages.escape(user.display_name)}!" : "Hey! You haven't signed in to Fallen yet."
 
     respond(
       "pong :table_tennis_paddle_and_ball:",
