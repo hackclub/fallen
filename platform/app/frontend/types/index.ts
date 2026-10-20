@@ -15,13 +15,14 @@ export interface SharedProps {
   impersonation: { impersonator_name: string } | null
   // ApplicationController#setup_props. `project` is the title of one made during the onboarding, if any.
   setup:
-    | { step: 'onboarding'; project: string | null; rules: TeamRules }
+    | { step: 'onboarding'; project: string | null; rules: TeamRules; goals: PetGoals | null }
     | { step: 'verify'; email: string }
     | { step: 'slack' }
     | null
   lapse_configured: boolean
   // Development only, for replaying the onboarding after a pet is picked.
   team_rules: TeamRules | null
+  team_goals: PetGoals | null
   errors: Record<string, string[]>
   [key: string]: unknown
 }
@@ -35,6 +36,14 @@ export interface TeamRules {
   sami_freezes: number
   win_bonus: number
   xp_per_hour: number
+}
+
+// DailyGoal.preview: minutes a day to the final form for someone starting today, without a team's reward and with
+// each pet's at its best.
+export interface PetGoals {
+  days_left: number
+  minutes: number
+  best_minutes: Record<string, number>
 }
 
 export interface Pagy {

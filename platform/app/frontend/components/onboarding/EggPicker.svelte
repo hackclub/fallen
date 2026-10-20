@@ -1,7 +1,7 @@
 <script module lang="ts">
   import luluEgg from '@/assets/onboarding/lulu-egg.png'
   import samiEgg from '@/assets/onboarding/sami-egg.png'
-  import type { TeamRules } from '@/types'
+  import type { PetGoals, TeamRules } from '@/types'
 
   // The two eggs to choose from, one per pet. The pet is also the team, and each rewards journaling its own way
   // (app/models/team.rb); `perks` says how, with the numbers from the server.
@@ -11,6 +11,10 @@
       label: 'Lulu',
       src: luluEgg,
       tagline: 'Steady weeks',
+      daysOff: (r: TeamRules, g: PetGoals) => ({
+        count: Math.round((g.days_left * (7 - r.lulu_days)) / 7),
+        label: `${7 - r.lulu_days} a week`,
+      }),
       perks: (r: TeamRules) => [
         `+${r.lulu_bonus} XP for every week you journal on ${r.lulu_days} days`,
         `${7 - r.lulu_days} days off a week, no penalty`,
@@ -21,6 +25,7 @@
       label: 'Sami',
       src: samiEgg,
       tagline: 'Daily streaks',
+      daysOff: (r: TeamRules) => ({ count: r.sami_freezes, label: `${r.sami_freezes} in total` }),
       perks: (r: TeamRules) => [
         `Each week you journal every day adds +${r.sami_step}x to all your XP, up to ${r.sami_max}x`,
         `${r.sami_freezes} freezes cover missed days, then it drops back to 1x`,
@@ -37,6 +42,7 @@
   import GoldFrame, { starPath } from '@/components/GoldFrame.svelte'
   import { gestures } from '@/components/dialog/gestures'
   import { enter, exit, styler } from '@/components/dialog/motion'
+  import { formatMinutes } from '@/lib/format'
   import { shared } from '@/lib/shared.svelte'
   import { launchEgg } from './eggLaunch'
 
@@ -50,6 +56,34 @@
   const rules = $derived.by(() => {
     const { setup, team_rules } = shared()
     return setup?.step === 'onboarding' ? setup.rules : team_rules
+  })
+  const goals = $derived.by(() => {
+    const { setup, team_goals } = shared()
+    return setup?.step === 'onboarding' ? setup.goals : team_goals
+  })
+
+  // Each egg side by side: days off over the rest of the program, and how much less time a day its reward asks for at
+  // its best. Bars are against the better of the two, so the difference is what stands out.
+  const stats = $derived.by(() => {
+    if (!rules || !goals) return null
+    const rows = EGGS.map((egg) => {
+      const best = goals.best_minutes[egg.value]
+      return { value: egg.value, off: egg.daysOff(rules, goals), saved: 1 - best / goals.minutes, best }
+    })
+    const mostOff = Math.max(1, ...rows.map((r) => r.off.count))
+    const mostSaved = Math.max(0.01, ...rows.map((r) => r.saved))
+    return Object.fromEntries(
+      rows.map((r) => [
+        r.value,
+        {
+          bars: [
+            { label: 'Days off', value: r.off.label, share: r.off.count / mostOff },
+            { label: 'Time saved', value: `${Math.round(r.saved * 100)}%`, share: r.saved / mostSaved },
+          ],
+          best: `${formatMinutes(r.best)} a day`,
+        },
+      ]),
+    )
   })
   let launching = $state(false)
   let card: HTMLElement
@@ -212,8 +246,8 @@
               alt=""
               draggable="false"
               class={[
-                // Shrinks on short screens so the card fits above the speech bubble: 22rem is everything else in it.
-                'relative h-[clamp(5rem,calc(100cqh-22rem),11rem)] w-auto drop-shadow-[0_10px_18px_rgba(0,0,0,0.45)] transition-[opacity] duration-300 select-none',
+                // Shrinks on short screens so the card fits above the speech bubble: 28rem is everything else in it.
+                'relative h-[clamp(5rem,calc(100cqh-28rem),11rem)] w-auto drop-shadow-[0_10px_18px_rgba(0,0,0,0.45)] transition-[opacity] duration-300 select-none',
                 pick && !selected && 'opacity-55',
               ]}
               style:transform-origin="50% 90%"
@@ -236,8 +270,37 @@
           >
             {option.tagline}
           </span>
+          {#if stats}
+            {@const stat = stats[option.value]}
+            <dl aria-hidden="true" class="mt-3 w-32 space-y-2 text-left text-xs sm:w-40">
+              {#each stat.bars as bar (bar.label)}
+                <div>
+                  <div class="flex justify-between gap-2">
+                    <dt class="text-pale-blue/60">{bar.label}</dt>
+                    <dd class={selected ? 'text-parchment' : 'text-pale-blue/80'}>{bar.value}</dd>
+                  </div>
+                  <div class="mt-1 h-1.5 overflow-hidden rounded-full bg-pale-blue/15">
+                    <div
+                      class={[
+                        'h-full rounded-full transition-[background-color,width] duration-500',
+                        selected ? 'bg-gold' : 'bg-pale-blue/50 group-hover:bg-pale-blue/70',
+                      ]}
+                      style:width="{bar.share * 100}%"
+                    ></div>
+                  </div>
+                </div>
+              {/each}
+              <div class="flex justify-between gap-2 pt-0.5">
+                <dt class="text-pale-blue/60">Best case</dt>
+                <dd class={selected ? 'font-semibold text-gold' : 'text-pale-blue/80'}>{stat.best}</dd>
+              </div>
+            </dl>
+          {/if}
           {#if rules}
-            <span class="sr-only">{option.perks(rules).join('. ')}.</span>
+            <span class="sr-only"
+              >{option.perks(rules).join('. ')}.{#if stats}
+                At best, {stats[option.value].best} to reach the final form.{/if}</span
+            >
           {/if}
         </button>
       {/each}

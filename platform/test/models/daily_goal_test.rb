@@ -52,4 +52,14 @@ class DailyGoalTest < ActiveSupport::TestCase
     user.xp_entries.create!(kind: "journal", amount: 8, day: Date.new(2026, 11, 20))
     assert_equal ((992 - 30) / (8 / 60.0 * 16)).ceil, DailyGoal.for(user.reload).best_minutes
   end
+
+  test "the egg picker's preview compares each pet for someone starting today, without a query" do
+    user = users(:newcomer)
+    preview = assert_no_queries { DailyGoal.preview(user) }
+    assert_equal({ days_left: 16, minutes: (1000 / (8 / 60.0 * 16)).ceil,
+                   best_minutes: { "lulu" => ((1000 - 60) / (8 / 60.0 * 16)).ceil, "sami" => (1000 / (8 / 60.0 * 17.5)).ceil } }, preview)
+
+    travel_to DailyGoal::DEADLINE + 1.second
+    assert_nil DailyGoal.preview(users(:newcomer))
+  end
 end

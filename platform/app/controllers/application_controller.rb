@@ -24,7 +24,8 @@ class ApplicationController < ActionController::Base
       # So Settings can show its Lapse tab on the instant visit from the nav rail, before its own props arrive.
       lapse_configured: Lapse.configured?,
       # Development only, for the egg picker when the onboarding is replayed (Shift+L) after a pet is picked.
-      team_rules: (Team.rules if Rails.env.development?)
+      team_rules: (Team.rules if Rails.env.development?),
+      team_goals: (DailyGoal.preview(current_user) if Rails.env.development? && current_user)
     }
   end
 
@@ -35,12 +36,12 @@ class ApplicationController < ActionController::Base
   # resumes comes from here rather than the browser, so leaving halfway (closing the tab, another device) picks up at
   # the same place. Costs one query, and only while onboarding.
   # Never while impersonating: the admin would be picking a pet or linking Slack for someone else. `rules` explain the
-  # teams at the egg picker.
+  # teams at the egg picker and `goals` compare them (DailyGoal.preview).
   def setup_props
     return if current_user.nil? || current_user.is_banned? || impersonating?
 
     if current_user.pet.nil?
-      { step: "onboarding", project: current_user.projects.kept.order(:created_at).pick(:title), rules: Team.rules }
+      { step: "onboarding", project: current_user.projects.kept.order(:created_at).pick(:title), rules: Team.rules, goals: DailyGoal.preview(current_user) }
     elsif current_user.trial?
       { step: "verify", email: current_user.email }
     elsif !current_user.slack_ready? && SlackMessaging.oauth_configured?

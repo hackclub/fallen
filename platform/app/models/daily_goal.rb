@@ -13,6 +13,19 @@ class DailyGoal
     goal if team && now <= DEADLINE && goal.xp_to_go.positive?
   end
 
+  # The goal with each pet for someone starting today, so the egg picker can compare them. No queries: the
+  # newcomer is never saved. Nil after the deadline.
+  def self.preview(user, now: Time.current)
+    return if now > DEADLINE
+
+    goals = User::PETS.to_h do |pet|
+      newcomer = User.new(timezone: user.timezone, pet: pet)
+      [ pet, new(newcomer, newcomer.team, now) ]
+    end
+    any = goals.values.first
+    { days_left: any.days.count, minutes: any.minutes, best_minutes: goals.transform_values(&:best_minutes) }
+  end
+
   attr_reader :user, :team, :today
 
   def initialize(user, team, now)
