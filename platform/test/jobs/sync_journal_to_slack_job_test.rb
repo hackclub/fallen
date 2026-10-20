@@ -120,6 +120,21 @@ class SyncJournalToSlackJobTest < ActiveJob::TestCase
     end
   end
 
+  test "subscribes someone who skipped slack to the thread the bot started for them" do
+    projects(:unlinked).user.disconnect_slack!
+    projects(:unlinked).user.skip_slack!
+
+    with_fake_slack do |slack|
+      PostProjectToSlackJob.perform_now(projects(:unlinked))
+      anchor, ping = slack.calls_to(:chat_postMessage)
+      thread_ts = projects(:unlinked).reload.slack_thread_ts
+      assert_nil anchor[:thread_ts]
+      assert_equal [ thread_ts, "<@#{projects(:unlinked).user.slack_id}>" ], ping.values_at(:thread_ts, :text)
+      assert_equal 1, slack.calls_to(:chat_delete).size
+      refute_equal thread_ts, slack.calls_to(:chat_delete).sole[:ts]
+    end
+  end
+
   test "invites someone who is not in the journals channel and posts again" do
     with_fake_slack do |slack|
       refused = false

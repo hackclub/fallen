@@ -63,6 +63,17 @@ module SlackMessaging
     nil
   end
 
+  # Nobody follows a thread the bot started for them, so replies there would never reach them. Mentioning someone in
+  # a thread subscribes them to it, and the mention is deleted straight away.
+  def subscribe(user, channel:, thread_ts:)
+    return if user.slack_id.blank?
+
+    ping = bot_client.chat_postMessage(channel: channel, thread_ts: thread_ts, text: "<@#{user.slack_id}>")
+    bot_client.chat_delete(channel: channel, ts: ping.ts)
+  rescue Slack::Web::Api::Errors::SlackError
+    nil
+  end
+
   # Slack shows the name and picture with an APP tag, so nobody mistakes it for the person writing in Slack.
   def persona(user)
     icon = user.avatar_url if user.avatar_url.start_with?("https://")
