@@ -21,6 +21,7 @@ Rails.application.configure do
     policy.font_src :self, :data, "https://fonts.gstatic.com"
     policy.img_src :self, :data, :blob,
                    "https://cachet.hackclub.com", "https://*.slack-edge.com", # avatars: Cachet redirects to Slack's CDN
+                   "https://secure.gravatar.com", # ...or to Gravatar for users without a Slack photo
                    "https://lookout.hackclub.com", "https://lookout.hackclub-assets.com", # Lookout thumbnails redirect to its asset host
                    "https://public.lapse-hackclub.link", # Lapse thumbnails
                    "https://i.ytimg.com", *r2_host
