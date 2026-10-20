@@ -120,7 +120,7 @@ message is the project; each reply by the owner is a journal. Both sides stay in
   `User.join_from_fallout!`). Signing in with Hack Club Auth later claims it by email. Mail scanners open links, so
   following one only keeps the checked email in the session and redirects to a clean URL; the landing page posts it
   back once a person moves the mouse, touches or types. Someone already signed in to Hack Club Auth goes straight on to
-  sign in instead. `SyncFalloutInvitesJob` copies HMACs of every email and code pair every 15 minutes with
+  sign in instead. `SyncFalloutInvitesJob` copies HMACs of every email and code pair when run by hand (it is not scheduled) with
   `AIRTABLE_API_KEY`, which needs `data.records:read` on Fallout's base too, so a link never waits on Airtable. Every
   link lands on the page the same way, and Rack::Attack limits tries per IP and per email. Soft-signup accounts are
   marked (`users.soft_signup`) because only those are claimed at sign-in: a trial from the email form could be anyone's.
