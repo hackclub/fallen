@@ -1,7 +1,7 @@
 class SlackJoinJob < ApplicationJob
   queue_as :slack
   # Slack retries and double clicks: one at a time per Slack ID, so the second finds the first's account.
-  limits_concurrency key: ->(slack_id) { slack_id }, duration: 1.minute
+  limits_concurrency key: ->(slack_id, *) { slack_id }, duration: 1.minute
   retry_on Slack::Web::Api::Errors::TooManyRequestsError, wait: :polynomially_longer, attempts: 5
   discard_on Slack::Web::Api::Errors::UserNotFound
 

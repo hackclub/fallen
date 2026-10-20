@@ -51,6 +51,11 @@ class SlackJoinsTest < ActionDispatch::IntegrationTest
     end
   end
 
+  # The test adapter never computes the key Solid Queue needs at enqueue time.
+  test "the job's concurrency key takes the arguments the controller sends" do
+    assert_equal "SlackJoinJob/U0JOINER1", SlackJoinJob.new("U0JOINER1", { "ref" => "ysws" }).concurrency_key
+  end
+
   test "rejects a wrong or missing secret and a malformed Slack ID" do
     post slack_join_path, params: { slack_id: "U0JOINER1" }, as: :json
     assert_response :unauthorized, "no secret configured"
