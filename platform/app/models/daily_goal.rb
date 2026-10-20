@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# How long someone needs to code each day, today until the deadline, to have the final stage's XP (Evolution) by it.
+# How many hours someone needs to journal each day, today until the deadline, to have the final stage's XP (Evolution) by it.
 # Two answers: at the multiplier they have now, and the best case, where their team pays out in full from here on
 # (Team#best_multipliers, Team#best_bonus_xp). Today's journal XP is counted back in, so the goal stays put while they
 # work through it. Team wins are left out; no one can plan on them.

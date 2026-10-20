@@ -4,7 +4,7 @@
 
 <script lang="ts">
   import ActivityGrid from '@/components/ActivityGrid.svelte'
-  import GoalCard, { type Goal } from '@/components/GoalCard.svelte'
+  import DailyGoal, { type Goal } from '@/components/DailyGoal.svelte'
   import PageTitle from '@/components/PageTitle.svelte'
   import ProjectCard from '@/components/ProjectCard.svelte'
   import SettingRow from '@/components/settings/SettingRow.svelte'
@@ -38,8 +38,10 @@
 
   const firstName = $derived(shared().auth.user?.display_name.split(' ')[0] ?? '')
   const today = $derived(activity?.at(-1)?.minutes ?? 0)
+  const showGoal = $derived(!!goal && !!xp?.team)
+  // The goal already says what was journaled today.
   const totals = $derived([
-    { label: 'Today', value: formatMinutes(today) },
+    ...(showGoal ? [] : [{ label: 'Today', value: formatMinutes(today) }]),
     { label: 'Overall', value: formatMinutes(stats?.minutes ?? 0) },
     { label: stats?.journals === 1 ? 'Journal' : 'Journals', value: String(stats?.journals ?? 0) },
   ])
@@ -61,21 +63,20 @@
   </div>
 {:else}
   <div {@attach stagger} class="stagger-in space-y-6 [--stagger-step:70ms]">
-    {#if goal && xp?.team}
-      <GoalCard {goal} {today} team={xp.team} rules={xp.rules} />
-    {/if}
-
     {#if xp}
       <XpCard {xp} />
     {/if}
 
     <section class="glass divide-y divide-white/10" aria-labelledby="hours">
       <h2 id="hours" class="glass-heading">Your hours</h2>
+      {#if goal && xp?.team}
+        <DailyGoal {goal} {today} team={xp.team} rules={xp.rules} />
+      {/if}
       <div
         class="grid md:grid-cols-[minmax(0,1fr)_auto] md:divide-x md:divide-white/10 max-md:divide-y max-md:divide-white/10"
       >
         <div class="flex flex-col justify-between gap-5 px-5 py-5 md:px-6">
-          <dl class="grid grid-cols-3 gap-4">
+          <dl class={['grid gap-4', showGoal ? 'grid-cols-2' : 'grid-cols-3']}>
             {#each totals as stat (stat.label)}
               <div class="flex flex-col-reverse">
                 <dt class="mt-1 font-outfit text-sm text-sky-ice/60">{stat.label}</dt>
