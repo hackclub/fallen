@@ -6,6 +6,7 @@
   import type { Component, Snippet } from 'svelte'
   import PageTitle from '@/components/PageTitle.svelte'
   import TabbedPanel from '@/components/TabbedPanel.svelte'
+  import SolarCard from '@/components/icons/SolarCard.svelte'
   import SolarChat from '@/components/icons/SolarChat.svelte'
   import SolarDocument from '@/components/icons/SolarDocument.svelte'
   import SolarPlane from '@/components/icons/SolarPlane.svelte'
@@ -20,6 +21,7 @@
     note: noteIcon,
     journal: journalIcon,
     submit: submitIcon,
+    funding: fundingIcon,
     travel: travelIcon,
   }
   const files = import.meta.glob<{
@@ -43,6 +45,7 @@
 {#snippet noteIcon()}<SolarChat size={24} />{/snippet}
 {#snippet journalIcon()}<SolarNotebook size={24} />{/snippet}
 {#snippet submitIcon()}<SolarRocket size={24} />{/snippet}
+{#snippet fundingIcon()}<SolarCard size={24} />{/snippet}
 {#snippet travelIcon()}<SolarPlane size={24} />{/snippet}
 
 <svelte:head><title>Docs · Fallen</title></svelte:head>
