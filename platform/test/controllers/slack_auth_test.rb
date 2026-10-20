@@ -35,6 +35,15 @@ class SlackAuthTest < ActionDispatch::IntegrationTest
     assert_nil user.reload.slack_id
   end
 
+  test "connects a Slack account other than the one on their Hack Club account" do
+    user = User.create!(hca_id: "hca_fresh", email: "fresh@example.com", display_name: "Fresh", roles: [ "user" ], slack_id: "U0HCA")
+    connect(user, slack_id: "U0OTHER")
+    assert_match(/Slack connected/, flash[:notice])
+    assert_equal "U0OTHER", user.reload.slack_id
+    user.assign_from_hca({ "slack_id" => "U0HCA" }, "tok")
+    assert_equal "U0OTHER", user.slack_id
+  end
+
   test "skipping slack posts the threads of projects made before, through the bot" do
     user = User.create!(hca_id: "hca_fresh", email: "fresh@example.com", display_name: "Fresh", roles: [ "user" ], pet: "lulu")
     project = user.projects.create!(title: "Made during onboarding")

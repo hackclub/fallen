@@ -21,9 +21,8 @@ class SlackAuthController < ApplicationController
     return redirect_to return_path, alert: "Connecting Slack was cancelled." if params[:error].present?
 
     authed = SlackMessaging.exchange_code(params[:code], callback_url)
-    if current_user.slack_id.present? && authed["id"] != current_user.slack_id
-      return redirect_to return_path, alert: "That Slack account (#{authed['id']}) is not the one linked to your Hack Club account."
-    end
+    # Whichever account they connect wins over the one on their Hack Club account: some people have two, and the
+    # one HCA knows is not always the one they use.
     # The bot finds people by Slack ID, so a second account on the same ID would make their Slack replies go nowhere.
     if User.kept.where(slack_id: authed["id"]).where.not(id: current_user.id).exists?
       return redirect_to return_path, alert: "That Slack account is already connected to another Fallen account."

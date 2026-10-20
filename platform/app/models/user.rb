@@ -249,7 +249,8 @@ class User < ApplicationRecord
     self.email = identity["primary_email"].presence || email
     self.display_name = [ identity["first_name"], identity["last_name"] ].compact_blank.join(" ").presence || display_name.presence || "Hack Clubber"
     self.avatar = identity["profile_picture"].presence || avatar
-    self.slack_id = identity["slack_id"].presence || slack_id
+    # A connected Slack account is the one they picked, so it outlasts the one HCA has on file.
+    self.slack_id = identity["slack_id"].presence || slack_id unless slack_connected?
     self.verification_status = identity["verification_status"].presence || verification_status
     self.is_adult = HCA.adult?(identity) if identity.key?("birthday")
     self.roles = [ "user" ] if roles.blank?
