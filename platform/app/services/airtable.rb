@@ -30,12 +30,13 @@ module Airtable
   end
 
   # Every record's fields, keyed by field id so a renamed column keeps working. A page is 100 records, and Airtable
-  # allows 5 requests a second per base.
+  # allows 5 requests a second per base. A page that can't connect or times out is asked for again a couple of times,
+  # since a big table is dozens of pages and one dropped connection would otherwise throw the rest away.
   def records(base, table, fields:)
     pages = []
     offset = nil
     loop do
-      response = connection.get("v0/#{base}/#{table}", { pageSize: 100, returnFieldsByFieldId: true, fields: fields, offset: offset }.compact)
+      response = with_retries { connection.get("v0/#{base}/#{table}", { pageSize: 100, returnFieldsByFieldId: true, fields: fields, offset: offset }.compact) }
       raise Error, "Airtable read of #{table} failed: #{response.status} #{response.body.to_s.truncate(300)}" unless response.success?
 
       page = JSON.parse(response.body)
@@ -45,6 +46,19 @@ module Airtable
       sleep 0.25
     end
     pages.flatten(1)
+  end
+
+  def with_retries(attempts: 3)
+    attempt = 0
+    begin
+      attempt += 1
+      yield
+    rescue Faraday::ConnectionFailed, Faraday::TimeoutError
+      raise if attempt >= attempts
+
+      sleep 2**attempt
+      retry
+    end
   end
 
   def csv(rows) = ([ rows.first.keys ] + rows.map(&:values)).map { |cells| cells.map { |cell| csv_cell(cell) }.join(",") + "\n" }.join

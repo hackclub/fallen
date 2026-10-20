@@ -32,6 +32,31 @@ class AirtableTest < ActiveSupport::TestCase
     with_airtable(Faraday::Adapter::Test::Stubs.new) { assert_raises(Airtable::Error) { Airtable.sync("Users", "sync1", rows) } }
   end
 
+  test "a page that can't connect is asked for again" do
+    calls = 0
+    stubs = Faraday::Adapter::Test::Stubs.new
+    stubs.get("/v0/app2/tbl1") do
+      calls += 1
+      raise Faraday::ConnectionFailed, "execution expired" if calls == 1
+
+      [ 200, {}, { records: [ { id: "rec1", fields: { "fld1" => "a" } } ] }.to_json ]
+    end
+
+    stub_method(Airtable, :sleep, nil) do
+      assert_equal [ { "fld1" => "a" } ], with_airtable(stubs) { Airtable.records("app2", "tbl1", fields: %w[fld1]) }
+    end
+    assert_equal 2, calls
+  end
+
+  test "a page that keeps failing to connect raises" do
+    stubs = Faraday::Adapter::Test::Stubs.new
+    stubs.get("/v0/app2/tbl1") { raise Faraday::ConnectionFailed, "execution expired" }
+
+    stub_method(Airtable, :sleep, nil) do
+      assert_raises(Faraday::ConnectionFailed) { with_airtable(stubs) { Airtable.records("app2", "tbl1", fields: %w[fld1]) } }
+    end
+  end
+
   private
 
   def with_airtable(stubs, &block)
