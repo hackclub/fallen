@@ -102,6 +102,7 @@ class FalloutLinksTest < ActionDispatch::IntegrationTest
     props = inertia_props(root_path(email: "fan@example.com"), "Landing/Index")
     assert_not props["continue_with_hca"]
     assert_not props["pending_welcome"]
+    assert_equal "fan@example.com", props["email"]
   end
 
   private

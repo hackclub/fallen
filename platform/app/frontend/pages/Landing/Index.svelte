@@ -26,11 +26,13 @@
   let {
     whoami_url,
     check_email_url,
+    email,
     continue_with_hca,
     pending_welcome,
   }: {
     whoami_url: string
     check_email_url: string
+    email: string | null
     continue_with_hca: boolean
     pending_welcome: boolean
   } = $props()
@@ -183,7 +185,7 @@
 <CursorTrail />
 
 {#if showGetStarted}
-  <GetStartedDialog checkEmailUrl={check_email_url} onClose={() => (showGetStarted = false)} />
+  <GetStartedDialog checkEmailUrl={check_email_url} {email} onClose={() => (showGetStarted = false)} />
 {/if}
 
 <div

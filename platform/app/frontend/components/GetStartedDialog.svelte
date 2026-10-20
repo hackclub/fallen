@@ -1,13 +1,18 @@
 <script lang="ts">
   import { router } from '@inertiajs/svelte'
+  import { untrack } from 'svelte'
   import { signIn, trialSession } from '@/routes'
 
   // Getting started for someone not signed in to Hack Club Auth. An email HCA already knows goes to HCA's sign-in
   // with it filled in; any other starts a trial account (TrialSessionsController), which signs in with HCA after the
   // onboarding. If HCA can't be asked, the server still sends emails with an account here to HCA.
-  let { checkEmailUrl, onClose }: { checkEmailUrl: string; onClose: () => void } = $props()
+  let {
+    checkEmailUrl,
+    email: initialEmail,
+    onClose,
+  }: { checkEmailUrl: string; email?: string | null; onClose: () => void } = $props()
 
-  let email = $state('')
+  let email = $state(untrack(() => initialEmail ?? ''))
   let busy = $state(false)
 
   async function knownToHca(value: string) {
