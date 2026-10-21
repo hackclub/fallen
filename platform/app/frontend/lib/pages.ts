@@ -6,6 +6,7 @@ export const pages = {
   project: 'Projects/Show',
   shop: 'Shop/Show',
   docs: 'Docs/Show',
+  transfers: 'Transfers/Show',
   settings: 'Settings/Show',
 } as const
 
@@ -17,6 +18,7 @@ export function warmPages() {
     void import('@/pages/Projects/Show.svelte')
     void import('@/pages/Shop/Show.svelte')
     void import('@/pages/Docs/Show.svelte')
+    void import('@/pages/Transfers/Show.svelte')
     void import('@/pages/Settings/Show.svelte')
   }
   if ('requestIdleCallback' in window) requestIdleCallback(load)

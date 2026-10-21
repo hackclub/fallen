@@ -17,6 +17,7 @@ Rails.application.routes.draw do
   get "home" => "home#index", as: :home
   get "docs(/:page)" => "docs#show", as: :docs, constraints: { page: /[a-z0-9-]+/ }
   get "shop" => "shop#show", as: :shop
+  get "transfers" => "transfers#show", as: :transfers
   get "settings" => "settings#show", as: :settings
   get "sorry" => "bans#show", as: :sorry
 

@@ -35,6 +35,13 @@ class PagesTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "Shop/Show"
   end
 
+  test "transfers renders for members" do
+    sign_in_as users(:member)
+    get transfers_path
+    assert_response :success
+    assert_includes response.body, "Transfers/Show"
+  end
+
   test "settings require sign in" do
     get settings_path
     assert_redirected_to root_path
