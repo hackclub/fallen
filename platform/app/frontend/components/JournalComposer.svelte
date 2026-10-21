@@ -1,6 +1,6 @@
 <script lang="ts">
   import { useForm } from '@inertiajs/svelte'
-  import { onMount } from 'svelte'
+  import { onMount, untrack } from 'svelte'
   import LapsePicker, { type LapseStatus } from '@/components/LapsePicker.svelte'
   import MarkdownEditor from '@/components/MarkdownEditor.svelte'
   import Sketchbook from '@/components/Sketchbook.svelte'
@@ -29,6 +29,9 @@
   const draftKey = `fallen:journal-draft:${project.id}`
   // svelte-ignore state_referenced_locally
   const editing = journal !== null
+  // Hours and the timelapses behind them can't change once logged (Journal#hours_unchanged); the writing can.
+  // svelte-ignore state_referenced_locally
+  const locked = editing && journal?.duration_minutes != null
 
   // svelte-ignore state_referenced_locally
   const form = useForm({
@@ -41,16 +44,30 @@
   let editor: MarkdownEditor | undefined = $state()
   let uploadError: string | null = $state(null)
   let draftRestored = $state(false)
-  // The hours the huddle and site timer tracked since the last journal, put in the box for a new journal. The note
-  // saying so stays while the box still holds exactly that. The server decides what counts as self-claimed.
+  // A new journal's box offers whichever is more: the hours the huddle and site timer tracked since the last journal,
+  // or the picked timelapses' recorded time. It follows the picks until the person types something else. The server
+  // decides what counts as self-claimed.
+  let tracked = $state(0)
+  const picked = $derived(
+    (lapse?.timelapses ?? [])
+      .filter((t) => form.lapse_timelapses.includes(t.id))
+      .reduce((sum, t) => sum + t.duration_minutes, 0),
+  )
+  const offered = $derived(Math.max(tracked, Math.round((picked / 60) * 100) / 100))
   let prefilled = $state('')
-  const fromTracking = $derived(prefilled !== '' && form.duration.trim() === prefilled)
+  const autoFilled = $derived(prefilled !== '' && form.duration.trim() === prefilled)
+
+  $effect(() => {
+    if (editing) return
+    const next = offered > 0 ? String(offered) : ''
+    untrack(() => {
+      if (form.duration.trim() === prefilled) form.duration = prefilled = next
+    })
+  })
 
   onMount(() => {
     if (editing) return
-    trackedHours().then((hours) => {
-      if (hours && form.duration.trim() === '') form.duration = prefilled = hours
-    })
+    trackedHours().then((hours) => (tracked = parseFloat(hours) || 0))
     try {
       const draft = localStorage.getItem(draftKey)
       if (draft) {
@@ -118,7 +135,13 @@
     if (!canSubmit) return
     const target = editing && journal ? journals.update(journal.id) : projectJournals(project.id)
     form
-      .transform((data) => ({ journal: { ...data, images: photos.map((i) => i.id) } }))
+      .transform(({ duration, lapse_timelapses, ...data }) => ({
+        journal: {
+          ...data,
+          ...(locked ? {} : { duration, lapse_timelapses }),
+          images: photos.map((i) => i.id),
+        },
+      }))
       .submit(target, {
         preserveScroll: true,
         onSuccess: () => {
@@ -199,13 +222,16 @@
 
       <aside class="mt-6 flex flex-col lg:mt-0 lg:min-h-0">
         <div class="flex flex-1 flex-col gap-5 lg:min-h-0">
-          <LapsePicker
-            {lapse}
-            current={journal?.lapse_timelapses}
-            bind:selected={form.lapse_timelapses}
-            returnTo={`${projectRoute(project.id).url}#write`}
-            error={form.errors.lapse_timelapses}
-          />
+          {#if !locked || form.lapse_timelapses.length > 0}
+            <LapsePicker
+              {lapse}
+              {locked}
+              current={journal?.lapse_timelapses}
+              bind:selected={form.lapse_timelapses}
+              returnTo={`${projectRoute(project.id).url}#write`}
+              error={form.errors.lapse_timelapses}
+            />
+          {/if}
 
           <div class="shrink-0">
             <div class="flex items-center justify-between gap-3">
@@ -217,17 +243,21 @@
                   bind:value={form.duration}
                   placeholder={timelapsed ? 'auto' : '1.5'}
                   inputmode="decimal"
-                  required={!timelapsed}
+                  readonly={locked}
+                  required={!timelapsed && !locked}
                   aria-describedby="duration-help"
                   class="hours-input"
                 />
                 <span class="font-outfit text-sm text-ink-soft">h</span>
               </span>
             </div>
-            {#if form.errors.duration || fromTracking || timelapsed}
+            {#if form.errors.duration || locked || autoFilled || timelapsed}
               <p id="duration-help" class="mt-1 font-outfit text-xs text-ink-soft">
                 {#if form.errors.duration}<span class="text-red-700">{form.errors.duration}</span>
-                {:else if fromTracking}Filled in from the time you tracked.
+                {:else if locked}Hours can't be changed once logged.
+                {:else if autoFilled}Filled in from {offered > tracked
+                    ? 'your timelapses'
+                    : 'the time you tracked'}.
                 {:else}Leave it empty to use your timelapses' time.{/if}
               </p>
             {/if}

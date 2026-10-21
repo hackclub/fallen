@@ -89,16 +89,24 @@ class JournalTest < ActiveSupport::TestCase
     assert_equal 120, journal.duration_minutes
     assert_equal [ journal.id ] * 2, [ lapse_timelapses(:desk), second ].map { |t| t.reload.journal_id }
 
-    journal.update!(duration: "1.5")
-    assert_equal 90, journal.reload.duration_minutes, "typed time stands, timelapses or not"
+    typed = projects(:station).journals.create!(user: users(:member), body: journal_text("y"), duration: "0.5", picked_timelapses: [ users(:member).lapse_timelapses.create!(lapse_id: "lapse_third", duration_seconds: 3600, visibility: "PUBLIC", playback_url: "https://cdn.lapse.test/3.mp4") ], images: [ photo ])
+    assert_equal 30, typed.duration_minutes, "typed time stands, timelapses or not"
+  end
 
-    journal.update!(picked_timelapses: [ second ], duration: "")
-    assert_equal 30, journal.reload.duration_minutes
-    assert_nil lapse_timelapses(:desk).reload.journal_id
+  test "hours and their timelapses are fixed once logged; the writing is not" do
+    journal = projects(:station).journals.create!(user: users(:member), body: journal_text("x"), picked_timelapses: [ lapse_timelapses(:desk) ], images: [ photo ])
 
-    journal.update!(picked_timelapses: [], duration: "1")
-    assert_equal 60, journal.reload.duration_minutes
-    assert_empty journal.lapse_timelapses
+    assert_not journal.update(duration: "3")
+    assert_equal [ "can't be changed once logged" ], journal.errors[:duration]
+    journal.reload
+    assert_not journal.update(picked_timelapses: [])
+    assert_equal [ "can't be changed once the hours are logged" ], journal.errors[:lapse_timelapses]
+    journal.reload
+    assert journal.update(body: journal_text("edited"), picked_timelapses: [ lapse_timelapses(:desk) ]), "the same timelapses are fine"
+    assert_equal [ 90, journal.id ], [ journal.reload.duration_minutes, lapse_timelapses(:desk).reload.journal_id ]
+
+    journal.update_column(:duration_minutes, nil)
+    assert journal.update(duration: "1"), "a journal saved without hours can be given them"
   end
 
   test "keeps the tracked time it was written after, and flags hours over it and over its timelapses" do
@@ -110,6 +118,7 @@ class JournalTest < ActiveSupport::TestCase
     tracked = projects(:station).journals.create!(user: user, body: journal_text("x"), duration: "1", images: [ photo ])
     assert_equal [ 60, false ], [ tracked.tracked_minutes, tracked.hours_self_claimed ]
 
+    tracked.update_column(:duration_minutes, nil)
     tracked.update!(duration: "1.5")
     assert tracked.hours_self_claimed, "more than was tracked"
 

@@ -160,14 +160,16 @@ class JournalFlowTest < ActiveSupport::TestCase
         assert_equal desk.thumbnail_url, row.dig(:accessory, :image_url)
         assert modal[:blocks].any? { |block| block[:block_id] == "lapse_pick_#{desk.public_id}" && block.dig(:elements, 0, :type) == "checkboxes" }
 
-        assert_enqueued_with(job: RefreshDraftPromptJob, args: [ draft, "1" ]) { submit(modal, ticked: [ desk ]) }
+        assert_enqueued_with(job: RefreshDraftPromptJob, args: [ draft, nil ]) { submit(modal, ticked: [ desk ]) }
         assert_equal [ desk.public_id ], draft.reload.timelapse_ids
         stub_method(LapseTimelapse, :sync, nil) { perform_enqueued_jobs(only: RefreshDraftPromptJob) }
         assert_equal({ "delete_original" => true }, slack.calls_to(:response_url).last[:body])
         redrawn = slack.calls_to(:chat_postEphemeral).last
         assert_equal projects(:station).slack_thread_ts, redrawn[:thread_ts], "the new prompt goes in the thread, never the channel"
         assert redrawn[:blocks].any? { |block| block.dig(:text, :text).to_s.include?("#{desk.name} · 1.5h") }
-        assert_equal "1", redrawn[:blocks].find { |block| block[:block_id] == "duration" }.dig(:element, :initial_value)
+        redrawn_duration = redrawn[:blocks].find { |block| block[:block_id] == "duration" }
+        assert_equal "1.5", redrawn_duration.dig(:element, :initial_value), "the offer follows the timelapses when they recorded more"
+        assert redrawn_duration.dig(:hint, :text).start_with?("(based on your timelapses)")
         assert modal[:blocks].any? { |block| block[:type] == "divider" }
 
         assert_difference -> { Journal.count }, 1 do

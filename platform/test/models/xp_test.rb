@@ -8,8 +8,11 @@ class XpTest < ActiveSupport::TestCase
     assert_equal 12, journal.xp
     assert_equal 32, user.reload.xp
 
+    # Hours are fixed once logged (Journal#hours_unchanged); one saved without them can be given them.
+    journal.update_column(:duration_minutes, nil)
     journal.update!(duration: "0.05")
     assert_equal 1, journal.reload.xp
+    journal.update_column(:duration_minutes, nil)
     journal.update!(duration: "3h", images: [ photo, photo ])
     assert_equal 24, journal.reload.xp
     assert_equal 44, user.reload.xp
@@ -46,6 +49,7 @@ class XpTest < ActiveSupport::TestCase
     assert_equal 12, journal.xp
 
     user.update!(xp_multiplier: 1.0)
+    journal.update_column(:duration_minutes, nil)
     journal.update!(duration: "2h")
     assert_equal 24, journal.reload.xp
     assert_equal 1.5, journal.xp_entry.multiplier

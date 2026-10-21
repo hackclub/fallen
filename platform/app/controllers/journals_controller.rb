@@ -46,12 +46,12 @@ class JournalsController < ApplicationController
   end
 
   # `images` is the full list of blob signed ids (direct uploads) the journal should end up with, and
-  # `lapse_timelapses` the full list of the person's timelapse public ids.
+  # `lapse_timelapses` the full list of the person's timelapse public ids, left out to keep the ones it has.
   def journal_params
     permitted = params.expect(journal: [ :body, :duration, images: [], lapse_timelapses: [] ])
     permitted.to_h.symbolize_keys.tap do |h|
       h[:images] = Array(h[:images]).compact_blank
-      h[:picked_timelapses] = picked_timelapses(Array(h.delete(:lapse_timelapses)).compact_blank.uniq)
+      h[:picked_timelapses] = picked_timelapses(Array(h.delete(:lapse_timelapses)).compact_blank.uniq) if h.key?(:lapse_timelapses)
     end
   end
 

@@ -111,11 +111,9 @@ class ProjectsTest < ActionDispatch::IntegrationTest
 
     patch journal_path(journal), params: { journal: { body: journal_text("no photo"), images: [] } }
     assert_equal 1, journal.reload.images.count, "a journal keeps the photos its hours need"
-    patch journal_path(journal), params: { journal: { body: journal_text("longer"), duration: "3h", images: [ blob.signed_id ] } }
-    assert_equal 45, journal.reload.duration_minutes, "three hours need two photos"
   end
 
-  test "a journal can take its hours from picked Lapse timelapses, and drop them to type them" do
+  test "a journal can take its hours from picked Lapse timelapses, then keeps both" do
     timelapse = lapse_timelapses(:desk)
     post project_journals_path(projects(:station)), params: { journal: { body: journal_text("Soldered"), duration: "", lapse_timelapses: [ timelapse.public_id ], images: [ photo.signed_id ] } }
     journal = Journal.last
@@ -125,9 +123,11 @@ class ProjectsTest < ActionDispatch::IntegrationTest
     get project_path(projects(:station))
     assert_includes response.body, timelapse.url
 
-    patch journal_path(journal), params: { journal: { body: journal_text("Soldered"), duration: "0.5", images: journal.images.map(&:signed_id) } }
-    assert_empty journal.reload.lapse_timelapses
-    assert_equal 30, journal.duration_minutes
+    patch journal_path(journal), params: { journal: { body: journal_text("Soldered"), duration: "0.5", lapse_timelapses: [], images: journal.images.map(&:signed_id) } }
+    assert_equal [ [ timelapse ], 90 ], [ journal.reload.lapse_timelapses.to_a, journal.duration_minutes ]
+
+    patch journal_path(journal), params: { journal: { body: journal_text("Soldered and tested"), images: journal.images.map(&:signed_id) } }
+    assert_equal [ journal_text("Soldered and tested"), [ timelapse ], 90 ], [ journal.reload.body, journal.lapse_timelapses.to_a, journal.duration_minutes ]
   end
 
   test "someone else's timelapse cannot be picked" do

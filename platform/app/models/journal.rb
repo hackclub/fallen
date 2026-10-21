@@ -88,6 +88,7 @@ class Journal < ApplicationRecord
   validate :images_cover_hours, if: -> { new_record? || duration_minutes_changed? || attachment_changes.key?("images") }
   validate :duration_was_understood
   validate :picked_timelapses_are_usable, if: -> { @picked_timelapses }
+  validate :hours_unchanged, on: :update
 
   before_validation :take_hours_from_lapse
   before_validation :snapshot_tracked_time, on: :create
@@ -206,6 +207,15 @@ class Journal < ApplicationRecord
 
     lapse_minutes = (@picked_timelapses || lapse_timelapses).sum(&:duration_minutes)
     self.hours_self_claimed = duration_minutes > [ tracked_minutes, lapse_minutes ].max + CLAIM_LEEWAY
+  end
+
+  # Hours are fixed once logged, and so are the timelapses behind them: dropping one would free it for another
+  # journal. A journal saved without hours can still be given them once.
+  def hours_unchanged
+    return if duration_minutes_in_database.nil?
+
+    errors.add(:duration, "can't be changed once logged") if duration_minutes_changed?
+    errors.add(:lapse_timelapses, "can't be changed once the hours are logged") if @picked_timelapses && @picked_timelapses.map(&:id).sort != lapse_timelapses.ids.sort
   end
 
   # Ones already on this journal stay even if Lapse has since changed them; newly picked ones must be watchable and free.

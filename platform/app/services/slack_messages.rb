@@ -81,8 +81,8 @@ module SlackMessages
   # Ephemeral, asking a project's owner what their recent thread replies were (JournalPromptJob). Everything happens
   # in the message: the time box and buttons sit under the text, and JournalDraftAction re-renders it with `error`
   # and what they typed when the time doesn't parse. `tracked` is the hours the huddle and site timer counted since
-  # their last journal, offered in the time box the first time it is shown. Timelapses are picked in a modal
-  # (lapse_picker) and kept on the draft.
+  # their last journal, offered in the time box unless something was typed, or the picked timelapses' time when that
+  # is more. Timelapses are picked in a modal (lapse_picker) and kept on the draft.
   def draft_prompt(draft, duration: nil, tracked: nil, error: nil)
     return photos_prompt(draft) unless draft.written?
     short = Journal.written_length(draft.text) < Journal::MIN_BODY_LENGTH
@@ -90,9 +90,10 @@ module SlackMessages
 
     blocks = [ SlackBot::Blocks.section(":notebook_with_decorative_cover: Is this a journal for *#{escape(draft.project.title)}*?\n#{quote(draft.text, 1500)}") ]
     blocks += photo_blocks(draft)
-    offered = Duration.format(tracked)&.delete_suffix("h") if duration.nil? && tracked.to_i.positive?
+    offered = draft.offered_duration(tracked) if duration.nil?
     hint = "Every journal needs one, and a photo for every #{Journal::MINUTES_PER_IMAGE / 60} hours of it. Post photos in the thread to add them."
-    hint = "(based on tracked recorded hours) #{hint}" if offered
+    source = offered == Duration.format(tracked.to_i).delete_suffix("h") ? "tracked recorded hours" : "your timelapses"
+    hint = "(based on #{source}) #{hint}" if offered
     blocks << SlackBot::Blocks.input("Time spent (hours)", SlackBot::Blocks.plain_text_input("duration", placeholder: "Hours, like 1.5 or 0.5", initial_value: duration.presence || offered), block_id: "duration", hint: hint)
     blocks << SlackBot::Blocks.context("Nothing tracked since your last journal. Join the huddle or start the timer on your pet next time and the hours fill in.") if duration.nil? && !offered && tracked
     blocks += timelapse_blocks(draft)

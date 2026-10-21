@@ -55,6 +55,10 @@ class JournalDraft < ApplicationRecord
   # The timelapses picked in the Slack picker (SlackMessages.lapse_picker), newest first, still theirs.
   def picked_timelapses = user.lapse_timelapses.where_public_ids(timelapse_ids).newest_first.to_a
 
+  # What the prompt's time box offers, as typed hours: whichever is more of the `tracked` minutes and the picked
+  # timelapses' recorded time. Nil when both are nothing.
+  def offered_duration(tracked) = Duration.format([ tracked.to_i, picked_timelapses.sum(&:duration_minutes) ].max.nonzero?)&.delete_suffix("h")
+
   def self.containing(ts) = where("parts @> CAST(? AS jsonb)", [ { ts: ts } ].to_json)
 
   # Adds a reply to the person's open draft on the project, starting one if needed.
