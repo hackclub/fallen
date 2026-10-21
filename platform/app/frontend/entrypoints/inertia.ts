@@ -29,8 +29,11 @@ function reloadOnce() {
 window.addEventListener('vite:preloadError', (event) => {
   if (reloadOnce()) event.preventDefault()
 })
-function reloadForMissingChunk(error: unknown): never {
-  reloadOnce()
+// While the reload is underway, never settle, so Inertia doesn't render a broken page and Sentry doesn't get a
+// rejection for a chunk the reload is about to fix.
+const untilReload = () => new Promise<never>(() => {})
+function reloadForMissingChunk(error: unknown) {
+  if (reloadOnce()) return untilReload()
   throw error
 }
 
@@ -38,7 +41,10 @@ createInertiaApp({
   resolve: (name) => {
     const page = pages[`../pages/${name}.svelte`]
     if (!page) throw new Error(`Missing Inertia page component: app/frontend/pages/${name}.svelte`)
-    return page().catch(reloadForMissingChunk)
+    // Vite resolves to undefined when the preloadError listener above has cancelled the error to reload.
+    return page()
+      .then((component) => component ?? untilReload())
+      .catch(reloadForMissingChunk)
   },
   // Pages can override this with `export { default as layout } from '...'` in a <script module> block.
   layout: () => DefaultLayout,
