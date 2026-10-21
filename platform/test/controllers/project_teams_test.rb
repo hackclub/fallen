@@ -6,7 +6,7 @@ class ProjectTeamsTest < ActionDispatch::IntegrationTest
   setup do
     @project = projects(:station)
     @owner = users(:member)
-    @friend = User.create!(hca_id: "hca_friend", email: "friend@example.com", display_name: "Friendly Builder", roles: [ "user" ], pet: "sami", slack_id: "U0FRIEND")
+    @friend = User.create!(hca_id: "hca_friend", email: "zq.private@example.com", display_name: "Friendly Builder", roles: [ "user" ], pet: "sami", slack_id: "U0FRIEND")
   end
 
   test "the join link shows the project to anyone and joins whoever signs in" do
@@ -50,7 +50,14 @@ class ProjectTeamsTest < ActionDispatch::IntegrationTest
     get project_path(@project, people_query: "Friend"), headers: { "X-Inertia" => "true", "X-Inertia-Version" => InertiaRails.configuration.version.to_s,
                                                                    "X-Inertia-Partial-Component" => "Projects/Show", "X-Inertia-Partial-Data" => "people" }
     assert_equal [ @friend.public_id ], response.parsed_body["props"]["people"].pluck("id")
-    assert_not response.parsed_body["props"]["people"].first.key?("email")
+    assert_equal %w[avatar id name], response.parsed_body["props"]["people"].first.keys.sort
+    assert_not_includes response.body, @friend.email
+
+    %w[zq.private@example.com zq.private zq U0FRIEND].each do |query|
+      get project_path(@project, people_query: query), headers: { "X-Inertia" => "true", "X-Inertia-Version" => InertiaRails.configuration.version.to_s,
+                                                                  "X-Inertia-Partial-Component" => "Projects/Show", "X-Inertia-Partial-Data" => "people" }
+      assert_empty response.parsed_body["props"]["people"], "#{query} is not a name, so it finds nobody"
+    end
 
     assert_enqueued_with(job: ProjectInviteJob) { post project_invites_path(@project), params: { invite: { user_id: @friend.public_id } } }
     invite = ProjectInvite.last
@@ -58,7 +65,9 @@ class ProjectTeamsTest < ActionDispatch::IntegrationTest
 
     sign_in_as @friend
     assert_equal [ invite.public_id ], inertia_props(home_path, "Home/Index")["invites"].pluck("id")
-    assert_equal invite.public_id, inertia_props(invite_path(invite), "ProjectInvites/Show")["invite"]["id"]
+    shown = inertia_props(invite_path(invite), "ProjectInvites/Show")
+    assert_equal invite.public_id, shown["invite"]["id"]
+    assert_not_includes shown.to_json, @owner.email
 
     post accept_invite_path(invite)
     assert_redirected_to project_path(@project)
