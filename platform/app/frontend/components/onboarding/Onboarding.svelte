@@ -83,16 +83,25 @@
       {
         id: 'goal',
         text: 'XP grows your pet. Then come to Shenzhen, or spend your XP in the shop!',
-        next: 'project',
+        next: 'idea',
+      },
+      // Asked outright, so nobody makes up a project just to get past this. Without an idea they go on to the egg.
+      {
+        id: 'idea',
+        text: 'Time to start your project! Do you know what you want to build?',
+        choices: [
+          { label: 'Yes, let’s make it!', next: 'project' },
+          { label: 'Not yet', next: 'no-idea', onSelect: () => (skippedFrom = 'project') },
+        ],
+        onEnter: () => userId && markIntroHeard(userId),
       },
       // Off to make the project: spotlights (ProjectSpotlight.svelte) lead to the Projects tab, then its create button.
       // The onboarding steps aside for the form and comes back on 'made' once the project exists, or on 'again' if
       // the form was closed without one (lib/tour.svelte.ts).
       {
         id: 'project',
-        text: 'Time to start your project! First, open your Projects.',
+        text: 'First, open your Projects.',
         panel: tabPanel,
-        onEnter: () => userId && markIntroHeard(userId),
       },
       { id: 'create', text: 'Now hit [wobble]Create Project[/wobble]!', panel: spotlightPanel },
       {
@@ -124,8 +133,8 @@
       {
         id: 'no-idea',
         speaker: 'egg',
-        text: 'No idea yet? That’s okay, don’t make one up! Start your project from the Projects tab once one comes to you.',
-        choices: [{ label: 'Skip it for now', next: 'choose' }, { label: 'I’ll make one' }],
+        text: 'That’s okay, don’t make one up! Start your project from the Projects tab once an idea comes to you.',
+        choices: [{ label: 'Skip it for now', next: 'choose' }, { label: 'Actually, I have one' }],
         next: () => skippedFrom,
       },
       { id: 'picked-lulu', emotion: 'lulu', text: PICKED, choices: [{ label: 'Let’s go!' }] },
@@ -134,7 +143,8 @@
   }
 
   let stage = $state<ReturnType<typeof DialogStage>>()
-  let skippedFrom = 'hi'
+  // svelte-ignore state_referenced_locally
+  let skippedFrom = start === 'no-idea' ? 'again' : 'hi'
   const canSkip = $derived(stage && !UNSKIPPABLE.includes(stage.nodeId()))
   const atProject = $derived(stage && PROJECT_STEPS.includes(stage.nodeId()))
 

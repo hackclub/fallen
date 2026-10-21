@@ -7,7 +7,7 @@
 
   // The onboarding, over whatever page is open. With `greet` it opens by itself until it is finished (picking a pet
   // finishes it), and cannot be put off: there is nothing to do here before it. Leaving halfway picks up from what the
-  // server knows: back at the pet if the project was made, at the Projects step if the intro was heard, else from the
+  // server knows: back at the pet if the project was made, at the project question if the intro was heard, else from the
   // start. In development Shift+L plays it any time and Escape closes it. The dialog is imported on first use, so
   // pages never download it otherwise. Where it is lives in lib/tour.svelte.ts, so it carries on across the visits
   // it makes.
@@ -26,7 +26,7 @@
     if (!due || tour.open) return
     untrack(() => {
       const project = setup?.step === 'onboarding' && setup.project
-      openTour(project ? 'made' : user && introHeard(user.id) ? 'project' : 'hi')
+      openTour(project ? 'made' : user && introHeard(user.id) ? 'idea' : 'hi')
     })
   })
 

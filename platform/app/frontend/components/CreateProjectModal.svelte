@@ -5,6 +5,7 @@
   import { projectForm, saveProject } from '@/lib/projectForm'
   import { tick } from 'svelte'
   import { shared } from '@/lib/shared.svelte'
+  import { openTour, tour } from '@/lib/tour.svelte'
 
   let { directUploadUrl, onClose }: { directUploadUrl: string | undefined; onClose: () => void } = $props()
 
@@ -35,6 +36,12 @@
     confirming = false
     await tick()
     root.querySelector<HTMLElement>('[name="description"]')?.focus()
+  }
+
+  // Opened from the onboarding: someone without an idea can skip it here too, after the egg checks with them.
+  function noIdea() {
+    openTour('no-idea')
+    onClose()
   }
 
   function escape(event: KeyboardEvent) {
@@ -110,6 +117,14 @@
           {form.processing ? 'Creating...' : 'Create Project'}
         </ModalButton>
       </div>
+      {#if tour.steppedAside}
+        <p class="mt-4 text-center font-outfit text-sm text-ink-soft">
+          No idea yet?
+          <button type="button" class="font-semibold underline underline-offset-2" onclick={noIdea}>
+            Skip it for now
+          </button>
+        </p>
+      {/if}
     {/if}
   </form>
 </Modal>
