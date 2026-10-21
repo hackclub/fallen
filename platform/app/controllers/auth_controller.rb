@@ -25,7 +25,7 @@ class AuthController < ApplicationController
 
     return redirect_to root_path, alert: "Sign in was cancelled." if params[:error].present?
 
-    user = User.from_hca_code!(params[:code], hca_callback_url, signup_source: take_signup_source, trial: (current_user if current_user&.trial?))
+    user = redeem_hca_code(params[:code])
     forget_trial
     sign_in(user)
     Rails.logger.info({ event: "auth.signed_in", user_id: user.id }.to_json)
@@ -39,5 +39,34 @@ class AuthController < ApplicationController
   def destroy
     sign_out
     redirect_to root_path, notice: "Signed out. See you soon!"
+  end
+
+  private
+
+  # Mobile Safari sometimes loads the callback twice at once, and HCA redeems a code only once. The browser keeps
+  # whichever response comes last, so the second request waits for the first and signs in the same person.
+  def redeem_hca_code(code)
+    key = "hca_code:#{Digest::SHA256.hexdigest(code.to_s)}"
+    return wait_for_first_callback(key) unless Rails.cache.write(key, :pending, unless_exist: true, expires_in: 1.minute)
+
+    begin
+      user = User.from_hca_code!(code, hca_callback_url, signup_source: take_signup_source, trial: (current_user if current_user&.trial?))
+    rescue StandardError
+      Rails.cache.delete(key)
+      raise
+    end
+    Rails.cache.write(key, user.id, expires_in: 1.minute)
+    user
+  end
+
+  def wait_for_first_callback(key)
+    50.times do
+      id = Rails.cache.read(key)
+      return User.find(id) if id.is_a?(Integer)
+      break if id.nil?
+
+      sleep 0.1
+    end
+    raise HCA::Error, "this sign-in link was already used. Please try again."
   end
 end

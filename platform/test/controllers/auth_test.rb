@@ -87,6 +87,25 @@ class AuthTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "a callback loaded twice signs the second one in as whoever the first was, without redeeming the code again" do
+    cache = Rails.cache
+    Rails.cache = ActiveSupport::Cache::MemoryStore.new
+    with_env("HCA_CLIENT_ID" => "id", "HCA_CLIENT_SECRET" => "secret") do
+      get sign_in_path
+      state = Rack::Utils.parse_query(URI(response.location).query)["state"]
+      duplicate = open_session
+      duplicate.cookies[:oauth_state] = cookies[:oauth_state]
+
+      sign_in_through_hca(users(:member).hca_id, state: state)
+      stub_method(HCA, :exchange_code_for_token, nil) { duplicate.get hca_callback_path(code: "abc", state: state) }
+
+      duplicate.assert_redirected_to home_path
+      assert_equal users(:member).id, duplicate.session[:user_id]
+    end
+  ensure
+    Rails.cache = cache
+  end
+
   test "visits without tags or another site's referrer remember nothing" do
     get root_path, headers: { "Referer" => "http://www.example.com/somewhere" }
     assert cookies[:signup_source].blank?
@@ -102,9 +121,11 @@ class AuthTest < ActionDispatch::IntegrationTest
 
   private
 
-  def sign_in_through_hca(hca_id)
-    get sign_in_path
-    state = Rack::Utils.parse_query(URI(response.location).query)["state"]
+  def sign_in_through_hca(hca_id, state: nil)
+    state ||= begin
+      get sign_in_path
+      Rack::Utils.parse_query(URI(response.location).query)["state"]
+    end
     stub_method(HCA, :exchange_code_for_token, { "access_token" => "tok" }) do
       stub_method(HCA, :identity, { "id" => hca_id, "primary_email" => "#{hca_id}@example.com" }) do
         get hca_callback_path(code: "abc", state: state)
