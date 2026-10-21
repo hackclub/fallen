@@ -1,10 +1,7 @@
-# Direct uploads (project banners, journal photos) are for signed-in people only. Rails mounts the endpoint
-# without any authentication, so without this anyone could fill the bucket with blobs that never attach to anything.
+# Uploads go through UploadsController, which checks the type, size and bytes. Rails mounts its own direct upload
+# endpoint without any of that (it even takes client metadata that can skip identification), so it is closed.
 Rails.application.config.to_prepare do
-  ActiveStorage::DirectUploadsController.before_action do
-    user = session[:user_id].presence && User.kept.find_by(id: session[:user_id])
-    head :unauthorized if user.nil? || user.is_banned?
-  end
+  ActiveStorage::DirectUploadsController.before_action { head :not_found }
 end
 
 # Rails queues one analyze job per attachment as each commits, an insert apiece. Journals queue theirs together

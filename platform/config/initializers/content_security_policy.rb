@@ -3,7 +3,7 @@
 
 # Report-only until the Sentry reports come back clean; then delete the last line to enforce it.
 Rails.application.configure do
-  # Uploads are served through the app (rails_storage_proxy); the R2 endpoint is here in case that ever becomes a redirect.
+  # Uploads are PUT straight to R2 and served through the app (rails_storage_proxy), except Markdown images, which redirect.
   r2_host = ENV["R2_ENDPOINT"].presence && URI(ENV["R2_ENDPOINT"]).then { |uri| "#{uri.scheme}://#{uri.host}" }
   # Browser errors and CSP reports go to the frontend Sentry project.
   sentry = ENV["SENTRY_FRONTEND_DSN"].presence && URI(ENV["SENTRY_FRONTEND_DSN"])
@@ -26,7 +26,7 @@ Rails.application.configure do
                    "https://public.lapse-hackclub.link", # Lapse thumbnails
                    "https://i.ytimg.com", *r2_host
     policy.frame_src "https://www.youtube-nocookie.com"
-    policy.connect_src :self, "https://cloudflareinsights.com", *("https://#{sentry.host}" if sentry), *([ "ws://#{vite}", "http://#{vite}" ] if vite)
+    policy.connect_src :self, "https://cloudflareinsights.com", *r2_host, *("https://#{sentry.host}" if sentry), *([ "ws://#{vite}", "http://#{vite}" ] if vite)
     policy.report_uri "https://#{sentry.host}/api#{sentry.path}/security/?sentry_key=#{sentry.user}" if sentry
   end
 

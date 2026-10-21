@@ -1,9 +1,8 @@
 declare module '@rails/activestorage' {
+  // Whatever the upload URL returns; ours is UploadsController#create.
   export interface Blob {
-    signed_id: string
     filename: string
-    content_type: string
-    byte_size: number
+    finish_url: string
   }
   export class DirectUpload {
     constructor(file: File, url: string, delegate?: unknown)
