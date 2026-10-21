@@ -20,8 +20,11 @@
   let { children }: { children?: Snippet } = $props()
 
   const user = $derived(shared().auth.user)
-  // Someone only checking the docs reads them first; the onboarding greets them on the next page.
-  const readingDocs = $derived(page.component === 'Docs/Show')
+  // Someone only checking the docs reads them first, and someone sent a team's link or invite joins it first, so the
+  // onboarding knows not to ask them for a project. It greets them on the next page.
+  const holdOnboarding = $derived(
+    ['Docs/Show', 'ProjectJoins/Show', 'ProjectInvites/Show'].includes(page.component),
+  )
   // While the Slack gate is up the rail sits above its backdrop, so the docs and project pages stay reachable.
   const gated = $derived(slackGateDue())
 
@@ -82,7 +85,7 @@
         >
           <Toaster />
           <DesktopPet />
-          <OnboardingOverlay greet={!readingDocs} />
+          <OnboardingOverlay greet={!holdOnboarding} />
           <HatchOverlay />
           <SlackGate />
           {@render children?.()}

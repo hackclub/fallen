@@ -4,13 +4,21 @@ require "test_helper"
 class SetupTest < ActionDispatch::IntegrationTest
   test "a newcomer starts the onboarding" do
     sign_in_as users(:newcomer)
-    assert_equal({ "step" => "onboarding", "project" => nil, "rules" => Team.rules.as_json, "goals" => DailyGoal.preview(users(:newcomer)).as_json }, setup_prop)
+    assert_equal({ "step" => "onboarding", "project" => nil, "joined_with" => nil, "rules" => Team.rules.as_json, "goals" => DailyGoal.preview(users(:newcomer)).as_json }, setup_prop)
   end
 
   test "the onboarding resumes after the project it made" do
     users(:newcomer).projects.create!(title: "Hovercraft")
     sign_in_as users(:newcomer)
-    assert_equal({ "step" => "onboarding", "project" => "Hovercraft", "rules" => Team.rules.as_json, "goals" => DailyGoal.preview(users(:newcomer)).as_json }, setup_prop)
+    assert_equal({ "step" => "onboarding", "project" => "Hovercraft", "joined_with" => nil, "rules" => Team.rules.as_json, "goals" => DailyGoal.preview(users(:newcomer)).as_json }, setup_prop)
+  end
+
+  test "someone who joined a team in the onboarding is not asked to make a project" do
+    sign_in_as users(:newcomer)
+    projects(:station).memberships.create!(user: users(:newcomer))
+    setup = setup_prop
+    assert_equal "Weather station", setup["project"]
+    assert_equal users(:member).display_name, setup["joined_with"]
   end
 
   test "after the onboarding, Slack" do

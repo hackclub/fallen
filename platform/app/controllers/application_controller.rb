@@ -34,14 +34,17 @@ class ApplicationController < ActionController::Base
   # What someone has left to do before the rest of the site: the onboarding, which picking a pet finishes, then
   # signing in with Hack Club Auth if they started with just an email, then connecting Slack or choosing not to. Where the onboarding
   # resumes comes from here rather than the browser, so leaving halfway (closing the tab, another device) picks up at
-  # the same place. Costs one query, and only while onboarding.
+  # the same place. Costs one query, and only while onboarding. `joined_with` names the owner when the project is
+  # someone else's they joined from its link, so the onboarding doesn't ask them to make one.
   # Never while impersonating: the admin would be picking a pet or linking Slack for someone else. `rules` explain the
   # teams at the egg picker and `goals` compare them (DailyGoal.preview).
   def setup_props
     return if current_user.nil? || current_user.is_banned? || impersonating?
 
     if current_user.pet.nil?
-      { step: "onboarding", project: Project.kept.teamed_with(current_user).order(:created_at).pick(:title), rules: Team.rules, goals: DailyGoal.preview(current_user) }
+      title, owner_id, owner_name = Project.kept.teamed_with(current_user).joins(:user).order(:created_at).pick(:title, :user_id, "users.display_name")
+      joined_with = owner_name if owner_id && owner_id != current_user.id
+      { step: "onboarding", project: title, joined_with: joined_with, rules: Team.rules, goals: DailyGoal.preview(current_user) }
     elsif current_user.trial?
       { step: "verify", email: current_user.email }
     elsif !current_user.slack_ready? && SlackMessaging.oauth_configured?

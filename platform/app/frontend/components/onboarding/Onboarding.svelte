@@ -22,7 +22,7 @@
 
   const PICKED = 'Great choice! It hatches when you finish your first journal.'
   // Past these there is nothing left to skip but the egg, which everyone picks.
-  const UNSKIPPABLE = ['skip', 'no-idea', 'made', 'choose', 'picked-lulu', 'picked-sami']
+  const UNSKIPPABLE = ['skip', 'no-idea', 'made', 'joined', 'choose', 'picked-lulu', 'picked-sami']
   // While it points at making a project, the button skips just that, for people without an idea yet.
   const PROJECT_STEPS = ['project', 'create', 'again']
 </script>
@@ -41,6 +41,8 @@
   const page = usePage<SharedProps>()
   // svelte-ignore state_referenced_locally
   const userId = page.props.auth.user?.id
+  // svelte-ignore state_referenced_locally
+  const joinedWith = page.props.setup?.step === 'onboarding' ? page.props.setup.joined_with : null
 
   // The steps follow components/HowItWorks.svelte, which follows program/the-plan.md without its unsettled numbers.
   const SCRIPT: DialogScript = {
@@ -83,7 +85,15 @@
       {
         id: 'goal',
         text: 'XP grows your pet. Then come to Shenzhen, or spend your XP in the shop!',
-        next: 'idea',
+        next: () => (joinedWith ? 'joined' : 'idea'),
+      },
+      // Joined a team's project from its link before the onboarding, so there is no project to make.
+      {
+        id: 'joined',
+        speaker: 'egg',
+        text: 'You’re already building [wobble]{{project}}[/wobble] with {{owner}}! You’ll journal your own sessions there and keep your own XP.',
+        next: 'choose',
+        onEnter: () => userId && markIntroHeard(userId),
       },
       // Asked outright, so nobody makes up a project just to get past this. Without an idea they go on to the egg.
       {
@@ -162,6 +172,7 @@
       (page.props.project as { title?: string } | undefined)?.title ??
       (page.props.setup?.step === 'onboarding' ? page.props.setup.project : null) ??
       'your project',
+    owner: joinedWith ?? '',
   }
 
   // The talking egg does not leave with the dialog: it is hidden where it stands and the desktop pet flies out of

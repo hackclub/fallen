@@ -25,8 +25,11 @@
   $effect(() => {
     if (!due || tour.open) return
     untrack(() => {
-      const project = setup?.step === 'onboarding' && setup.project
-      openTour(project ? 'made' : user && introHeard(user.id) ? 'idea' : 'hi')
+      const onboarding = setup?.step === 'onboarding' ? setup : null
+      const heard = user && introHeard(user.id)
+      // Someone who joined a team has a project already, but hasn't heard the intro the way its owner had.
+      if (onboarding?.joined_with) openTour(heard ? 'joined' : 'hi')
+      else openTour(onboarding?.project ? 'made' : heard ? 'idea' : 'hi')
     })
   })
 
