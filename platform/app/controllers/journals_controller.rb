@@ -11,6 +11,7 @@ class JournalsController < ApplicationController
 
     if journal.save
       SyncJournalToSlackJob.perform_later(journal, "create")
+      settle_writing_check(journal)
       redirect_to project_path(@project), notice: "Journal logged."
     else
       inertia_errors(journal, fallback_location: project_path(@project))
@@ -22,6 +23,7 @@ class JournalsController < ApplicationController
 
     if @journal.update(journal_params)
       SyncJournalToSlackJob.perform_later(@journal, "update")
+      settle_writing_check(@journal) if @journal.saved_change_to_body?
       redirect_to project_path(@journal.project), notice: "Journal updated."
     else
       inertia_errors(@journal, fallback_location: project_path(@journal.project))
@@ -53,6 +55,11 @@ class JournalsController < ApplicationController
       h[:images] = Array(h[:images]).compact_blank
       h[:picked_timelapses] = picked_timelapses(Array(h.delete(:lapse_timelapses)).compact_blank.uniq) if h.key?(:lapse_timelapses)
     end
+  end
+
+  # The composer sends the WritingCheck it ran, and `insisted` when the person held "I wrote this myself".
+  def settle_writing_check(journal)
+    WritingCheck.settle(journal, params[:writing_check], insisted: params[:insisted].to_s == "true") if WritingCheck.enabled_for?(current_user)
   end
 
   def picked_timelapses(ids)

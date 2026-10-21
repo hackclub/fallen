@@ -32,6 +32,7 @@
     team,
     people,
     lapse,
+    writing_check,
     can,
   }: {
     project: Project
@@ -45,6 +46,8 @@
     people?: Person[]
     // Deferred, and null on a project the person is not on the team of.
     lapse?: LapseStatus | null
+    // Whether "Log journal" asks Pangram about the writing first (WritingCheck).
+    writing_check?: boolean
     can?: {
       update: boolean
       destroy: boolean
@@ -230,6 +233,7 @@
     journal={composer.journal}
     directUploadUrl={direct_upload_url}
     {lapse}
+    writingCheck={writing_check ?? false}
     onClose={() => (composer = { open: false, journal: null })}
   />
 {/if}

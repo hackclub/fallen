@@ -52,6 +52,8 @@ Rails.application.routes.draw do
   resource :huddle_prompt, only: :create
   resource :huddle_pause, only: %i[create destroy]
   resources :uploads, only: %i[create update]
+  # The AI-writing check the journal composer runs before posting (WritingCheck).
+  resources :writing_checks, only: %i[create show]
 
   resources :projects do
     resources :journals, only: %i[create update destroy], shallow: true

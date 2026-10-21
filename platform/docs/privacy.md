@@ -24,6 +24,7 @@ Only from the token's `subject`: any `emails` (case-insensitive against `users.e
 | Their projects and journals (text, hours, the tracked time before each and whether the hours went over it, Lapse links, Slack message ids and text), project banners and journal photos | `projects`, `journals`, Active Storage |
 | Which project teams they are on and the invites they sent or got | `project_members`, `project_invites` |
 | Their Lapse timelapses as Fallen copied them (Lapse id, name, recorded time, visibility, video and thumbnail links). The videos stay on Lapse | `lapse_timelapses` |
+| AI-writing checks run on journals before posting (the writing checked, Pangram's AI-generated and AI-assisted shares, whether they held "I wrote this myself", which journal it became, the staff Slack post's id) | `writing_checks` |
 | Slack thread replies not yet made into a journal (text, Slack message ids, photo names and links) | `journal_drafts` |
 | Time in the Slack huddle (when they joined and left, how each time was known, how long they shared their screen or had their camera on, what they said they were working on and got done, how many of the counted hours they said were really work, and the Slack DMs that asked them), also rows from before they signed up that carry their Slack id | `huddle_sessions` |
 | Slack's join and leave events for the huddle, by Slack id and time | `huddle_events` |
@@ -62,7 +63,9 @@ Sessions are signed cookies holding the user id, so they stop working once the r
 - Lapse is its own service. The timelapses stay on the person's Lapse account, and disconnecting only forgets the token.
 - A project someone else is still building on its team is not deleted: it goes to the teammate who joined first, and
   only the person's own journals on it are deleted. The project's title, description and banner stay with it.
-- Slack itself is not ours to delete from. Project threads and journal messages stay in the workspace.
+- Slack itself is not ours to delete from. Project threads and journal messages stay in the workspace, and so do
+  flagged AI-writing checks posted to the private #fallen-ai-flags channel.
+- Journal writing checked for AI is sent to Pangram (pangram.com), which keeps it under its own retention.
 - Stray posts in the journals channel are deleted through Prometheus, which keeps their text in its private audit
   log channel. That log belongs to Prometheus, not Fallen.
 

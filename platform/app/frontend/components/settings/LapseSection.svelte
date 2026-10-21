@@ -1,7 +1,7 @@
 <script lang="ts">
   import { router } from '@inertiajs/svelte'
   import type { LapseStatus } from '@/components/LapsePicker.svelte'
-  import HoldButton from '@/components/settings/HoldButton.svelte'
+  import HoldButton from '@/components/HoldButton.svelte'
   import SettingRow from '@/components/settings/SettingRow.svelte'
   import { connectLapse, disconnectLapse, settings } from '@/routes'
 

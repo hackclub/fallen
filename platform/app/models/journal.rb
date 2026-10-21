@@ -49,6 +49,7 @@ class Journal < ApplicationRecord
   MAX_TIMELAPSES = 10
   # A journal needs this much writing for a reviewer to follow what was done. Photos embedded in it don't count.
   MIN_BODY_LENGTH = 100
+  MAX_BODY_LENGTH = 10_000
   # Hours are typed to two decimals, so taking the tracked time as offered can land a minute over it.
   CLAIM_LEEWAY = 1
 
@@ -72,7 +73,7 @@ class Journal < ApplicationRecord
   MAX_IMAGES = 10
   MAX_IMAGE_BYTES = 10.megabytes
 
-  validates :body, presence: true, length: { maximum: 10_000 }
+  validates :body, presence: true, length: { maximum: MAX_BODY_LENGTH }
   # New journals, and edits on the site. Edits made in Slack always go through, so the journal keeps up with the
   # thread.
   validate :body_long_enough, if: -> { new_record? || (will_save_change_to_body? && from_web?) }
@@ -122,7 +123,8 @@ class Journal < ApplicationRecord
   def duration_text = Duration.format(duration_minutes)
 
   # How much writing there is, leaving out embedded photos (Markdown images).
-  def self.written_length(text) = text.to_s.gsub(/!\[[^\]]*\]\([^)]*\)/, "").strip.length
+  def self.written_text(text) = text.to_s.gsub(/!\[[^\]]*\]\([^)]*\)/, "").strip
+  def self.written_length(text) = written_text(text).length
   def multi_part? = slack_parts.size > 1
   def last_slack_ts = slack_parts.last&.dig("ts") || slack_ts
 

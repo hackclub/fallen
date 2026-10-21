@@ -1,13 +1,15 @@
 <script lang="ts">
   import { useForm } from '@inertiajs/svelte'
-  import { onMount, untrack } from 'svelte'
+  import { onDestroy, onMount, untrack } from 'svelte'
   import LapsePicker, { type LapseStatus } from '@/components/LapsePicker.svelte'
   import MarkdownEditor from '@/components/MarkdownEditor.svelte'
   import Sketchbook from '@/components/Sketchbook.svelte'
+  import WritingCheckDialog from '@/components/WritingCheckDialog.svelte'
   import { formatDate } from '@/lib/format'
   import { MINUTES_PER_PHOTO, MIN_JOURNAL_LENGTH, countWords, writtenLength } from '@/lib/markdown'
   import { trackedHours } from '@/lib/timer.svelte'
   import type { UploadedImage } from '@/lib/uploads'
+  import { checkWriting } from '@/lib/writingCheck'
   import { journals, project as projectRoute, projectJournals } from '@/routes'
   import type { Journal, Project } from '@/types'
 
@@ -16,12 +18,15 @@
     journal = null,
     directUploadUrl,
     lapse,
+    writingCheck = false,
     onClose,
   }: {
     project: Project
     journal?: Journal | null
     directUploadUrl: string
     lapse?: LapseStatus | null
+    // Ask Pangram about new writing before posting it (WritingCheckDialog).
+    writingCheck?: boolean
     onClose: () => void
   } = $props()
 
@@ -44,6 +49,11 @@
   let editor: MarkdownEditor | undefined = $state()
   let uploadError: string | null = $state(null)
   let draftRestored = $state(false)
+  // While Pangram reads the writing the button looks the same as while posting. A flagged check waits on the dialog.
+  let checking = $state(false)
+  let flaggedCheck: string | null = $state(null)
+  const closing = new AbortController()
+  onDestroy(() => closing.abort())
   // A new journal's box offers whichever is more: the hours the huddle and site timer tracked since the last journal,
   // or the picked timelapses' recorded time. It follows the picks until the person types something else. The server
   // decides what counts as self-claimed.
@@ -112,7 +122,8 @@
     form.body.trim().length > 0 &&
       longEnough &&
       (timelapsed || form.duration.trim().length > 0) &&
-      !form.processing,
+      !form.processing &&
+      !checking,
   )
 
   // Photos live in the writing; deleting one there drops it. Photos a Slack journal brought along aren't in its
@@ -130,9 +141,20 @@
     form.images = [...form.images, image]
   }
 
-  function submit(event: SubmitEvent) {
+  async function submit(event: SubmitEvent) {
     event.preventDefault()
     if (!canSubmit) return
+    if (!writingCheck || (editing && form.body === journal?.body)) return post()
+
+    checking = true
+    const check = await checkWriting(form.body, closing.signal)
+    checking = false
+    if (closing.signal.aborted) return
+    if (check?.flagged) flaggedCheck = check.id
+    else post(check?.id)
+  }
+
+  function post(checkId?: string, insisted = false) {
     const target = editing && journal ? journals.update(journal.id) : projectJournals(project.id)
     form
       .transform(({ duration, lapse_timelapses, ...data }) => ({
@@ -141,6 +163,7 @@
           ...(locked ? {} : { duration, lapse_timelapses }),
           images: photos.map((i) => i.id),
         },
+        ...(checkId ? { writing_check: checkId, insisted } : {}),
       }))
       .submit(target, {
         preserveScroll: true,
@@ -155,8 +178,15 @@
       })
   }
 
+  function editFlagged() {
+    flaggedCheck = null
+    editor?.focus()
+  }
+
   function onKeydown(event: KeyboardEvent) {
-    if (event.key === 'Escape') onClose()
+    if (event.key !== 'Escape') return
+    if (flaggedCheck) editFlagged()
+    else onClose()
   }
 </script>
 
@@ -267,13 +297,30 @@
         <!-- Room for the button's press-down edge and focus ring, which the scrolling grid would clip. -->
         <div class="mt-4 border-t-2 border-dashed border-paper-edge/70 px-1.5 pt-4 pb-2">
           <button type="submit" class="sketch-button w-full" disabled={!canSubmit}>
-            {form.processing ? 'Logging…' : editing ? 'Save journal' : 'Log journal'}
+            {form.processing || checking || flaggedCheck
+              ? editing
+                ? 'Saving…'
+                : 'Logging…'
+              : editing
+                ? 'Save journal'
+                : 'Log journal'}
           </button>
         </div>
       </aside>
     </div>
   </form>
 </Sketchbook>
+
+{#if flaggedCheck}
+  <WritingCheckDialog
+    onEdit={editFlagged}
+    onconfirm={() => {
+      const id = flaggedCheck ?? undefined
+      flaggedCheck = null
+      post(id, true)
+    }}
+  />
+{/if}
 
 <style>
   .hours-input {

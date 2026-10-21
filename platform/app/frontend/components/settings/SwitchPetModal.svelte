@@ -2,7 +2,7 @@
   import ModalButton from '@/components/ModalButton.svelte'
   import Modal from '@/components/Modal.svelte'
   import { EGGS } from '@/components/onboarding/EggPicker.svelte'
-  import HoldButton from '@/components/settings/HoldButton.svelte'
+  import HoldButton from '@/components/HoldButton.svelte'
   import type { PetSwitch } from '@/components/settings/PetSection.svelte'
   import { PET_FORMS, PET_NAMES } from '@/lib/pet.svelte'
   import type { User } from '@/types'

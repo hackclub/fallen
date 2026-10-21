@@ -72,6 +72,7 @@ class PrivacyRequest
     deleted["active_days"] = ActiveDay.where(user_id: ids).delete_all
     deleted["feature_flags"] = FeatureFlag.forget(users)
     deleted["lapse_timelapses"] = forget(LapseTimelapse.where(user_id: ids).or(LapseTimelapse.where(journal_id: journal_ids)))
+    deleted["writing_checks"] = forget(WritingCheck.where(user_id: ids).or(WritingCheck.where(journal_id: journal_ids)))
     deleted["journals"] = forget(Journal.where(id: journal_ids))
     deleted["project_members"] = forget(ProjectMember.where(user_id: ids).or(ProjectMember.where(project_id: project_ids)))
     deleted["project_invites"] = forget(ProjectInvite.where(user_id: ids).or(ProjectInvite.where(inviter_id: ids)).or(ProjectInvite.where(project_id: project_ids)))

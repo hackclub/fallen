@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_21_130100) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_21_180000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -526,6 +526,21 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_21_130100) do
     t.index ["item_type", "item_id"], name: "index_versions_on_item_type_and_item_id"
   end
 
+  create_table "writing_checks", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "journal_id"
+    t.text "body", null: false
+    t.string "status", default: "pending", null: false
+    t.float "fraction_ai"
+    t.float "fraction_ai_assisted"
+    t.boolean "insisted", default: false, null: false
+    t.string "slack_ts"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["journal_id"], name: "index_writing_checks_on_journal_id"
+    t.index ["user_id"], name: "index_writing_checks_on_user_id"
+  end
+
   create_table "xp_entries", force: :cascade do |t|
     t.bigint "user_id", null: false
     t.string "kind", null: false
@@ -572,5 +587,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_21_130100) do
   add_foreign_key "solid_queue_scheduled_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "time_milestones", "users"
   add_foreign_key "timer_sessions", "users"
+  add_foreign_key "writing_checks", "journals"
+  add_foreign_key "writing_checks", "users"
   add_foreign_key "xp_entries", "users"
 end
