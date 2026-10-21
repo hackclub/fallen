@@ -3,7 +3,11 @@ import { writingCheck, writingChecks } from '@/routes'
 
 // WritingChecksController: Pangram's read on a journal's writing, asked for when it's about to be posted. An error
 // or a slow answer resolves to an unflagged result (or null), so the journal posts as if nothing was checked.
-export type WritingCheck = { id: string; status: 'pending' | 'done' | 'failed' | 'skipped'; flagged: boolean }
+export type WritingCheck = {
+  id: string
+  status: 'pending' | 'done' | 'failed' | 'skipped' | 'limited'
+  flagged: boolean
+}
 
 const POLL_EVERY = 700
 const GIVE_UP_AFTER = 15_000

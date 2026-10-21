@@ -5,6 +5,7 @@ require "test_helper"
 # Table name: writing_checks
 #
 #  id                   :bigint           not null, primary key
+#  billed               :boolean          default(TRUE), not null
 #  body                 :text             not null
 #  fraction_ai          :float
 #  fraction_ai_assisted :float
@@ -75,5 +76,27 @@ class WritingCheckTest < ActiveSupport::TestCase
     assert check.pending?
     assert_not check.insisted?
     assert_nil other.reload.journal
+  end
+
+  test "writing that already became a journal borrows its score instead of being sent again" do
+    WritingCheck.create!(user: users(:member), body: LONG, status: "done", fraction_ai: 0.9, journal: journals(:web_only))
+
+    check = nil
+    assert_no_enqueued_jobs { check = WritingCheck.start(users(:member), LONG) }
+    assert check.flagged?
+    assert_not check.billed?
+    assert_nil check.journal
+  end
+
+  test "past the day's word budget, writing is not sent" do
+    WritingCheck.create!(user: users(:member), body: "word " * (WritingCheck::WORDS_PER_DAY - 20), status: "done", fraction_ai: 0.0)
+    WritingCheck.create!(user: users(:member), body: "word " * 500, status: "done", fraction_ai: 0.0, billed: false)
+    WritingCheck.create!(user: users(:member), body: "word " * 500, status: "done", fraction_ai: 0.0, created_at: 2.days.ago)
+
+    check = nil
+    assert_no_enqueued_jobs { check = WritingCheck.start(users(:member), LONG) }
+    assert_equal "limited", check.status
+    assert_not check.flagged?
+    assert_enqueued_with(job: CheckWritingJob) { WritingCheck.start(users(:admin), LONG) }
   end
 end

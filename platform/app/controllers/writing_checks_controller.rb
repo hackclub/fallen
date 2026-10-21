@@ -4,7 +4,7 @@ class WritingChecksController < ApplicationController
   skip_after_action :verify_policy_scoped # No index action (Rails raises on `only: :index` otherwise)
   skip_after_action :verify_authorized # Re-added below: Rails raises on the `except: :index` default without an index action
   after_action :verify_authorized
-  rate_limit to: 20, within: 1.minute, only: :create, by: -> { current_user.id }, with: -> { head :too_many_requests }
+  rate_limit to: 10, within: 1.minute, only: :create, by: -> { current_user.id }, with: -> { head :too_many_requests }
 
   def create
     authorize WritingCheck

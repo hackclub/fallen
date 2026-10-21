@@ -31,6 +31,7 @@
       insisted: number
       skipped: number
       failed: number
+      limited: number
       cost_cents: number
     }
   }
@@ -117,7 +118,7 @@
     {
       label: 'Checked',
       value: ai?.checked,
-      hint: ai && `${ai.skipped} too short to send, ${ai.failed} failed`,
+      hint: ai && `${ai.skipped} too short, ${ai.limited} over the daily limit, ${ai.failed} failed`,
     },
     { label: 'Flagged', value: ai?.flagged, hint: ai && `${percent(ai.flagged, ai.checked)} of checked` },
     {

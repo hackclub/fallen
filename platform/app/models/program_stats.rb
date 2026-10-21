@@ -38,10 +38,11 @@ class ProgramStats
     posted_anyway: "status = 'done' AND fraction_ai >= #{WritingCheck::FLAG_AT} AND journal_id IS NOT NULL",
     insisted: "insisted",
     skipped: "status = 'skipped'",
-    failed: "status = 'failed'"
+    failed: "status = 'failed'",
+    limited: "status = 'limited'"
   }.freeze
-  # Pangram bills each request by the 100 words, rounded up; failed ones may have been billed too.
-  BILLED_HUNDREDS = "COALESCE(SUM(CEIL(COALESCE(array_length(regexp_split_to_array(btrim(body), '\\s+'), 1), 0) / 100.0)) FILTER (WHERE status IN ('done', 'failed')), 0)"
+  # Pangram bills each request by the 100 words, rounded up; failed and unfinished ones may have been billed too.
+  BILLED_HUNDREDS = "COALESCE(SUM(CEIL(#{WritingCheck::WORDS_SQL} / 100.0)) FILTER (WHERE billed AND status IN ('pending', 'done', 'failed')), 0)"
 
   attr_reader :range
 
