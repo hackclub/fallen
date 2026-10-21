@@ -22,6 +22,18 @@
     signups: number
   }
   type Totals = Omit<Day, 'date'>
+  type Writing = {
+    days: { date: string; checked: number; flagged: number }[]
+    totals: {
+      checked: number
+      flagged: number
+      posted_anyway: number
+      insisted: number
+      skipped: number
+      failed: number
+      cost_cents: number
+    }
+  }
 
   let {
     range,
@@ -29,12 +41,14 @@
     active,
     daily,
     funnel,
+    writing,
   }: {
     range: string
     ranges: string[]
     active?: { day: number; week: number; month: number }
     daily?: { days: Day[]; totals: Totals }
     funnel?: { key: string; label: string; count: number }[]
+    writing?: Writing
   } = $props()
 
   const RANGE_LABELS: Record<string, string> = {
@@ -96,6 +110,27 @@
   ])
 
   const start = $derived(funnel?.[0]?.count ?? 0)
+
+  const ai = $derived(writing?.totals)
+  const aiPoints = $derived((writing?.days ?? []).map((day) => ({ ...day, at: `${day.date}T00:00:00` })))
+  const aiTiles = $derived([
+    {
+      label: 'Checked',
+      value: ai?.checked,
+      hint: ai && `${ai.skipped} too short to send, ${ai.failed} failed`,
+    },
+    { label: 'Flagged', value: ai?.flagged, hint: ai && `${percent(ai.flagged, ai.checked)} of checked` },
+    {
+      label: 'Posted anyway',
+      value: ai?.posted_anyway,
+      hint: ai && `${ai.insisted} held “I wrote this myself”, the rest never saw it`,
+    },
+    {
+      label: 'Pangram cost',
+      value: ai && `$${(ai.cost_cents / 100).toFixed(2)}`,
+      hint: '5¢ per 100 words sent',
+    },
+  ])
 </script>
 
 <svelte:head><title>Stats · Fallen Admin</title></svelte:head>
@@ -238,3 +273,33 @@
     </Card.Content>
   </Card.Root>
 </div>
+
+<Card.Root class="mt-4">
+  <Card.Header>
+    <Card.Title>AI writing check</Card.Title>
+    <Card.Description>
+      Journals Pangram read before posting, in the {RANGE_LABELS[range]}. Flagged ones also go to
+      #fallen-ai-flags.
+    </Card.Description>
+  </Card.Header>
+  <Card.Content>
+    <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      {#each aiTiles as tile (tile.label)}
+        <StatTile label={tile.label} value={tile.value} hint={tile.hint} />
+      {/each}
+    </div>
+    <div class="mt-4">
+      <Deferred data="writing">
+        {#snippet fallback()}<Skeleton class="h-[220px] w-full" />{/snippet}
+        <TimeSeriesChart
+          points={aiPoints}
+          format={(value) => formatCount(Math.round(value))}
+          series={[
+            { key: 'checked', label: 'Checked', color: 'var(--chart-1)' },
+            { key: 'flagged', label: 'Flagged', color: 'var(--chart-4)' },
+          ]}
+        />
+      </Deferred>
+    </div>
+  </Card.Content>
+</Card.Root>

@@ -2,7 +2,8 @@
 
 # The numbers on /admin/stats over a range of UTC days: who opened the site (ActiveDay) and who built, the time the
 # pet's timer tracked for everyone (TrackedTime's rules, not cut at each person's last journal) next to the hours
-# journals logged, and how far the people who signed up in the range got. Each public method is one deferred prop.
+# journals logged, how far the people who signed up in the range got, and what the AI-writing check (WritingCheck)
+# caught. Each public method is one deferred prop.
 class ProgramStats
   # Range => days, nil for since the first signup.
   RANGES = { "7d" => 7, "30d" => 30, "90d" => 90, "all" => nil }.freeze
@@ -30,6 +31,17 @@ class ProgramStats
     SQL
   ].freeze
   FUNNEL_COUNTS = FUNNEL.each_index.map { |i| "COUNT(*) FILTER (WHERE #{FUNNEL[..i].map { |(*, sql)| "(#{sql})" }.join(" AND ")})" }.freeze
+
+  WRITING_COUNTS = {
+    checked: "status = 'done'",
+    flagged: "status = 'done' AND fraction_ai >= #{WritingCheck::FLAG_AT}",
+    posted_anyway: "status = 'done' AND fraction_ai >= #{WritingCheck::FLAG_AT} AND journal_id IS NOT NULL",
+    insisted: "insisted",
+    skipped: "status = 'skipped'",
+    failed: "status = 'failed'"
+  }.freeze
+  # Pangram bills each request by the 100 words, rounded up; failed ones may have been billed too.
+  BILLED_HUNDREDS = "COALESCE(SUM(CEIL(COALESCE(array_length(regexp_split_to_array(btrim(body), '\\s+'), 1), 0) / 100.0)) FILTER (WHERE status IN ('done', 'failed')), 0)"
 
   attr_reader :range
 
@@ -82,6 +94,19 @@ class ProgramStats
   def funnel
     counts = User.kept.where(is_banned: false, created_at: from..).pick(*FUNNEL_COUNTS.map { Arel.sql(it) })
     FUNNEL.zip(counts).map { |(key, label), count| { key:, label:, count: } }
+  end
+
+  # Checks a day and how many were flagged, plus the range's totals and what Pangram billed for them.
+  def writing
+    selects = WRITING_COUNTS.values.map { Arel.sql("COUNT(*) FILTER (WHERE #{it})") } << Arel.sql(BILLED_HUNDREDS)
+    rows = WritingCheck.where(created_at: from..).group(Arel.sql("created_at::date")).pluck(Arel.sql("created_at::date"), *selects)
+    by_day = rows.to_h { |day, *counts| [ day, WRITING_COUNTS.keys.zip(counts).to_h.merge(hundreds: counts.last.to_i) ] }
+    totals = (WRITING_COUNTS.keys + [ :hundreds ]).index_with { |key| by_day.values.sum { it[key] } }
+
+    {
+      days: days.map { |day| { date: day.iso8601, checked: by_day.dig(day, :checked) || 0, flagged: by_day.dig(day, :flagged) || 0 } },
+      totals: totals.except(:hundreds).merge(cost_cents: totals[:hundreds] * Pangram::CENTS_PER_100_WORDS)
+    }
   end
 
   private

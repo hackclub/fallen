@@ -11,7 +11,8 @@ class Admin::StatsController < Admin::ApplicationController
       ranges: ProgramStats::RANGES.keys,
       active: InertiaRails.defer(group: "active") { stats.active },
       daily: InertiaRails.defer(group: "daily") { stats.daily },
-      funnel: InertiaRails.defer(group: "funnel") { stats.funnel }
+      funnel: InertiaRails.defer(group: "funnel") { stats.funnel },
+      writing: InertiaRails.defer(group: "writing") { stats.writing }
     }
   end
 end
