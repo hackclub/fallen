@@ -52,6 +52,7 @@
   // While Pangram reads the writing the button looks the same as while posting. A flagged check waits on the dialog.
   let checking = $state(false)
   let flaggedCheck: string | null = $state(null)
+  let pasteHint: HTMLParagraphElement | undefined = $state()
   const closing = new AbortController()
   onDestroy(() => closing.abort())
   // A new journal's box offers whichever is more: the hours the huddle and site timer tracked since the last journal,
@@ -183,6 +184,15 @@
     editor?.focus()
   }
 
+  // Pasted text is a nudge to write it yourself. Pasted photos are welcome, so they don't set it off.
+  function onPaste(event: ClipboardEvent) {
+    const data = event.clipboardData
+    if (!pasteHint || !data || data.files.length > 0 || !data.getData('text/plain').trim()) return
+    pasteHint.classList.remove('flash')
+    void pasteHint.offsetWidth
+    pasteHint.classList.add('flash')
+  }
+
   function onKeydown(event: KeyboardEvent) {
     if (event.key !== 'Escape') return
     if (flaggedCheck) editFlagged()
@@ -219,6 +229,7 @@
         onclick={(e) => {
           if (!(e.target as Element).closest('button, input, a, .ProseMirror')) editor?.focus()
         }}
+        onpaste={onPaste}
       >
         <h3 id="journal-body-label" class="font-display text-xl text-ink">What did you do?</h3>
         <MarkdownEditor
@@ -230,6 +241,13 @@
           onError={(message) => (uploadError = message)}
           placeholder="What you built, what broke, what you figured out. Drop or paste photos anywhere in here."
         />
+        <p
+          bind:this={pasteHint}
+          class="paste-hint font-outfit text-xs"
+          onanimationend={() => pasteHint?.classList.remove('flash')}
+        >
+          Please write this yourself, humans read it!
+        </p>
         <div class="flex items-center justify-between gap-3 font-outfit text-xs text-ink-soft">
           <span>
             {#if form.errors.body}<span class="text-red-700">{form.errors.body}</span>
@@ -337,6 +355,19 @@
   }
   .hours-input::placeholder {
     color: color-mix(in srgb, var(--color-ink-soft) 45%, transparent);
+  }
+  .paste-hint {
+    color: var(--color-ink-soft);
+    opacity: 0.6;
+  }
+  .paste-hint:global(.flash) {
+    animation: paste-hint-flash 3s ease;
+  }
+  @keyframes paste-hint-flash {
+    15% {
+      opacity: 1;
+      color: var(--color-hc-red);
+    }
   }
   .hours-input:focus {
     border-color: var(--sb-ring);
