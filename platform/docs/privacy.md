@@ -28,6 +28,7 @@ Only from the token's `subject`: any `emails` (case-insensitive against `users.e
 | Time in the Slack huddle (when they joined and left, how each time was known, how long they shared their screen or had their camera on, what they said they were working on and got done, how many of the counted hours they said were really work, and the Slack DMs that asked them), also rows from before they signed up that carry their Slack id | `huddle_sessions` |
 | Slack's join and leave events for the huddle, by Slack id and time | `huddle_events` |
 | The pet's timer: when they started and stopped the site's timer, what they said they would work on and got done with it and how many of its hours were really work, paused in the huddle, and their hourly check-ins (what they said they had got done so far, and the Slack DM that asked) | `timer_sessions`, `huddle_pauses`, `time_milestones` |
+| The days they opened the site, by UTC date, for daily active counts | `active_days` |
 | XP earned, line by line (journal XP, bonuses, streak checks) | `xp_entries`, `users.xp` |
 | Feature flags an admin turned on for them by name (their public id on the flag) | `flipper_gates` |
 | Change history of everything above (PaperTrail copies of the rows) | `versions` |

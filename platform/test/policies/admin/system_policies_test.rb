@@ -1,9 +1,9 @@
 require "test_helper"
 
-# /admin/insights, /admin/jobs and /admin/flags: admins only, everything else fails closed.
+# /admin/insights, /admin/stats, /admin/jobs and /admin/flags: admins only, everything else fails closed.
 class Admin::SystemPoliciesTest < ActiveSupport::TestCase
-  test "only admins read and act on insights, jobs and flags" do
-    { Admin::InsightsPolicy => %i[show?], Admin::JobPolicy => %i[index? show? update? destroy?],
+  test "only admins read and act on insights, stats, jobs and flags" do
+    { Admin::InsightsPolicy => %i[show?], Admin::StatsPolicy => %i[show?], Admin::JobPolicy => %i[index? show? update? destroy?],
       Admin::FlagPolicy => %i[index? show? create? update? destroy?] }.each do |policy, actions|
       actions.each do |action|
         assert policy.new(users(:admin), nil).public_send(action), "#{policy}##{action} for admins"

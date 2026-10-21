@@ -76,6 +76,10 @@ class QueryBudgetTest < ActionDispatch::IntegrationTest
     assert_query_budget(3) { get admin_insights_path }
     # One aggregate per panel, whatever the number of requests recorded.
     assert_query_budget(6) { load_deferred(admin_insights_path, "Admin/Insights/Show", "summary", "series", "breakdown", "slowest", "statuses") }
+    assert_query_budget(3) { get admin_stats_path }
+    # Last visits in one query; the days from signups, visits, journals and the huddle, pauses and timer sessions;
+    # the funnel in one.
+    assert_query_budget(9) { load_deferred(admin_stats_path, "Admin/Stats/Show", "active", "daily", "funnel") }
     assert_query_budget(3) { get admin_jobs_path }
     # A count per status tab, the queue names, then the page of jobs with the execution its status shows.
     assert_query_budget(11) { load_deferred(admin_jobs_path, "Admin/Jobs/Index", "jobs", "pagy", "counts", "queue_names") }

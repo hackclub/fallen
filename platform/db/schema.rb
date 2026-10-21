@@ -10,9 +10,15 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_21_120200) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_21_130100) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+
+  create_table "active_days", primary_key: ["user_id", "day"], force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.date "day", null: false
+    t.index ["day"], name: "index_active_days_on_day"
+  end
 
   create_table "active_insights_jobs", force: :cascade do |t|
     t.string "job"
@@ -118,6 +124,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_21_120200) do
     t.string "end_reason"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.index ["ended_at"], name: "index_huddle_pauses_on_ended_at"
     t.index ["user_id", "started_at"], name: "index_huddle_pauses_on_user_id_and_started_at"
     t.index ["user_id"], name: "index_huddle_pauses_one_open_per_user", unique: true, where: "(ended_at IS NULL)"
   end
@@ -147,6 +154,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_21_120200) do
     t.integer "deducted_seconds", default: 0, null: false
     t.index ["huddle_id", "slack_id"], name: "index_huddle_sessions_on_huddle_id_and_slack_id"
     t.index ["huddle_id", "slack_id"], name: "index_huddle_sessions_one_open_per_person", unique: true, where: "(left_at IS NULL)"
+    t.index ["left_at"], name: "index_huddle_sessions_on_left_at"
     t.index ["slack_id"], name: "index_huddle_sessions_on_slack_id"
     t.index ["user_id"], name: "index_huddle_sessions_on_user_id"
   end
@@ -461,6 +469,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_21_120200) do
     t.text "done"
     t.datetime "wrapped_up_at"
     t.integer "deducted_seconds", default: 0, null: false
+    t.index ["stopped_at"], name: "index_timer_sessions_on_stopped_at"
     t.index ["user_id", "started_at"], name: "index_timer_sessions_on_user_id_and_started_at"
     t.index ["user_id"], name: "index_timer_sessions_one_running_per_user", unique: true, where: "(stopped_at IS NULL)"
   end
@@ -535,6 +544,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_21_120200) do
     t.index ["user_id"], name: "index_xp_entries_on_user_id"
   end
 
+  add_foreign_key "active_days", "users"
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "huddle_pauses", "users"

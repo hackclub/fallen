@@ -82,6 +82,7 @@ class User < ApplicationRecord
   has_many :huddle_pauses, dependent: :destroy
   has_many :time_milestones, dependent: :delete_all
   has_many :lapse_timelapses, dependent: :destroy
+  has_many :active_days, dependent: :delete_all
 
   validates :email, :display_name, :timezone, presence: true
   validates :hca_id, uniqueness: true, allow_nil: true
@@ -232,8 +233,12 @@ class User < ApplicationRecord
 
   def disconnect_lapse! = update!(lapse_token: nil, lapse_synced_at: nil)
 
-  def touch_last_seen
-    update_column(:last_seen_at, Time.current) if last_seen_at.nil? || last_seen_at < 5.minutes.ago
+  # The first visit of each UTC day is also an ActiveDay, so it is written even inside the five minutes.
+  def touch_last_seen(now = Time.current)
+    new_day = last_seen_at.nil? || last_seen_at.utc.to_date != now.utc.to_date
+    return unless new_day || last_seen_at < now - 5.minutes
+
+    new_day ? ActiveDay.record(self, now) : update_column(:last_seen_at, now)
   end
 
   # Signs a user in from an HCA authorization code: exchanges the code, loads the identity,

@@ -85,6 +85,15 @@ class TrackedTime
     end
   end
 
+  # One person's huddle `sessions` (the ones they were not just chilling in) less their `pauses`, each with what
+  # they said was not work cut from its end. Also what /admin/stats adds up (ProgramStats).
+  def self.huddle_stretches(sessions, pauses, now)
+    holes = union(pauses.map { |pause| [ pause.started_at, pause.ended_at || now ] })
+    sessions.flat_map { |session| trim(subtract([ [ session.joined_at, session.left_at || now ] ], holes), session.deducted_seconds) }
+  end
+
+  def self.timer_stretches(timers, now) = timers.flat_map { |session| trim([ [ session.started_at, session.counted_until(now) ] ], session.deducted_seconds) }
+
   private
 
   def counting_in_huddle? = open_sessions.any? { |session| session.mode != "chilling" }
@@ -110,12 +119,8 @@ class TrackedTime
     since ? scope.where(end_column => nil).or(scope.where(end_column => since..)) : scope
   end
 
-  def huddle_stretches
-    holes = self.class.union(pauses.map { |pause| [ pause.started_at, pause.ended_at || now ] })
-    clip(huddle_sessions.flat_map { |session| self.class.trim(self.class.subtract([ [ session.joined_at, session.left_at || now ] ], holes), session.deducted_seconds) })
-  end
-
-  def timer_stretches = clip(timers.flat_map { |session| self.class.trim([ [ session.started_at, session.counted_until(now) ] ], session.deducted_seconds) })
+  def huddle_stretches = clip(self.class.huddle_stretches(huddle_sessions, pauses, now))
+  def timer_stretches = clip(self.class.timer_stretches(timers, now))
 
   # Each stretch cut to between `since` and now, dropping empty ones.
   def clip(stretches)

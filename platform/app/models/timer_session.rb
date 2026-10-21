@@ -19,6 +19,7 @@
 #
 # Indexes
 #
+#  index_timer_sessions_on_stopped_at              (stopped_at)
 #  index_timer_sessions_on_user_id_and_started_at  (user_id,started_at)
 #  index_timer_sessions_one_running_per_user       (user_id) UNIQUE WHERE (stopped_at IS NULL)
 #

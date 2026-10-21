@@ -16,6 +16,7 @@
 #
 # Indexes
 #
+#  index_huddle_pauses_on_ended_at                (ended_at)
 #  index_huddle_pauses_on_user_id_and_started_at  (user_id,started_at)
 #  index_huddle_pauses_one_open_per_user          (user_id) UNIQUE WHERE (ended_at IS NULL)
 #

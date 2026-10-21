@@ -1,10 +1,19 @@
 import BriefcaseBusiness from '@lucide/svelte/icons/briefcase-business'
+import ChartLine from '@lucide/svelte/icons/chart-line'
 import Flag from '@lucide/svelte/icons/flag'
 import FolderOpen from '@lucide/svelte/icons/folder-open'
 import Gauge from '@lucide/svelte/icons/gauge'
 import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard'
 import Users from '@lucide/svelte/icons/users'
-import { adminFlags, adminInsights, adminJobs, adminProjects, adminRoot, adminUsers } from '@/routes'
+import {
+  adminFlags,
+  adminInsights,
+  adminJobs,
+  adminProjects,
+  adminRoot,
+  adminStats,
+  adminUsers,
+} from '@/routes'
 import type { AdminStats } from '@/types'
 
 export type AdminNavItem = {
@@ -20,7 +29,13 @@ export type AdminNavSection = { title: string; items: AdminNavItem[] }
 
 // The sidebar and the command palette both read this.
 export const adminNav: AdminNavSection[] = [
-  { title: 'Navigation', items: [{ label: 'Dashboard', href: adminRoot().url, icon: LayoutDashboard }] },
+  {
+    title: 'Navigation',
+    items: [
+      { label: 'Dashboard', href: adminRoot().url, icon: LayoutDashboard },
+      { label: 'Stats', href: adminStats.show().url, icon: ChartLine },
+    ],
+  },
   {
     title: 'Data',
     items: [

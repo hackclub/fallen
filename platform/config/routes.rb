@@ -89,6 +89,7 @@ Rails.application.routes.draw do
       end
       resources :projects, only: %i[index show update]
 
+      get "stats" => "stats#show", as: :stats
       get "insights(/:kind)" => "insights#show", as: :insights, constraints: { kind: /requests|jobs/ }
 
       resources :jobs, only: %i[index show destroy] do

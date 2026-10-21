@@ -38,6 +38,7 @@
 # Indexes
 #
 #  index_huddle_sessions_on_huddle_id_and_slack_id  (huddle_id,slack_id)
+#  index_huddle_sessions_on_left_at                 (left_at)
 #  index_huddle_sessions_on_slack_id                (slack_id)
 #  index_huddle_sessions_on_user_id                 (user_id)
 #  index_huddle_sessions_one_open_per_person        (huddle_id,slack_id) UNIQUE WHERE (left_at IS NULL)
@@ -76,6 +77,8 @@ class HuddleSession < ApplicationRecord
   validates :join_source, :leave_source, inclusion: { in: SOURCES }, allow_nil: true
 
   scope :ongoing, -> { where(left_at: nil) }
+  # Sessions that count towards tracked time: any but the ones they said they were just chilling in.
+  scope :counting, -> { where(mode: nil).or(where.not(mode: "chilling")) }
 
   # Joining, leaving and answering change the pet's timer; the sync's every-minute last_seen_at does not.
   after_commit -> { TimerChannel.changed(user_id) }, if: -> { (previous_changes.keys & %w[id left_at mode user_id]).any? }
@@ -146,7 +149,7 @@ class HuddleSession < ApplicationRecord
   # [session, seconds it counted] for this visit, oldest first: the sessions they were not just chilling in, less
   # any time they paused.
   def visit_counted
-    sessions = visit.where(mode: nil).or(visit.where.not(mode: "chilling")).order(:joined_at).to_a
+    sessions = visit.counting.order(:joined_at).to_a
     return [] if sessions.empty?
 
     pauses = user ? user.huddle_pauses.where(started_at: ...left_at).where("ended_at IS NULL OR ended_at > ?", sessions.first.joined_at).pluck(:started_at, :ended_at) : []

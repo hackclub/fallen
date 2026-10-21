@@ -31,6 +31,7 @@ require "test_helper"
 # Indexes
 #
 #  index_huddle_sessions_on_huddle_id_and_slack_id  (huddle_id,slack_id)
+#  index_huddle_sessions_on_left_at                 (left_at)
 #  index_huddle_sessions_on_slack_id                (slack_id)
 #  index_huddle_sessions_on_user_id                 (user_id)
 #  index_huddle_sessions_one_open_per_person        (huddle_id,slack_id) UNIQUE WHERE (left_at IS NULL)
