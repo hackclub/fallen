@@ -10,6 +10,21 @@
   const setup = $derived(shared().setup)
   const due = $derived(slackGateDue())
   const egg = $derived(PET_EGGS[shared().auth.user?.pet ?? ''])
+
+  // People were skipping without reading, so skipping is a small link that leads to a second screen, and its button
+  // there only wakes up after a few seconds.
+  const SKIP_WAIT_SECONDS = 3
+  let confirmingSkip = $state(false)
+  let skipWait = $state(0)
+
+  function askToSkip() {
+    confirmingSkip = true
+    skipWait = SKIP_WAIT_SECONDS
+    const tick = setInterval(() => {
+      skipWait -= 1
+      if (skipWait <= 0 || !confirmingSkip) clearInterval(tick)
+    }, 1000)
+  }
 </script>
 
 {#if due}
@@ -17,7 +32,11 @@
        screen, a sheet at the bottom on a phone. -->
   <Modal
     titleId="slack-gate-title"
-    title={setup?.step === 'verify' ? 'Sign in to keep going' : 'Connect Slack to start'}
+    title={setup?.step === 'verify'
+      ? 'Sign in to keep going'
+      : confirmingSkip
+        ? 'Skip connecting Slack?'
+        : 'Connect Slack to start'}
     class="max-w-md"
     backdropClass="max-md:items-end md:pl-[300px]"
   >
@@ -36,6 +55,40 @@
         >
           Continue with Hack Club
         </ModalButton>
+      {:else if confirmingSkip}
+        <p class="mt-2 text-[15px] text-balance text-ink">
+          Your journals will come from Fallen's bot instead of from you. It shows your name and picture, but
+          people can see it's the bot.
+        </p>
+        <p class="mt-3 text-sm text-balance text-ink-soft">
+          They still go to Hack Club Slack, so its <a
+            href="https://hackclub.com/conduct/"
+            target="_blank"
+            rel="noopener"
+            class="underline">code of conduct</a
+          >
+          applies. You can connect later in Settings.
+        </p>
+        <ModalButton
+          kind="confirm"
+          class="mt-6 w-full max-w-72"
+          href={connectSlack({ query: { return_to: page.url } }).url}
+        >
+          Connect Slack instead
+        </ModalButton>
+        <ModalButton
+          kind="cancel"
+          class="mt-2 w-full max-w-72"
+          disabled={skipWait > 0}
+          onclick={() => router.post(skipSlack().url, {}, { preserveScroll: true })}
+        >
+          {skipWait > 0 ? `Skip anyway (${skipWait})` : 'Skip anyway'}
+        </ModalButton>
+        <button
+          type="button"
+          class="mt-3 text-xs text-ink-soft underline hover:text-ink"
+          onclick={() => (confirmingSkip = false)}>Back</button
+        >
       {:else}
         <div
           class="gate-icon grid size-20 place-items-center rounded-[24px] bg-white shadow-[0_5px_0_var(--color-paper-rim)]"
@@ -69,23 +122,9 @@
         >
           Connect Slack
         </ModalButton>
-        <ModalButton
-          kind="cancel"
-          class="mt-2 w-full max-w-72"
-          onclick={() => router.post(skipSlack().url, {}, { preserveScroll: true })}
-        >
-          Skip, post through the bot
-        </ModalButton>
-        <p class="mt-3 text-xs text-ink-soft">
-          Skipping means Fallen's bot posts them under your name and picture. They still go to Hack Club
-          Slack, so its <a
-            href="https://hackclub.com/conduct/"
-            target="_blank"
-            rel="noopener"
-            class="underline">code of conduct</a
-          >
-          applies. You can connect later in Settings.
-        </p>
+        <button type="button" class="mt-4 text-xs text-ink-soft underline hover:text-ink" onclick={askToSkip}>
+          Skip for now
+        </button>
       {/if}
       <div class="mt-4 flex justify-center gap-4 text-xs text-ink-soft">
         <button type="button" class="underline hover:text-ink" onclick={() => router.visit(signOut())}
