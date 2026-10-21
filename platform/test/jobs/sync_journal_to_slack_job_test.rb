@@ -49,9 +49,21 @@ class SyncJournalToSlackJobTest < ActiveJob::TestCase
     users(:member).disconnect_slack!
     journal = projects(:station).journals.create!(user: users(:member), body: journal_text("x"), duration_minutes: 30, source: "web", images: [ photo ])
     with_fake_slack do |slack|
-      assert_raises(SlackMessaging::NotConnected) { SyncJournalToSlackJob.perform_now(journal, "create") }
+      SyncJournalToSlackJob.perform_now(journal, "create")
       assert_empty slack.calls
     end
+    assert_not journal.reload.on_slack?
+  end
+
+  test "drops the journal when the token stops working for someone who never skipped, to post once they reconnect" do
+    journal = projects(:station).journals.create!(user: users(:member), body: journal_text("x"), duration_minutes: 30, source: "web", images: [ photo ])
+
+    with_fake_slack do |slack|
+      slack.define_singleton_method(:chat_postMessage) { |_params| raise Slack::Web::Api::Errors::TokenRevoked, "token_revoked" }
+      SyncJournalToSlackJob.perform_now(journal, "create")
+    end
+    assert_not users(:member).reload.slack_connected?
+    assert_not journal.reload.on_slack?
   end
 
   test "posts through the bot under their name for someone who skipped slack, and edits and deletes as the bot" do
@@ -101,7 +113,7 @@ class SyncJournalToSlackJobTest < ActiveJob::TestCase
 
     with_fake_slack do |slack|
       slack.define_singleton_method(:users_info) { |**| Slack::Messages::Message.new("ok" => true, "user" => { "id" => "U0MEMBER", "deleted" => true }) }
-      assert_raises(SlackMessaging::Deactivated) { SyncJournalToSlackJob.perform_now(journal, "create") }
+      SyncJournalToSlackJob.perform_now(journal, "create")
       assert_empty slack.calls_to(:chat_postMessage)
     end
   end

@@ -55,8 +55,12 @@ class SlackAuthController < ApplicationController
 
   def return_path = take_return_to || projects_path
 
+  # Also what never got posted because their token stopped working (SyncJournalToSlackJob drops those). Projects
+  # without a thread post their own journals once it exists.
   def post_waiting_projects
     current_user.projects.kept.where(slack_thread_ts: nil).find_each { |project| PostProjectToSlackJob.perform_later(project) }
+    journals = current_user.journals.kept.where(slack_ts: nil, project: Project.kept.where.not(slack_thread_ts: nil))
+    journals.find_each { |journal| SyncJournalToSlackJob.perform_later(journal, "create") }
   end
 
   # Slack only redirects to the URLs in the manifest, which are built from APP_URL, so use that rather than

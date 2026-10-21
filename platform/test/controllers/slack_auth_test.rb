@@ -14,6 +14,12 @@ class SlackAuthTest < ActionDispatch::IntegrationTest
     assert_enqueued_with(job: PostProjectToSlackJob, args: [ project ]) { connect(user, slack_id: "U0FRESH") }
   end
 
+  test "posts the journals that never reached slack in threads that already exist" do
+    users(:member).disconnect_slack!
+    waiting = projects(:station).journals.create!(user: users(:member), body: journal_text("x"), duration_minutes: 30, source: "web", images: [ photo ])
+    assert_enqueued_with(job: SyncJournalToSlackJob, args: [ waiting, "create" ]) { connect(users(:member), slack_id: users(:member).slack_id) }
+  end
+
   test "returns to the page that asked" do
     user = User.create!(hca_id: "hca_fresh", email: "fresh@example.com", display_name: "Fresh", roles: [ "user" ])
     connect(user, slack_id: "U0FRESH", return_to: "/settings#slack")

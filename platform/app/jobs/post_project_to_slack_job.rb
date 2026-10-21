@@ -3,6 +3,7 @@
 class PostProjectToSlackJob < ApplicationJob
   queue_as :slack
   retry_on Slack::Web::Api::Errors::TooManyRequestsError, wait: :polynomially_longer, attempts: 5
+  discard_on SlackMessaging::NotConnected # Queued again when they connect or skip
 
   def perform(project)
     return if project.discarded? || project.slack_linked? || !SlackMessaging.configured? || !project.user.slack_ready?

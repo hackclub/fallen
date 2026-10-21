@@ -2,6 +2,9 @@
 class SyncJournalToSlackJob < ApplicationJob
   queue_as :slack
   retry_on Slack::Web::Api::Errors::TooManyRequestsError, wait: :polynomially_longer, attempts: 5
+  # Their token stopped working or they never connected; SlackAuthController queues the journal again once they
+  # connect or skip.
+  discard_on SlackMessaging::NotConnected
 
   def perform(journal, action)
     return unless SlackMessaging.configured?
