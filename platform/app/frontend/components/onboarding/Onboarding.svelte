@@ -22,7 +22,9 @@
 
   const PICKED = 'Great choice! It hatches when you finish your first journal.'
   // Past these there is nothing left to skip but the egg, which everyone picks.
-  const UNSKIPPABLE = ['skip', 'made', 'choose', 'picked-lulu', 'picked-sami']
+  const UNSKIPPABLE = ['skip', 'no-idea', 'made', 'choose', 'picked-lulu', 'picked-sami']
+  // While it points at making a project, the button skips just that, for people without an idea yet.
+  const PROJECT_STEPS = ['project', 'create', 'again']
 </script>
 
 <script lang="ts">
@@ -119,6 +121,13 @@
         choices: [{ label: 'Yes, skip it', next: 'choose' }, { label: 'No, keep going' }],
         next: () => skippedFrom,
       },
+      {
+        id: 'no-idea',
+        speaker: 'egg',
+        text: 'No idea yet? That’s okay, don’t make one up! Start your project from the Projects tab once one comes to you.',
+        choices: [{ label: 'Skip it for now', next: 'choose' }, { label: 'I’ll make one' }],
+        next: () => skippedFrom,
+      },
       { id: 'picked-lulu', emotion: 'lulu', text: PICKED, choices: [{ label: 'Let’s go!' }] },
       { id: 'picked-sami', emotion: 'sami', text: PICKED, choices: [{ label: 'Let’s go!' }] },
     ],
@@ -127,11 +136,12 @@
   let stage = $state<ReturnType<typeof DialogStage>>()
   let skippedFrom = 'hi'
   const canSkip = $derived(stage && !UNSKIPPABLE.includes(stage.nodeId()))
+  const atProject = $derived(stage && PROJECT_STEPS.includes(stage.nodeId()))
 
   function skip() {
     if (!stage) return
     skippedFrom = stage.nodeId()
-    stage.jump('skip')
+    stage.jump(atProject ? 'no-idea' : 'skip')
   }
 
   // svelte-ignore state_referenced_locally
@@ -193,6 +203,6 @@
     onclick={skip}
     onkeydown={(event) => event.stopPropagation()}
   >
-    Skip intro
+    {atProject ? 'No idea yet?' : 'Skip intro'}
   </button>
 {/if}
