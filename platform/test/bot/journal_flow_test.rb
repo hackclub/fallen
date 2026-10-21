@@ -27,6 +27,19 @@ class JournalFlowTest < ActiveSupport::TestCase
     end
   end
 
+  test "a teammate's thread reply becomes their own draft, anyone else's is chat" do
+    with_fake_slack do
+      projects(:station).memberships.create!(user: users(:admin))
+      reply(WRITTEN, user: "U0ADMIN", files: [ PHOTO ])
+      assert_equal users(:admin), JournalDraft.last.user
+
+      projects(:station).memberships.destroy_all
+      assert_no_difference -> { JournalDraft.count } do
+        reply(WRITTEN, user: "U0ADMIN", ts: "1700000009.000100", files: [ PHOTO ])
+      end
+    end
+  end
+
   test "writing without a photo gets a reminder instead of the time box" do
     with_fake_slack do |slack|
       reply(WRITTEN)

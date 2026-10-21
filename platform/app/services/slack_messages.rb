@@ -9,6 +9,20 @@ module SlackMessages
     { text: text, blocks: [ SlackBot::Blocks.section(text) ] }
   end
 
+  # A DM to someone invited to a project's team (ProjectInviteJob). The button opens the invite on the site.
+  def project_invite(invite)
+    text = ":handshake: #{invite.inviter.slack_mention} invited you to build *#{escape(invite.project.title)}* with them on Fallen!"
+    rule = "You'd each journal your own sessions in its thread, and your hours and XP stay yours. Nothing gets split."
+    open = SlackBot::Blocks.button("See the invite", "open_fallen", url: invite_url(invite), style: "primary")
+    { text: text, blocks: [ SlackBot::Blocks.section(text), SlackBot::Blocks.context(rule), SlackBot::Blocks.actions(open) ] }
+  end
+
+  # In the project's thread when someone joins its team (TeammateJoinedJob).
+  def teammate_joined(project, user)
+    text = ":wave: #{user.slack_mention} joined the team for *#{escape(project.title)}*! Their replies in this thread are their own journals."
+    { text: text, blocks: [ SlackBot::Blocks.section(text) ] }
+  end
+
   # The photos go under the message as image attachments rather than links, so the ones the editor embedded in the
   # body (as Markdown images pointing at the site) are taken out of the text.
   def journal(journal)
@@ -455,6 +469,8 @@ module SlackMessages
   def journal_url(journal) = Rails.application.routes.url_helpers.project_url(journal.project, anchor: "journal-#{journal.public_id}", host: ENV.fetch("APP_URL", "http://localhost:3000"))
 
   def hatch_url = Rails.application.routes.url_helpers.home_url(hatch: 1, host: ENV.fetch("APP_URL", "http://localhost:3000"))
+
+  def invite_url(invite) = Rails.application.routes.url_helpers.invite_url(invite, host: app_url)
 
   def new_project_url = Rails.application.routes.url_helpers.new_project_url(host: ENV.fetch("APP_URL", "http://localhost:3000"))
 

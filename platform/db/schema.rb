@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_20_025638) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_21_120200) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -83,6 +83,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_20_025638) do
   end
 
   create_table "fallout_invites", primary_key: "digest", id: :string, force: :cascade do |t|
+  end
+
+  create_table "flipper_features", force: :cascade do |t|
+    t.string "key", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["key"], name: "index_flipper_features_on_key", unique: true
+  end
+
+  create_table "flipper_gates", force: :cascade do |t|
+    t.string "feature_key", null: false
+    t.string "key", null: false
+    t.text "value"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["feature_key", "key", "value"], name: "index_flipper_gates_on_feature_key_and_key_and_value", unique: true
   end
 
   create_table "huddle_events", force: :cascade do |t|
@@ -212,6 +228,26 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_20_025638) do
     t.datetime "used_at", default: -> { "CURRENT_TIMESTAMP" }, null: false
   end
 
+  create_table "project_invites", force: :cascade do |t|
+    t.bigint "project_id", null: false
+    t.bigint "user_id", null: false
+    t.bigint "inviter_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["inviter_id"], name: "index_project_invites_on_inviter_id"
+    t.index ["project_id", "user_id"], name: "index_project_invites_on_project_id_and_user_id", unique: true
+    t.index ["user_id"], name: "index_project_invites_on_user_id"
+  end
+
+  create_table "project_members", force: :cascade do |t|
+    t.bigint "project_id", null: false
+    t.bigint "user_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["project_id", "user_id"], name: "index_project_members_on_project_id_and_user_id", unique: true
+    t.index ["user_id"], name: "index_project_members_on_user_id"
+  end
+
   create_table "projects", force: :cascade do |t|
     t.bigint "user_id", null: false
     t.string "title", null: false
@@ -225,7 +261,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_20_025638) do
     t.datetime "updated_at", null: false
     t.datetime "approved_at"
     t.boolean "slack_posted_by_bot", default: false, null: false
+    t.string "join_token"
     t.index ["discarded_at"], name: "index_projects_on_discarded_at"
+    t.index ["join_token"], name: "index_projects_on_join_token", unique: true
     t.index ["slack_channel_id", "slack_thread_ts"], name: "index_projects_on_slack_channel_id_and_slack_thread_ts", unique: true, where: "(slack_thread_ts IS NOT NULL)"
     t.index ["updated_at"], name: "index_projects_on_updated_at"
     t.index ["user_id"], name: "index_projects_on_user_id"
@@ -508,6 +546,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_20_025638) do
   add_foreign_key "journals", "users"
   add_foreign_key "lapse_timelapses", "journals"
   add_foreign_key "lapse_timelapses", "users"
+  add_foreign_key "project_invites", "projects"
+  add_foreign_key "project_invites", "users"
+  add_foreign_key "project_invites", "users", column: "inviter_id"
+  add_foreign_key "project_members", "projects"
+  add_foreign_key "project_members", "users"
   add_foreign_key "projects", "users"
   add_foreign_key "solid_queue_batch_executions", "solid_queue_batches", column: "batch_id", on_delete: :cascade
   add_foreign_key "solid_queue_batch_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade

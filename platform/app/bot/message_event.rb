@@ -1,4 +1,4 @@
-# Watches the journals channel. Replies in a project's thread by its owner are collected into a JournalDraft and
+# Watches the journals channel. Replies in a project's thread by someone on its team are collected into a JournalDraft and
 # become a journal only when they say so (JournalPromptJob asks once they pause), since they may just be chatting.
 # Replies by anyone else are conversation and left alone. Top-level messages are only written by Fallen (project
 # anchors, PostProjectToSlackJob); anything else is removed by RemoveStrayPostJob. Edits and deletions in Slack flow
@@ -31,7 +31,7 @@ class MessageEvent < SlackBot::Event
 
   def collect_reply
     project = Project.find_by_slack_thread(channel_id, event.thread_ts) or return
-    return unless user && project.user_id == user.id
+    return unless project.on_team?(user)
     return if Journal.find_by_slack_message(channel_id, ts)
     return if echo_of_web_journal?(project)
     return if text.strip.empty? && photos.empty?

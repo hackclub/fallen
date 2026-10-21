@@ -6,20 +6,23 @@
   import CreateProjectModal from '@/components/CreateProjectModal.svelte'
   import PageTitle from '@/components/PageTitle.svelte'
   import ProjectCard from '@/components/ProjectCard.svelte'
+  import InviteCards from '@/components/team/InviteCards.svelte'
   import type { SlackStatus } from '@/components/SlackConnect.svelte'
   import { connectSlack, projects } from '@/routes'
   import * as sfx from '@/lib/sfx'
   import { stagger } from '@/lib/stagger'
-  import type { Project } from '@/types'
+  import type { Project, ProjectInvite } from '@/types'
   import soup from '@/assets/hero/soup-falling.webp'
 
   let {
     projects: list,
+    invites,
     slack,
     direct_upload_url,
     can,
   }: {
     projects?: Project[]
+    invites?: ProjectInvite[]
     slack?: SlackStatus
     direct_upload_url?: string
     can?: { create: boolean }
@@ -53,6 +56,10 @@
 {/snippet}
 
 <PageTitle title="My Projects" subtitle="What are you building?" />
+
+{#if invites?.length}
+  <div class="mb-6"><InviteCards {invites} /></div>
+{/if}
 
 {#if !list || !slack}
   <div class="grid auto-rows-fr grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3" aria-busy="true">

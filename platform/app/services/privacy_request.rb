@@ -54,9 +54,10 @@ class PrivacyRequest
     deleted = {}
     retained = []
 
+    @versions = PaperTrail::Version.where(item_type: "User", item_id: ids).delete_all
+    handed = hand_over_team_projects(ids)
     project_ids = Project.where(user_id: ids).pluck(:id)
     journal_ids = Journal.where(user_id: ids).or(Journal.where(project_id: project_ids)).pluck(:id)
-    @versions = PaperTrail::Version.where(item_type: "User", item_id: ids).delete_all
     Journal.where(id: journal_ids).includes(images_attachments: :blob).find_each { |journal| journal.images.purge_later } if commit?
     Project.where(id: project_ids).with_attached_banner.find_each { |project| project.banner.purge_later } if commit?
     ActiveStorage::Attachment.where(record_type: "Journal", record_id: journal_ids).delete_all
@@ -71,6 +72,8 @@ class PrivacyRequest
     deleted["feature_flags"] = FeatureFlag.forget(users)
     deleted["lapse_timelapses"] = forget(LapseTimelapse.where(user_id: ids).or(LapseTimelapse.where(journal_id: journal_ids)))
     deleted["journals"] = forget(Journal.where(id: journal_ids))
+    deleted["project_members"] = forget(ProjectMember.where(user_id: ids).or(ProjectMember.where(project_id: project_ids)))
+    deleted["project_invites"] = forget(ProjectInvite.where(user_id: ids).or(ProjectInvite.where(inviter_id: ids)).or(ProjectInvite.where(project_id: project_ids)))
     deleted["projects"] = forget(Project.where(id: project_ids))
     deleted["users"] = User.where(id: removable.map(&:id)).delete_all
     deleted["versions"] = @versions
@@ -79,6 +82,11 @@ class PrivacyRequest
     if attributed.positive?
       retained << { type: "versions", count: attributed,
                     reason: "history of changes this person made to other accounts as staff; kept for those accounts with the author removed" }
+    end
+
+    if handed.positive?
+      retained << { type: "projects", count: handed,
+                    reason: "projects other people are still building, handed to the teammate who joined first; this person's own journals on them are deleted" }
     end
 
     if banned.any?
@@ -95,6 +103,16 @@ class PrivacyRequest
     ids = scope.pluck(:id)
     @versions += PaperTrail::Version.where(item_type: scope.model.name, item_id: ids).delete_all
     scope.model.where(id: ids).delete_all
+  end
+
+  # A project with someone else on its team goes to whoever joined it first, so their journals and its thread stay.
+  # Returns how many were handed over.
+  def hand_over_team_projects(ids)
+    Project.where(user_id: ids).to_a.count do |project|
+      successor = project.memberships.where.not(user_id: ids).first or next false
+      forget(ProjectMember.where(id: successor.id))
+      project.update_columns(user_id: successor.user_id)
+    end
   end
 
   def matching_users

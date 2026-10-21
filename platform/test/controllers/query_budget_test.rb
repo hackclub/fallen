@@ -12,14 +12,22 @@ class QueryBudgetTest < ActionDispatch::IntegrationTest
   test "member pages" do
     sign_in_as users(:member)
 
-    # Nothing deferred (HomeController#index): the whole page in one round trip.
-    assert_query_budget(12) { get home_path }
-    assert_query_budget(6) { get projects_path }
-    # 11 since journals can have several Lapse timelapses: one preload query, whatever the page holds.
+    # A team on the project, so the budgets cover loading teammates.
+    projects(:station).memberships.create!(user: users(:admin))
+    users(:admin).project_invites.create!(project: projects(:unlinked), inviter: users(:member))
+
+    # Nothing deferred (HomeController#index): the whole page in one round trip. Projects bring their members, and
+    # the invites waiting for the person come in one more.
+    assert_query_budget(15) { get home_path }
+    assert_query_budget(8) { get projects_path }
+    # 11 since journals can have several Lapse timelapses: one preload query, whatever the page holds. The team
+    # costs what the owner query it replaced did: members, what each logged here and invites waiting, with journal
+    # authors taken from the team.
     assert_query_budget(11) { get project_path(projects(:station)) }
     assert_query_budget(4) { load_deferred(project_path(projects(:station)), "Projects/Show", "lapse") }
     assert_query_budget(2) { get new_project_path }
-    assert_query_budget(3) { get edit_project_path(projects(:station)) }
+    # Plus the team's members, which the project's serializer carries.
+    assert_query_budget(4) { get edit_project_path(projects(:station)) }
     assert_query_budget(2) { get docs_path }
     assert_query_budget(2) { get shop_path }
     assert_query_budget(2) { get transfers_path }
@@ -30,9 +38,19 @@ class QueryBudgetTest < ActionDispatch::IntegrationTest
     assert_query_budget(4) { get timer_path }
   end
 
+  test "team pages" do
+    invite = users(:newcomer).project_invites.create!(project: projects(:station), inviter: users(:member))
+    sign_in_as users(:admin)
+    assert_query_budget(8) { get join_path(projects(:station).join_token) }
+
+    sign_in_as users(:newcomer)
+    assert_query_budget(9) { get invite_path(invite) }
+  end
+
   test "onboarding pages" do
     sign_in_as users(:newcomer)
-    assert_query_budget(7) { get home_path }
+    # Plus any team invites waiting for them.
+    assert_query_budget(8) { get home_path }
   end
 
   test "banned page" do
@@ -52,7 +70,8 @@ class QueryBudgetTest < ActionDispatch::IntegrationTest
 
     assert_query_budget(3) { get admin_projects_path }
     assert_query_budget(8) { load_deferred(admin_projects_path, "Admin/Projects/Index", "projects", "pagy", "total_count") }
-    assert_query_budget(9) { get admin_project_path(projects(:station)) }
+    # Plus the team's members.
+    assert_query_budget(10) { get admin_project_path(projects(:station)) }
 
     assert_query_budget(3) { get admin_insights_path }
     # One aggregate per panel, whatever the number of requests recorded.

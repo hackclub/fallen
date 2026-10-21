@@ -8,12 +8,13 @@
   import PageTitle from '@/components/PageTitle.svelte'
   import ProjectCard from '@/components/ProjectCard.svelte'
   import SettingRow from '@/components/settings/SettingRow.svelte'
+  import InviteCards from '@/components/team/InviteCards.svelte'
   import WriteJournalButton from '@/components/WriteJournalButton.svelte'
   import XpCard, { type Standing } from '@/components/XpCard.svelte'
   import { formatMinutes } from '@/lib/format'
   import { shared } from '@/lib/shared.svelte'
   import { stagger } from '@/lib/stagger'
-  import type { Project } from '@/types'
+  import type { Project, ProjectInvite } from '@/types'
 
   interface Stats {
     minutes: number
@@ -24,12 +25,14 @@
 
   let {
     projects,
+    invites,
     stats,
     activity,
     xp,
     goal,
   }: {
     projects?: Project[]
+    invites?: ProjectInvite[]
     stats?: Stats
     activity?: { date: string; minutes: number }[]
     xp?: Standing
@@ -63,6 +66,10 @@
   </div>
 {:else}
   <div {@attach stagger} class="stagger-in space-y-6 [--stagger-step:70ms]">
+    {#if invites?.length}
+      <InviteCards {invites} />
+    {/if}
+
     {#if xp}
       <XpCard {xp} />
     {/if}
@@ -86,7 +93,7 @@
               </div>
             {/each}
           </dl>
-          <div><WriteJournalButton {projects} /></div>
+          <div><WriteJournalButton projects={projects.filter((project) => project.role !== 'former')} /></div>
         </div>
         <div class="px-5 py-5 md:px-6">
           <ActivityGrid days={activity} />

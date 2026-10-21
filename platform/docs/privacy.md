@@ -22,6 +22,7 @@ Only from the token's `subject`: any `emails` (case-insensitive against `users.e
 | --- | --- |
 | The account: name, email, avatar, Slack id, timezone, roles, HCA token, Slack user token or when they chose not to connect Slack, Lapse token, verification status, pet and when they last switched it, when they first watched it hatch, where they came from when they signed up (UTM tags, `ref`, the referring page without its query string, the page they landed on) | `users` |
 | Their projects and journals (text, hours, the tracked time before each and whether the hours went over it, Lapse links, Slack message ids and text), project banners and journal photos | `projects`, `journals`, Active Storage |
+| Which project teams they are on and the invites they sent or got | `project_members`, `project_invites` |
 | Their Lapse timelapses as Fallen copied them (Lapse id, name, recorded time, visibility, video and thumbnail links). The videos stay on Lapse | `lapse_timelapses` |
 | Slack thread replies not yet made into a journal (text, Slack message ids, photo names and links) | `journal_drafts` |
 | Time in the Slack huddle (when they joined and left, how each time was known, how long they shared their screen or had their camera on, what they said they were working on and got done, how many of the counted hours they said were really work, and the Slack DMs that asked them), also rows from before they signed up that carry their Slack id | `huddle_sessions` |
@@ -58,6 +59,8 @@ Sessions are signed cookies holding the user id, so they stop working once the r
 - Request timings for `/admin/insights` (`active_insights_requests`) keep the path, controller, status and timings,
   but no user, IP or user agent. They are deleted after 30 days.
 - Lapse is its own service. The timelapses stay on the person's Lapse account, and disconnecting only forgets the token.
+- A project someone else is still building on its team is not deleted: it goes to the teammate who joined first, and
+  only the person's own journals on it are deleted. The project's title, description and banner stay with it.
 - Slack itself is not ours to delete from. Project threads and journal messages stay in the workspace.
 - Stray posts in the journals channel are deleted through Prometheus, which keeps their text in its private audit
   log channel. That log belongs to Prometheus, not Fallen.

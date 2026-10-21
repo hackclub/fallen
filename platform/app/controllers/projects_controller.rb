@@ -2,16 +2,18 @@ class ProjectsController < ApplicationController
   allow_trial_access only: %i[index show new create edit update destroy] # The onboarding makes a project
   include SlackStatus
   include LapseStatus
+  include TeamProps
 
   JOURNALS_PER_PAGE = 20
 
   before_action :set_project, only: %i[show edit update destroy]
 
   def index
-    projects = policy_scope(Project).recent.with_attached_banner.to_a
+    projects = Project.preload_teams(policy_scope(Project).recent.with_attached_banner.to_a, known: [ current_user ])
 
     render inertia: "Projects/Index", props: {
-      projects: ProjectSerializer.render(projects, **Project.journal_totals(projects), covers: Project.journal_covers(projects)),
+      projects: ProjectSerializer.render(projects, **Project.journal_totals(projects), covers: Project.journal_covers(projects), viewer: current_user),
+      invites: pending_invites,
       slack: slack_props,
       direct_upload_url: uploads_path,
       can: { create: policy(Project).create? }
@@ -20,18 +22,26 @@ class ProjectsController < ApplicationController
 
   def show
     authorize @project
+    Project.preload_teams([ @project ], known: [ current_user ])
     totals = Project.journal_totals([ @project ])
     pagy, journals = pagy(@project.journals.kept.newest_first.includes(:xp_entry, :lapse_timelapses, images_attachments: :blob), limit: JOURNALS_PER_PAGE, count: totals[:counts].fetch(@project.id, 0))
+    # Their authors are nearly always on the team, which is loaded already.
+    ActiveRecord::Associations::Preloader.new(records: journals.to_a, associations: :user, available_records: @project.teammates).call
+    policy = policy(@project)
 
     render inertia: "Projects/Show", props: {
       project: ProjectSerializer.render(@project, covers: Project.journal_covers([ @project ]), **totals),
       journals: JournalSerializer.render(journals),
-      owner: { name: @project.user.display_name, avatar: @project.user.avatar_url },
+      team: team_props(@project, invite: policy.invite?),
+      people: InertiaRails.optional { people_to_invite(@project, params[:people_query]) if policy.invite? },
       pagy: pagy_props(pagy),
       slack: slack_props,
       direct_upload_url: uploads_path,
-      lapse: InertiaRails.defer { lapse_props(timelapses: true) if @project.user_id == current_user.id },
-      can: { update: policy(@project).update?, destroy: policy(@project).destroy?, journal: policy(@project.journals.build(user: current_user)).create? }
+      lapse: InertiaRails.defer { lapse_props(timelapses: true) if @project.on_team?(current_user) },
+      can: {
+        update: policy.update?, destroy: policy.destroy?, journal: policy(@project.journals.build(user: current_user)).create?,
+        invite: policy.invite?, leave: policy.leave?, remove_teammate: policy.remove_teammate?
+      }
     }
   end
 
@@ -54,6 +64,7 @@ class ProjectsController < ApplicationController
 
   def edit
     authorize @project
+    Project.preload_teams([ @project ], known: [ current_user ])
     render inertia: "Projects/Form", props: { project: ProjectSerializer.render(@project), direct_upload_url: uploads_path }
   end
 

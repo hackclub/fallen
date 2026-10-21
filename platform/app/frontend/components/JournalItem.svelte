@@ -6,16 +6,14 @@
   import { journals } from '@/routes'
   import type { Journal } from '@/types'
 
-  // summer-of-making's devlog card on the glass: who and when on top with a "more" menu for the owner, then the
-  // write-up and photos.
+  // summer-of-making's devlog card on the glass: who and when on top with a "more" menu for whoever wrote it, then
+  // the write-up and photos.
   let {
     journal,
-    author,
     editable,
     onEdit,
   }: {
     journal: Journal
-    author: { name: string; avatar: string }
     editable: boolean
     onEdit: (journal: Journal) => void
   } = $props()
@@ -48,13 +46,15 @@
 <article id="journal-{journal.id}" class="glass scroll-mt-8 px-5 py-5 md:px-6">
   <header class="mb-3 flex items-start gap-3">
     <img
-      src={author.avatar}
+      src={journal.author.avatar}
       alt=""
       class="size-10 shrink-0 rounded-full bg-sky-night object-cover ring-2 ring-cream/60 sm:size-11"
     />
     <div class="min-w-0 flex-1">
       <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <p class="font-montserrat text-lg font-semibold tracking-[-0.02em] text-white">{author.name}</p>
+        <p class="font-montserrat text-lg font-semibold tracking-[-0.02em] text-white">
+          {journal.author.name}
+        </p>
         {#if journal.duration_text}
           <span class="chip">{journal.duration_text}</span>
           {#if journal.xp != null}

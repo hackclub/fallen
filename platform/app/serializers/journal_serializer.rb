@@ -46,6 +46,8 @@ class JournalSerializer < ApplicationSerializer
   attribute(:duration_text, &:duration_text)
   attribute(:xp, &:xp)
   many :lapse_timelapses, resource: LapseTimelapseSerializer
+  # Whoever wrote it, which on a team project is not always the owner. Lists preload `user`.
+  one :user, key: :author, resource: PersonSerializer
   attribute(:images) do |journal|
     journal.images.map do |image|
       { id: image.signed_id, url: Rails.application.routes.url_helpers.rails_blob_path(image, only_path: true), filename: image.filename.to_s }

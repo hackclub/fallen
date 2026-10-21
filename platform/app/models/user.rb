@@ -67,10 +67,14 @@ class User < ApplicationRecord
   has_paper_trail
 
   pg_search_scope :search, against: %i[display_name email slack_id], using: { tsearch: { prefix: true } }
+  # Finding a teammate to invite: by name only, so nobody can check whether an email is signed up.
+  pg_search_scope :search_by_name, against: :display_name, using: { tsearch: { prefix: true } }
 
   encrypts :hca_token, :slack_user_token, :lapse_token
 
   has_many :projects, dependent: :destroy
+  has_many :project_memberships, class_name: "ProjectMember", dependent: :delete_all
+  has_many :project_invites, dependent: :delete_all
   has_many :journals, dependent: :destroy
   has_many :xp_entries, dependent: :destroy
   has_many :huddle_sessions, dependent: :destroy
@@ -201,7 +205,7 @@ class User < ApplicationRecord
 
   # The thread the first journal went to, where the pet's welcome is posted.
   def first_journal_project = journals.kept.order(:created_at).first&.project
-  def stage = Evolution.stage(xp) { projects.kept.approved.exists? }
+  def stage = Evolution.stage(xp) { Project.kept.approved.involving(self).exists? }
   def next_stage_xp = Evolution.next_stage_xp(xp)
   def stage_progress = Evolution.progress(xp)
 

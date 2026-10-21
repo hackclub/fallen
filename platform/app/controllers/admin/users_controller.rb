@@ -17,7 +17,7 @@ class Admin::UsersController < Admin::ApplicationController
 
   def show
     authorize @user
-    projects = @user.projects.kept.recent.with_attached_banner.to_a
+    projects = Project.kept.involving(@user).recent.includes(:user, memberships: :user).with_attached_banner.to_a
 
     render inertia: "Admin/Users/Show", props: {
       user: AdminUserDetailSerializer.render(@user),

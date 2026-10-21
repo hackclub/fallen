@@ -41,7 +41,7 @@ class ApplicationController < ActionController::Base
     return if current_user.nil? || current_user.is_banned? || impersonating?
 
     if current_user.pet.nil?
-      { step: "onboarding", project: current_user.projects.kept.order(:created_at).pick(:title), rules: Team.rules, goals: DailyGoal.preview(current_user) }
+      { step: "onboarding", project: Project.kept.teamed_with(current_user).order(:created_at).pick(:title), rules: Team.rules, goals: DailyGoal.preview(current_user) }
     elsif current_user.trial?
       { step: "verify", email: current_user.email }
     elsif !current_user.slack_ready? && SlackMessaging.oauth_configured?

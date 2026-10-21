@@ -2,13 +2,14 @@
   import { Link } from '@inertiajs/svelte'
   import { formatMinutes } from '@/lib/format'
   import { pages } from '@/lib/pages'
+  import AvatarStack from '@/components/team/AvatarStack.svelte'
   import * as sfx from '@/lib/sfx'
   import { project as projectRoute } from '@/routes'
   import type { Project } from '@/types'
   import defaultBanner from '@/assets/hero/default-banner.jpg'
 
-  // A tile on the glass: the banner (else the first journal photo, else the hero art), the title and what has been
-  // logged. Hover or focus lights the tile's frame.
+  // A tile on the glass: the banner (else the first journal photo, else the hero art), the title, what has been
+  // logged and, on a team project, who is building it. Hover or focus lights the tile's frame.
   let { project }: { project: Project } = $props()
 </script>
 
@@ -36,9 +37,15 @@
       <p class="mt-1 font-outfit text-sm text-sky-ice/60">Write a journal after your next session!</p>
     {/if}
 
-    <p class="mt-auto flex flex-wrap gap-2 pt-4">
+    <p class="mt-auto flex flex-wrap items-center gap-2 pt-4">
       <span class="chip">{formatMinutes(project.total_minutes)}</span>
       <span class="chip">{project.journal_count} {project.journal_count === 1 ? 'journal' : 'journals'}</span>
+      {#if project.role === 'former'}
+        <span class="chip">You left</span>
+      {/if}
+      {#if project.teammates.length > 1}
+        <AvatarStack people={project.teammates} size="size-6" class="ml-auto" />
+      {/if}
     </p>
   </div>
 </Link>

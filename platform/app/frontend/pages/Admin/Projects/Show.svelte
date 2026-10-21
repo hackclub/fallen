@@ -80,6 +80,20 @@
       <p class="mt-1 max-w-2xl text-sm whitespace-pre-line text-muted-foreground">{project.description}</p>
     {/if}
     <div class="mt-3"><UserCell user={project.user} /></div>
+    {#if project.teammates.length > 1}
+      <p class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+        Team:
+        {#each project.teammates.slice(1) as person (person.id)}
+          <span class="inline-flex items-center gap-1.5 text-foreground"
+            ><img
+              src={person.avatar}
+              alt=""
+              class="size-5 rounded-full bg-muted object-cover"
+            />{person.name}</span
+          >
+        {/each}
+      </p>
+    {/if}
   </div>
   <div class="flex flex-wrap gap-2">
     {#if can.update}
@@ -100,8 +114,8 @@
             </AlertDialog.Title>
             <AlertDialog.Description>
               {project.approved_at
-                ? `${project.user.display_name}'s pet drops back from its final form until it is approved again.`
-                : `Approving says the project is finished and works. Once ${project.user.display_name} has the XP for it, their pet reaches its final form and they qualify.`}
+                ? `The pet of everyone on it drops back from its final form until it is approved again.`
+                : `Approving says the project is finished and works. Once each person on it has the XP for it, their pet reaches its final form and they qualify.`}
             </AlertDialog.Description>
           </AlertDialog.Header>
           <AlertDialog.Footer>

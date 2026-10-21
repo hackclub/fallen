@@ -82,7 +82,8 @@ class Journal < ApplicationRecord
   # Only on journals from before timelapses were picked from Lapse; nothing sets it any more, since a typed link
   # could point anywhere.
   validates :lapse_url, format: { with: %r{\Ahttps://\S+\z}, message: "must be a link starting with https://" }, allow_blank: true
-  validate :author_owns_project
+  # Only new ones: someone who has left the team can still edit and delete what they wrote.
+  validate :author_on_team, on: :create
   validate :images_are_images
   validate :images_cover_hours, if: -> { new_record? || duration_minutes_changed? || attachment_changes.key?("images") }
   validate :duration_was_understood
@@ -237,9 +238,9 @@ class Journal < ApplicationRecord
     errors.add(:images, "must be under #{MAX_IMAGE_BYTES / 1.megabyte} MB each") if blobs.any? { |blob| blob.byte_size > MAX_IMAGE_BYTES }
   end
 
-  def author_owns_project
-    return if project.nil? || project.user_id == user_id
+  def author_on_team
+    return if project.nil? || project.on_team?(user)
 
-    errors.add(:project, "must be yours")
+    errors.add(:project, "must be one you're on the team of")
   end
 end

@@ -112,8 +112,8 @@
 {/snippet}
 
 {#snippet teams()}
-  Yes! Each teammate needs their own clear part of the project, and journals their own hours to level up their
-  own character.
+  Yes! Invite your teammates from your project page. Each teammate needs their own clear part of the project,
+  and journals their own hours to level up their own character: nothing anyone logs is split or shared.
 {/snippet}
 
 {#snippet howLong()}

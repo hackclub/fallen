@@ -55,7 +55,15 @@ Rails.application.routes.draw do
 
   resources :projects do
     resources :journals, only: %i[create update destroy], shallow: true
+    # Teams: invites by name, the link anyone can join with, and leaving or taking someone off.
+    resources :invites, controller: :project_invites, only: %i[create show destroy], shallow: true do
+      post :accept, on: :member
+    end
+    resource :join_link, controller: :project_join_links, only: :create
+    resources :teammates, controller: :project_teammates, only: :destroy
   end
+  get "join/:token" => "project_joins#show", as: :join
+  post "join/:token" => "project_joins#create"
 
   # Slack app endpoints (signature-verified, no session). See lib/slack_bot and app/bot.
   scope "slack", controller: :slack, as: :slack do

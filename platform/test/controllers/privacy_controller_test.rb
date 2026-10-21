@@ -105,6 +105,21 @@ class PrivacyControllerTest < ActionDispatch::IntegrationTest
     assert_not_equal "banned@example.com", banned.email
   end
 
+  test "a project others are building goes to a teammate, and only the person's own journals go" do
+    project = projects(:station)
+    friend = User.create!(hca_id: "hca_friend", email: "friend@example.com", display_name: "Friend", roles: [ "user" ], pet: "sami")
+    project.memberships.create!(user: friend)
+    theirs = project.journals.create!(user: friend, body: journal_text, duration: "1", images: [ photo ], source: "web")
+    solo = projects(:unlinked).id
+
+    call_hub :delete, action: "delete", dry_run: false, subject: { emails: [ "member@example.com" ] }
+    assert_response :success
+    assert_equal friend, project.reload.user
+    assert_empty project.memberships
+    assert_equal [ theirs ], project.journals.to_a
+    assert_not Project.exists?(solo), "nobody else was on it"
+  end
+
   test "export reports counts and never changes anything" do
     assert_no_difference -> { User.count } do
       call_hub :export, action: "export", dry_run: false, subject: { emails: [ "member@example.com" ] }

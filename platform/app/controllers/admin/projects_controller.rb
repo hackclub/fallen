@@ -1,6 +1,6 @@
 class Admin::ProjectsController < Admin::ApplicationController
   def index
-    scope = policy_scope([ :admin, Project ]).includes(:user).with_attached_banner
+    scope = policy_scope([ :admin, Project ]).includes(:user, memberships: :user).with_attached_banner
     scope = scope.kept unless include_deleted?
     scope = search(scope, params[:query]) if params[:query].present?
 
@@ -17,7 +17,7 @@ class Admin::ProjectsController < Admin::ApplicationController
     authorize [ :admin, project ]
 
     journals = project.journals.kept
-    pagy, page = pagy(journals.newest_first.includes(:xp_entry, :lapse_timelapses, images_attachments: :blob))
+    pagy, page = pagy(journals.newest_first.includes(:user, :xp_entry, :lapse_timelapses, images_attachments: :blob))
 
     render inertia: "Admin/Projects/Show", props: {
       project: AdminProjectSerializer.render(project),

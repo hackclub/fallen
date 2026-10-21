@@ -12,12 +12,16 @@
   import ProjectBanner from '@/components/ProjectBanner.svelte'
   import SlackConnect, { type SlackStatus } from '@/components/SlackConnect.svelte'
   import SolarNotebook from '@/components/icons/SolarNotebook.svelte'
+  import InviteModal from '@/components/team/InviteModal.svelte'
+  import ProjectTeam from '@/components/team/ProjectTeam.svelte'
   import { projects, project as projectRoute } from '@/routes'
   import { formatMinutes } from '@/lib/format'
   import { pages } from '@/lib/pages'
+  import { shared } from '@/lib/shared.svelte'
+  import type { TeamStatus } from '@/lib/team'
   import * as sfx from '@/lib/sfx'
   import { stagger } from '@/lib/stagger'
-  import type { Journal, Pagy, Project } from '@/types'
+  import type { Journal, Pagy, Person, Project } from '@/types'
 
   let {
     project,
@@ -25,7 +29,8 @@
     pagy,
     slack,
     direct_upload_url,
-    owner,
+    team,
+    people,
     lapse,
     can,
   }: {
@@ -35,14 +40,25 @@
     pagy?: Pagy
     slack?: SlackStatus
     direct_upload_url?: string
-    owner?: { name: string; avatar: string }
-    // Deferred, and null on someone else's project.
+    team?: TeamStatus
+    // Optional: only sent while the invite popup searches for someone.
+    people?: Person[]
+    // Deferred, and null on a project the person is not on the team of.
     lapse?: LapseStatus | null
-    can?: { update: boolean; destroy: boolean; journal: boolean }
+    can?: {
+      update: boolean
+      destroy: boolean
+      journal: boolean
+      invite: boolean
+      leave: boolean
+      remove_teammate: boolean
+    }
   } = $props()
 
   let composer: { open: boolean; journal: Journal | null } = $state({ open: false, journal: null })
   let editing = $state(false)
+  let inviting = $state(false)
+  const me = $derived(shared().auth.user?.id)
 
   function write(journal: Journal | null = null) {
     composer = { open: true, journal }
@@ -112,6 +128,9 @@
         <span class="chip"
           >{project.journal_count} {project.journal_count === 1 ? 'journal' : 'journals'}</span
         >
+        {#if project.teammates.length > 1}
+          <span class="chip">{project.teammates.length} on the team</span>
+        {/if}
       </p>
 
       {#if project.description}
@@ -132,7 +151,7 @@
   </section>
 
   <div class="mt-6 space-y-5">
-    {#if !journals || !pagy || !slack || !can || !owner}
+    {#if !journals || !pagy || !slack || !can || !team}
       <div class="glass px-5 py-5 md:px-6" aria-busy="true">
         <div class="skeleton h-6 w-40"></div>
         <div class="mt-2 skeleton h-4 w-72 max-w-full"></div>
@@ -147,6 +166,8 @@
         {/each}
       </ul>
     {:else}
+      <ProjectTeam {project} {team} {can} onInvite={() => (inviting = true)} />
+
       {#if can.journal}
         <button
           type="button"
@@ -170,7 +191,7 @@
           </span>
           <span class="pill-cream h-11 text-base max-sm:hidden">Write</span>
         </button>
-      {:else}
+      {:else if can.invite}
         <SlackConnect {slack} returnTo={projectRoute(project.id).url} />
       {/if}
 
@@ -189,7 +210,7 @@
         </h2>
         <ol {@attach stagger} class="stagger-in space-y-5 [--stagger-step:70ms]">
           {#each journals as journal (journal.id)}
-            <li><JournalItem {journal} author={owner} editable={can.update} onEdit={write} /></li>
+            <li><JournalItem {journal} editable={journal.author.id === me} onEdit={write} /></li>
           {/each}
         </ol>
         <Pagination
@@ -211,6 +232,10 @@
     {lapse}
     onClose={() => (composer = { open: false, journal: null })}
   />
+{/if}
+
+{#if inviting && team}
+  <InviteModal {project} {team} {people} onClose={() => (inviting = false)} />
 {/if}
 
 {#if editing}

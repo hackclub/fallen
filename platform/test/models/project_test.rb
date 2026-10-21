@@ -9,6 +9,7 @@ require "test_helper"
 #  demo_url            :string
 #  description         :text
 #  discarded_at        :datetime
+#  join_token          :string
 #  repo_url            :string
 #  slack_posted_by_bot :boolean          default(FALSE), not null
 #  slack_thread_ts     :string
@@ -21,6 +22,7 @@ require "test_helper"
 # Indexes
 #
 #  index_projects_on_discarded_at                          (discarded_at)
+#  index_projects_on_join_token                            (join_token) UNIQUE
 #  index_projects_on_slack_channel_id_and_slack_thread_ts  (slack_channel_id,slack_thread_ts) UNIQUE WHERE (slack_thread_ts IS NOT NULL)
 #  index_projects_on_updated_at                            (updated_at)
 #  index_projects_on_user_id                               (user_id)

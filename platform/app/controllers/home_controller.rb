@@ -3,19 +3,21 @@ class HomeController < ApplicationController
   skip_after_action :verify_authorized # Shows only the current user's own data
   skip_after_action :verify_policy_scoped # Projects go through policy_scope, but only in the deferred request
 
+  include TeamProps
+
   ACTIVITY_DAYS = 49
 
   # Nothing deferred: these are a dozen indexed queries over one person's own rows, about 15ms together, and a
   # deferred prop costs the browser another round trip to the server, 100-300ms for most people.
   def index
-    render inertia: "Home/Index", props: { projects: projects, stats: stats, xp: xp, goal: goal, activity: activity }
+    render inertia: "Home/Index", props: { projects: projects, invites: pending_invites, stats: stats, xp: xp, goal: goal, activity: activity }
   end
 
   private
 
   def projects
-    projects = policy_scope(Project).recent.with_attached_banner.to_a
-    ProjectSerializer.render(projects, **Project.journal_totals(projects), covers: Project.journal_covers(projects))
+    projects = Project.preload_teams(policy_scope(Project).recent.with_attached_banner.to_a, known: [ current_user ])
+    ProjectSerializer.render(projects, **Project.journal_totals(projects), covers: Project.journal_covers(projects), viewer: current_user)
   end
 
   def stats
