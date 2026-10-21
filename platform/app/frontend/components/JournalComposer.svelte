@@ -4,6 +4,7 @@
   import LapsePicker, { type LapseStatus } from '@/components/LapsePicker.svelte'
   import MarkdownEditor from '@/components/MarkdownEditor.svelte'
   import Sketchbook from '@/components/Sketchbook.svelte'
+  import SubmitButton from '@/components/SubmitButton.svelte'
   import WritingCheckDialog from '@/components/WritingCheckDialog.svelte'
   import { formatDate } from '@/lib/format'
   import { MINUTES_PER_PHOTO, MIN_JOURNAL_LENGTH, countWords, writtenLength } from '@/lib/markdown'
@@ -314,15 +315,12 @@
 
         <!-- Room for the button's press-down edge and focus ring, which the scrolling grid would clip. -->
         <div class="mt-4 border-t-2 border-dashed border-paper-edge/70 px-1.5 pt-4 pb-2">
-          <button type="submit" class="sketch-button w-full" disabled={!canSubmit}>
-            {form.processing || checking || flaggedCheck
-              ? editing
-                ? 'Saving…'
-                : 'Logging…'
-              : editing
-                ? 'Save journal'
-                : 'Log journal'}
-          </button>
+          <SubmitButton
+            busy={form.processing || checking || flaggedCheck !== null}
+            disabled={!canSubmit}
+            busyLabel={editing ? 'Saving' : 'Logging'}
+            label={editing ? 'Save journal' : 'Log journal'}
+          />
         </div>
       </aside>
     </div>
