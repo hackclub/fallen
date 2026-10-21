@@ -49,6 +49,7 @@
 
   let editor: MarkdownEditor | undefined = $state()
   let uploadError: string | null = $state(null)
+  let uploading = $state(0)
   let draftRestored = $state(false)
   // While Pangram reads the writing the button looks the same as while posting. A flagged check waits on the dialog.
   let checking = $state(false)
@@ -124,6 +125,7 @@
     form.body.trim().length > 0 &&
       longEnough &&
       (timelapsed || form.duration.trim().length > 0) &&
+      uploading === 0 &&
       !form.processing &&
       !checking,
   )
@@ -237,6 +239,7 @@
           labelledby="journal-body-label"
           bind:this={editor}
           bind:value={form.body}
+          bind:uploading
           {directUploadUrl}
           onUpload={addImage}
           onError={(message) => (uploadError = message)}
@@ -319,7 +322,7 @@
             busy={form.processing || checking || flaggedCheck !== null}
             disabled={!canSubmit}
             busyLabel={editing ? 'Saving' : 'Logging'}
-            label={editing ? 'Save journal' : 'Log journal'}
+            label={uploading ? 'Waiting for photos…' : editing ? 'Save journal' : 'Log journal'}
           />
         </div>
       </aside>

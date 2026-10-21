@@ -10,6 +10,7 @@
   import Strikethrough from '@lucide/svelte/icons/strikethrough'
   import type { Editor } from '@tiptap/core'
   import { onMount, type Component } from 'svelte'
+  import type { reservePhoto } from '@/lib/journal-editor'
   import { uploadImage, type UploadedImage } from '@/lib/uploads'
 
   // Writes like a rich text box and stores Markdown, which is what the site renders and Slack gets a copy of.
@@ -20,6 +21,7 @@
     onUpload,
     onError,
     placeholder = '',
+    uploading = $bindable(0),
   }: {
     labelledby?: string
     value: string
@@ -27,14 +29,15 @@
     onUpload: (image: UploadedImage) => void
     onError: (message: string) => void
     placeholder?: string
+    uploading?: number
   } = $props()
 
   let mount: HTMLDivElement | undefined = $state()
   let fileInput: HTMLInputElement | undefined = $state()
   let editor: Editor | undefined = $state.raw()
+  let reserve: typeof reservePhoto | undefined
   // Tiptap's editor isn't reactive; this ticks on every transaction so the toolbar re-reads it.
   let redraws = $state(0)
-  let uploading = $state(0)
   let dragging = $state(false)
   // Chrome marks a dragged <img> as carrying files, so a photo moved within the writing looks like one dropped in.
   let movingInside = false
@@ -45,8 +48,9 @@
 
   onMount(() => {
     let destroyed = false
-    import('@/lib/journal-editor').then(({ createJournalEditor }) => {
+    import('@/lib/journal-editor').then(({ createJournalEditor, reservePhoto }) => {
       if (destroyed || !mount) return
+      reserve = reservePhoto
       editor = createJournalEditor({
         element: mount,
         markdown: value,
@@ -157,14 +161,22 @@
     closeLink()
   }
 
-  export async function addFiles(files: FileList | File[]) {
-    for (const file of Array.from(files)) {
-      uploading += 1
+  // Every photo gets its spot straight away; they upload one at a time so they land in the order they came.
+  export async function addFiles(files: FileList | File[], at?: number) {
+    const current = editor
+    if (!current || !reserve) return
+    const slots = Array.from(files).map((file) => ({ file, slot: reserve!(current, file, at) }))
+    uploading += slots.length
+    for (const { file, slot } of slots) {
       try {
-        const image = await uploadImage(file, directUploadUrl)
-        editor?.chain().focus().setImage({ src: image.url, alt: image.filename }).run()
-        onUpload(image)
+        const image = await uploadImage(file, directUploadUrl, slot.progress)
+        // So the photo doesn't blink empty between the preview and the uploaded copy.
+        const loaded = new Image()
+        loaded.src = image.url
+        await loaded.decode().catch(() => {})
+        if (slot.place(image.url, image.filename)) onUpload(image)
       } catch (error) {
+        slot.cancel()
         onError(error instanceof Error ? error.message : 'Upload failed')
       } finally {
         uploading -= 1
@@ -188,8 +200,29 @@
   }
 </script>
 
+<!-- The whole box takes dropped files. ProseMirror handles a drop onto the writing; anything it leaves, like a drop
+     under the last line or on the toolbar, would otherwise make the browser open the file. -->
 <div
-  class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border-2 border-paper-edge bg-paper-well transition-colors focus-within:border-[var(--sb-ring)]"
+  role="presentation"
+  ondragstart={() => (movingInside = true)}
+  ondragend={() => (movingInside = false)}
+  ondragover={(e) => {
+    if (movingInside || !e.dataTransfer?.types.includes('Files')) return
+    e.preventDefault()
+    dragging = true
+  }}
+  ondragleave={(e) => {
+    if (!e.currentTarget.contains(e.relatedTarget as Node | null)) dragging = false
+  }}
+  ondrop={(e) => {
+    dragging = false
+    movingInside = false
+    const files = e.dataTransfer?.files
+    if (e.defaultPrevented || !files?.length) return
+    e.preventDefault()
+    addFiles(files, editor?.state.doc.content.size)
+  }}
+  class="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border-2 border-paper-edge bg-paper-well transition-colors focus-within:border-[var(--sb-ring)]"
 >
   <div class="flex h-11 shrink-0 items-center gap-0.5 border-b-2 border-paper-edge/60 px-1.5">
     {#if linking}
@@ -260,31 +293,16 @@
     />
   </div>
 
-  <div
-    class="ruled relative min-h-[280px] flex-1 overflow-y-auto"
-    role="presentation"
-    onkeydown={onKeydown}
-    ondragstart={() => (movingInside = true)}
-    ondragend={() => (movingInside = false)}
-    ondragover={(e) => {
-      if (movingInside || !e.dataTransfer?.types.includes('Files')) return
-      e.preventDefault()
-      dragging = true
-    }}
-    ondragleave={(e) => {
-      if (!e.currentTarget.contains(e.relatedTarget as Node | null)) dragging = false
-    }}
-    ondrop={() => (dragging = false)}
-  >
+  <div class="ruled relative min-h-[280px] flex-1 overflow-y-auto" role="presentation" onkeydown={onKeydown}>
     <div bind:this={mount} class="min-h-full"></div>
-    {#if dragging}
-      <div
-        class="pointer-events-none absolute inset-1 flex items-center justify-center rounded-lg border-2 border-dashed border-ink/50 bg-paper/80 font-outfit text-sm text-ink"
-      >
-        Drop photos to add them
-      </div>
-    {/if}
   </div>
+  {#if dragging}
+    <div
+      class="pointer-events-none absolute inset-1 flex items-center justify-center rounded-lg border-2 border-dashed border-ink/50 bg-paper/80 font-outfit text-sm text-ink"
+    >
+      Drop photos to add them
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -410,6 +428,42 @@
     max-width: 100%;
     border-radius: 0.5rem;
     object-fit: cover;
+  }
+  .min-h-full :global(.journal-upload) {
+    position: relative;
+    display: block;
+    width: fit-content;
+    max-width: 100%;
+  }
+  .min-h-full :global(.journal-upload img) {
+    opacity: 0.55;
+  }
+  .min-h-full :global(.journal-upload-status) {
+    position: absolute;
+    inset: auto 0.5rem 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    border-radius: 0.5rem;
+    background: color-mix(in srgb, var(--color-paper) 92%, transparent);
+    padding: 0.35rem 0.6rem 0.5rem;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.2;
+    font-variant-numeric: tabular-nums;
+  }
+  .min-h-full :global(.journal-upload-bar) {
+    height: 4px;
+    overflow: hidden;
+    border-radius: 9999px;
+    background: color-mix(in srgb, var(--color-ink) 15%, transparent);
+  }
+  .min-h-full :global(.journal-upload-bar > span) {
+    display: block;
+    width: 0;
+    height: 100%;
+    background: var(--sb-ring-deep);
+    transition: width 150ms;
   }
   .min-h-full :global(.journal-editor img.ProseMirror-selectednode) {
     outline: 3px solid var(--sb-ring);
