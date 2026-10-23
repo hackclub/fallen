@@ -3,10 +3,27 @@ import { marked } from 'marked'
 
 marked.use({ gfm: true, breaks: true })
 
-// Journal bodies are Markdown written by the author; the HTML is sanitised before it touches the DOM.
-export function renderMarkdown(markdown: string): string {
+// Only what Markdown itself makes, with no styles, so nothing can pull in a picture from elsewhere.
+const ALLOWED_TAGS =
+  'p br strong em del code pre blockquote ul ol li a img hr h1 h2 h3 h4 h5 h6 table thead tbody tr th td input'.split(
+    ' ',
+  )
+const ALLOWED_ATTR = 'href target rel title src alt start type checked disabled align'.split(' ')
+const PHOTO_PATH = /^\/rails\/active_storage\/blobs\/redirect\/([^/]+)\//
+
+// Journal bodies are Markdown written by the author; the HTML is sanitised before it touches the DOM. The only
+// pictures shown are the journal's own uploads (`photos`, their signed ids): anything else, even another journal's
+// photo, is dropped.
+export function renderMarkdown(markdown: string, photos: string[]): string {
   const html = marked.parse(markdown, { async: false }) as string
-  return DOMPurify.sanitize(html, { ADD_ATTR: ['target'], FORBID_TAGS: ['style', 'script'] })
+  const fragment = DOMPurify.sanitize(html, { ALLOWED_TAGS, ALLOWED_ATTR, RETURN_DOM_FRAGMENT: true })
+  for (const img of fragment.querySelectorAll('img')) {
+    const id = img.getAttribute('src')?.match(PHOTO_PATH)?.[1]
+    if (!id || !photos.includes(decodeURIComponent(id))) img.remove()
+  }
+  const container = document.createElement('div')
+  container.append(fragment)
+  return container.innerHTML
 }
 
 // Characters of writing, leaving out embedded photos, as Journal.written_length counts them on the server.

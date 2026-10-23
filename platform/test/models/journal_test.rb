@@ -206,6 +206,37 @@ class JournalTest < ActiveSupport::TestCase
     assert_no_enqueued_jobs(only: ActiveStorage::AnalyzeJob) { journal.update!(body: journal_text("edited")) }
   end
 
+  test "a photo already on another journal or a banner can't be attached again" do
+    image = photo
+    projects(:station).journals.create!(user: users(:member), body: journal_text, duration: "1", images: [ image ])
+
+    reused = projects(:station).journals.build(user: users(:member), body: journal_text, duration: "1", images: [ image ])
+    assert_not reused.valid?
+    assert_includes reused.errors[:images], "must be photos you uploaded for this journal"
+  end
+
+  test "a photo someone else uploaded can't be attached" do
+    image = photo
+    image.update!(metadata: image.metadata.merge(Journal::UPLOADER_KEY => users(:admin).id))
+    assert_not projects(:station).journals.build(user: users(:member), body: journal_text, duration: "1", images: [ image ]).valid?
+
+    image.update!(metadata: image.metadata.merge(Journal::UPLOADER_KEY => users(:member).id))
+    assert projects(:station).journals.build(user: users(:member), body: journal_text, duration: "1", images: [ image ]).valid?
+  end
+
+  test "the writing shows only the journal's own photos" do
+    mine, other = photo, photo("other.png")
+    embed = ->(blob) { "![x](/rails/active_storage/blobs/redirect/#{blob.signed_id}/x.png)" }
+    build = ->(extra) { projects(:station).journals.build(user: users(:member), body: journal_text + extra, duration: "1", images: [ mine ]) }
+
+    assert build.("\n#{embed.(mine)}").valid?
+    [ embed.(other), "![x](https://cdn.example/x.png)", "![x](//cdn.example/x.png)", %(<img src="https://cdn.example/x.png">), "![x][cdn]\n\n[cdn]: https://cdn.example/x.png" ].each do |extra|
+      journal = build.("\n#{extra}")
+      assert_not journal.valid?, extra
+      assert_includes journal.errors[:body], "can only show photos uploaded to this journal"
+    end
+  end
+
   test "author must own the project" do
     journal = projects(:station).journals.build(user: users(:admin), body: journal_text("mine?"))
     assert_not journal.valid?

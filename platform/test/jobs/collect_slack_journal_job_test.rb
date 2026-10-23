@@ -33,10 +33,11 @@ class CollectSlackJournalJobTest < ActiveJob::TestCase
 
   def with_fake_download
     requested = []
+    png = file_fixture("pixel.png").binread
     original_get = Faraday.method(:get)
     Faraday.define_singleton_method(:get) do |url, *_rest|
       requested << url
-      Faraday::Response.new(status: 200, body: "png", response_headers: { "content-type" => "image/png" })
+      Faraday::Response.new(status: 200, body: png, response_headers: { "content-type" => "image/png" })
     end
     yield
     requested

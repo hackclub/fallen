@@ -74,6 +74,11 @@ class Journal < ApplicationRecord
   IMAGE_TYPES = %w[image/png image/jpeg image/gif image/webp].freeze
   MAX_IMAGES = 10
   MAX_IMAGE_BYTES = 10.megabytes
+  # Blob metadata UploadsController sets to who uploaded it.
+  UPLOADER_KEY = "uploaded_by"
+  # A photo embedded by the editor: `![alt](/rails/active_storage/blobs/redirect/<signed id>/<filename>)`.
+  EMBEDDED_IMAGE = /!\[[^\]]*\]\(\s*<?([^)\s>]*)/
+  PHOTO_PATH = %r{\A/rails/active_storage/blobs/redirect/([^/]+)/}
 
   validates :body, presence: true, length: { maximum: MAX_BODY_LENGTH }
   # New journals, and edits on the site. Edits made in Slack always go through, so the journal keeps up with the
@@ -88,6 +93,8 @@ class Journal < ApplicationRecord
   # Only new ones: someone who has left the team can still edit and delete what they wrote.
   validate :author_on_team, on: :create
   validate :images_are_images
+  validate :images_are_new_uploads, if: -> { attachment_changes.key?("images") }
+  validate :embeds_only_own_photos, if: -> { from_web? && (new_record? || will_save_change_to_body?) }
   validate :images_cover_hours, if: -> { new_record? || duration_minutes_changed? || attachment_changes.key?("images") }
   validate :duration_was_understood
   validate :picked_timelapses_are_usable, if: -> { @picked_timelapses }
@@ -111,6 +118,18 @@ class Journal < ApplicationRecord
     return nil if channel_id.blank? || ts.blank?
 
     where(slack_channel_id: channel_id).where("slack_ts = :ts OR slack_parts @> CAST(:part AS jsonb)", ts: ts, part: [ { ts: ts } ].to_json).first
+  end
+
+  # Photos are the proof of the work, so each is attached once, by someone it belongs to: a signed id seen on
+  # another journal or a banner, even one's own, is refused. `blobs` are the ones being newly attached; ones built
+  # from bytes just now (Slack photos) have nothing to check. Blobs uploaded before uploads were tagged have no
+  # uploader.
+  def self.reused_uploads?(blobs, uploaders:, record:)
+    stored = blobs.select(&:persisted?)
+    return false if stored.empty?
+
+    stored.any? { |blob| !blob.metadata.fetch(UPLOADER_KEY, uploaders.first).in?(uploaders) } ||
+      ActiveStorage::Attachment.where(blob_id: stored.map(&:id)).where.not(record_type: record.class.name, record_id: record.id).exists?
   end
 
   def self.body_from(parts) = parts.map { |part| part["text"] }.compact_blank.join("\n\n")
@@ -246,6 +265,25 @@ class Journal < ApplicationRecord
     LapseTimelapse.where(id: ids).each { |timelapse| timelapse.update!(journal_id: id) }
     @picked_timelapses = nil
     lapse_timelapses.reset
+  end
+
+  def images_are_new_uploads
+    added = images.attachments.select(&:new_record?).map(&:blob)
+    errors.add(:images, "must be photos you uploaded for this journal") if Journal.reused_uploads?(added, uploaders: [ user_id ], record: self)
+  end
+
+  # The writing shows only this journal's own photos, never a picture from anywhere else.
+  def embeds_only_own_photos
+    sources = body.to_s.scan(EMBEDDED_IMAGE).flatten
+    raw_image = body.to_s.match?(/<img\b|!\[[^\]]*\]\[/i)
+    return if sources.empty? && !raw_image
+
+    own = images.attachments.map(&:blob_id)
+    foreign = raw_image || sources.any? do |source|
+      id = source[PHOTO_PATH, 1]
+      id.nil? || !ActiveStorage::Blob.find_signed(CGI.unescape(id))&.id.in?(own)
+    end
+    errors.add(:body, "can only show photos uploaded to this journal") if foreign
   end
 
   def images_are_images

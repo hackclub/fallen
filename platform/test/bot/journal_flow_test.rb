@@ -129,7 +129,7 @@ class JournalFlowTest < ActiveSupport::TestCase
       assert_not JournalDraft.exists?(draft.id)
       assert_equal true, slack.calls_to(:response_url).last[:body]["replace_original"]
 
-      download = Faraday::Response.new(status: 200, body: "png", response_headers: { "content-type" => "image/png" })
+      download = Faraday::Response.new(status: 200, body: file_fixture("pixel.png").binread, response_headers: { "content-type" => "image/png" })
       stub_method(Faraday, :get, download) { perform_enqueued_jobs }
       assert_equal [ "case.png" ], journal.images.map { |image| image.filename.to_s }
       assert_empty slack.calls_to(:reactions_add), "no reaction on the saved replies"
@@ -354,7 +354,7 @@ class JournalFlowTest < ActiveSupport::TestCase
       assert_equal %w[journal_draft:attach journal_draft:more journal_draft:skip], prompt[:blocks].find { |block| block[:type] == "actions" }[:elements].pluck(:action_id)
 
       press("attach", JournalDraft.last)
-      download = Faraday::Response.new(status: 200, body: "png", response_headers: { "content-type" => "image/png" })
+      download = Faraday::Response.new(status: 200, body: file_fixture("pixel.png").binread, response_headers: { "content-type" => "image/png" })
       stub_method(Faraday, :get, download) { perform_enqueued_jobs(only: CollectSlackJournalJob) }
       assert_equal [ "case.png" ], journals(:first).images.map { |image| image.filename.to_s }
       assert_equal 0, JournalDraft.count
@@ -438,8 +438,9 @@ class JournalFlowTest < ActiveSupport::TestCase
   end
 
   test "fallen's own rewrite of a web journal does not come back as an edit" do
-    journal = projects(:station).journals.create!(user: users(:member), body: journal_text("**Soldered** the board\n![board.png](/rails/active_storage/blobs/redirect/x/board.png)"),
-                                                  duration_minutes: 60, source: "web", images: [ photo ], slack_channel_id: CHANNEL, slack_ts: "1700000020.000100")
+    image = photo
+    journal = projects(:station).journals.create!(user: users(:member), body: journal_text("**Soldered** the board\n![board.png](/rails/active_storage/blobs/redirect/#{image.signed_id}/board.png)"),
+                                                  duration_minutes: 60, source: "web", images: [ image ], slack_channel_id: CHANNEL, slack_ts: "1700000020.000100")
     with_fake_slack do
       SlackBot.handle(:event, { "event" => { "type" => "message", "subtype" => "message_changed", "channel" => CHANNEL,
                                               "message" => { "ts" => journal.slack_ts, "text" => SlackMessages.journal(journal)[:text].tr("\n", " "), "user" => "U0MEMBER" } } })

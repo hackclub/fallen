@@ -2,7 +2,8 @@
 #
 # 1. create: checks the declared type and size and returns a presigned PUT bound to that type, size and MD5, plus
 #    a token that only this controller accepts. Active Storage's own endpoint is closed (initializers/active_storage.rb).
-# 2. update: once the PUT is done, reads the first bytes back and only then hands out the blob's signed id.
+# 2. update: once the PUT is done, reads the first bytes back and only then hands out the blob's signed id, noting
+#    who uploaded it (Journal.reused_uploads?).
 #
 # The type comes from the file's bytes, never the browser's say-so, and nothing decodes the image.
 class UploadsController < ApplicationController
@@ -42,6 +43,7 @@ class UploadsController < ApplicationController
       blob.purge
       return render_error("#{blob.filename} is not a PNG, JPEG, GIF or WebP")
     end
+    blob.metadata[Journal::UPLOADER_KEY] = current_user.id
     blob.update!(content_type:, identified: true)
 
     render json: { signed_id: blob.signed_id, filename: blob.filename.to_s }

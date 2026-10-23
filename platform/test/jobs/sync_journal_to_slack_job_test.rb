@@ -19,9 +19,12 @@ class SyncJournalToSlackJobTest < ActiveJob::TestCase
   end
 
   test "leaves the photos the editor embedded out of the text, since they go under the message" do
-    upload = "/rails/active_storage/blobs/redirect/abc--123/board.png"
+    image = photo
+    upload = "/rails/active_storage/blobs/redirect/#{image.signed_id}/board.png"
     body = "#{journal_text('Soldered the board')}\n![board.png](#{upload})\n![power](image.p\n![wiring.png](#{upload})\nng)\n\n\n![logo](https://x.test/logo.png) done"
-    journal = projects(:station).journals.create!(user: users(:member), body: body, duration_minutes: 60, source: "web", images: [ photo ])
+    # Written before outside pictures were refused, as older journals were.
+    journal = projects(:station).journals.create!(user: users(:member), body: journal_text, duration_minutes: 60, source: "web", images: [ image ])
+    journal.update_column(:body, body)
 
     with_fake_slack do |slack|
       SyncJournalToSlackJob.perform_now(journal, "create")

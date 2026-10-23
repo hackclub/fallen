@@ -82,6 +82,13 @@ class ProjectsTest < ActionDispatch::IntegrationTest
     assert_includes cards[projects(:station).public_id]["cover_url"], "old.png"
   end
 
+  test "a banner can't be another project's photo" do
+    image = photo
+    journals(:first).images.attach(image)
+    patch project_path(projects(:station)), params: { project: { banner: image.signed_id } }
+    assert_not projects(:station).reload.banner.attached?
+  end
+
   test "rejects a banner that is not an image" do
     blob = ActiveStorage::Blob.create_and_upload!(io: StringIO.new("%PDF"), filename: "plan.pdf", content_type: "application/pdf")
     assert_no_difference -> { Project.count } do
@@ -111,7 +118,7 @@ class ProjectsTest < ActionDispatch::IntegrationTest
     assert_no_difference -> { Journal.count } do
       post project_journals_path(projects(:station)), params: { journal: { body: journal_text("no photo"), duration: "0.75" } }
     end
-    post project_journals_path(projects(:station)), params: { journal: { body: journal_text("![board](x)"), duration: "0.75", images: [ blob.signed_id ] } }
+    post project_journals_path(projects(:station)), params: { journal: { body: journal_text("![board](/rails/active_storage/blobs/redirect/#{blob.signed_id}/board.png)"), duration: "0.75", images: [ blob.signed_id ] } }
     journal = Journal.last
     assert_equal 1, journal.images.count
 

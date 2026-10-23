@@ -18,6 +18,7 @@ class UploadsTest < ActionDispatch::IntegrationTest
     blob = ActiveStorage::Blob.find_signed!(response.parsed_body["signed_id"])
     assert_equal "image/png", blob.content_type
     assert blob.identified?
+    assert_equal users(:member).id, blob.metadata[Journal::UPLOADER_KEY]
   end
 
   test "the type comes from the bytes, not what the browser claims" do

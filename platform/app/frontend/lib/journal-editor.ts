@@ -13,6 +13,11 @@ const QuietHeading = Heading.extend({
   addKeyboardShortcuts: () => ({}),
 })
 
+// Pasted HTML can't bring in a picture from elsewhere: only uploads to the site become images.
+const OwnImage = Image.extend({
+  parseHTML: () => [{ tag: 'img[src^="/rails/active_storage/blobs/redirect/"]' }],
+})
+
 type PhotoAction = { add: { id: object; at: number; dom: HTMLElement } } | { remove: object }
 
 const photos = new PluginKey<DecorationSet>('uploadingPhotos')
@@ -114,7 +119,7 @@ export function createJournalEditor({
         link: { openOnClick: false, autolink: true, defaultProtocol: 'https' },
       }),
       QuietHeading,
-      Image,
+      OwnImage,
       UploadingPhotos,
       Placeholder.configure({ placeholder }),
       Markdown.configure({ markedOptions: { gfm: true, breaks: true } }),

@@ -61,6 +61,7 @@ class Project < ApplicationRecord
   validates :repo_url, :demo_url, format: { with: %r{\Ahttps?://\S+\z}, message: "must be a link starting with http(s)://" }, allow_blank: true
   validates :slack_thread_ts, uniqueness: { scope: :slack_channel_id }, allow_nil: true
   validate :banner_is_an_image
+  validate :banner_is_a_new_upload
 
   after_create :grant_early_bird
 
@@ -168,6 +169,13 @@ class Project < ApplicationRecord
     return if created_at > EARLY_BIRD_UNTIL || user.xp_entries.kept.exists?(kind: "early_bird")
 
     user.xp_entries.create!(kind: "early_bird", amount: EARLY_BIRD_BONUS, day: user.local_date(created_at), source: self)
+  end
+
+  def banner_is_a_new_upload
+    return unless banner.attachment&.new_record?
+
+    uploaders = [ user_id, *memberships.map(&:user_id) ]
+    errors.add(:banner, "must be an image uploaded for this project") if Journal.reused_uploads?([ banner.attachment.blob ], uploaders:, record: self)
   end
 
   def banner_is_an_image

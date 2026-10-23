@@ -24,7 +24,11 @@ class CollectSlackJournalJob < ApplicationJob
     # Without files:read Slack answers with its sign-in page instead of the file.
     return unless response.success? && response.headers["content-type"].to_s.start_with?("image/") && response.body.bytesize <= Journal::MAX_IMAGE_BYTES
 
-    journal.images.attach(io: StringIO.new(response.body), filename: file["name"].presence || "photo", content_type: file["mimetype"], metadata: { slack_file_id: file["id"] })
+    # The type comes from the bytes, as for uploads on the site (UploadsController).
+    content_type = Marcel::MimeType.for(StringIO.new(response.body))
+    return unless content_type.in?(Journal::IMAGE_TYPES)
+
+    journal.images.attach(io: StringIO.new(response.body), filename: file["name"].presence || "photo", content_type:, identify: false, metadata: { slack_file_id: file["id"] })
   rescue Faraday::Error, Slack::Web::Api::Errors::FileNotFound
     nil
   end

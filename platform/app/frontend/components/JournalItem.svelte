@@ -18,6 +18,9 @@
     onEdit: (journal: Journal) => void
   } = $props()
 
+  // Photos the writing doesn't already show (Slack journals, and older ones from before photos went inline).
+  const unembedded = $derived(journal.images.filter((image) => !journal.body.includes(image.id)))
+
   let menuOpen = $state(false)
   let menu: HTMLElement | undefined = $state()
 
@@ -125,11 +128,16 @@
     {/if}
   </header>
 
-  <Markdown source={journal.body} glass class="max-w-[38em] break-words" />
+  <Markdown
+    source={journal.body}
+    photos={journal.images.map((image) => image.id)}
+    glass
+    class="max-w-[38em] break-words"
+  />
 
-  {#if journal.images.length > 0 && !journal.body.includes('](/rails/active_storage')}
-    <div class="mt-3 grid gap-2 {journal.images.length > 1 ? 'grid-cols-2' : ''}">
-      {#each journal.images as image (image.id)}
+  {#if unembedded.length > 0}
+    <div class="mt-3 grid gap-2 {unembedded.length > 1 ? 'grid-cols-2' : ''}">
+      {#each unembedded as image (image.id)}
         <a href={image.url} target="_blank" rel="noopener">
           <img
             src={image.url}
