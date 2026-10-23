@@ -59,7 +59,8 @@
         markdown: value,
         placeholder,
         onChange: (markdown) => (value = written = markdown.trimEnd()),
-        onRedraw: () => redraws++,
+        // Later, not now: removing the box blurs the editor while Svelte is tearing it down, and state can't change then.
+        onRedraw: () => queueMicrotask(() => redraws++),
         onFiles: addFiles,
       })
       if (labelledby) editor.view.dom.setAttribute('aria-labelledby', labelledby)

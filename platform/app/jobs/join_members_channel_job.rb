@@ -4,6 +4,8 @@ class JoinMembersChannelJob < ApplicationJob
   queue_as :slack
   retry_on Slack::Web::Api::Errors::TooManyRequestsError, wait: :polynomially_longer, attempts: 5
   discard_on Slack::Web::Api::Errors::AlreadyInChannel, Slack::Web::Api::Errors::CantInviteSelf
+  # Guests can't be added to channels, and someone outside the workspace has nothing to join.
+  discard_on Slack::Web::Api::Errors::UserIsRestricted, Slack::Web::Api::Errors::OrgUserNotInTeam
 
   def self.channel_id = ENV["SLACK_MEMBERS_CHANNEL_ID"].presence
 

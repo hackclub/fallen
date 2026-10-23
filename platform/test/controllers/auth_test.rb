@@ -106,6 +106,24 @@ class AuthTest < ActionDispatch::IntegrationTest
     Rails.cache = cache
   end
 
+  test "two sign-ins at once for a new person end up in the same account" do
+    original = User.method(:joined_from_slack)
+    # The other tab saves the account between this one looking for it and saving its own.
+    User.define_singleton_method(:joined_from_slack) do |slack_id|
+      User.create!(hca_id: "hca_race", email: "race@example.com", display_name: "Racer", roles: [ "user" ]) unless User.exists?(hca_id: "hca_race")
+      original.call(slack_id)
+    end
+    with_env("HCA_CLIENT_ID" => "id", "HCA_CLIENT_SECRET" => "secret") do
+      assert_difference -> { User.count }, 1 do
+        sign_in_through_hca("hca_race")
+      end
+    end
+    assert_nil flash[:alert]
+    assert_equal User.find_by(hca_id: "hca_race").id, session[:user_id]
+  ensure
+    User.define_singleton_method(:joined_from_slack, original)
+  end
+
   test "visits without tags or another site's referrer remember nothing" do
     get root_path, headers: { "Referer" => "http://www.example.com/somewhere" }
     assert cookies[:signup_source].blank?

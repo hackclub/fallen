@@ -254,13 +254,22 @@ class User < ApplicationRecord
     identity = HCA.identity(access_token)
     raise HCA::Error, "HCA did not return an identity" if identity.blank? || identity["id"].blank?
 
-    user = find_by(hca_id: identity["id"]) || joined_from_slack(identity["slack_id"]) || joined_from_fallout(identity["primary_email"]) || trial || new
-    user.hca_id = identity["id"]
-    user.assign_from_hca(identity, access_token)
-    user.signup_source = signup_source if user.new_record?
-    transaction do
-      user.save!
-      trial.hand_over_to!(user) if trial && trial != user
+    # Two sign-ins at once (two tabs) can both find no account; the slower one then signs in to the faster one's.
+    attempts = 0
+    begin
+      user = find_by(hca_id: identity["id"]) || joined_from_slack(identity["slack_id"]) || joined_from_fallout(identity["primary_email"]) || trial || new
+      user.hca_id = identity["id"]
+      user.assign_from_hca(identity, access_token)
+      user.signup_source = signup_source if user.new_record?
+      transaction do
+        user.save!
+        trial.hand_over_to!(user) if trial && trial != user
+      end
+    rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotUnique
+      raise unless (attempts += 1) == 1 && user && user.hca_id != user.hca_id_in_database && exists?(hca_id: identity["id"])
+
+      trial&.restore_attributes
+      retry
     end
     SyncSlackProfileJob.perform_later(user) if user.slack_id.present?
     user
