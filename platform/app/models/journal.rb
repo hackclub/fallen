@@ -47,10 +47,10 @@ class Journal < ApplicationRecord
   # Every two hours logged need a photo to show for them.
   MINUTES_PER_IMAGE = 120
   MAX_TIMELAPSES = 10
-  # A journal needs this much writing for a reviewer to follow what was done, and more for every hour logged past
-  # the first. Photos embedded in it don't count.
+  # A journal of up to an hour needs this much writing for a reviewer to follow what was done. Past that it needs
+  # more for every two hours logged, rounded up. Photos embedded in it don't count.
   MIN_BODY_LENGTH = 100
-  BODY_LENGTH_PER_HOUR = 100
+  BODY_LENGTH_PER_TWO_HOURS = 200
   MAX_BODY_LENGTH = 10_000
   # Hours are typed to two decimals, so taking the tracked time as offered can land a minute over it.
   CLAIM_LEEWAY = 1
@@ -127,7 +127,7 @@ class Journal < ApplicationRecord
   # How much writing there is, leaving out embedded photos (Markdown images).
   def self.written_text(text) = text.to_s.gsub(/!\[[^\]]*\]\([^)]*\)/, "").strip
   def self.written_length(text) = written_text(text).length
-  def self.body_length_needed(minutes) = [ MIN_BODY_LENGTH, (minutes.to_i * BODY_LENGTH_PER_HOUR / 60.0).ceil ].max
+  def self.body_length_needed(minutes) = minutes.to_i <= 60 ? MIN_BODY_LENGTH : (minutes.to_i / 120.0).ceil * BODY_LENGTH_PER_TWO_HOURS
   def multi_part? = slack_parts.size > 1
   def last_slack_ts = slack_parts.last&.dig("ts") || slack_ts
 

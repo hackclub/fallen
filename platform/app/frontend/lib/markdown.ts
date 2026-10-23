@@ -14,12 +14,13 @@ export function writtenLength(markdown: string): number {
   return markdown.replace(/!\[[^\]]*\]\([^)]*\)/g, '').trim().length
 }
 
-// The least writing a journal needs, and how much more each hour logged asks for (Journal.body_length_needed).
+// The writing a journal needs: this much up to an hour, then more per two hours, rounded up (Journal.body_length_needed).
 export const MIN_JOURNAL_LENGTH = 100
-export const JOURNAL_LENGTH_PER_HOUR = 100
+export const JOURNAL_LENGTH_PER_TWO_HOURS = 200
 
 export function journalLengthNeeded(minutes: number): number {
-  return Math.max(MIN_JOURNAL_LENGTH, Math.ceil((Math.round(minutes) * JOURNAL_LENGTH_PER_HOUR) / 60))
+  const rounded = Math.round(minutes)
+  return rounded <= 60 ? MIN_JOURNAL_LENGTH : Math.ceil(rounded / 120) * JOURNAL_LENGTH_PER_TWO_HOURS
 }
 
 // A photo for every this many minutes logged (Journal::MINUTES_PER_IMAGE).

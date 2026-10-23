@@ -4,10 +4,11 @@ class JournalFlowTest < ActiveSupport::TestCase
   include ActiveJob::TestHelper
 
   CHANNEL = "CJOURNALS"
-  # Enough writing for a journal of up to two and a half hours (Journal.body_length_needed).
+  # Enough writing for a journal of up to four hours (Journal.body_length_needed).
   WRITTEN = "Printed the case, sanded the edges smooth and test fitted the board. The lid was tight so I filed the clips. " \
             "Then I reprinted the hinge with more clearance, glued the magnets in and checked that the screen sits flush " \
-            "with the bezel all the way around."
+            "with the bezel all the way around. The battery door kept popping open, so I added a small latch to the " \
+            "model and printed it in PETG, which flexes enough to snap shut without cracking after a few tries."
   PHOTO = { "id" => "F1", "name" => "case.png", "mimetype" => "image/png", "url_private_download" => "https://files.slack.com/case.png", "size" => 3 }.freeze
 
   test "a thread reply by the owner waits for them to say it is a journal" do

@@ -66,7 +66,7 @@ class JournalTest < ActiveSupport::TestCase
     assert short.valid?
   end
 
-  test "needs 100 more characters for every hour past the first" do
+  test "needs 100 characters up to an hour, then 200 for every two hours, rounded up" do
     two_hours = projects(:station).journals.build(user: users(:member), body: "Soldered the board. " * 9, duration: "2", images: [ photo ])
     assert_not two_hours.valid?
     assert_match(/needs at least 200 characters for 2h .* \(179 so far\)/, two_hours.errors[:body].first)
@@ -74,7 +74,10 @@ class JournalTest < ActiveSupport::TestCase
     two_hours.body = "Soldered the board. " * 11
     assert two_hours.valid?
     assert_equal 100, Journal.body_length_needed(30)
-    assert_equal 150, Journal.body_length_needed(90)
+    assert_equal 100, Journal.body_length_needed(60)
+    assert_equal 200, Journal.body_length_needed(90)
+    assert_equal 400, Journal.body_length_needed(150)
+    assert_equal 400, Journal.body_length_needed(240)
   end
 
   test "an older, shorter journal can still be edited in Slack, but not shortened on the site" do
