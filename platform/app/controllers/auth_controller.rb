@@ -25,7 +25,7 @@ class AuthController < ApplicationController
 
     return redirect_to root_path, alert: "Sign in was cancelled." if params[:error].present?
 
-    user = redeem_hca_code(params[:code])
+    user = redeem_hca_code(params[:code], params[:state])
     forget_trial
     sign_in(user)
     Rails.logger.info({ event: "auth.signed_in", user_id: user.id }.to_json)
@@ -44,9 +44,10 @@ class AuthController < ApplicationController
   private
 
   # Mobile Safari sometimes loads the callback twice at once, and HCA redeems a code only once. The browser keeps
-  # whichever response comes last, so the second request waits for the first and signs in the same person.
-  def redeem_hca_code(code)
-    key = "hca_code:#{Digest::SHA256.hexdigest(code.to_s)}"
+  # whichever response comes last, so the second request waits for the first and signs in the same person. Keyed on
+  # the state too, which only that browser's cookie holds, so a code seen elsewhere can't sign anyone in.
+  def redeem_hca_code(code, state)
+    key = "hca_code:#{Digest::SHA256.hexdigest("#{code}:#{state}")}"
     return wait_for_first_callback(key) unless Rails.cache.write(key, :pending, unless_exist: true, expires_in: 1.minute)
 
     begin

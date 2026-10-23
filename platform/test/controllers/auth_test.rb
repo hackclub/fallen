@@ -106,6 +106,24 @@ class AuthTest < ActionDispatch::IntegrationTest
     Rails.cache = cache
   end
 
+  test "a code someone else just used doesn't sign in a browser with its own state" do
+    cache = Rails.cache
+    Rails.cache = ActiveSupport::Cache::MemoryStore.new
+    with_env("HCA_CLIENT_ID" => "id", "HCA_CLIENT_SECRET" => "secret") do
+      sign_in_through_hca(users(:member).hca_id)
+
+      attacker = open_session
+      attacker.get sign_in_path
+      their_state = Rack::Utils.parse_query(URI(attacker.response.location).query)["state"]
+      stub_method(HCA, :exchange_code_for_token, nil) { attacker.get hca_callback_path(code: "abc", state: their_state) }
+
+      assert_nil attacker.session[:user_id]
+      attacker.assert_redirected_to root_path
+    end
+  ensure
+    Rails.cache = cache
+  end
+
   test "two sign-ins at once for a new person end up in the same account" do
     original = User.method(:joined_from_slack)
     # The other tab saves the account between this one looking for it and saving its own.
