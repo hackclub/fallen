@@ -55,6 +55,7 @@
   let checking = $state(false)
   let flaggedCheck: string | null = $state(null)
   let pasteHint: HTMLParagraphElement | undefined = $state()
+  let selfWritten = $state(false)
   const closing = new AbortController()
   onDestroy(() => closing.abort())
   // A new journal's box offers whichever is more: the hours the huddle and site timer tracked since the last journal,
@@ -118,12 +119,14 @@
   const words = $derived(countWords(form.body))
   const written = $derived(writtenLength(form.body))
   // Enough for a reviewer to follow. An older, shorter journal can still be saved as long as its text is untouched.
-  const longEnough = $derived(written >= MIN_JOURNAL_LENGTH || (editing && form.body === journal?.body))
+  const untouched = $derived(editing && form.body === journal?.body)
+  const longEnough = $derived(written >= MIN_JOURNAL_LENGTH || untouched)
   // Typed hours always count. With timelapses picked and nothing typed, the server takes their recorded time.
   const timelapsed = $derived(form.lapse_timelapses.length > 0)
   const canSubmit = $derived(
     form.body.trim().length > 0 &&
       longEnough &&
+      (selfWritten || untouched) &&
       (timelapsed || form.duration.trim().length > 0) &&
       uploading === 0 &&
       !form.processing &&
@@ -234,7 +237,16 @@
         }}
         onpaste={onPaste}
       >
-        <h3 id="journal-body-label" class="font-display text-xl text-ink">What did you do?</h3>
+        <div class="flex items-end justify-between gap-3">
+          <h3 id="journal-body-label" class="font-display text-xl text-ink">What did you do?</h3>
+          <p
+            bind:this={pasteHint}
+            class="paste-hint pb-1 text-right font-outfit text-xs"
+            onanimationend={() => pasteHint?.classList.remove('flash')}
+          >
+            Please write this yourself, humans read it!
+          </p>
+        </div>
         <MarkdownEditor
           labelledby="journal-body-label"
           bind:this={editor}
@@ -245,13 +257,6 @@
           onError={(message) => (uploadError = message)}
           placeholder="What you built, what broke, what you figured out. Drop or paste photos anywhere in here."
         />
-        <p
-          bind:this={pasteHint}
-          class="paste-hint font-outfit text-xs"
-          onanimationend={() => pasteHint?.classList.remove('flash')}
-        >
-          Please write this yourself, humans read it!
-        </p>
         <div class="flex items-center justify-between gap-3 font-outfit text-xs text-ink-soft">
           <span>
             {#if form.errors.body}<span class="text-red-700">{form.errors.body}</span>
@@ -270,6 +275,19 @@
             </span>
           </span>
         </div>
+        {#if !untouched}
+          <label
+            class="mt-1 flex shrink-0 cursor-pointer items-start gap-3 rounded-xl border-2 border-paper-edge/70 px-4 py-3 font-outfit"
+          >
+            <input type="checkbox" bind:checked={selfWritten} required class="mt-0.5 rounded text-ink" />
+            <span>
+              <span class="block text-sm text-ink">I wrote the above myself, by hand, without using AI.</span>
+              <span class="block text-xs text-ink-soft">
+                Imperfect English is a lot more powerful than soulless AI text.
+              </span>
+            </span>
+          </label>
+        {/if}
       </section>
 
       <aside class="mt-6 flex flex-col lg:mt-0 lg:min-h-0">
