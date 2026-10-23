@@ -301,7 +301,7 @@
   </div>
   {#if footer}
     <div
-      class="flex h-9 shrink-0 items-center justify-between gap-3 border-t-2 border-paper-edge/60 bg-paper-edge/25 px-3 font-outfit text-xs text-ink-soft"
+      class="flex h-9 shrink-0 items-center justify-between gap-3 border-t-2 border-paper-edge/60 bg-paper-edge/50 px-3 font-outfit text-xs text-ink-soft"
     >
       {@render footer()}
     </div>
