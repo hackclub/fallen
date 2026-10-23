@@ -45,7 +45,7 @@ class ProjectSerializer < ApplicationSerializer
     blob = project.banner.attachment&.blob
     blob && { id: blob.signed_id, url: blob_path(blob) }
   end
-  # The banner, or else the first journal photo when the caller passes `covers:` (Project.journal_covers).
+  # The banner, or else the newest journal's photo when the caller passes `covers:` (Project.journal_covers).
   attribute(:cover_url) do |project|
     blob = project.banner.attachment&.blob || params[:covers]&.dig(project.id)&.blob
     blob && blob_path(blob)

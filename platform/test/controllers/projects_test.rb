@@ -63,14 +63,23 @@ class ProjectsTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "a project without a banner shows its first journal photo" do
-    blob = ActiveStorage::Blob.create_and_upload!(io: StringIO.new("png"), filename: "board.png", content_type: "image/png")
-    journals(:first).images.attach(blob)
+  test "a project without a banner shows its newest logged journal's photo" do
+    older, newer = %w[old.png new.png].map do |name|
+      ActiveStorage::Blob.create_and_upload!(io: StringIO.new("png"), filename: name, content_type: "image/png")
+    end
+    journals(:pending_hours).images.attach(older)
+    journals(:first).images.attach(newer)
+    # Still in the composer: uploaded, not posted.
+    ActiveStorage::Blob.create_and_upload!(io: StringIO.new("png"), filename: "draft.png", content_type: "image/png")
 
     cards = inertia_props(projects_path, "Projects/Index")["projects"].index_by { |p| p["id"] }
-    assert_includes cards[projects(:station).public_id]["cover_url"], blob.filename.to_s
+    assert_includes cards[projects(:station).public_id]["cover_url"], "new.png"
     assert_nil cards[projects(:station).public_id]["banner"]
     assert_nil cards[projects(:unlinked).public_id]["cover_url"]
+
+    journals(:first).discard
+    cards = inertia_props(projects_path, "Projects/Index")["projects"].index_by { |p| p["id"] }
+    assert_includes cards[projects(:station).public_id]["cover_url"], "old.png"
   end
 
   test "rejects a banner that is not an image" do

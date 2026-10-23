@@ -8,7 +8,7 @@
   import type { Project } from '@/types'
   import defaultBanner from '@/assets/hero/default-banner.jpg'
 
-  // A tile on the glass: the banner (else the first journal photo, else the hero art), the title, what has been
+  // A tile on the glass: the banner (else the newest journal's photo, else the hero art), the title, what has been
   // logged and, on a team project, who is building it. Hover or focus lights the tile's frame.
   let { project }: { project: Project } = $props()
 </script>

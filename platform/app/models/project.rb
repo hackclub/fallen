@@ -96,13 +96,15 @@ class Project < ApplicationRecord
       .to_h { |id, minutes, count| [ id, { minutes: minutes, journals: count } ] }
   end
 
-  # The first photo from each project's journals, keyed by project id, for cards whose project has no banner.
+  # The first photo of each project's newest logged journal, keyed by project id, for cards whose project has no
+  # banner. Photos only count once their journal is saved: an upload still sitting in the composer is an unattached
+  # blob, and a deleted journal's photos drop out.
   def self.journal_covers(projects)
     ActiveStorage::Attachment.where(record_type: "Journal", name: "images")
       .joins("INNER JOIN journals ON journals.id = active_storage_attachments.record_id")
       .where(journals: { project_id: projects.map(&:id), discarded_at: nil })
       .select("DISTINCT ON (journals.project_id) active_storage_attachments.*, journals.project_id AS cover_project_id")
-      .order(Arel.sql("journals.project_id, journals.created_at, active_storage_attachments.id"))
+      .order(Arel.sql("journals.project_id, journals.created_at DESC, journals.id DESC, active_storage_attachments.id"))
       .includes(:blob)
       .index_by(&:cover_project_id)
   end
