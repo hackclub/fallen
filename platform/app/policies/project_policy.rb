@@ -3,13 +3,14 @@
 # Journals are mirrored into Slack as the person, so they need Slack connected or skipped (User#slack_ready?). A
 # project does not: onboarding makes one before that, and its thread is posted once it is (PostProjectToSlackJob).
 # Everyone on the team edits the project and invites people; only the owner takes people off or deletes it, and only
-# once nobody else is on it, since deleting takes its journals' XP back.
+# once nobody else is on it or has journals on it, since deleting takes its journals' XP back. Someone taken off the
+# team keeps theirs.
 class ProjectPolicy < ApplicationPolicy
   def index? = user.present?
   def show? = involved? || staff?
   def create? = user.present?
   def update? = teammate?
-  def destroy? = owner? && record.solo?
+  def destroy? = owner? && record.solo? && !record.journals.kept.where.not(user_id: record.user_id).exists?
   def invite? = teammate?
   def remove_teammate? = owner?
   # The owner can leave once there is someone to hand the project to.

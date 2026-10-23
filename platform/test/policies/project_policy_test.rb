@@ -11,6 +11,15 @@ class ProjectPolicyTest < ActiveSupport::TestCase
     assert_equal [ projects(:station), projects(:unlinked) ].sort, ProjectPolicy::Scope.new(member, Project).resolve.sort
   end
 
+  test "an owner can't delete a project someone they took off the team has journals on" do
+    project = projects(:station)
+    assert ProjectPolicy.new(users(:member), project).destroy?
+
+    # Written while they were on the team, which they no longer are.
+    project.journals.new(user: users(:newcomer), body: "From before they were taken off", source: "slack").save!(validate: false)
+    assert_not ProjectPolicy.new(users(:member), project.reload).destroy?
+  end
+
   test "journals need slack connected or skipped, projects do not" do
     member = users(:member)
     member.disconnect_slack!
