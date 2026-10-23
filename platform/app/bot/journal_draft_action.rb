@@ -26,11 +26,11 @@ class JournalDraftAction < SlackBot::Action
   private
 
   def save_journal(draft)
-    files = draft.files
+    files = draft.photos
     # An older prompt may still carry a box for a Lapse link; it is ignored. Timelapses are only ever picked.
     duration = input_values["duration"]
     egg = !user.hatched?
-    journal = draft.journal!(duration: duration, timelapses: draft.picked_timelapses)
+    journal = draft.journal!(duration: duration, timelapses: draft.picked_timelapses, photos: files)
     unless journal.persisted?
       prompt = SlackMessages.draft_prompt(draft, duration: duration.to_s, error: journal.errors.full_messages.first)
       return update_message(prompt[:text], blocks: prompt[:blocks])
@@ -57,7 +57,7 @@ class JournalDraftAction < SlackBot::Action
   def attach_to_previous(draft)
     journal = draft.previous_journal or return update_message("You don't have a journal on this project yet.")
 
-    CollectSlackJournalJob.perform_later(journal, draft.files)
+    CollectSlackJournalJob.perform_later(journal, draft.photos)
     draft.destroy!
     update_message(":white_check_mark: Added to your last journal on *#{SlackMessages.escape(draft.project.title)}*. <#{SlackMessages.project_url(draft.project)}|Open on Fallen>")
   end

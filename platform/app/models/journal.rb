@@ -70,6 +70,8 @@ class Journal < ApplicationRecord
 
   # Photos still being copied over from Slack (CollectSlackJournalJob), counted before they arrive.
   attr_accessor :incoming_images
+  # Set by JournalsController: an edit made on the site, whichever side the journal was first written on.
+  attr_accessor :edited_on_site
 
   IMAGE_TYPES = %w[image/png image/jpeg image/gif image/webp].freeze
   MAX_IMAGES = 10
@@ -83,7 +85,7 @@ class Journal < ApplicationRecord
   validates :body, presence: true, length: { maximum: MAX_BODY_LENGTH }
   # New journals, and edits on the site. Edits made in Slack always go through, so the journal keeps up with the
   # thread.
-  validate :body_long_enough, if: -> { new_record? || (will_save_change_to_body? && from_web?) }
+  validate :body_long_enough, if: -> { new_record? || (will_save_change_to_body? && (from_web? || edited_on_site)) }
   validates :source, inclusion: { in: SOURCES }
   validates :duration_minutes, numericality: { only_integer: true, greater_than: 0, less_than_or_equal_to: MAX_MINUTES }, allow_nil: true
   validates :slack_ts, uniqueness: { scope: :slack_channel_id }, allow_nil: true
@@ -94,7 +96,7 @@ class Journal < ApplicationRecord
   validate :author_on_team, on: :create
   validate :images_are_images
   validate :images_are_new_uploads, if: -> { attachment_changes.key?("images") }
-  validate :embeds_only_own_photos, if: -> { from_web? && (new_record? || will_save_change_to_body?) }
+  validate :embeds_only_own_photos, if: -> { (from_web? || edited_on_site) && (new_record? || will_save_change_to_body?) }
   validate :images_cover_hours, if: -> { new_record? || duration_minutes_changed? || attachment_changes.key?("images") }
   validate :duration_was_understood
   validate :picked_timelapses_are_usable, if: -> { @picked_timelapses }
@@ -248,11 +250,13 @@ class Journal < ApplicationRecord
   def picked_timelapses_are_usable
     return errors.add(:lapse_timelapses, "at most #{MAX_TIMELAPSES} per journal") if @picked_timelapses.size > MAX_TIMELAPSES
 
-    added = @picked_timelapses.reject { |timelapse| persisted? && timelapse.journal_id == id }
-    taken = Journal.kept.where(id: added.filter_map(&:journal_id)).pluck(:id).to_set
+    # Read again and held until this save commits, so two journals saved at once can't both take one timelapse.
+    claimed = LapseTimelapse.where(id: @picked_timelapses.map(&:id)).order(:id).lock.pluck(:id, :journal_id).to_h
+    added = @picked_timelapses.reject { |timelapse| persisted? && claimed[timelapse.id] == id }
+    taken = Journal.kept.where(id: added.filter_map { |timelapse| claimed[timelapse.id] }).pluck(:id).to_set
     added.each do |timelapse|
       reason = if timelapse.user_id != user_id then "must be yours"
-      elsif taken.include?(timelapse.journal_id) then "is already on another journal"
+      elsif taken.include?(claimed[timelapse.id]) then "is already on another journal"
       else timelapse.unusable_reason
       end
       errors.add(:lapse_timelapses, "“#{timelapse.name.presence || 'Untitled timelapse'}” #{reason}") if reason

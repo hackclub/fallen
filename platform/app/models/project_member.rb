@@ -36,7 +36,16 @@ class ProjectMember < ApplicationRecord
     errors.add(:user, "already owns this project") if project && project.user_id == user_id
   end
 
+  # The project row stays locked until this save commits, so two people joining at once can't both take the last place.
   def room_on_the_team
-    errors.add(:project, "already has #{Project::MAX_TEAM} people") if project&.team_full?
+    return if project.nil?
+
+    full = if project.persisted?
+      Project.where(id: project.id).lock.pluck(:id)
+      1 + ProjectMember.where(project_id: project.id).count >= Project::MAX_TEAM
+    else
+      project.team_full?
+    end
+    errors.add(:project, "already has #{Project::MAX_TEAM} people") if full
   end
 end

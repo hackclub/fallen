@@ -81,12 +81,24 @@ class JournalDraft < ApplicationRecord
   def files = parts.flat_map { |part| part["files"] || [] }
   def message_count = parts.size
 
+  # The files CollectSlackJournalJob will actually copy over, so the photo count a journal's hours rest on is real:
+  # images under the size limit, each once, none already on one of the person's journals.
+  def photos
+    images = files.select { |file| file["mimetype"].in?(Journal::IMAGE_TYPES) && file["size"].to_i <= Journal::MAX_IMAGE_BYTES }.uniq { |file| file["id"] }
+    return [] if images.empty?
+
+    used = ActiveStorage::Attachment.where(record_type: "Journal", name: "images", record_id: user.journals.kept.select(:id))
+      .joins(:blob).where("active_storage_blobs.metadata::jsonb ->> 'slack_file_id' IN (?)", images.map { |file| file["id"] })
+      .pluck(Arel.sql("active_storage_blobs.metadata::jsonb ->> 'slack_file_id'"))
+    images.reject { |file| used.include?(file["id"]) }.first(Journal::MAX_IMAGES)
+  end
+
   def previous_journal = project.journals.kept.where(user: user).newest_first.first
 
   # Returns the journal, saved or holding the errors to show.
-  def journal!(duration:, timelapses: [])
+  def journal!(duration:, timelapses: [], photos: self.photos)
     journal = project.journals.build(
-      user: user, body: text, duration: duration, source: "slack", incoming_images: files.size,
+      user: user, body: text, duration: duration, source: "slack", incoming_images: photos.size,
       slack_channel_id: project.slack_channel_id, slack_ts: parts.first["ts"], slack_parts: parts.map { |part| part.slice("ts", "text") }
     )
     journal.picked_timelapses = timelapses if timelapses.any?

@@ -89,6 +89,16 @@ class ProjectsTest < ActionDispatch::IntegrationTest
     assert_not projects(:station).reload.banner.attached?
   end
 
+  test "a Slack journal edited on the site still needs enough writing and only its own photos" do
+    journal = journals(:first)
+    assert_equal "slack", journal.source
+    patch journal_path(journal), params: { journal: { body: "short" } }
+    assert_equal "Soldered the sensor board", journal.reload.body
+
+    patch journal_path(journal), params: { journal: { body: journal_text("![x](https://cdn.example/x.png)") } }
+    assert_equal "Soldered the sensor board", journal.reload.body
+  end
+
   test "rejects a banner that is not an image" do
     blob = ActiveStorage::Blob.create_and_upload!(io: StringIO.new("%PDF"), filename: "plan.pdf", content_type: "application/pdf")
     assert_no_difference -> { Project.count } do

@@ -21,7 +21,7 @@ class JournalsController < ApplicationController
   def update
     authorize @journal
 
-    if @journal.update(journal_params)
+    if @journal.update(journal_params.merge(edited_on_site: true))
       SyncJournalToSlackJob.perform_later(@journal, "update")
       settle_writing_check(@journal) if @journal.saved_change_to_body?
       redirect_to project_path(@journal.project), notice: "Journal updated."
