@@ -7,7 +7,7 @@
   import SubmitButton from '@/components/SubmitButton.svelte'
   import WritingCheckDialog from '@/components/WritingCheckDialog.svelte'
   import { formatDate } from '@/lib/format'
-  import { MINUTES_PER_PHOTO, MIN_JOURNAL_LENGTH, countWords, writtenLength } from '@/lib/markdown'
+  import { MINUTES_PER_PHOTO, countWords, journalLengthNeeded, writtenLength } from '@/lib/markdown'
   import { trackedHours } from '@/lib/timer.svelte'
   import type { UploadedImage } from '@/lib/uploads'
   import { checkWriting } from '@/lib/writingCheck'
@@ -118,11 +118,16 @@
 
   const words = $derived(countWords(form.body))
   const written = $derived(writtenLength(form.body))
-  // Enough for a reviewer to follow. An older, shorter journal can still be saved as long as its text is untouched.
-  const untouched = $derived(editing && form.body === journal?.body)
-  const longEnough = $derived(written >= MIN_JOURNAL_LENGTH || untouched)
-  // Typed hours always count. With timelapses picked and nothing typed, the server takes their recorded time.
   const timelapsed = $derived(form.lapse_timelapses.length > 0)
+  const hours = $derived(form.duration.trim().match(/^(\d*\.?\d+)\s*h?$/i)?.[1])
+  // What the server will log: typed hours, or the picked timelapses' time when nothing is typed.
+  const minutes = $derived(hours ? parseFloat(hours) * 60 : timelapsed ? picked : 0)
+  // Enough for a reviewer to follow, more for more hours. An older, shorter journal can still be saved as long as its
+  // text is untouched.
+  const untouched = $derived(editing && form.body === journal?.body)
+  const lengthNeeded = $derived(journalLengthNeeded(minutes))
+  const longEnough = $derived(written >= lengthNeeded || untouched)
+  // Typed hours always count. With timelapses picked and nothing typed, the server takes their recorded time.
   const canSubmit = $derived(
     form.body.trim().length > 0 &&
       longEnough &&
@@ -140,7 +145,6 @@
     (journal?.images ?? []).filter((i) => !journal?.body.includes(i.id)).map((i) => i.id),
   )
   const photos = $derived(form.images.filter((i) => unembedded.has(i.id) || form.body.includes(i.id)))
-  const hours = $derived(form.duration.trim().match(/^(\d*\.?\d+)\s*h?$/i)?.[1])
   const photosNeeded = $derived(hours ? Math.ceil((parseFloat(hours) * 60) / MINUTES_PER_PHOTO) : null)
 
   function addImage(image: UploadedImage) {
@@ -271,7 +275,7 @@
                 {:else}{photos.length} {photos.length === 1 ? 'photo' : 'photos'}{/if}
               </span>
               <span>
-                {#if longEnough}{words} {words === 1 ? 'word' : 'words'}{:else}{written}/{MIN_JOURNAL_LENGTH} characters{/if}
+                {#if longEnough}{words} {words === 1 ? 'word' : 'words'}{:else}{written}/{lengthNeeded} characters{/if}
               </span>
             </span>
           {/snippet}

@@ -207,7 +207,7 @@ class XpTest < ActiveSupport::TestCase
     project = user.projects.first || user.projects.create!(title: "Thing")
     days.each do |day|
       travel_to day.in_time_zone(user.timezone).change(hour: 12) do
-        project.journals.create!(user: user, body: journal_text("on #{day}"), duration: hours, images: Array.new(Journal.new(duration: hours).images_needed) { photo })
+        project.journals.create!(user: user, body: journal_text("on #{day}") * 2, duration: hours, images: Array.new(Journal.new(duration: hours).images_needed) { photo })
       end
     end
   end

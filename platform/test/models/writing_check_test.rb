@@ -42,7 +42,7 @@ class WritingCheckTest < ActiveSupport::TestCase
 
   test "a few sentences are not sent" do
     check = nil
-    assert_no_enqueued_jobs { check = WritingCheck.start(users(:member), journal_text) }
+    assert_no_enqueued_jobs { check = WritingCheck.start(users(:member), "Worked on it. Wrote down what I did and what I learned along the way.") }
     assert_equal "skipped", check.status
     assert_not check.flagged?
   end

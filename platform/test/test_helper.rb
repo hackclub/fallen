@@ -56,8 +56,8 @@ end
 
 module FixtureHelper
   # A photo for a journal, since every one needs at least one for its hours (Journal::MINUTES_PER_IMAGE).
-  # Enough writing for a journal (Journal::MIN_BODY_LENGTH), starting with `start`.
-  def journal_text(start = "Worked on it") = "#{start}. #{'Wrote down what I did and what I learned along the way. ' * 2}".strip
+  # Enough writing for a journal of up to six hours (Journal.body_length_needed), starting with `start`.
+  def journal_text(start = "Worked on it") = "#{start}. #{'Wrote down what I did and what I learned along the way. ' * 11}".strip
 
   def photo(name = "photo.png") = ActiveStorage::Blob.create_and_upload!(io: StringIO.new("png"), filename: name, content_type: "image/png")
 
