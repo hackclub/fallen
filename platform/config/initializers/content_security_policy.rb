@@ -20,15 +20,21 @@ Rails.application.configure do
     policy.style_src :self, :unsafe_inline, "https://fonts.googleapis.com"
     policy.font_src :self, :data, "https://fonts.gstatic.com"
     policy.img_src :self, :data, :blob,
-                   "https://cachet.hackclub.com", "https://*.slack-edge.com", # avatars: Cachet redirects to Slack's CDN
-                   "https://secure.gravatar.com", # ...or to Gravatar for users without a Slack photo
+                   "https://cachet.hackclub.com", "https://*.slack-edge.com", # avatars: Cachet redirects to Slack's CDN,
+                   "https://l4-bucket.dunkirk.sh", # ...its own copy,
+                   "https://secure.gravatar.com", "https://i0.wp.com", "https://i1.wp.com", "https://i2.wp.com", # ...or Gravatar, whose fallback image comes through wp.com
                    "https://lookout.hackclub.com", "https://lookout.hackclub-assets.com", # Lookout thumbnails redirect to its asset host
                    "https://public.lapse-hackclub.link", # Lapse thumbnails
                    "https://i.ytimg.com", *r2_host
     policy.frame_src "https://www.youtube-nocookie.com"
-    policy.connect_src :self, "https://cloudflareinsights.com", *r2_host, *("https://#{sentry.host}" if sentry), *([ "ws://#{vite}", "http://#{vite}" ] if vite)
+    # The landing page asks Hack Club Auth whether the person is already signed in there.
+    policy.connect_src :self, "https://auth.hackclub.com", "https://cloudflareinsights.com", *r2_host, *("https://#{sentry.host}" if sentry), *([ "ws://#{vite}", "http://#{vite}" ] if vite)
     policy.report_uri "https://#{sentry.host}/api#{sentry.path}/security/?sentry_key=#{sentry.user}" if sentry
   end
+
+  # Cloudflare's bot check injects an inline script into every page and takes the nonce from this header.
+  config.content_security_policy_nonce_generator = ->(_request) { SecureRandom.base64(16) }
+  config.content_security_policy_nonce_directives = %w[script-src]
 
   config.content_security_policy_report_only = true
 end
