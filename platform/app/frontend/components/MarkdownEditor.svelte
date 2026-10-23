@@ -9,7 +9,7 @@
   import LoaderCircle from '@lucide/svelte/icons/loader-circle'
   import Strikethrough from '@lucide/svelte/icons/strikethrough'
   import type { Editor } from '@tiptap/core'
-  import { onMount, type Component } from 'svelte'
+  import { onMount, type Component, type Snippet } from 'svelte'
   import type { reservePhoto } from '@/lib/journal-editor'
   import { uploadImage, type UploadedImage } from '@/lib/uploads'
 
@@ -22,6 +22,7 @@
     onError,
     placeholder = '',
     uploading = $bindable(0),
+    footer,
   }: {
     labelledby?: string
     value: string
@@ -30,6 +31,8 @@
     onError: (message: string) => void
     placeholder?: string
     uploading?: number
+    // A status strip under the writing, inside the box.
+    footer?: Snippet
   } = $props()
 
   let mount: HTMLDivElement | undefined = $state()
@@ -296,6 +299,13 @@
   <div class="ruled relative min-h-[280px] flex-1 overflow-y-auto" role="presentation" onkeydown={onKeydown}>
     <div bind:this={mount} class="min-h-full"></div>
   </div>
+  {#if footer}
+    <div
+      class="flex h-9 shrink-0 items-center justify-between gap-3 border-t-2 border-paper-edge/60 bg-paper-edge/25 px-3 font-outfit text-xs text-ink-soft"
+    >
+      {@render footer()}
+    </div>
+  {/if}
   {#if dragging}
     <div
       class="pointer-events-none absolute inset-1 flex items-center justify-center rounded-lg border-2 border-dashed border-ink/50 bg-paper/80 font-outfit text-sm text-ink"

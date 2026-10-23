@@ -256,25 +256,26 @@
           onUpload={addImage}
           onError={(message) => (uploadError = message)}
           placeholder="What you built, what broke, what you figured out. Drop or paste photos anywhere in here."
-        />
-        <div class="flex items-center justify-between gap-3 font-outfit text-xs text-ink-soft">
-          <span>
-            {#if form.errors.body}<span class="text-red-700">{form.errors.body}</span>
-            {:else if form.errors.images}<span class="text-red-700">{form.errors.images}</span>
-            {:else if uploadError}<span class="text-red-700">{uploadError}</span>
-            {:else if draftRestored}Draft restored.{/if}
-          </span>
-          <span class="flex shrink-0 gap-3 tabular-nums">
-            <span>
-              {#if photosNeeded !== null}{photos.length}/{photosNeeded}
-                {photosNeeded === 1 ? 'photo' : 'photos'}
-              {:else}{photos.length} {photos.length === 1 ? 'photo' : 'photos'}{/if}
+        >
+          {#snippet footer()}
+            <span class="min-w-0 truncate">
+              {#if form.errors.body}<span class="text-red-700">{form.errors.body}</span>
+              {:else if form.errors.images}<span class="text-red-700">{form.errors.images}</span>
+              {:else if uploadError}<span class="text-red-700">{uploadError}</span>
+              {:else if draftRestored}Draft restored.{/if}
             </span>
-            <span>
-              {#if longEnough}{words} {words === 1 ? 'word' : 'words'}{:else}{written}/{MIN_JOURNAL_LENGTH} characters{/if}
+            <span class="flex shrink-0 gap-3 tabular-nums">
+              <span>
+                {#if photosNeeded !== null}{photos.length}/{photosNeeded}
+                  {photosNeeded === 1 ? 'photo' : 'photos'}
+                {:else}{photos.length} {photos.length === 1 ? 'photo' : 'photos'}{/if}
+              </span>
+              <span>
+                {#if longEnough}{words} {words === 1 ? 'word' : 'words'}{:else}{written}/{MIN_JOURNAL_LENGTH} characters{/if}
+              </span>
             </span>
-          </span>
-        </div>
+          {/snippet}
+        </MarkdownEditor>
         {#if !untouched}
           <label
             class="mt-1 flex shrink-0 cursor-pointer items-start gap-3 rounded-xl border-2 border-paper-edge/70 px-4 py-3 font-outfit"
