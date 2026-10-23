@@ -17,13 +17,17 @@ router.on('before', (event) => {
   event.detail.visit.headers['X-Browser-Timezone'] = timezone
 })
 
-// During a rolling deploy the HTML and its chunks can come from different pods, so a chunk 404s. Reload once to
-// get a consistent set; the timestamp stops a genuinely missing chunk from looping.
-const RELOADED_AT = 'fallen:chunk-reload'
+// During a rolling deploy the HTML and its chunks can come from different pods, so a chunk 404s until the old pod
+// is gone, which takes up to a minute. Reload a few times, waiting longer each time, to get a consistent set; the
+// count stops a genuinely missing chunk from looping.
+const RELOADS = 'fallen:chunk-reloads'
+const RELOAD_WAITS = [0, 3_000, 10_000, 30_000]
 function reloadOnce() {
-  if (Date.now() - Number(sessionStorage.getItem(RELOADED_AT)) < 10_000) return false
-  sessionStorage.setItem(RELOADED_AT, String(Date.now()))
-  window.location.reload()
+  const [count, since] = (sessionStorage.getItem(RELOADS) ?? '0:0').split(':').map(Number)
+  const attempt = Date.now() - since < 120_000 ? count : 0
+  if (attempt >= RELOAD_WAITS.length) return false
+  sessionStorage.setItem(RELOADS, `${attempt + 1}:${attempt === 0 ? Date.now() : since}`)
+  setTimeout(() => window.location.reload(), RELOAD_WAITS[attempt])
   return true
 }
 window.addEventListener('vite:preloadError', (event) => {

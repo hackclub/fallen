@@ -20,6 +20,8 @@ export function renderMarkdown(markdown: string, photos: string[]): string {
   for (const img of fragment.querySelectorAll('img')) {
     const id = img.getAttribute('src')?.match(PHOTO_PATH)?.[1]
     if (!id || !photos.includes(decodeURIComponent(id))) img.remove()
+    // The proxy URL is the same photo, cached by Cloudflare; the redirect one asks the app every time.
+    else img.setAttribute('src', img.getAttribute('src')!.replace('/blobs/redirect/', '/blobs/proxy/'))
   }
   const container = document.createElement('div')
   container.append(fragment)

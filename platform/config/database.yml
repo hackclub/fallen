@@ -3,7 +3,8 @@
 default: &default
   adapter: postgresql
   encoding: unicode
-  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  # Puma's threads (or Solid Queue's), plus Action Cable's four workers and Solid Cable's poller, which share it.
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 }.to_i + 5 %>
   # No single statement may run longer than this. A page that needs more has a missing index or belongs in a
   # job. Migrations set their own timeouts (config/initializers/strong_migrations.rb).
   variables:
