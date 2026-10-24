@@ -5,16 +5,14 @@ class Admin::DashboardController < Admin::ApplicationController
 
   def index
     render inertia: "Admin/Dashboard/Index", props: {
-      stats: InertiaRails.defer { stats },
+      stats: InertiaRails.defer { self.class.stats },
       activity: InertiaRails.defer { activity_chart },
       slack_configured: SlackBot.configured?
     }
   end
 
-  private
-
-  # Six table scans. Deferred so the dashboard shell never waits on them.
-  def stats
+  # Six table scans. Deferred so the dashboard shell never waits on them. Also the MCP's get_dashboard.
+  def self.stats
     journals = Journal.kept
     {
       users: User.kept.count,
@@ -25,6 +23,8 @@ class Admin::DashboardController < Admin::ApplicationController
       seen_today: User.kept.where(last_seen_at: Time.current.all_day).count
     }
   end
+
+  private
 
   # One point per day: minutes logged in journals and people who signed up, in the admin's timezone.
   def activity_chart

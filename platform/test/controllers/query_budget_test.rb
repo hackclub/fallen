@@ -85,5 +85,9 @@ class QueryBudgetTest < ActionDispatch::IntegrationTest
     assert_query_budget(11) { load_deferred(admin_jobs_path, "Admin/Jobs/Index", "jobs", "pagy", "counts", "queue_names") }
     assert_query_budget(4) { load_deferred(admin_jobs_path(status: "queues"), "Admin/Jobs/Index", "queues") }
     assert_query_budget(3) { get admin_flags_path }
+
+    AdminToken.mint(user: users(:admin), name: "Laptop")
+    assert_query_budget(4) { get admin_mcp_path }
+    assert_query_budget(4) { load_deferred(admin_mcp_path, "Admin/Mcp/Index", "actions") }
   end
 end

@@ -1,3 +1,4 @@
+import Bot from '@lucide/svelte/icons/bot'
 import BriefcaseBusiness from '@lucide/svelte/icons/briefcase-business'
 import ChartLine from '@lucide/svelte/icons/chart-line'
 import Flag from '@lucide/svelte/icons/flag'
@@ -9,6 +10,7 @@ import {
   adminFlags,
   adminInsights,
   adminJobs,
+  adminMcp,
   adminProjects,
   adminRoot,
   adminStats,
@@ -55,6 +57,7 @@ export const adminNav: AdminNavSection[] = [
       },
       { label: 'Insights', href: adminInsights.show({}).url, icon: Gauge },
       { label: 'Flags', href: adminFlags.index().url, icon: Flag },
+      { label: 'MCP', href: adminMcp.index().url, icon: Bot },
     ],
   },
 ]

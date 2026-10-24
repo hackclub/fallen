@@ -141,6 +141,11 @@ form also needs a project approved on its admin page. Run a week again with `Clo
 The Hack Club privacy hub calls `POST /api/privacy/delete` and `/api/privacy/export` to delete a person's data. What
 gets deleted and kept is in [docs/privacy.md](docs/privacy.md). Update it when you add a table that holds user data.
 
+## Admin MCP
+
+Admins can let Claude Code use the admin panel through `POST /mcp`. Make a token at `/admin/mcp`, then run the
+command it shows. How it works and what it can't do is in [docs/mcp.md](docs/mcp.md).
+
 ## Layout
 
 ```
@@ -153,7 +158,7 @@ app/
   policies/       Pundit
   serializers/    Alba serializers; typelizer generates app/frontend/types and app/frontend/routes from these + routes.rb
   services/       HCA client, privacy hub token and deletion
-docs/             privacy.md
+docs/             privacy.md, performance.md, mcp.md
 lib/
   slack_bot/      Router, Handler, Command/Event/Action/View/Shortcut, Blocks, Manifest, Payload, BrowserSocket
   constraints/    Constraints::Admin, Constraints::Staff

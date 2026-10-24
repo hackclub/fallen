@@ -62,6 +62,18 @@ class PrivacyControllerTest < ActionDispatch::IntegrationTest
     assert_equal [ users(:admin).public_id ], Flipper[:beta].actors_value.to_a
   end
 
+  test "deletes an admin's MCP tokens and calls, and calls about the person" do
+    admin = User.create!(email: "staff@example.com", display_name: "Staff", roles: %w[admin user], hca_id: "hca_staff")
+    token = AdminToken.mint(user: admin, name: "Laptop")
+    McpAction.create!(user: admin, admin_token: token, tool: "list_users", kind: "read", status: "ok")
+    McpAction.create!(user: users(:admin), admin_token: AdminToken.mint(user: users(:admin), name: "Other"), tool: "get_user",
+                      kind: "read", status: "ok", subject: users(:member))
+    call_hub :delete, dry_run: false, subject: { emails: [ "staff@example.com", "member@example.com" ] }
+
+    assert_equal [ 1, 2 ], response.parsed_body["deleted"].values_at("admin_tokens", "mcp_actions")
+    assert_equal 0, McpAction.count
+  end
+
   test "echoes the request id" do
     call_hub :delete, request_id: "req-123", subject: { emails: [ "member@example.com" ] }
     assert_equal "req-123", response.parsed_body["request_id"]

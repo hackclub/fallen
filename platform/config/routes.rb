@@ -83,6 +83,10 @@ Rails.application.routes.draw do
   # The Slack "join" button's soft signup. Secret checked in the controller, no session.
   post "api/slack/join" => "api/slack_joins#create", as: :slack_join
 
+  # The admin MCP server (McpController, docs/mcp.md). Bearer token checked in the controller, no session.
+  post "mcp" => "mcp#handle", as: :mcp, format: false
+  match "mcp" => "mcp#not_allowed", via: %i[get put patch delete], format: false
+
   constraints Constraints::Admin.new do
     namespace :admin do
       root "dashboard#index"
@@ -110,6 +114,9 @@ Rails.application.routes.draw do
       end
 
       resources :flags, only: %i[index show create update destroy], param: :key, constraints: { key: %r{[^/]+} }
+
+      get "mcp" => "mcp#index", as: :mcp
+      resources :mcp_tokens, only: %i[create destroy], controller: :mcp
     end
   end
 

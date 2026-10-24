@@ -83,6 +83,8 @@ class User < ApplicationRecord
   has_many :time_milestones, dependent: :delete_all
   has_many :lapse_timelapses, dependent: :destroy
   has_many :active_days, dependent: :delete_all
+  # MCP tokens and the calls made with them stay after a token dies; PrivacyRequest deletes both.
+  has_many :admin_tokens
 
   validates :email, :display_name, :timezone, presence: true
   validates :hca_id, uniqueness: true, allow_nil: true
@@ -100,6 +102,7 @@ class User < ApplicationRecord
   # Finishing onboarding (picking a pet) or linking Slack while sitting in the huddle gets a welcome (HuddleWelcomeJob).
   after_commit -> { HuddleWelcomeJob.perform_later(self) }, on: %i[create update], if: :just_joined_fallen?
   after_commit -> { JoinMembersChannelJob.perform_later(self) }, on: %i[create update], if: :just_joined_fallen?
+  after_save :revoke_admin_tokens, if: :lost_admin_access?
 
   scope :admins, -> { where("roles @> ARRAY[?]::varchar[]", "admin") }
   scope :with_role, ->(role) { where("roles @> ARRAY[?]::varchar[]", role.to_s) }
@@ -319,6 +322,12 @@ class User < ApplicationRecord
     switch = pet_switch
     errors.add(:pet, "You can switch pets again on #{switch.resets_on.to_fs(:long)}.") unless switch.allowed?
   end
+
+  def lost_admin_access?
+    (saved_change_to_roles? && !admin?) || (saved_change_to_is_banned? && is_banned?) || (saved_change_to_discarded_at? && discarded?)
+  end
+
+  def revoke_admin_tokens = admin_tokens.live.update_all(revoked_at: Time.current, updated_at: Time.current)
 
   def roles_are_known
     unknown = roles - ROLES

@@ -32,6 +32,8 @@ Only from the token's `subject`: any `emails` (case-insensitive against `users.e
 | The days they opened the site, by UTC date, for daily active counts | `active_days` |
 | XP earned, line by line (journal XP, bonuses, streak checks) | `xp_entries`, `users.xp` |
 | Feature flags an admin turned on for them by name (their public id on the flag) | `flipper_gates` |
+| Admins only: their MCP tokens (name, digest, last four characters, when made, last used, expiry) and the calls made with them | `admin_tokens`, `mcp_actions` |
+| MCP calls made about the person or their projects (tool, arguments, result of a write, which admin) | `mcp_actions` |
 | Change history of everything above (PaperTrail copies of the rows) | `versions` |
 | The account's row in Airtable (name, email, HCA and Slack ids, whether it is a trial account, XP, project, journal and hour counts, where they came from). It drops out on the next upload, within 5 minutes, since every upload replaces the table | Airtable Users table (`AirtableUsers`) |
 
@@ -57,6 +59,8 @@ Sessions are signed cookies holding the user id, so they stop working once the r
 - Getting started with just an email: the browser asks Hack Club Auth whether it has an account for the email before
   anything is sent here. Trial accounts made from it are `users` rows like any other and are matched by email. One
   that later signs in to a different HCA account is discarded, and still matched by its email.
+- Other MCP calls whose arguments name the person's public id (a flag turned on for them by an admin's agent, say)
+  are not searched. Their results never hold an email or HCA id (`Mcp::Scrub`).
 - Sentry events and application logs are not touched. They expire on their own retention.
 - Request timings for `/admin/insights` (`active_insights_requests`) keep the path, controller, status and timings,
   but no user, IP or user agent. They are deleted after 30 days.

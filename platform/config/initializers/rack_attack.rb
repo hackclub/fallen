@@ -54,6 +54,17 @@ class Rack::Attack
     end
   end
 
+  # The admin MCP server: an agent makes a few calls a second at most. Counted per token (hashed), which holds even
+  # where the per-IP count can be dodged, and per IP for guessing.
+  throttle("mcp/token", limit: 300, period: 1.minute) do |req|
+    OpenSSL::Digest::SHA256.hexdigest(req.get_header("HTTP_AUTHORIZATION").to_s) if req.path == "/mcp"
+  end
+  throttle("mcp/ip", limit: 300, period: 1.minute) { |req| req.ip if req.path == "/mcp" }
+  # Minting answers with a live credential; an admin makes a handful at most.
+  throttle("mcp_tokens/user", limit: 10, period: 1.hour) do |req|
+    req.session[:user_id] if req.post? && req.path == "/admin/mcp_tokens"
+  end
+
   def self.fallout_link?(req) = req.get? && req.path == "/" && req.GET.key?("code")
 
   # Since rack-attack 6.7 the responders get the Rack::Attack::Request, not the env hash.

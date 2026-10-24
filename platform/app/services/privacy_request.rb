@@ -77,6 +77,9 @@ class PrivacyRequest
     deleted["project_members"] = forget(ProjectMember.where(user_id: ids).or(ProjectMember.where(project_id: project_ids)))
     deleted["project_invites"] = forget(ProjectInvite.where(user_id: ids).or(ProjectInvite.where(inviter_id: ids)).or(ProjectInvite.where(project_id: project_ids)))
     deleted["projects"] = forget(Project.where(id: project_ids))
+    mcp_actions = McpAction.where(user_id: ids).or(McpAction.where(subject_type: "User", subject_id: ids))
+    deleted["mcp_actions"] = mcp_actions.or(McpAction.where(subject_type: "Project", subject_id: project_ids)).delete_all
+    deleted["admin_tokens"] = forget(AdminToken.where(user_id: ids))
     deleted["users"] = User.where(id: removable.map(&:id)).delete_all
     deleted["versions"] = @versions
 
