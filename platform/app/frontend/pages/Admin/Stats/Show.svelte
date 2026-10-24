@@ -5,6 +5,7 @@
 <script lang="ts">
   import { Deferred, router } from '@inertiajs/svelte'
   import LoaderCircle from '@lucide/svelte/icons/loader-circle'
+  import FunnelChart from '@/components/admin/FunnelChart.svelte'
   import StatTile from '@/components/admin/StatTile.svelte'
   import TimeSeriesChart from '@/components/admin/TimeSeriesChart.svelte'
   import * as Card from '@/components/admin/ui/card'
@@ -113,8 +114,6 @@
     { label: 'Visitors', value: totals?.visitors, hint: 'opened the site at least once' },
     { label: 'Signups', value: totals?.signups, hint: 'accounts made' },
   ])
-
-  const start = $derived(funnel?.[0]?.count ?? 0)
 
   const ai = $derived(writing?.totals)
   const aiPoints = $derived((writing?.days ?? []).map((day) => ({ ...day, at: `${day.date}T00:00:00` })))
@@ -235,28 +234,9 @@
             {#each { length: 9 }, i (i)}<Skeleton class="h-8 w-full" />{/each}
           </div>
         {/snippet}
-        <ol class="space-y-2.5">
-          {#each funnel ?? [] as step, i (step.key)}
-            {@const previous = i > 0 ? funnel![i - 1].count : step.count}
-            <li class="grid grid-cols-[minmax(0,14rem)_1fr_auto] items-center gap-3 text-sm">
-              <span class="truncate text-muted-foreground" title={step.label}>{step.label}</span>
-              <div class="h-6 overflow-hidden rounded bg-muted">
-                <div
-                  class="h-full rounded bg-chart-1 transition-[width] duration-500"
-                  style="width: {start ? (step.count / start) * 100 : 0}%"
-                ></div>
-              </div>
-              <span class="w-28 text-right tabular-nums">
-                <span class="font-medium">{formatCount(step.count)}</span>
-                <span class="text-muted-foreground">
-                  · {i === 0 ? '100%' : percent(step.count, previous)}
-                </span>
-              </span>
-            </li>
-          {/each}
-        </ol>
+        <FunnelChart steps={funnel ?? []} />
         <p class="mt-3 text-xs text-muted-foreground">
-          The percentage is of the step before, so the biggest drop is where people get stuck.
+          The percentage is of the step before. The red one is the biggest drop, where people get stuck.
         </p>
       </Deferred>
     </Card.Content>
