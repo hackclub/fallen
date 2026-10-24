@@ -33,10 +33,10 @@ class DailyGoalTest < ActiveSupport::TestCase
 
   test "sami's best case raises the multiplier every monday, up to the most" do
     user = users(:admin)
-    multipliers = 5 * 1.0 + 7 * 1.1 + 6 * 1.2
+    multipliers = 5 * 1.0 + 7 * 1.15 + 6 * 1.3
     assert_equal (1000 / (8 / 60.0 * multipliers)).ceil, DailyGoal.for(user).best_minutes
 
-    user.update_columns(xp_multiplier: 1.5)
+    user.update_columns(xp_multiplier: 1.75)
     goal = DailyGoal.for(user)
     assert_equal goal.minutes, goal.best_minutes
   end
@@ -57,7 +57,7 @@ class DailyGoalTest < ActiveSupport::TestCase
     user = users(:newcomer)
     preview = assert_no_queries { DailyGoal.preview(user) }
     assert_equal({ days_left: 18, minutes: (1000 / (8 / 60.0 * 18)).ceil,
-                   best_minutes: { "lulu" => ((1000 - 60) / (8 / 60.0 * 18)).ceil, "sami" => (1000 / (8 / 60.0 * 19.9)).ceil } }, preview)
+                   best_minutes: { "lulu" => ((1000 - 60) / (8 / 60.0 * 18)).ceil, "sami" => (1000 / (8 / 60.0 * 20.85)).ceil } }, preview)
 
     travel_to DailyGoal::DEADLINE + 1.second
     assert_nil DailyGoal.preview(users(:newcomer))

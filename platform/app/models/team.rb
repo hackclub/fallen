@@ -125,8 +125,8 @@ class Team
   end
 
   class Sami < Team
-    STEP = 0.1
-    MAX_MULTIPLIER = 1.5
+    STEP = 0.15
+    MAX_MULTIPLIER = 1.75
 
     # Up STEP every Monday, when the week before is closed, to MAX_MULTIPLIER.
     def best_multipliers(days)

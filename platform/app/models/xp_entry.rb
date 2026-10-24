@@ -11,7 +11,7 @@
 #  day          :date             not null
 #  discarded_at :datetime
 #  kind         :string           not null
-#  multiplier   :decimal(2, 1)
+#  multiplier   :decimal(3, 2)
 #  source_type  :string
 #  created_at   :datetime         not null
 #  updated_at   :datetime         not null

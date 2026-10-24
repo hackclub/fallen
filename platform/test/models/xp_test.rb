@@ -157,13 +157,13 @@ class XpTest < ActiveSupport::TestCase
 
     journal_on(user, week.days.to_a - [ week.start ])
     2.times { user.team.close_week(week) }
-    assert_equal 1.1, user.reload.xp_multiplier, "the streak starts with the first journal"
+    assert_equal 1.15, user.reload.xp_multiplier, "the streak starts with the first journal"
     assert_equal 3, user.streak_freezes
     assert_equal 1, user.xp_entries.where(kind: "streak").count
 
     journal_on(user, week.days.map { |day| day + 7 }.first(5))
     user.team.close_week(Week.of(week.start + 7))
-    assert_equal 1.2, user.reload.xp_multiplier
+    assert_equal 1.3, user.reload.xp_multiplier
     assert_equal 1, user.streak_freezes
 
     journal_on(user, [ week.start + 14 ])
@@ -171,7 +171,7 @@ class XpTest < ActiveSupport::TestCase
     assert_equal 1.0, user.reload.xp_multiplier
     assert_equal 0, user.streak_freezes
 
-    user.update!(xp_multiplier: 1.5)
+    user.update!(xp_multiplier: 1.7)
     journal_on(user, week.days.map { |day| day + 21 })
     user.team.close_week(Week.of(week.start + 21))
     assert_equal Team::Sami::MAX_MULTIPLIER, user.reload.xp_multiplier

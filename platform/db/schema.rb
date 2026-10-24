@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_21_230000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_24_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -494,7 +494,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_21_230000) do
     t.string "slack_user_token_scopes"
     t.string "pet"
     t.integer "xp", default: 0, null: false
-    t.decimal "xp_multiplier", precision: 2, scale: 1, default: "1.0", null: false
+    t.decimal "xp_multiplier", precision: 3, scale: 2, default: "1.0", null: false
     t.integer "streak_freezes", default: 3, null: false
     t.datetime "airtable_synced_at"
     t.datetime "hatch_seen_at"
@@ -546,7 +546,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_21_230000) do
     t.bigint "user_id", null: false
     t.string "kind", null: false
     t.integer "amount", null: false
-    t.decimal "multiplier", precision: 2, scale: 1
+    t.decimal "multiplier", precision: 3, scale: 2
     t.date "day", null: false
     t.string "source_type"
     t.bigint "source_id"

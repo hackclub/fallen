@@ -49,9 +49,9 @@ class DailyGoal
   private
 
   # Minutes a day that, at each day's multiplier, add up to the XP still needed after `bonus`. Multipliers are in
-  # tenths, so they are summed exactly and a goal of exactly 450 minutes is not shown as 451.
+  # hundredths, so they are summed exactly and a goal of exactly 450 minutes is not shown as 451.
   def minutes_for(multipliers, bonus: 0)
     xp = [ xp_to_go - bonus, 0 ].max
-    (xp * 60 / (XpEntry::PER_HOUR * multipliers.sum { |m| m.to_r.round(1) })).ceil
+    (xp * 60 / (XpEntry::PER_HOUR * multipliers.sum { |m| m.to_r.round(2) })).ceil
   end
 end

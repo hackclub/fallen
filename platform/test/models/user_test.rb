@@ -28,7 +28,7 @@ require "test_helper"
 #  timezone                :string           default("UTC"), not null
 #  verification_status     :string
 #  xp                      :integer          default(0), not null
-#  xp_multiplier           :decimal(2, 1)    default(1.0), not null
+#  xp_multiplier           :decimal(3, 2)    default(1.0), not null
 #  created_at              :datetime         not null
 #  updated_at              :datetime         not null
 #  hca_id                  :string
