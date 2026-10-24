@@ -127,16 +127,22 @@
   const untouched = $derived(editing && form.body === journal?.body)
   const lengthNeeded = $derived(journalLengthNeeded(minutes))
   const longEnough = $derived(written >= lengthNeeded || untouched)
-  // Typed hours always count. With timelapses picked and nothing typed, the server takes their recorded time.
-  const canSubmit = $derived(
-    form.body.trim().length > 0 &&
-      longEnough &&
-      (selfWritten || untouched) &&
-      (timelapsed || form.duration.trim().length > 0) &&
-      uploading === 0 &&
-      !form.processing &&
-      !checking,
+  // Why the button is greyed out, shown on hover. Typed hours always count. With timelapses picked and nothing typed,
+  // the server takes their recorded time.
+  const blocker = $derived(
+    form.body.trim().length === 0
+      ? 'Write what you did first.'
+      : !longEnough
+        ? `Write at least ${lengthNeeded} characters for this many hours (${written} so far).`
+        : !selfWritten && !untouched
+          ? 'Tick the box saying you wrote it yourself.'
+          : !timelapsed && form.duration.trim().length === 0
+            ? 'Pick a timelapse or fill in your hours.'
+            : uploading > 0
+              ? 'Waiting for your photos to upload.'
+              : null,
   )
+  const canSubmit = $derived(blocker === null && !form.processing && !checking)
 
   // Photos live in the writing; deleting one there drops it. Photos a Slack journal brought along aren't in its
   // writing, so they stay.
@@ -340,7 +346,11 @@
         </div>
 
         <!-- Room for the button's press-down edge and focus ring, which the scrolling grid would clip. -->
-        <div class="mt-4 border-t-2 border-dashed border-paper-edge/70 px-1.5 pt-4 pb-2">
+        <!-- The reason sits on the wrapper because disabled buttons don't get hovered in every browser. -->
+        <div
+          class="mt-4 border-t-2 border-dashed border-paper-edge/70 px-1.5 pt-4 pb-2"
+          title={form.processing || checking ? undefined : (blocker ?? undefined)}
+        >
           <SubmitButton
             busy={form.processing || checking || flaggedCheck !== null}
             disabled={!canSubmit}
