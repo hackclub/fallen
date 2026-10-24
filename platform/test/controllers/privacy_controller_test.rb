@@ -64,9 +64,9 @@ class PrivacyControllerTest < ActionDispatch::IntegrationTest
 
   test "deletes an admin's MCP tokens and calls, and calls about the person" do
     admin = User.create!(email: "staff@example.com", display_name: "Staff", roles: %w[admin user], hca_id: "hca_staff")
-    token = AdminToken.mint(user: admin, name: "Laptop")
+    token = AdminToken.mint(user: admin, name: "staff@laptop")
     McpAction.create!(user: admin, admin_token: token, tool: "list_users", kind: "read", status: "ok")
-    McpAction.create!(user: users(:admin), admin_token: AdminToken.mint(user: users(:admin), name: "Other"), tool: "get_user",
+    McpAction.create!(user: users(:admin), admin_token: AdminToken.mint(user: users(:admin), name: "admin@other"), tool: "get_user",
                       kind: "read", status: "ok", subject: users(:member))
     call_hub :delete, dry_run: false, subject: { emails: [ "staff@example.com", "member@example.com" ] }
 

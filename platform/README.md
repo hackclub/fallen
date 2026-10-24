@@ -143,8 +143,8 @@ gets deleted and kept is in [docs/privacy.md](docs/privacy.md). Update it when y
 
 ## Admin MCP
 
-Admins can let Claude Code use the admin panel through `POST /mcp`. Make a token at `/admin/mcp`, then run the
-command it shows. How it works and what it can't do is in [docs/mcp.md](docs/mcp.md).
+Admins can let an MCP client (Claude Code, Cursor, VS Code, Codex) use the admin panel through `POST /mcp`. Make a
+token at `/admin/mcp` and add it with the config it shows. How it works and what it can't do is in [docs/mcp.md](docs/mcp.md).
 
 ## Layout
 

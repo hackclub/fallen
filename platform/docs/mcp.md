@@ -4,19 +4,17 @@
 stateless, one JSON-RPC request per POST. Its tools are the admin panel's own actions (`Mcp::Registry`), and each
 runs the same Pundit policy and model methods as its page.
 
-## Adding it to Claude Code
+## Adding it to a client
 
-Make a token at `/admin/mcp`, then:
-
-```sh
-claude mcp add --transport http fallen-admin https://fallen.hackclub.com/mcp --header "Authorization: Bearer <token>" -s local
-```
-
-Local scope keeps the token in Claude Code's own config, out of any repository. Leave the write tools on "ask"
-rather than allowing them for good.
+Make a token at `/admin/mcp`. It is named `name@device` (`anson@mac`), and the dialog that shows it once has the
+config for Claude Code, Cursor, VS Code and Codex (`app/frontend/lib/mcpClients.ts`). Any other client that speaks
+Streamable HTTP and can send an `Authorization: Bearer` header works too; connectors that only sign in with OAuth
+can't. Keep the token in your user config, never a project file. Leave the write tools on "ask" rather than allowing
+them for good.
 
 ## Tokens (`AdminToken`)
 
+- Named `name@device` (`AdminToken::NAME_FORMAT`), so the list says whose it is and where it lives.
 - `fallen_admin_` and 40 base58 characters. Only the SHA-256 digest and the last four characters are stored; the
   token itself is in the one JSON response that minted it, never in flash, props or a log.
 - Every token expires: 30 days by default, 90 at most. An admin holds five live ones at most.

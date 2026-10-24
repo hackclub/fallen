@@ -1,7 +1,7 @@
 require "test_helper"
 
 class McpTest < ActionDispatch::IntegrationTest
-  setup { @secret = AdminToken.mint(user: users(:admin), name: "Laptop").token }
+  setup { @secret = AdminToken.mint(user: users(:admin), name: "admin@laptop").token }
 
   test "only a live token of a current admin gets in" do
     assert_equal 401, rpc("tools/list", token: nil).status
@@ -27,7 +27,7 @@ class McpTest < ActionDispatch::IntegrationTest
 
     users(:admin).update!(roles: %w[admin user])
     assert_equal 401, rpc("tools/list").status, "a revoked token stays revoked"
-    secret = AdminToken.mint(user: users(:admin), name: "Again").token
+    secret = AdminToken.mint(user: users(:admin), name: "admin@again").token
     users(:admin).update!(is_banned: true)
     assert_equal 401, rpc("tools/list", token: secret).status
   end

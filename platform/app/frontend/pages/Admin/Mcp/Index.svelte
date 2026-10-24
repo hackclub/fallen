@@ -16,7 +16,9 @@
   import { Input } from '@/components/admin/ui/input'
   import { Label } from '@/components/admin/ui/label'
   import { Skeleton } from '@/components/admin/ui/skeleton'
+  import * as ToggleGroup from '@/components/admin/ui/toggle-group'
   import { csrfToken } from '@/lib/csrf'
+  import { guessDevice, mcpClients, tokenNamePart } from '@/lib/mcpClients'
   import { formatDate, timeAgo } from '@/lib/format'
   import { adminMcp, adminMcpToken, adminMcpTokens, adminSqlChange } from '@/routes'
   import type { AdminMcpAction, AdminMcpToken, AdminSqlChange } from '@/types'
@@ -27,16 +29,23 @@
     sql_changes,
     mcp_url,
     max_lifetime_days,
+    default_handle,
   }: {
     tokens: AdminMcpToken[]
     actions?: AdminMcpAction[]
     sql_changes?: AdminSqlChange[]
     mcp_url: string
     max_lifetime_days: number
+    default_handle: string
   } = $props()
 
   let creating = $state(false)
-  let name = $state('')
+  // A token is named name@device (AdminToken::NAME_FORMAT): who holds it and where it lives.
+  let handle = $state('')
+  let device = $state('')
+  const name = $derived(`${handle}@${device}`)
+  const nameTaken = $derived(tokens.some((token) => token.live && token.name === name))
+  let client = $state(mcpClients[0].key)
   let days = $state(30)
   let error = $state<string | null>(null)
   let saving = $state(false)
@@ -47,10 +56,8 @@
   let confirming = $state(false)
   let open = $state<number | null>(null)
 
-  const command = $derived(
-    secret &&
-      `claude mcp add --transport http fallen-admin ${mcp_url} --header "Authorization: Bearer ${secret}" -s local`,
-  )
+  const chosen = $derived(mcpClients.find((option) => option.key === client) ?? mcpClients[0])
+  const command = $derived(secret && chosen.snippet(mcp_url, secret))
 
   async function create(event: SubmitEvent) {
     event.preventDefault()
@@ -77,9 +84,12 @@
 
   function closeCreate(next: boolean) {
     creating = next
-    if (next) return
+    if (next) {
+      handle = tokenNamePart(default_handle)
+      device = guessDevice()
+      return
+    }
     secret = null
-    name = ''
     days = 30
     error = null
     copied = false
@@ -89,6 +99,7 @@
     if (!command) return
     await navigator.clipboard.writeText(command)
     copied = true
+    setTimeout(() => (copied = false), 2000)
   }
 
   function revoke(token: AdminMcpToken) {
@@ -241,11 +252,24 @@
       <Dialog.Header>
         <Dialog.Title>Your token</Dialog.Title>
         <Dialog.Description>
-          This is the only time it is shown. Run this to add it to Claude Code on this machine only.
+          This is the only time it is shown. Pick where you use it and add it there now.
         </Dialog.Description>
       </Dialog.Header>
+      <ToggleGroup.Root
+        type="single"
+        variant="outline"
+        size="sm"
+        value={client}
+        onValueChange={(value) => value && ((client = value), (copied = false))}
+        class="flex-wrap"
+      >
+        {#each mcpClients as option (option.key)}
+          <ToggleGroup.Item value={option.key} class="px-3">{option.label}</ToggleGroup.Item>
+        {/each}
+      </ToggleGroup.Root>
+      <p class="text-sm text-muted-foreground">{chosen.where}</p>
       <pre
-        class="overflow-x-auto rounded-md bg-muted p-3 font-mono text-xs break-all whitespace-pre-wrap">{command}</pre>
+        class="max-h-64 overflow-auto rounded-md bg-muted p-3 font-mono text-xs break-all whitespace-pre-wrap">{command}</pre>
       <Dialog.Footer>
         <Button variant="outline" onclick={copy}>
           {#if copied}<Check data-icon="inline-start" /> Copied{:else}<Copy data-icon="inline-start" /> Copy{/if}
@@ -262,16 +286,42 @@
           </Dialog.Description>
         </Dialog.Header>
         <div class="space-y-2">
-          <Label for="token-name">Name</Label>
-          <!-- svelte-ignore a11y_autofocus -->
-          <Input
-            id="token-name"
-            bind:value={name}
-            placeholder="Laptop"
-            maxlength={60}
-            autocomplete="off"
-            autofocus
-          />
+          <Label for="token-device">Name</Label>
+          <!-- Two fields read as one, name@device, with the name half ending at the @. -->
+          <div
+            class="flex h-9 items-center rounded-md border border-input font-mono text-sm shadow-xs transition-[color,box-shadow] focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50 dark:bg-input/30"
+          >
+            <input
+              aria-label="Your name"
+              bind:value={() => handle, (value) => (handle = tokenNamePart(value))}
+              placeholder="you"
+              autocomplete="off"
+              spellcheck={false}
+              class="h-full w-0 flex-1 border-0 bg-transparent py-0 pr-0 pl-3 text-right font-mono text-sm shadow-none outline-none placeholder:text-muted-foreground focus:ring-0"
+            />
+            <span class="px-0.5 text-muted-foreground">@</span>
+            <!-- svelte-ignore a11y_autofocus -->
+            <input
+              id="token-device"
+              aria-label="Device"
+              bind:value={() => device, (value) => (device = tokenNamePart(value))}
+              placeholder="laptop"
+              autocomplete="off"
+              spellcheck={false}
+              autofocus
+              class="h-full w-0 flex-1 border-0 bg-transparent py-0 pr-3 pl-0 font-mono text-sm shadow-none outline-none placeholder:text-muted-foreground focus:ring-0"
+            />
+          </div>
+          {#if nameTaken}
+            <p class="text-xs text-amber-600 dark:text-amber-400">
+              You already have a live token called {name}. Revoke it if this one replaces it.
+            </p>
+          {:else}
+            <p class="text-xs text-muted-foreground">
+              Who holds it and where it lives, like <span class="font-mono">{default_handle}@work-laptop</span
+              >.
+            </p>
+          {/if}
         </div>
         <div class="space-y-2">
           <Label for="token-days">Lasts for (days)</Label>
@@ -280,7 +330,7 @@
         {#if error}<p class="text-sm text-destructive">{error}</p>{/if}
         <Dialog.Footer>
           <Button type="button" variant="outline" onclick={() => closeCreate(false)}>Cancel</Button>
-          <Button type="submit" disabled={!name.trim() || saving}>Make token</Button>
+          <Button type="submit" disabled={!handle || !device || saving}>Make token</Button>
         </Dialog.Footer>
       </form>
     {/if}

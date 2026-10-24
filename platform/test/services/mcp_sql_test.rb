@@ -45,7 +45,7 @@ class McpSqlTest < ActiveSupport::TestCase
   end
 
   test "writes to the audit trail, tokens, jobs and flags, and writes with their own RETURNING, are refused" do
-    AdminToken.mint(user: users(:admin), name: "Laptop")
+    AdminToken.mint(user: users(:admin), name: "admin@laptop")
     assert_refused(/admin_tokens can't be written/) { Mcp::Sql.preview("UPDATE admin_tokens SET revoked_at = NULL") }
     assert_refused(/RETURNING/) { Mcp::Sql.preview("DELETE FROM projects RETURNING id") }
     assert_refused(/no rows/) { Mcp::Sql.preview("DELETE FROM projects WHERE id = -1") }
@@ -95,7 +95,7 @@ class McpSqlTest < ActiveSupport::TestCase
 
   private
 
-  def request_change(sql) = McpSqlChange.request!(sql:, admin: users(:admin), token: AdminToken.mint(user: users(:admin), name: "Laptop #{SecureRandom.hex(2)}"))
+  def request_change(sql) = McpSqlChange.request!(sql:, admin: users(:admin), token: AdminToken.mint(user: users(:admin), name: "admin@laptop-#{SecureRandom.hex(2)}"))
 
   def assert_refused(message, &)
     error = assert_raises(Mcp::Refused, &)

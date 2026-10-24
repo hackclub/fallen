@@ -2,7 +2,7 @@ require "test_helper"
 
 class AdminSqlChangesTest < ActionDispatch::IntegrationTest
   setup do
-    token = AdminToken.mint(user: users(:admin), name: "Laptop")
+    token = AdminToken.mint(user: users(:admin), name: "admin@laptop")
     @change = McpSqlChange.request!(sql: "UPDATE projects SET title = 'Renamed' WHERE id = #{projects(:station).id}", admin: users(:admin), token:)
   end
 

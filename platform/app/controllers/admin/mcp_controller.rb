@@ -16,7 +16,8 @@ class Admin::McpController < Admin::ApplicationController
       actions: InertiaRails.defer { AdminMcpActionSerializer.render(actions.to_a) },
       sql_changes: InertiaRails.defer { AdminSqlChangeSerializer.render(sql_changes.to_a) },
       mcp_url: mcp_url,
-      max_lifetime_days: AdminToken::MAX_LIFETIME.in_days.to_i
+      max_lifetime_days: AdminToken::MAX_LIFETIME.in_days.to_i,
+      default_handle: AdminToken.default_handle(true_user)
     }
   end
 

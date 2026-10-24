@@ -34,13 +34,17 @@ class AdminToken < ApplicationRecord
   DEFAULT_LIFETIME = 30.days
   MAX_LIFETIME = 90.days
   TOUCH_INTERVAL = 5.minutes
+  # name@device, like an SSH key's comment, so the list says whose token it is and where it lives at a glance.
+  NAME_PART = "[a-z0-9][a-z0-9._-]{0,29}"
+  NAME_FORMAT = /\A#{NAME_PART}@#{NAME_PART}\z/
 
   has_paper_trail
 
   belongs_to :user
   has_many :mcp_actions, dependent: :restrict_with_exception
 
-  validates :name, presence: true, length: { maximum: 60 }
+  validates :name, format: { with: NAME_FORMAT, message: "must look like name@device: lowercase letters, numbers, dots, dashes and underscores" },
+    on: :create
   validates :token_digest, presence: true, uniqueness: true
   validates :expires_at, presence: true
   validate :owner_is_an_admin, on: :create
@@ -50,6 +54,9 @@ class AdminToken < ApplicationRecord
   scope :live, -> { where(revoked_at: nil).where(expires_at: Time.current..) }
 
   attr_reader :token
+
+  # The name half a new token starts with: the first word of the admin's name, as the form would type it.
+  def self.default_handle(user) = user.display_name.to_s.split.first.to_s.parameterize(separator: "-").presence&.first(30) || "admin"
 
   def self.digest(token) = OpenSSL::Digest::SHA256.hexdigest(token.to_s)
 
