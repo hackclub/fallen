@@ -12,9 +12,10 @@ export const mcpClients: McpClient[] = [
   {
     key: 'claude-code',
     label: 'Claude Code',
-    where: 'Run this in a terminal. Local scope keeps the token in your own config, out of any repository.',
+    where:
+      'Run this in a terminal. User scope loads it in every directory and keeps the token in your own config, out of any repository.',
     snippet: (url, token) =>
-      `claude mcp add --transport http ${SERVER} ${url} --header "Authorization: Bearer ${token}" -s local`,
+      `claude mcp add --transport http ${SERVER} ${url} --header "Authorization: Bearer ${token}" -s user`,
   },
   {
     key: 'cursor',
