@@ -5,7 +5,7 @@
 # (Team#best_multipliers, Team#best_bonus_xp). Today's journal XP is counted back in, so the goal stays put while they
 # work through it. Team wins are left out; no one can plan on them.
 class DailyGoal
-  DEADLINE = Time.find_zone!("America/New_York").local(2026, 12, 9, 23, 59, 59)
+  DEADLINE = Time.find_zone!("America/New_York").local(2026, 12, 11, 23, 59, 59)
 
   # Nil for someone without a pet, once they have the XP, or after the deadline.
   def self.for(user, team: user.team, now: Time.current)
