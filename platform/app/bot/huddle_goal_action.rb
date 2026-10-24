@@ -3,7 +3,8 @@
 # being picked (the session is the block_id) and "huddle_goal:still" submits it (value "<session>:<pick>"). Otherwise
 # the value is the HuddleSession's public id. The answer is stored on that session and on the one they have open
 # now, in case they dropped out and back in before answering. The prompt is in the thread and their DMs; answering
-# one updates the other's DM copy (HuddleDmAnswerJob).
+# one updates the other's DM copy (HuddleDmAnswerJob). The thread copy is ephemeral and can't be updated, so someone
+# may answer both; only the first commit is announced.
 class HuddleGoalAction < SlackBot::Action
   def call
     session_id, @picked = (arg == "pick" ? action.block_id : value).to_s.split(":", 2)
@@ -33,8 +34,9 @@ class HuddleGoalAction < SlackBot::Action
   def commit(session, goal)
     return ask_again(session, "Write what you're working on first!") if goal.blank?
 
+    announced = session.mode == "working"
     answer(session, mode: "working", goal: goal.truncate(500))
-    HuddleCommitJob.perform_later(session)
+    HuddleCommitJob.perform_later(session) unless announced
   end
 
   def answer(session, mode:, goal:)

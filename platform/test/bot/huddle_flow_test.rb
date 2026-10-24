@@ -234,6 +234,14 @@ class HuddleFlowTest < ActiveSupport::TestCase
     end
   end
 
+  test "answering both the DM and the thread announces once" do
+    with_fake_slack do
+      assert_enqueued_with(job: HuddleCommitJob) { press("commit", goal: "Case", channel: "U0MEMBER") }
+      assert_no_enqueued_jobs(only: HuddleCommitJob) { press("commit", goal: "Case firmware", channel: "CHUDDLE") }
+      assert_equal "Case firmware", @session.reload.goal
+    end
+  end
+
   test "answering in the DM does not update it twice" do
     @session.update!(dm_channel_id: "U0MEMBER", prompt_dm_ts: "1700009999.000001")
     with_fake_slack do
