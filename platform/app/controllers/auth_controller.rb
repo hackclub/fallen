@@ -60,8 +60,9 @@ class AuthController < ApplicationController
     user
   end
 
+  # Up to 30s: the first request makes two HCA calls, each allowed 5s to connect and 10s to answer.
   def wait_for_first_callback(key)
-    50.times do
+    300.times do
       id = Rails.cache.read(key)
       return User.find(id) if id.is_a?(Integer)
       break if id.nil?
