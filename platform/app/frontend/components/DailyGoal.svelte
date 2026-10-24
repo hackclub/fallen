@@ -21,11 +21,10 @@
   import { formatMinutes } from '@/lib/format'
   import { PET_NAMES } from '@/lib/pet.svelte'
 
-  // The top of "Your hours": today's journaled time against the daily goal, with the best case under it so the
-  // number never looks like the only way.
+  // The top of "Your hours": today's journaled time against the daily goal. Only the best case is shown, where the
+  // team's reward pays out in full; `minutes` just says whether the reward still lowers it.
   let { goal, today, team, rules }: { goal: Goal; today: number; team: string; rules: TeamRules } = $props()
 
-  // The best case is the goal; the pace without the team's reward is the fallback under it.
   const left = $derived(Math.max(goal.best_minutes - today, 0))
   const saves = $derived(goal.best_minutes < goal.minutes)
   const how = $derived.by(() => {
@@ -69,8 +68,6 @@
     <span>{left === 0 ? 'Done for today!' : `${formatMinutes(left)} to go`}</span>
   </div>
   <p class="mt-4 font-outfit text-pale-blue">
-    {how}
-    {#if saves}Without it, {formatMinutes(goal.minutes)} a day.{/if}
-    You can do it!
+    {how} You can do it!
   </p>
 </div>
