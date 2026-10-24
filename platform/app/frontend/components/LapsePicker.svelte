@@ -53,7 +53,7 @@
     (locked
       ? current
       : [...current, ...(lapse?.timelapses ?? []).filter((t) => !current.some((c) => c.id === t.id))]
-    ).sort((a, b) => Number(Boolean(blocked(a))) - Number(Boolean(blocked(b)))),
+    ).toSorted((a, b) => Number(Boolean(blocked(a))) - Number(Boolean(blocked(b)))),
   )
   // Same decimal hours as Duration.format on the server, which does the real sum.
   const totalMinutes = $derived(
