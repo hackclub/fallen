@@ -115,13 +115,15 @@ class HuddleSession < ApplicationRecord
 
   # Whether to ask what they got done now that this session has ended: they have not come back, were not just
   # dropped by Slack ending the huddle (HuddleHandoffJob asks them over instead), were not only chilling, and spent
-  # WRAP_UP_MIN in it since they were last asked.
+  # WRAP_UP_MIN in it since they were last asked. Someone who never said they were working is only asked if they
+  # have a project and did not say they were chilling.
   def wrap_up_due?
     return false if left_at.nil? || wrap_up_asked_at || mode == "chilling"
     return false if HuddleSession.ongoing.exists?(slack_id: slack_id)
     return false if huddle.ended? && left_at >= huddle.ended_at - Huddle::END_GRACE
+    return false if visit.total_seconds < WRAP_UP_MIN
 
-    visit.total_seconds >= WRAP_UP_MIN
+    visit.exists?(mode: "working") || (!visit.exists?(mode: "chilling") && user.present? && Project.kept.teamed_with(user).exists?)
   end
 
   # What this visit counted on the pet (TrackedTime), asked about in the wrap-up DM.

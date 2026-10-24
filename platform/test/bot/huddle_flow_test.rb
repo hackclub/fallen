@@ -296,6 +296,21 @@ class HuddleFlowTest < ActiveSupport::TestCase
     end
   end
 
+  test "someone who never said they were working is asked only if they have a project and were not chilling" do
+    @session.update!(joined_at: 50.minutes.ago, left_at: 2.minutes.ago)
+    assert @session.wrap_up_due?
+
+    @huddle.sessions.create!(slack_id: "U0MEMBER", joined_at: 58.minutes.ago, left_at: 55.minutes.ago, mode: "chilling")
+    assert_not @session.wrap_up_due?, "chilling earlier in the visit"
+
+    @session.update!(user: users(:admin), slack_id: "U0STRANGER")
+    Project.teamed_with(users(:admin)).find_each(&:discard)
+    assert_not @session.wrap_up_due?, "no project"
+
+    @session.update!(mode: "working", goal: "Case")
+    assert @session.wrap_up_due?
+  end
+
   test "a visit split by dropped connections counts as one" do
     @huddle.sessions.create!(slack_id: "U0MEMBER", joined_at: 20.minutes.ago, left_at: 6.minutes.ago)
     @session.update!(left_at: 2.minutes.ago)
