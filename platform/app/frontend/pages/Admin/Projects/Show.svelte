@@ -14,7 +14,7 @@
   import { Button } from '@/components/admin/ui/button'
   import * as Card from '@/components/admin/ui/card'
   import { formatDate, formatDateTime, formatMinutes, timeAgo } from '@/lib/format'
-  import { adminProjects } from '@/routes'
+  import { adminProjects, projects } from '@/routes'
   import * as AlertDialog from '@/components/admin/ui/alert-dialog'
   import type { AdminJournal, AdminProject, Pagy } from '@/types'
 
@@ -47,6 +47,8 @@
 
   const links = $derived(
     [
+      // Deleted projects 404 on the site.
+      { label: 'Open in Fallen', href: project.discarded_at ? null : projects.show(project.id).url },
       { label: 'Slack thread', href: project.slack_url },
       { label: 'Repo', href: project.repo_url },
       { label: 'Demo', href: project.demo_url },
