@@ -74,7 +74,7 @@
   const percent = (part: number, whole: number) => (whole ? `${Math.round((part / whole) * 100)}%` : '–')
 
   const totals = $derived(daily?.totals)
-  // Days are UTC dates; drawn at local midnight so the axis shows the same date.
+  // Days are dates in New York; drawn at local midnight so the axis shows the same date.
   const points = $derived((daily?.days ?? []).map((day) => ({ ...day, at: `${day.date}T00:00:00` })))
 
   const nowTiles = $derived([
@@ -147,7 +147,7 @@
       {#if loading}<LoaderCircle class="size-4 animate-spin text-muted-foreground" />{/if}
     </h1>
     <p class="text-sm text-muted-foreground">
-      Who is building and how much, over the {RANGE_LABELS[range]}. Days are UTC.
+      Who is building and how much, over the {RANGE_LABELS[range]}. Days are New York time.
     </p>
   </div>
   <ToggleGroup.Root

@@ -10,14 +10,19 @@ class ProgramStatsTest < ActiveSupport::TestCase
 
   teardown { travel_back }
 
-  test "tracked time is everyone's huddle and timer time by UTC day, overlaps once, never chilling" do
+  test "days end at midnight in New York, so the evening there is not tomorrow yet" do
+    travel_to Time.utc(2026, 10, 22, 2)
+    assert_equal "2026-10-21", ProgramStats.new(range: "7d").daily[:days].last[:date]
+  end
+
+  test "tracked time is everyone's huddle and timer time by New York day, overlaps once, never chilling" do
     member, admin = users(:member), users(:admin)
-    # Across midnight: 1 hour on the 20th, 2 on the 21st, half an hour of it paused.
-    session(member, joined_at: Time.utc(2026, 10, 20, 23), left_at: Time.utc(2026, 10, 21, 2))
-    member.huddle_pauses.create!(started_at: Time.utc(2026, 10, 21, 1), ended_at: Time.utc(2026, 10, 21, 1, 30))
+    # Across New York's midnight (4am UTC): 1 hour on the 20th, 2 on the 21st, half an hour of it paused.
+    session(member, joined_at: Time.utc(2026, 10, 21, 3), left_at: Time.utc(2026, 10, 21, 6))
+    member.huddle_pauses.create!(started_at: Time.utc(2026, 10, 21, 5), ended_at: Time.utc(2026, 10, 21, 5, 30))
     # The timer overlaps the huddle for half an hour, so adds only half an hour.
-    member.timer_sessions.create!(started_at: Time.utc(2026, 10, 21, 1, 30), stopped_at: Time.utc(2026, 10, 21, 2, 30))
-    session(admin, joined_at: Time.utc(2026, 10, 21, 3), left_at: Time.utc(2026, 10, 21, 5), mode: "chilling")
+    member.timer_sessions.create!(started_at: Time.utc(2026, 10, 21, 5, 30), stopped_at: Time.utc(2026, 10, 21, 6, 30))
+    session(admin, joined_at: Time.utc(2026, 10, 21, 7), left_at: Time.utc(2026, 10, 21, 9), mode: "chilling")
     # Before the range.
     admin.timer_sessions.create!(started_at: 40.days.ago, stopped_at: 40.days.ago + 1.hour)
 

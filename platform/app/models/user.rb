@@ -233,9 +233,9 @@ class User < ApplicationRecord
 
   def disconnect_lapse! = update!(lapse_token: nil, lapse_synced_at: nil)
 
-  # The first visit of each UTC day is also an ActiveDay, so it is written even inside the five minutes.
+  # The first visit of each day (ActiveDay) is written even inside the five minutes.
   def touch_last_seen(now = Time.current)
-    new_day = last_seen_at.nil? || last_seen_at.utc.to_date != now.utc.to_date
+    new_day = last_seen_at.nil? || ActiveDay.day(last_seen_at) != ActiveDay.day(now)
     return unless new_day || last_seen_at < now - 5.minutes
 
     new_day ? ActiveDay.record(self, now) : update_column(:last_seen_at, now)

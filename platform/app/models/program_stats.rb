@@ -1,11 +1,14 @@
 # frozen_string_literal: true
 
-# The numbers on /admin/stats over a range of UTC days: who opened the site (ActiveDay) and who built, the time the
+# The numbers on /admin/stats over a range of days in the program's timezone (ZONE): who opened the site (ActiveDay) and who built, the time the
 # pet's timer tracked for everyone (TrackedTime's rules, not cut at each person's last journal) next to the hours
 # journals logged, how far the people who signed up in the range got, and what the AI-writing check (WritingCheck)
 # caught. Each public method is one deferred prop.
 class ProgramStats
   # Range => days, nil for since the first signup.
+  ZONE = "America/New_York"
+  # A timestamp column's date in ZONE.
+  LOCAL_DATE = ->(column) { "(#{column} AT TIME ZONE 'UTC' AT TIME ZONE '#{ZONE}')::date" }
   RANGES = { "7d" => 7, "30d" => 30, "90d" => 90, "all" => nil }.freeze
   DEFAULT_RANGE = "30d"
 
@@ -27,7 +30,7 @@ class ProgramStats
     SQL
     [ "journaled", "Wrote a journal", "EXISTS (SELECT 1 FROM journals WHERE journals.user_id = users.id AND journals.discarded_at IS NULL)" ],
     [ "returned", "Journaled on two days", <<~SQL.squish ]
-      (SELECT COUNT(DISTINCT journals.created_at::date) FROM journals WHERE journals.user_id = users.id AND journals.discarded_at IS NULL) >= 2
+      (SELECT COUNT(DISTINCT #{LOCAL_DATE.('journals.created_at')}) FROM journals WHERE journals.user_id = users.id AND journals.discarded_at IS NULL) >= 2
     SQL
   ].freeze
   FUNNEL_COUNTS = FUNNEL.each_index.map { |i| "COUNT(*) FILTER (WHERE #{FUNNEL[..i].map { |(*, sql)| "(#{sql})" }.join(" AND ")})" }.freeze
@@ -77,13 +80,13 @@ class ProgramStats
     end
 
     logged = Hash.new(0)
-    Journal.kept.where(created_at: from..).pluck(Arel.sql("created_at::date"), :user_id, :duration_minutes).each do |day, user_id, minutes|
+    Journal.kept.where(created_at: from..).pluck(Arel.sql(LOCAL_DATE.("created_at")), :user_id, :duration_minutes).each do |day, user_id, minutes|
       logged[day] += minutes.to_i
       builders[day] << user_id
     end
 
     visitors = ActiveDay.where(day: days).group(:day).count
-    signups = User.kept.where(created_at: from..).group(Arel.sql("created_at::date")).count
+    signups = User.kept.where(created_at: from..).group(Arel.sql(LOCAL_DATE.("created_at"))).count
 
     {
       days: days.map do |day|
@@ -105,7 +108,7 @@ class ProgramStats
   # Checks a day and how many were flagged, plus the range's totals and what Pangram billed for them.
   def writing
     selects = WRITING_COUNTS.values.map { Arel.sql("COUNT(*) FILTER (WHERE #{it})") } << Arel.sql(BILLED_HUNDREDS)
-    rows = WritingCheck.where(created_at: from..).group(Arel.sql("created_at::date")).pluck(Arel.sql("created_at::date"), *selects)
+    rows = WritingCheck.where(created_at: from..).group(Arel.sql(LOCAL_DATE.("created_at"))).pluck(Arel.sql(LOCAL_DATE.("created_at")), *selects)
     by_day = rows.to_h { |day, *counts| [ day, WRITING_COUNTS.keys.zip(counts).to_h.merge(hundreds: counts.last.to_i) ] }
     totals = (WRITING_COUNTS.keys + [ :hundreds ]).index_with { |key| by_day.values.sum { it[key] } }
 
@@ -119,13 +122,13 @@ class ProgramStats
 
   def days
     @days ||= begin
-      today = @now.utc.to_date
-      first = RANGES[range] ? today - (RANGES[range] - 1) : User.minimum(:created_at)&.utc&.to_date || today
+      today = @now.in_time_zone(ZONE).to_date
+      first = RANGES[range] ? today - (RANGES[range] - 1) : User.minimum(:created_at)&.in_time_zone(ZONE)&.to_date || today
       first..today
     end
   end
 
-  def from = days.first.in_time_zone("UTC")
+  def from = days.first.in_time_zone(ZONE)
 
   # Everyone's tracked time that ends after `since`, by user id, before overlaps are joined.
   def tracked_stretches(since = from)
@@ -140,13 +143,14 @@ class ProgramStats
 
   def ending_after(scope, column, since) = scope.where(column => nil).or(scope.where(column => since..))
 
-  # Splits a stretch, cut to the range, at UTC midnights.
+  # Splits a stretch, cut to the range, at midnights in ZONE.
   def each_day(start, finish)
     start = [ start, from ].max
     finish = [ finish, @now ].min
     while start < finish
-      upto = [ finish, start.utc.to_date.next_day.in_time_zone("UTC") ].min
-      yield start.utc.to_date, upto - start
+      day = start.in_time_zone(ZONE).to_date
+      upto = [ finish, day.next_day.in_time_zone(ZONE) ].min
+      yield day, upto - start
       start = upto
     end
   end
