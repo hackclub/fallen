@@ -68,7 +68,7 @@ module Mcp
     def close(action, tool, status:, error:, started:, payload:, subject:)
       duration = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - started) * 1000).round
       action.update_columns(status:, error:, duration_ms: duration, updated_at: Time.current,
-                            result: status == "ok" ? Scrub.result(payload, write: tool.write?) : nil,
+                            result: status == "ok" ? Scrub.result(payload, write: tool.logs_result?) : nil,
                             subject_type: subject&.class&.base_class&.name, subject_id: subject&.id)
     end
   end

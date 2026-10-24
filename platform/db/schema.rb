@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_24_120003) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_24_120004) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -264,6 +264,27 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_120003) do
     t.index ["created_at"], name: "index_mcp_actions_on_created_at"
     t.index ["subject_type", "subject_id"], name: "index_mcp_actions_on_subject_type_and_subject_id"
     t.index ["user_id"], name: "index_mcp_actions_on_user_id"
+  end
+
+  create_table "mcp_sql_changes", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "admin_token_id", null: false
+    t.bigint "reviewer_id"
+    t.text "sql", null: false
+    t.string "kind", null: false
+    t.string "table_name", null: false
+    t.string "status", default: "pending", null: false
+    t.jsonb "preview", default: {}, null: false
+    t.integer "rows_affected"
+    t.text "error"
+    t.datetime "expires_at", null: false
+    t.datetime "resolved_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["admin_token_id"], name: "index_mcp_sql_changes_on_admin_token_id"
+    t.index ["created_at"], name: "index_mcp_sql_changes_on_created_at"
+    t.index ["reviewer_id"], name: "index_mcp_sql_changes_on_reviewer_id"
+    t.index ["user_id"], name: "index_mcp_sql_changes_on_user_id"
   end
 
   create_table "privacy_token_uses", primary_key: "jti", id: :text, force: :cascade do |t|
@@ -611,6 +632,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_24_120003) do
   add_foreign_key "lapse_timelapses", "users"
   add_foreign_key "mcp_actions", "admin_tokens"
   add_foreign_key "mcp_actions", "users"
+  add_foreign_key "mcp_sql_changes", "admin_tokens"
+  add_foreign_key "mcp_sql_changes", "users"
+  add_foreign_key "mcp_sql_changes", "users", column: "reviewer_id"
   add_foreign_key "project_invites", "projects"
   add_foreign_key "project_invites", "users"
   add_foreign_key "project_invites", "users", column: "inviter_id"

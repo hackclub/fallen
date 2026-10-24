@@ -41,6 +41,9 @@ module Mcp
 
       def write? = kind_value == :write
 
+      # Whether the log keeps what a write answered (Mcp::Scrub). A tool whose answer can be arbitrary rows says no.
+      def logs_result? = write?
+
       # The gem calls this with the request's arguments; the work is in `run`, reached through Mcp::Invoke.
       def call(server_context:, **args)
         Mcp::Invoke.call(self, args, server_context)

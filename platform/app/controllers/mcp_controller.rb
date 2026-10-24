@@ -13,7 +13,8 @@ class McpController < ActionController::API
     server = MCP::Server.new(
       name: "fallen-admin", title: "Fallen admin", version: "1",
       instructions: Mcp::Registry::INSTRUCTIONS, tools: Mcp::Registry.tools,
-      server_context: { admin: @admin, token: @token }
+      # Production only answers APP_HOST (config.hosts), so the base URL can't be pointed elsewhere.
+      server_context: { admin: @admin, token: @token, base_url: request.base_url }
     )
     # The Host and Origin checks are for unauthenticated local servers; a browser can't attach the Bearer header
     # cross-site, and Orchard's proxy owns the Host header. JSON responses because a Rails action buffers its body.

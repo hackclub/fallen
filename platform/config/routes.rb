@@ -117,6 +117,7 @@ Rails.application.routes.draw do
 
       get "mcp" => "mcp#index", as: :mcp
       resources :mcp_tokens, only: %i[create destroy], controller: :mcp
+      resources :sql_changes, only: %i[show update]
     end
   end
 

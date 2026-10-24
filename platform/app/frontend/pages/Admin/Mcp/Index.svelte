@@ -3,7 +3,7 @@
 </script>
 
 <script lang="ts">
-  import { Deferred, router } from '@inertiajs/svelte'
+  import { Deferred, Link, router } from '@inertiajs/svelte'
   import Bot from '@lucide/svelte/icons/bot'
   import Check from '@lucide/svelte/icons/check'
   import Copy from '@lucide/svelte/icons/copy'
@@ -18,16 +18,22 @@
   import { Skeleton } from '@/components/admin/ui/skeleton'
   import { csrfToken } from '@/lib/csrf'
   import { formatDate, timeAgo } from '@/lib/format'
-  import { adminMcp, adminMcpToken, adminMcpTokens } from '@/routes'
-  import type { AdminMcpAction, AdminMcpToken } from '@/types'
+  import { adminMcp, adminMcpToken, adminMcpTokens, adminSqlChange } from '@/routes'
+  import type { AdminMcpAction, AdminMcpToken, AdminSqlChange } from '@/types'
 
   let {
     tokens,
     actions,
+    sql_changes,
     mcp_url,
     max_lifetime_days,
-  }: { tokens: AdminMcpToken[]; actions?: AdminMcpAction[]; mcp_url: string; max_lifetime_days: number } =
-    $props()
+  }: {
+    tokens: AdminMcpToken[]
+    actions?: AdminMcpAction[]
+    sql_changes?: AdminSqlChange[]
+    mcp_url: string
+    max_lifetime_days: number
+  } = $props()
 
   let creating = $state(false)
   let name = $state('')
@@ -142,6 +148,34 @@
     {/each}
   </ul>
 {/if}
+
+<h2 class="mb-3 text-lg font-semibold">SQL changes</h2>
+<Deferred data="sql_changes">
+  {#snippet fallback()}<Skeleton class="mb-8 h-20 w-full" />{/snippet}
+  {#if !sql_changes?.length}
+    <p class="mb-8 text-sm text-muted-foreground">
+      Writes an agent asks for with query_sql wait here for approval.
+    </p>
+  {:else}
+    <ul class="mb-8 divide-y divide-border overflow-hidden rounded-md border border-border">
+      {#each sql_changes as change (change.id)}
+        <li>
+          <Link
+            href={adminSqlChange(change.id)}
+            class="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-muted/50"
+          >
+            <Badge variant={change.state === 'pending' ? 'default' : 'secondary'}>{change.state}</Badge>
+            <span class="font-mono">{change.kind} {change.table_name}</span>
+            <span class="min-w-0 flex-1"></span>
+            <span class="text-xs text-muted-foreground"
+              >{change.requested_by.name} · {timeAgo(change.created_at)}</span
+            >
+          </Link>
+        </li>
+      {/each}
+    </ul>
+  {/if}
+</Deferred>
 
 <h2 class="mb-3 text-lg font-semibold">Recent calls</h2>
 <Deferred data="actions">

@@ -88,6 +88,8 @@ class QueryBudgetTest < ActionDispatch::IntegrationTest
 
     AdminToken.mint(user: users(:admin), name: "Laptop")
     assert_query_budget(4) { get admin_mcp_path }
-    assert_query_budget(4) { load_deferred(admin_mcp_path, "Admin/Mcp/Index", "actions") }
+    assert_query_budget(6) { load_deferred(admin_mcp_path, "Admin/Mcp/Index", "actions", "sql_changes") }
+    change = McpSqlChange.request!(sql: "UPDATE projects SET title = 'x' WHERE id = #{projects(:station).id}", admin: users(:admin), token: AdminToken.last)
+    assert_query_budget(5) { get admin_sql_change_path(change) }
   end
 end

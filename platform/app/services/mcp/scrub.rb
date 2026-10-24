@@ -11,8 +11,9 @@ module Mcp
 
     module_function
 
+    # `sql` is kept whole: what was asked of the database is the point of logging it.
     def arguments(args)
-      args.to_h.to_h { |key, value| [ key.to_s, clip(value.as_json) ] }
+      args.to_h.to_h { |key, value| [ key.to_s, key.to_s == "sql" ? value.to_s : clip(value.as_json) ] }
     end
 
     def result(payload, write:)

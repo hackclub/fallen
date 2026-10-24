@@ -4,7 +4,7 @@ module Mcp
   # Every tool the server exposes, area by area. Names are checked unique at boot, since the gem raises on a duplicate
   # too late to say which file it came from.
   module Registry
-    AREAS = [ Tools::UserTools, Tools::ProjectTools, Tools::JobTools, Tools::FlagTools, Tools::OpsTools, Tools::MetaTools ].freeze
+    AREAS = [ Tools::UserTools, Tools::ProjectTools, Tools::JobTools, Tools::FlagTools, Tools::OpsTools, Tools::SqlTools, Tools::MetaTools ].freeze
 
     INSTRUCTIONS = <<~TEXT
       You are operating Fallen's admin panel as the admin whose token this is. Every call is logged under their name.
@@ -15,6 +15,8 @@ module Mcp
       - Records are named by public id (usr_…, prj_…); jobs and MCP actions by integer id.
       - Every answer carries an mcp_action_id. Nothing here can be undone automatically; to reverse a write, make the
         opposite call.
+      - query_sql writes wait for the admin to approve a preview in their browser. Give them the approvalUrl, and never
+        claim a write happened until check_sql_change says it is done.
     TEXT
 
     module_function

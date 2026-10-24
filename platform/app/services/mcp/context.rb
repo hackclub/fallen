@@ -5,12 +5,13 @@ module Mcp
   # same Pundit policies the admin controller does. The token check in McpController is the first gate; the policy is
   # the second, so a tool can never do more than the page for the same action lets the admin do.
   class Context
-    attr_reader :admin, :token
+    attr_reader :admin, :token, :base_url
     attr_accessor :subject
 
     def initialize(server_context)
       @admin = server_context.fetch(:admin)
       @token = server_context.fetch(:token)
+      @base_url = server_context[:base_url]
     end
 
     def authorize!(record, query, policy_class: nil) = Pundit.authorize(admin, record, query, policy_class:)

@@ -2,15 +2,19 @@
 # the session, so the raw token is in that one response and never in flash (a cookie here), props or a log.
 class Admin::McpController < Admin::ApplicationController
   ACTIONS_SHOWN = 50
+  SQL_CHANGES_SHOWN = 20
 
   def index
     authorize McpAction, :index?, policy_class: Admin::McpPolicy
     tokens = policy_scope(AdminToken, policy_scope_class: Admin::McpPolicy::Scope).includes(:user).newest_first
+    sql_changes = policy_scope(McpSqlChange, policy_scope_class: Admin::SqlChangePolicy::Scope)
+      .select(McpSqlChange.column_names - %w[sql preview]).includes(:user).newest_first.limit(SQL_CHANGES_SHOWN)
     actions = policy_scope(McpAction, policy_scope_class: Admin::McpPolicy::Scope).includes(:user).newest_first.limit(ACTIONS_SHOWN)
 
     render inertia: "Admin/Mcp/Index", props: {
       tokens: AdminMcpTokenSerializer.render(tokens.to_a),
       actions: InertiaRails.defer { AdminMcpActionSerializer.render(actions.to_a) },
+      sql_changes: InertiaRails.defer { AdminSqlChangeSerializer.render(sql_changes.to_a) },
       mcp_url: mcp_url,
       max_lifetime_days: AdminToken::MAX_LIFETIME.in_days.to_i
     }
