@@ -28,9 +28,20 @@ class McpSqlTest < ActiveSupport::TestCase
     project = projects(:station)
     preview = Mcp::Sql.preview("UPDATE projects SET title = 'Renamed' WHERE id = #{project.id};")
     assert_equal [ "update", "projects", "id", 1 ], preview.values_at("kind", "table", "key", "count")
-    title = preview["columns"].index("title")
+    assert_equal %w[id title], preview["shown"], "an update shows its key and what it changes"
+    title = preview["shown"].index("title")
     assert_equal [ project.title, "Renamed" ], [ preview["rows"].first["before"][title], preview["rows"].first["after"][title] ]
     assert_equal project.title, project.reload.title
+  end
+
+  test "a long value is clipped around where it changes" do
+    journal = journals(:first)
+    body = "#{'a' * 2_000}tail"
+    Journal.where(id: journal.id).update_all(body:)
+    preview = Mcp::Sql.preview("UPDATE journals SET body = body || '!' WHERE id = #{journal.id}")
+    before, after = preview["rows"].first.values_at("before", "after").map { it[preview["shown"].index("body")] }
+    assert_match(/\A… a+tail\z/, before)
+    assert_match(/\A… a+tail!\z/, after)
   end
 
   test "writes to the audit trail, tokens, jobs and flags, and writes with their own RETURNING, are refused" do

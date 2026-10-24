@@ -18,12 +18,10 @@
 
   const verb = $derived({ insert: 'adds', update: 'changes', delete: 'deletes' }[change.kind] ?? 'changes')
   const keyIndex = $derived(change.key ? change.columns.indexOf(change.key) : -1)
-  // An update shows only the columns that change; the rest are the same before and after.
+  // An update's columns are its key and the ones it changes (Mcp::Sql.build_plan).
   const changed = $derived(
     change.kind === 'update'
-      ? change.columns
-          .map((column, i) => ({ column, i }))
-          .filter(({ i }) => change.rows.some((row) => row.before?.[i] !== row.after?.[i]))
+      ? change.columns.map((column, i) => ({ column, i })).filter(({ i }) => i !== keyIndex)
       : [],
   )
   const shown = $derived(change.rows.length)
@@ -134,12 +132,20 @@
 </div>
 
 {#if change.state === 'pending'}
-  <p class="mb-3 max-w-2xl text-sm text-muted-foreground">
-    Raw SQL skips the app's validations, callbacks and change history. When you approve, it runs only if it
-    touches exactly these rows and none of them changed since this preview; otherwise nothing is written.
-  </p>
-  <div class="flex gap-2">
-    <Button onclick={() => decide('approve')} disabled={deciding}>Approve and run</Button>
-    <Button variant="outline" onclick={() => decide('reject')} disabled={deciding}>Reject</Button>
+  <!-- Stays at the bottom of the window, so a long preview never hides the decision. -->
+  <div
+    class="sticky bottom-0 z-10 -mx-6 -mb-6 flex flex-wrap items-center gap-x-6 gap-y-3 border-t border-border bg-background/95 px-6 py-3 backdrop-blur"
+  >
+    <p class="min-w-0 flex-1 basis-80 text-xs text-muted-foreground">
+      Raw SQL skips the app's validations, callbacks and change history. It runs only if it touches exactly
+      these rows and none of them changed since this preview; otherwise nothing is written.
+    </p>
+    <div class="flex gap-2">
+      <Button variant="outline" onclick={() => decide('reject')} disabled={deciding}>Reject</Button>
+      <Button onclick={() => decide('approve')} disabled={deciding}>
+        Approve and run on {change.count}
+        {change.count === 1 ? 'row' : 'rows'}
+      </Button>
+    </div>
   </div>
 {/if}

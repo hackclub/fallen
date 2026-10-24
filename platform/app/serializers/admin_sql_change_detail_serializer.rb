@@ -8,7 +8,7 @@ class AdminSqlChangeDetailSerializer < AdminSqlChangeSerializer
   attributes :sql, :error, :resolved_at
   attribute(:token_name) { |change| change.admin_token.name }
   attribute(:count) { |change| change.preview["count"] }
-  attribute(:columns) { |change| change.preview["columns"] }
+  attribute(:columns) { |change| change.preview["shown"] || change.preview["columns"] }
   attribute(:key) { |change| change.preview["key"] }
   attribute(:rows) { |change| change.preview["rows"] }
   one :reviewer, resource: PersonSerializer

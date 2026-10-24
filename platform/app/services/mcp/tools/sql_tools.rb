@@ -36,7 +36,8 @@ module Mcp
 
           change = McpSqlChange.request!(sql:, admin: ctx.admin, token: ctx.token)
           ctx.subject!(change)
-          sample = change.preview.slice("kind", "table", "count", "columns").merge("rows" => change.preview["rows"].first(5))
+          sample = change.preview.slice("kind", "table", "count")
+            .merge("columns" => change.preview["shown"], "rows" => change.preview["rows"].first(5))
           { **SqlTools.change_json(change, ctx.base_url), preview: sample,
             next: "Nothing has changed yet. Ask the admin to open approvalUrl, check the preview and approve it." }
         end

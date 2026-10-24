@@ -64,7 +64,7 @@ module Mcp
           end
         columns, rows = result.fields, result.values
       end
-      { columns:, rows: rows.first(limit).map { display(columns, it) }, truncated: rows.size > limit }
+      { columns:, rows: rows.first(limit).map { display(columns, it, (0...columns.size)) }, truncated: rows.size > limit }
     end
 
     # What a write would do, without doing it: { kind:, table:, count:, columns:, rows: [{ before:, after: }], keys:, digests: }.
@@ -164,24 +164,40 @@ module Mcp
       exec(pg, sql, [ encoder.encode(keys) ]).values.to_h { [ it[columns.index(key)], it ] }
     end
 
+    # `columns` is every column, which execute! reads the rows with; `shown` and `rows` are what the approval page
+    # draws. An update shows only its key and the columns it changes, so a wide table stays a narrow diff.
     def build_plan(kind, table, key, columns, after_rows, before_rows)
-      sample = after_rows.first(PREVIEW_ROWS).map do |after|
-        before = before_rows[after[columns.index(key)]] if key
+      key_index = columns.index(key) if key
+      pairs = after_rows.map { |after| [ key_index && before_rows[after[key_index]], after ] }
+      shown = (0...columns.size).to_a
+      shown = shown.select { |i| i == key_index || pairs.any? { |before, after| before && before[i] != after[i] } } if kind == "update"
+      sample = pairs.first(PREVIEW_ROWS).map do |before, after|
         case kind
-        when "insert" then { after: display(columns, after) }
-        when "delete" then { before: display(columns, before || after) }
-        else { before: before && display(columns, before), after: display(columns, after) }
+        when "insert" then { after: display(columns, after, shown) }
+        when "delete" then { before: display(columns, before || after, shown) }
+        else
+          before ||= after
+          { before: shown.map { cell(columns[it], before[it], after[it]) }, after: shown.map { cell(columns[it], after[it], before[it]) } }
         end
       end
       {
-        kind:, table:, key:, columns:, count: after_rows.size, rows: sample,
-        keys: key && after_rows.map { it[columns.index(key)] },
+        kind:, table:, key:, columns:, shown: shown.map { columns[it] }, count: after_rows.size, rows: sample,
+        keys: key && after_rows.map { it[key_index] },
         digests: before_rows.transform_values { digest(it) }
       }.as_json
     end
 
-    def display(columns, values)
-      columns.zip(values).map { |column, value| MASKED_COLUMNS.include?(column) && value ? "[hidden]" : Compact.clip(value, CELL) }
+    def display(columns, values, indexes) = indexes.map { cell(columns[it], values[it]) }
+
+    # A value clipped to CELL characters. Given the other side of a diff, a long value is clipped around where the two
+    # first differ, so a change at the end of a long journal is still visible.
+    def cell(column, value, other = value)
+      return "[hidden]" if MASKED_COLUMNS.include?(column) && value
+      return value unless value.is_a?(String) && value.length > CELL
+
+      at = other.is_a?(String) && other != value ? value.each_char.zip(other.each_char).index { |a, b| a != b } || other.length : 0
+      start = [ at - CELL / 4, 0 ].max
+      "#{'… ' if start.positive?}#{Compact.clip(value[start..], CELL)}"
     end
 
     # Every value as Postgres's own text, so a fingerprint sees a microsecond's change and a key is always a string.
