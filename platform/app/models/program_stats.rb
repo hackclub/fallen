@@ -51,11 +51,16 @@ class ProgramStats
     @now = now
   end
 
-  # People who opened the site in the last day, week and 30 days, whatever the range.
+  # Builders (tracked time or wrote a journal) in the last day, week and 30 days, whatever the range.
   def active
     spans = { day: 1.day, week: 7.days, month: 30.days }
-    counts = User.kept.pick(*spans.values.map { Arel.sql(User.sanitize_sql_array([ "COUNT(*) FILTER (WHERE last_seen_at >= ?)", @now - it ])) })
-    spans.keys.zip(counts).to_h
+    since = @now - spans[:month]
+    last_built = Journal.kept.where(created_at: since..).group(:user_id).maximum(:created_at)
+    tracked_stretches(since).each do |user_id, stretches|
+      finish = stretches.filter_map { |start, to| to if to > start }.max or next
+      last_built[user_id] = [ last_built[user_id], finish ].compact.max
+    end
+    spans.transform_values { |span| last_built.values.count { it >= @now - span } }
   end
 
   # One point per day, plus the range's totals. Builders are people who tracked time or wrote a journal that day.
@@ -122,18 +127,18 @@ class ProgramStats
 
   def from = days.first.in_time_zone("UTC")
 
-  # Everyone's tracked time that touches the range, by user id, before overlaps are joined.
-  def tracked_stretches
-    sessions = ending_after(HuddleSession.counting.where.not(user_id: nil), :left_at).select(:user_id, :joined_at, :left_at, :deducted_seconds).group_by(&:user_id)
-    pauses = ending_after(HuddlePause.all, :ended_at).select(:user_id, :started_at, :ended_at).group_by(&:user_id)
-    timers = ending_after(TimerSession.all, :stopped_at).select(:user_id, :started_at, :stopped_at, :deducted_seconds).group_by(&:user_id)
+  # Everyone's tracked time that ends after `since`, by user id, before overlaps are joined.
+  def tracked_stretches(since = from)
+    sessions = ending_after(HuddleSession.counting.where.not(user_id: nil), :left_at, since).select(:user_id, :joined_at, :left_at, :deducted_seconds).group_by(&:user_id)
+    pauses = ending_after(HuddlePause.all, :ended_at, since).select(:user_id, :started_at, :ended_at).group_by(&:user_id)
+    timers = ending_after(TimerSession.all, :stopped_at, since).select(:user_id, :started_at, :stopped_at, :deducted_seconds).group_by(&:user_id)
 
     (sessions.keys | timers.keys).index_with do |user_id|
       TrackedTime.huddle_stretches(sessions.fetch(user_id, []), pauses.fetch(user_id, []), @now) + TrackedTime.timer_stretches(timers.fetch(user_id, []), @now)
     end
   end
 
-  def ending_after(scope, column) = scope.where(column => nil).or(scope.where(column => from..))
+  def ending_after(scope, column, since) = scope.where(column => nil).or(scope.where(column => since..))
 
   # Splits a stretch, cut to the range, at UTC midnights.
   def each_day(start, finish)

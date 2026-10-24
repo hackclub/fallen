@@ -33,11 +33,14 @@ class ProgramStatsTest < ActiveSupport::TestCase
     assert_equal 150, daily[:totals][:logged_minutes]
   end
 
-  test "active counts by last visit, and visitors by day" do
-    users(:member).touch_last_seen
-    users(:admin).update_columns(last_seen_at: 3.days.ago)
+  test "active counts builders by when they last tracked time or journaled, and visitors by day" do
+    Journal.update_all(created_at: 40.days.ago)
+    users(:member).journals.first.update_columns(created_at: 2.hours.ago)
+    users(:admin).timer_sessions.create!(started_at: 3.days.ago, stopped_at: 3.days.ago + 1.hour)
+    users(:newcomer).touch_last_seen
+    session(users(:admin), joined_at: 2.hours.ago, left_at: 1.hour.ago, mode: "chilling")
 
-    assert_equal({ day: 1, week: 2, month: 2 }, ProgramStats.new(range: "30d").active)
+    assert_equal({ day: 1, week: 2, month: 2 }, ProgramStats.new(range: "30d").active, "visiting or chilling isn't building")
     assert_equal 1, ProgramStats.new(range: "7d").daily[:days].last[:visitors]
   end
 

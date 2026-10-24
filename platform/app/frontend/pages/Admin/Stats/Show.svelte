@@ -78,13 +78,17 @@
   const points = $derived((daily?.days ?? []).map((day) => ({ ...day, at: `${day.date}T00:00:00` })))
 
   const nowTiles = $derived([
-    { label: 'Daily active', value: active?.day, hint: 'opened the site in the last 24 hours' },
-    { label: 'Weekly active', value: active?.week, hint: 'in the last 7 days' },
-    { label: 'Monthly active', value: active?.month, hint: 'in the last 30 days' },
+    {
+      label: 'Daily active builders',
+      value: active?.day,
+      hint: 'tracked time or journaled in the last 24 hours',
+    },
+    { label: 'Weekly active builders', value: active?.week, hint: 'in the last 7 days' },
+    { label: 'Monthly active builders', value: active?.month, hint: 'in the last 30 days' },
     {
       label: 'Stickiness',
       value: active && percent(active.day, active.month),
-      hint: 'daily active over monthly active',
+      hint: 'daily active builders over monthly',
     },
   ])
 
