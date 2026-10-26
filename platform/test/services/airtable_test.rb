@@ -27,6 +27,20 @@ class AirtableTest < ActiveSupport::TestCase
     assert_includes error.message, "INVALID_REQUEST"
   end
 
+  test "an upload that can't connect is sent again" do
+    calls = 0
+    stubs = Faraday::Adapter::Test::Stubs.new
+    stubs.post("/v0/app1/Users/sync/sync1") do
+      calls += 1
+      raise Faraday::ConnectionFailed, "execution expired" if calls == 1
+
+      [ 200, {}, { success: true }.to_json ]
+    end
+
+    stub_method(Airtable, :sleep, nil) { with_airtable(stubs) { Airtable.sync("Users", "sync1", [ { "ID" => "usr_1" } ]) } }
+    assert_equal 2, calls
+  end
+
   test "more rows than one upload takes are refused before sending" do
     rows = Array.new(Airtable::MAX_ROWS + 1) { |i| { "ID" => i } }
     with_airtable(Faraday::Adapter::Test::Stubs.new) { assert_raises(Airtable::Error) { Airtable.sync("Users", "sync1", rows) } }

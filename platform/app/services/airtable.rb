@@ -16,14 +16,15 @@ module Airtable
   def configured? = ENV["AIRTABLE_API_KEY"].present? && ENV["AIRTABLE_BASE_ID"].present?
 
   # Rows are hashes with the same keys, which become the column names. Airtable takes 10k rows and 2 MB per upload,
-  # and anything bigger is refused here rather than half synced.
+  # and anything bigger is refused here rather than half synced. Each upload is the whole table, so one that couldn't
+  # connect or timed out can be sent again.
   def sync(table, sync_id, rows)
     raise Error, "Airtable sync of #{table} has #{rows.size} rows, over #{MAX_ROWS}" if rows.size > MAX_ROWS
 
     body = csv(rows)
     raise Error, "Airtable sync of #{table} is #{body.bytesize} bytes, over #{MAX_BYTES}" if body.bytesize > MAX_BYTES
 
-    response = connection.post("v0/#{ENV.fetch('AIRTABLE_BASE_ID')}/#{ERB::Util.url_encode(table)}/sync/#{ERB::Util.url_encode(sync_id)}", body, "Content-Type" => "text/csv")
+    response = with_retries { connection.post("v0/#{ENV.fetch('AIRTABLE_BASE_ID')}/#{ERB::Util.url_encode(table)}/sync/#{ERB::Util.url_encode(sync_id)}", body, "Content-Type" => "text/csv") }
     raise Error, "Airtable sync of #{table} failed: #{response.status} #{response.body.to_s.truncate(300)}" unless response.success?
 
     JSON.parse(response.body)
