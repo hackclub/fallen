@@ -48,6 +48,7 @@
     xp: String(initial.suggested_xp),
     project_id: initial.named_project_id ?? '',
     note: '',
+    message: '',
   })
   // The XP follows the hours until it is typed over.
   let xpTouched = $state(false)
@@ -68,7 +69,7 @@
   function reject() {
     router.post(
       adminTransfers.reject(transfer.id),
-      { transfer: { note: form.note } },
+      { transfer: { note: form.note, message: form.message } },
       { onFinish: () => (confirmReject = false) },
     )
   }
@@ -231,7 +232,21 @@
           {#if errors.project}<p class="text-sm text-destructive">Project {errors.project}</p>{/if}
         </div>
         <div class="grid gap-1.5 sm:col-span-2">
-          <Label for="note">Note (optional)</Label>
+          <Label for="message">Message to them (optional)</Label>
+          <Textarea
+            id="message"
+            bind:value={form.message}
+            rows={3}
+            placeholder="Anything they should know about the decision"
+          />
+          <p class="text-xs text-muted-foreground">
+            {transfer.user?.slack_id
+              ? 'Sent in a Slack DM with the decision and the XP, and whether it went into a new project or one of theirs.'
+              : "They haven't linked Slack, so they won't get a DM."}
+          </p>
+        </div>
+        <div class="grid gap-1.5 sm:col-span-2">
+          <Label for="note">Staff note (optional)</Label>
           <Textarea id="note" bind:value={form.note} rows={2} placeholder="Why these hours, or why not" />
         </div>
         {#if errors.base}<p class="text-sm text-destructive sm:col-span-2">{errors.base}</p>{/if}
@@ -250,7 +265,8 @@
                 <AlertDialog.Header>
                   <AlertDialog.Title>Reject this transfer?</AlertDialog.Title>
                   <AlertDialog.Description>
-                    Nothing is imported. The note above is kept with the decision.
+                    Nothing is imported. The note above is kept with the decision, and they're DMed the
+                    message.
                   </AlertDialog.Description>
                 </AlertDialog.Header>
                 <AlertDialog.Footer>
@@ -286,6 +302,7 @@
           </p>
         {/if}
       {/if}
+      {#if transfer.message}<p class="whitespace-pre-line">Told them: {transfer.message}</p>{/if}
       {#if transfer.note}<p class="whitespace-pre-line text-muted-foreground">{transfer.note}</p>{/if}
     </Card.Content>
   </Card.Root>

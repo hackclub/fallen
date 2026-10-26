@@ -7,9 +7,9 @@
 # written, with the hours the reviewer counts shared out over them in proportion to what each logged (one journal
 # when there are no entries). The journals earn no XP themselves: the reviewer sets the XP, which is one "transfer"
 # entry in the ledger, left out of the weekly team race.
-# A row reviewed here keeps its decision even if the form's row changes; one still pending follows it.
+# A row reviewed here keeps its decision even if the form's row changes; one still pending follows it. The person is
+# DMed the decision, with the reviewer's `message` to them (ProjectTransferDecidedJob); `note` is for staff.
 # == Schema Information
-# Schema version: 20261026190000
 #
 # Table name: project_transfers
 #
@@ -22,6 +22,7 @@
 #  error              :text
 #  fallen_project_url :string
 #  fetched_at         :datetime
+#  message            :text
 #  name               :string
 #  note               :text
 #  project_name       :string
@@ -171,7 +172,7 @@ class ProjectTransfer < ApplicationRecord
     update!(error: e.message, fetched_at: Time.current)
   end
 
-  def approve(reviewer:, minutes:, xp:, project: nil, note: nil)
+  def approve(reviewer:, minutes:, xp:, project: nil, note: nil, message: nil)
     minutes = Integer(minutes, exception: false)
     xp = Integer(xp, exception: false)
     errors.add(:base, "This transfer was already reviewed") unless pending?
@@ -181,6 +182,7 @@ class ProjectTransfer < ApplicationRecord
     errors.add(:project, "must be one of #{user&.display_name}'s projects") if project && (project.user_id != user_id || project.discarded?)
     return false if errors.any?
 
+    new_project = project.nil?
     # Locked so two reviewers (or a double submit) can't both approve it.
     journals = with_lock do
       errors.add(:base, "This transfer was already reviewed") unless pending?
@@ -190,22 +192,26 @@ class ProjectTransfer < ApplicationRecord
       project ||= user.projects.create!(project_attributes.merge(transferred: true))
       made = journal_attributes(minutes).map { project.journals.create!(it.merge(user: user, source: "transfer")) }
       user.xp_entries.create!(kind: "transfer", amount: xp, day: user.local_date, source: self) if xp.positive?
-      update!(status: "approved", reviewer: reviewer, project: project, approved_minutes: minutes, xp: xp, note: note.presence, decided_at: Time.current)
+      update!(status: "approved", reviewer: reviewer, project: project, approved_minutes: minutes, xp: xp, note: note.presence, message: message.presence,
+              decided_at: Time.current)
       made
     end
     return false unless journals
 
     ActiveJob.perform_all_later(journals.select { it.body.match?(PHOTO_LINK) }.map { CopyTransferPhotosJob.new(it) })
+    ProjectTransferDecidedJob.perform_later(self, new_project:)
     true
   rescue ActiveRecord::RecordInvalid => e
     errors.add(:base, "Couldn't import the #{e.record.model_name.human.downcase}: #{e.record.errors.full_messages.to_sentence}")
     false
   end
 
-  def reject(reviewer:, note: nil)
-    return errors.add(:base, "This transfer was already reviewed") && false unless pending?
+  def reject(reviewer:, note: nil, message: nil)
+    rejected = with_lock { pending? && update(status: "rejected", reviewer: reviewer, note: note.presence, message: message.presence, decided_at: Time.current) }
+    return errors.add(:base, "This transfer was already reviewed") && false unless rejected
 
-    update(status: "rejected", reviewer: reviewer, note: note.presence, decided_at: Time.current)
+    ProjectTransferDecidedJob.perform_later(self)
+    true
   end
 
   private

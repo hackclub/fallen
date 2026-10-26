@@ -28,11 +28,13 @@ class AdminTransfersTest < ActionDispatch::IntegrationTest
 
   test "approving imports the journals and issues the XP the reviewer typed" do
     transfer = project_transfers(:stardance)
-    post approve_admin_transfer_path(transfer), params: { transfer: { hours: "2.5", xp: "25", project_id: projects(:station).public_id, note: "Looks right" } }
+    post approve_admin_transfer_path(transfer), params: { transfer: { hours: "2.5", xp: "25", project_id: projects(:station).public_id, note: "Looks right", message: "Welcome!" } }
 
     assert_redirected_to admin_transfer_path(transfer)
     transfer.reload
     assert_equal [ "approved", 150, 25, projects(:station), users(:admin) ], transfer.values_at(:status, :approved_minutes, :xp, :project, :reviewer)
+    assert_equal [ "Looks right", "Welcome!" ], transfer.values_at(:note, :message)
+    assert_enqueued_with(job: ProjectTransferDecidedJob, args: [ transfer, { new_project: false } ])
     assert_equal 150, projects(:station).journals.where(source: "transfer").sum(:duration_minutes)
   end
 
@@ -47,9 +49,10 @@ class AdminTransfersTest < ActionDispatch::IntegrationTest
 
   test "rejecting keeps the note, and a decided transfer can't be decided again" do
     transfer = project_transfers(:stardance)
-    post reject_admin_transfer_path(transfer), params: { transfer: { note: "Not their project" } }
+    post reject_admin_transfer_path(transfer), params: { transfer: { note: "Not their project", message: "Send it from your own account" } }
     assert_redirected_to admin_transfers_path
-    assert_equal [ "rejected", "Not their project" ], transfer.reload.values_at(:status, :note)
+    assert_equal [ "rejected", "Not their project", "Send it from your own account" ], transfer.reload.values_at(:status, :note, :message)
+    assert_enqueued_with(job: ProjectTransferDecidedJob, args: [ transfer ])
 
     post approve_admin_transfer_path(transfer), params: { transfer: { hours: "1", xp: "8" } }
     assert_equal "You are not allowed to do that.", flash[:alert]

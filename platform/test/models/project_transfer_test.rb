@@ -1,7 +1,6 @@
 require "test_helper"
 
 # == Schema Information
-# Schema version: 20261026190000
 #
 # Table name: project_transfers
 #
@@ -14,6 +13,7 @@ require "test_helper"
 #  error              :text
 #  fallen_project_url :string
 #  fetched_at         :datetime
+#  message            :text
 #  name               :string
 #  note               :text
 #  project_name       :string

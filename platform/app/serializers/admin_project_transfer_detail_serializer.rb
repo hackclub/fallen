@@ -10,7 +10,7 @@ class AdminProjectTransferDetailSerializer < AdminProjectTransferSerializer
            snapshot: "{ title: string; description: string | null; repo_url: string | null; demo_url: string | null; hardware: boolean; " \
                      "owner: { name: string | null; avatar: string | null; slack_id: string | null }; entry_count: number; minutes: number; " \
                      "entries: Array<{ ref: string; at: string | null; minutes: number; body: string; images: string[] }> } | null"
-  attributes :fallen_project_url, :note, :fetched_at, :snapshot
+  attributes :fallen_project_url, :note, :message, :fetched_at, :snapshot
   attribute(:airtable_url, &:airtable_url)
   attribute(:suggested_minutes, &:suggested_minutes)
   attribute(:suggested_xp) { |transfer| ProjectTransfer.suggested_xp(transfer.suggested_minutes) }

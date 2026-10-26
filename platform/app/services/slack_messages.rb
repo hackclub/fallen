@@ -68,6 +68,25 @@ module SlackMessages
     { text: "#{text}\n\n#{ps}", blocks: [ SlackBot::Blocks.section(text), SlackBot::Blocks.context(ps) ], **pet_persona(pet) }
   end
 
+  # DMed by ProjectTransferDecidedJob. `new_project` is whether approving made a project rather than adding to one.
+  def project_transfer_decided(transfer, new_project: false)
+    name = escape(transfer.snapshot&.dig("title").presence || transfer.project_name || "your project")
+    lines =
+      if transfer.approved?
+        project = escape(transfer.project.title)
+        xp = ", with +#{transfer.xp} XP" if transfer.xp.positive?
+        [ "Your project transfer for *#{name}* was approved#{xp}!",
+          new_project ? "It's now a new project on Fallen, *#{project}*." : "Its journals were added to your project *#{project}*." ]
+      else
+        [ "Your project transfer for *#{name}* wasn't approved." ]
+      end
+    lines << "\nA note from the reviewer:\n#{escape(transfer.message.truncate(2000)).gsub(/^/, '> ')}" if transfer.message.present?
+    text = lines.join("\n")
+    blocks = [ SlackBot::Blocks.section(text) ]
+    blocks << SlackBot::Blocks.actions(SlackBot::Blocks.button("See the project", "open_fallen", url: project_url(transfer.project), style: "primary")) if transfer.approved?
+    { text: text, blocks: blocks }
+  end
+
   # DMed by StupendousBonusJob.
   def stupendous_bonus(amount) = { text: "heya! you just received a stupendous +#{amount} XP :)" }
 

@@ -29,10 +29,10 @@ class Admin::TransfersController < Admin::ApplicationController
 
   def approve
     transfer = find_and_authorize
-    review = params.expect(transfer: %i[hours xp project_id note])
+    review = params.expect(transfer: %i[hours xp project_id note message])
     project = Project.find_by_public_id!(review[:project_id]) if review[:project_id].present?
 
-    if transfer.approve(reviewer: true_user, minutes: Duration.parse(review[:hours]), xp: review[:xp], project: project, note: review[:note])
+    if transfer.approve(reviewer: true_user, minutes: Duration.parse(review[:hours]), xp: review[:xp], project: project, note: review[:note], message: review[:message])
       redirect_to admin_transfer_path(transfer), notice: "Transfer approved: #{transfer.project.title} has the journals and #{transfer.xp} XP."
     else
       inertia_errors(transfer, fallback_location: admin_transfer_path(transfer))
@@ -41,7 +41,7 @@ class Admin::TransfersController < Admin::ApplicationController
 
   def reject
     transfer = find_and_authorize
-    if transfer.reject(reviewer: true_user, note: params.dig(:transfer, :note))
+    if transfer.reject(reviewer: true_user, note: params.dig(:transfer, :note), message: params.dig(:transfer, :message))
       redirect_to admin_transfers_path, notice: "Transfer rejected."
     else
       inertia_errors(transfer, fallback_location: admin_transfer_path(transfer))
