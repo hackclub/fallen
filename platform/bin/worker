@@ -3,8 +3,9 @@
 # share the user bot's secrets. If any of them stops, the others are stopped too so the container exits and gets
 # restarted.
 
-# The web container migrates too, but this one can boot first and would run new code against the old schema.
-./bin/rails db:prepare
+# The web container migrates too, but this one can boot first and would run new code against the old schema, so a
+# failed migration stops the container rather than starting the jobs.
+./bin/rails db:prepare_or_wait || exit
 
 ./bin/jobs &
 ./bin/slack-typing &

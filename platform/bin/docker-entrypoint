@@ -2,7 +2,7 @@
 
 # If running the rails server then create or migrate existing database
 if [ "${@: -2:1}" == "./bin/rails" ] && [ "${@: -1:1}" == "server" ]; then
-  ./bin/rails db:prepare
+  ./bin/rails db:prepare_or_wait
 
   # Kubernetes sends SIGTERM at the same time as it starts taking the pod out of the load balancer, so for a moment
   # requests still arrive. Keep answering them for a few seconds, then let Puma finish what it has and stop.
