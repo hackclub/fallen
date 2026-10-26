@@ -17,11 +17,12 @@
 #
 # Indexes
 #
-#  index_xp_entries_on_discarded_at               (discarded_at)
-#  index_xp_entries_on_source_type_and_source_id  (source_type,source_id) UNIQUE WHERE (source_id IS NOT NULL)
-#  index_xp_entries_on_user_id                    (user_id)
-#  index_xp_entries_on_user_id_and_day            (user_id,day)
-#  index_xp_entries_on_user_id_and_kind_and_day   (user_id,kind,day) UNIQUE WHERE (source_id IS NULL)
+#  index_xp_entries_on_discarded_at                        (discarded_at)
+#  index_xp_entries_on_source_type_and_source_id_and_kind  (source_type,source_id,kind) UNIQUE WHERE (source_id IS NOT NULL)
+#  index_xp_entries_on_user_id                             (user_id)
+#  index_xp_entries_on_user_id_and_day                     (user_id,day)
+#  index_xp_entries_on_user_id_and_kind_and_day            (user_id,kind,day) UNIQUE WHERE (source_id IS NULL)
+#  index_xp_entries_one_stupendous_per_user                (user_id) UNIQUE WHERE ((kind)::text = 'stupendous'::text)
 #
 # Foreign Keys
 #

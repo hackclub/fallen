@@ -65,7 +65,7 @@ class Journal < ApplicationRecord
   # Timelapses picked from the person's Lapse account. Their recorded time adds up to the journal's hours; nothing
   # typed counts while there are any.
   has_many :lapse_timelapses, dependent: :nullify
-  has_one :xp_entry, as: :source
+  has_one :xp_entry, -> { where(kind: "journal") }, as: :source
   has_many_attached :images
 
   # Photos still being copied over from Slack (CollectSlackJournalJob), counted before they arrive.
@@ -108,6 +108,7 @@ class Journal < ApplicationRecord
   before_save :mark_self_claimed, if: -> { new_record? || duration_minutes_changed? || @picked_timelapses }
 
   after_save :claim_picked_timelapses, if: -> { @picked_timelapses }
+  after_create -> { XpEntry.grant_stupendous(self) }
   after_save :sync_xp, if: -> { saved_change_to_duration_minutes? || saved_change_to_discarded_at? }
   # A new journal starts the pet's timer from zero; deleting the newest one brings its time back.
   after_commit -> { TimerChannel.changed(user_id) }, if: -> { previous_changes.key?("id") || previous_changes.key?("discarded_at") }

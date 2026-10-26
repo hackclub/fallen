@@ -68,6 +68,9 @@ module SlackMessages
     { text: "#{text}\n\n#{ps}", blocks: [ SlackBot::Blocks.section(text), SlackBot::Blocks.context(ps) ], **pet_persona(pet) }
   end
 
+  # DMed by StupendousBonusJob.
+  def stupendous_bonus(amount) = { text: "heya! you just received a stupendous +#{amount} XP :)" }
+
   def stray_post(text, removed:)
     cta = "If you're looking to start a new project, visit the Fallen platform!"
     start = SlackBot::Blocks.actions(SlackBot::Blocks.button("Start a new project here", "open_fallen", url: new_project_url, style: "primary"))

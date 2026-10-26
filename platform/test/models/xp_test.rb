@@ -112,6 +112,31 @@ class XpTest < ActiveSupport::TestCase
     assert_not late.xp_entries.exists?(kind: "early_bird")
   end
 
+  test "the first new journal that says stupendous, in any case, earns the bonus once and keeps it" do
+    user = users(:newcomer)
+    project = user.projects.create!(title: "One")
+    before = user.reload.xp
+
+    project.journals.create!(user: user, body: journal_text("It went stupendusly"), duration: "1h", images: [ photo ])
+    assert_not user.xp_entries.exists?(kind: "stupendous"), "a typo doesn't count"
+
+    first = project.journals.create!(user: user, body: journal_text("A #STUPENDOUSLY good day"), duration: "1h", images: [ photo ])
+    project.journals.create!(user: user, body: journal_text("Stupendous again"), duration: "1h", images: [ photo ])
+    assert_equal [ [ XpEntry::STUPENDOUS_BONUS, first.id ] ], user.xp_entries.where(kind: "stupendous").pluck(:amount, :source_id)
+    assert_equal before + (3 * 8) + XpEntry::STUPENDOUS_BONUS, user.reload.xp
+    assert_equal 8, first.reload.xp, "the journal's own entry is still its hours"
+
+    first.discard
+    assert user.xp_entries.kept.exists?(kind: "stupendous"), "kept when the journal goes"
+  end
+
+  test "adding stupendous to a journal later earns nothing" do
+    user = users(:member)
+    journal = projects(:station).journals.create!(user: user, body: journal_text("x"), duration: "1h", images: [ photo ])
+    journal.update!(body: journal_text("Stupendous"))
+    assert_not user.xp_entries.exists?(kind: "stupendous")
+  end
+
   test "lulu's weeks start on the first journal and pay a bonus for five journal days, once, after the week ends" do
     user = users(:member)
     first = Date.new(2026, 9, 10) # a Thursday

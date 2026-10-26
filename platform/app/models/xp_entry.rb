@@ -20,11 +20,12 @@
 #
 # Indexes
 #
-#  index_xp_entries_on_discarded_at               (discarded_at)
-#  index_xp_entries_on_source_type_and_source_id  (source_type,source_id) UNIQUE WHERE (source_id IS NOT NULL)
-#  index_xp_entries_on_user_id                    (user_id)
-#  index_xp_entries_on_user_id_and_day            (user_id,day)
-#  index_xp_entries_on_user_id_and_kind_and_day   (user_id,kind,day) UNIQUE WHERE (source_id IS NULL)
+#  index_xp_entries_on_discarded_at                        (discarded_at)
+#  index_xp_entries_on_source_type_and_source_id_and_kind  (source_type,source_id,kind) UNIQUE WHERE (source_id IS NOT NULL)
+#  index_xp_entries_on_user_id                             (user_id)
+#  index_xp_entries_on_user_id_and_day                     (user_id,day)
+#  index_xp_entries_on_user_id_and_kind_and_day            (user_id,kind,day) UNIQUE WHERE (source_id IS NULL)
+#  index_xp_entries_one_stupendous_per_user                (user_id) UNIQUE WHERE ((kind)::text = 'stupendous'::text)
 #
 # Foreign Keys
 #
@@ -36,7 +37,10 @@ class XpEntry < ApplicationRecord
   has_paper_trail
 
   PER_HOUR = 8
-  KINDS = %w[journal early_bird weekly_bonus team_win streak].freeze
+  KINDS = %w[journal early_bird weekly_bonus team_win streak stupendous].freeze
+  # Once per person, for the first journal that says "stupendous", spelled right, in any case.
+  STUPENDOUS_BONUS = 20
+  STUPENDOUS = /stupendous/i
 
   belongs_to :user
   belongs_to :source, polymorphic: true, optional: true
@@ -49,6 +53,7 @@ class XpEntry < ApplicationRecord
   scope :during, ->(week) { kept.where(day: week.days) }
 
   after_save :recount_user
+  after_create_commit -> { StupendousBonusJob.perform_later(self) }, if: -> { kind == "stupendous" }
 
   # Every journal with hours is worth at least 1 XP, so the first one always hatches the egg.
   def self.journal_xp(minutes, multiplier) = [ (minutes * PER_HOUR / 60.0 * multiplier).round, 1 ].max
@@ -60,6 +65,17 @@ class XpEntry < ApplicationRecord
       entry.discard if entry.persisted? && !entry.discarded?
     else
       entry.update!(amount: journal_xp(journal.duration_minutes, entry.multiplier), discarded_at: nil)
+    end
+  end
+
+  def self.grant_stupendous(journal)
+    return unless Journal.written_text(journal.body).match?(STUPENDOUS)
+
+    user = journal.user
+    return if user.xp_entries.exists?(kind: "stupendous")
+
+    user.xp_entries.create_or_find_by!(kind: "stupendous") do |entry|
+      entry.assign_attributes(amount: STUPENDOUS_BONUS, day: user.local_date(journal.created_at), source: journal)
     end
   end
 
