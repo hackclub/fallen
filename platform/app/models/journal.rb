@@ -42,7 +42,7 @@ class Journal < ApplicationRecord
   include PublicIdentifiable
   include Discardable
 
-  SOURCES = %w[web slack].freeze
+  SOURCES = %w[web slack transfer].freeze
   MAX_MINUTES = 24 * 60
   # Every two hours logged need a photo to show for them.
   MINUTES_PER_IMAGE = 120
@@ -85,9 +85,11 @@ class Journal < ApplicationRecord
   validates :body, presence: true, length: { maximum: MAX_BODY_LENGTH }
   # New journals, and edits on the site. Edits made in Slack always go through, so the journal keeps up with the
   # thread.
-  validate :body_long_enough, if: -> { new_record? || (will_save_change_to_body? && (from_web? || edited_on_site)) }
+  # Transferred journals (ProjectTransfer) are copied as they were written in the other program, photos as links.
+  validate :body_long_enough, if: -> { !transferred? && (new_record? || (will_save_change_to_body? && (from_web? || edited_on_site))) }
   validates :source, inclusion: { in: SOURCES }
-  validates :duration_minutes, numericality: { only_integer: true, greater_than: 0, less_than_or_equal_to: MAX_MINUTES }, allow_nil: true
+  validates :duration_minutes, numericality: { only_integer: true, greater_than: 0 }, allow_nil: true
+  validates :duration_minutes, numericality: { less_than_or_equal_to: MAX_MINUTES }, allow_nil: true, unless: :transferred?
   validates :slack_ts, uniqueness: { scope: :slack_channel_id }, allow_nil: true
   # Only on journals from before timelapses were picked from Lapse; nothing sets it any more, since a typed link
   # could point anywhere.
@@ -96,26 +98,30 @@ class Journal < ApplicationRecord
   validate :author_on_team, on: :create
   validate :images_are_images
   validate :images_are_new_uploads, if: -> { attachment_changes.key?("images") }
-  validate :embeds_only_own_photos, if: -> { (from_web? || edited_on_site) && (new_record? || will_save_change_to_body?) }
-  validate :images_cover_hours, if: -> { new_record? || duration_minutes_changed? || attachment_changes.key?("images") }
-  validate :duration_was_understood
+  validate :embeds_only_own_photos, if: -> { (from_web? || edited_on_site || transferred?) && (new_record? || will_save_change_to_body?) }
+  validate :images_cover_hours, if: -> { !transferred? && (new_record? || duration_minutes_changed? || attachment_changes.key?("images")) }
+  validate :duration_was_understood, unless: :transferred?
   validate :picked_timelapses_are_usable, if: -> { @picked_timelapses }
   validate :hours_unchanged, on: :update
 
   before_validation :take_hours_from_lapse
-  before_validation :snapshot_tracked_time, on: :create
+  before_validation :snapshot_tracked_time, on: :create, unless: :transferred?
   before_save -> { @attached_images = attachment_changes["images"]&.attachments&.select(&:new_record?) }
   before_save :mark_self_claimed, if: -> { new_record? || duration_minutes_changed? || @picked_timelapses }
 
   after_save :claim_picked_timelapses, if: -> { @picked_timelapses }
-  after_create -> { XpEntry.grant_stupendous(self) }
-  after_save :sync_xp, if: -> { saved_change_to_duration_minutes? || saved_change_to_discarded_at? }
+  # A transfer's XP is the amount its reviewer set, so its journals earn none themselves.
+  after_create -> { XpEntry.grant_stupendous(self) }, unless: :transferred?
+  after_save :sync_xp, if: -> { !transferred? && (saved_change_to_duration_minutes? || saved_change_to_discarded_at?) }
   # A new journal starts the pet's timer from zero; deleting the newest one brings its time back.
   after_commit -> { TimerChannel.changed(user_id) }, if: -> { previous_changes.key?("id") || previous_changes.key?("discarded_at") }
   after_commit :analyze_images_later, if: -> { @attached_images.present? }
 
   scope :newest_first, -> { order(created_at: :desc, id: :desc) }
-  scope :needing_hours, -> { where(duration_minutes: nil) }
+  # Transferred journals can't be edited, and one given no share of a transfer's hours has none to add.
+  scope :needing_hours, -> { where(duration_minutes: nil).where.not(source: "transfer") }
+  # Transferred journals are dated when they were written in another program, so activity over time leaves them out.
+  scope :written_here, -> { where.not(source: "transfer") }
 
   def self.find_by_slack_message(channel_id, ts)
     return nil if channel_id.blank? || ts.blank?
@@ -139,6 +145,7 @@ class Journal < ApplicationRecord
 
   def from_slack? = source == "slack"
   def from_web? = source == "web"
+  def transferred? = source == "transfer"
   def on_slack? = slack_channel_id.present? && slack_ts.present?
   def slack_url = on_slack? ? SlackMessaging.permalink(slack_channel_id, slack_ts, thread_ts: project.slack_thread_ts) : nil
   def hours_logged? = duration_minutes.present?

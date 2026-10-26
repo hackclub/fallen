@@ -22,7 +22,7 @@ class HomeController < ApplicationController
 
   def stats
     minutes, count, missing, last_at = current_user.journals.kept.pick(
-      Arel.sql("COALESCE(SUM(duration_minutes), 0), COUNT(*), COUNT(*) FILTER (WHERE duration_minutes IS NULL), MAX(created_at)")
+      Arel.sql("COALESCE(SUM(duration_minutes), 0), COUNT(*), COUNT(*) FILTER (WHERE duration_minutes IS NULL AND source <> 'transfer'), MAX(created_at)")
     )
     { minutes: minutes, journals: count, missing_hours: missing, last_journal_at: last_at }
   end

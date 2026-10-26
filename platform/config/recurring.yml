@@ -29,6 +29,11 @@ production:
     queue: background
     schedule: every 5 minutes
 
+  sync_project_transfers:
+    class: SyncProjectTransfersJob
+    queue: background
+    schedule: every 10 minutes
+
   sync_huddle:
     class: HuddleSyncJob
     queue: realtime

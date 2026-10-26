@@ -59,7 +59,7 @@ class SlackAuthController < ApplicationController
   # without a thread post their own journals once it exists.
   def post_waiting_projects
     current_user.projects.kept.where(slack_thread_ts: nil).find_each { |project| PostProjectToSlackJob.perform_later(project) }
-    journals = current_user.journals.kept.where(slack_ts: nil, project: Project.kept.where.not(slack_thread_ts: nil))
+    journals = current_user.journals.kept.where(slack_ts: nil, project: Project.kept.where.not(slack_thread_ts: nil)).where.not(source: "transfer")
     journals.find_each { |journal| SyncJournalToSlackJob.perform_later(journal, "create") }
   end
 

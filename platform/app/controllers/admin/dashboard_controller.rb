@@ -31,7 +31,7 @@ class Admin::DashboardController < Admin::ApplicationController
     Time.use_zone(current_user.timezone) do
       days = (CHART_DAYS - 1).days.ago.to_date..Date.current
       since = days.first.beginning_of_day
-      minutes = Journal.kept.where(created_at: since..).pluck(:created_at, :duration_minutes)
+      minutes = Journal.kept.written_here.where(created_at: since..).pluck(:created_at, :duration_minutes)
         .each_with_object(Hash.new(0)) { |(at, mins), totals| totals[at.in_time_zone.to_date] += mins.to_i }
       signups = User.kept.where(created_at: since..).pluck(:created_at).map { |at| at.in_time_zone.to_date }.tally
 

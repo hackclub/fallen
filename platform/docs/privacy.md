@@ -31,6 +31,7 @@ Only from the token's `subject`: any `emails` (case-insensitive against `users.e
 | The pet's timer: when they started and stopped the site's timer, what they said they would work on and got done with it and how many of its hours were really work, paused in the huddle, and their hourly check-ins (what they said they had got done so far, and the Slack DM that asked) | `timer_sessions`, `huddle_pauses`, `time_milestones` |
 | The days they opened the site, by UTC date, for daily active counts | `active_days` |
 | XP earned, line by line (journal XP, bonuses, streak checks) | `xp_entries`, `users.xp` |
+| Project transfer requests: their email and name as typed on the transfer form, the other program's project link, the hours they claimed, a copy of that project's public page (title, writing, photo links, the author's Slack id), and the reviewer's decision and note. Their reviews of other people's transfers lose the reviewer | `project_transfers` |
 | Feature flags an admin turned on for them by name (their public id on the flag) | `flipper_gates` |
 | Admins only: their MCP tokens (name, digest, last four characters, when made, last used, expiry), the calls made with them, and the SQL writes their agent asked for with previews of the rows they touched | `admin_tokens`, `mcp_actions`, `mcp_sql_changes` |
 | MCP calls made about the person or their projects (tool, arguments, result of a write, which admin) | `mcp_actions` |
@@ -51,6 +52,8 @@ Sessions are signed cookies holding the user id, so they stop working once the r
 
 ## Not covered
 
+- The transfer form's own rows in Airtable (Project Transfers table), which the form writes and Fallen only reads.
+  Delete the person's row there by hand, or the next pull (within 10 minutes) copies it back as a new request.
 - Solid Queue job rows can hold a user's GlobalID (`gid://fallen/User/1`) or a raw Slack event payload until they
   are cleared (finished jobs after a day by default). They are not searched.
 - The landing page's "Get started as" picture: a `SlackAvatarJob` row holds the email someone is signed in to Hack

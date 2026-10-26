@@ -63,7 +63,10 @@ class Project < ApplicationRecord
   validate :banner_is_an_image
   validate :banner_is_a_new_upload
 
-  after_create :grant_early_bird
+  # Set by ProjectTransfer#approve: a project started in another program earns only the XP its reviewer sets.
+  attr_accessor :transferred
+
+  after_create :grant_early_bird, unless: :transferred
 
   scope :recent, -> { order(updated_at: :desc) }
   scope :approved, -> { where.not(approved_at: nil) }

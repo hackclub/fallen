@@ -58,7 +58,7 @@ class ProgramStats
   def active
     spans = { day: 1.day, week: 7.days, month: 30.days }
     since = @now - spans[:month]
-    last_built = Journal.kept.where(created_at: since..).group(:user_id).maximum(:created_at)
+    last_built = Journal.kept.written_here.where(created_at: since..).group(:user_id).maximum(:created_at)
     tracked_stretches(since).each do |user_id, stretches|
       finish = stretches.filter_map { |start, to| to if to > start }.max or next
       last_built[user_id] = [ last_built[user_id], finish ].compact.max
@@ -80,7 +80,7 @@ class ProgramStats
     end
 
     logged = Hash.new(0)
-    Journal.kept.where(created_at: from..).pluck(Arel.sql(LOCAL_DATE.("created_at")), :user_id, :duration_minutes).each do |day, user_id, minutes|
+    Journal.kept.written_here.where(created_at: from..).pluck(Arel.sql(LOCAL_DATE.("created_at")), :user_id, :duration_minutes).each do |day, user_id, minutes|
       logged[day] += minutes.to_i
       builders[day] << user_id
     end

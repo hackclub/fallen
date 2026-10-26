@@ -73,6 +73,9 @@ class PrivacyRequest
     deleted["feature_flags"] = FeatureFlag.forget(users)
     deleted["lapse_timelapses"] = forget(LapseTimelapse.where(user_id: ids).or(LapseTimelapse.where(journal_id: journal_ids)))
     deleted["writing_checks"] = forget(WritingCheck.where(user_id: ids).or(WritingCheck.where(journal_id: journal_ids)))
+    emails = users.map { it.email.downcase }
+    deleted["project_transfers"] = forget(ProjectTransfer.where(user_id: ids).or(ProjectTransfer.where(project_id: project_ids)).or(ProjectTransfer.where(email: emails)))
+    ProjectTransfer.where(reviewer_id: ids).update_all(reviewer_id: nil)
     deleted["journals"] = forget(Journal.where(id: journal_ids))
     deleted["project_members"] = forget(ProjectMember.where(user_id: ids).or(ProjectMember.where(project_id: project_ids)))
     deleted["project_invites"] = forget(ProjectInvite.where(user_id: ids).or(ProjectInvite.where(inviter_id: ids)).or(ProjectInvite.where(project_id: project_ids)))

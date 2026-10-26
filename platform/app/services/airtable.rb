@@ -2,8 +2,8 @@
 
 # Airtable, where staff look at program data. Tables are filled through the Sync API: each upload is the whole table
 # as CSV, and Airtable adds, updates and (with the table's default deletion setting) removes records to match it.
-# AIRTABLE_API_KEY is a personal access token with data.records:write and schema.bases:write on AIRTABLE_BASE_ID, and
-# data.records:read on Fallout's base (FalloutInvite).
+# AIRTABLE_API_KEY is a personal access token with data.records:read, data.records:write and schema.bases:write on
+# AIRTABLE_BASE_ID (read for ProjectTransfer), and data.records:read on Fallout's base (FalloutInvite).
 # https://airtable.com/developers/web/api/post-sync-api-endpoint
 module Airtable
   class Error < StandardError; end
@@ -32,8 +32,9 @@ module Airtable
 
   # Every record's fields, keyed by field id so a renamed column keeps working. A page is 100 records, and Airtable
   # allows 5 requests a second per base. A page that can't connect or times out is asked for again a couple of times,
-  # since a big table is dozens of pages and one dropped connection would otherwise throw the rest away.
-  def records(base, table, fields:)
+  # since a big table is dozens of pages and one dropped connection would otherwise throw the rest away. With
+  # `whole: true` each record comes as Airtable sends it, with its id and createdTime around the fields.
+  def records(base, table, fields:, whole: false)
     pages = []
     offset = nil
     loop do
@@ -41,7 +42,7 @@ module Airtable
       raise Error, "Airtable read of #{table} failed: #{response.status} #{response.body.to_s.truncate(300)}" unless response.success?
 
       page = JSON.parse(response.body)
-      pages << page["records"].map { it["fields"] }
+      pages << (whole ? page["records"] : page["records"].map { it["fields"] })
       break unless (offset = page["offset"])
 
       sleep 0.25

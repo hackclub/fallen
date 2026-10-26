@@ -110,12 +110,14 @@
             role="menu"
             class="absolute top-full right-0 z-20 mt-1 w-36 overflow-hidden rounded-[4px] bg-sky-night/95 py-1 font-montserrat text-sm font-semibold shadow-[0_20px_50px_-15px_rgba(0,0,0,0.8)] ring-1 ring-white/15 backdrop-blur"
           >
-            <button
-              type="button"
-              role="menuitem"
-              class="w-full cursor-pointer px-4 py-2.5 text-left text-white hover:bg-white/10"
-              onclick={() => ((menuOpen = false), onEdit(journal))}>Edit</button
-            >
+            {#if journal.source !== 'transfer'}
+              <button
+                type="button"
+                role="menuitem"
+                class="w-full cursor-pointer px-4 py-2.5 text-left text-white hover:bg-white/10"
+                onclick={() => ((menuOpen = false), onEdit(journal))}>Edit</button
+              >
+            {/if}
             <button
               type="button"
               role="menuitem"

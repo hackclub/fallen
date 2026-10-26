@@ -20,7 +20,7 @@ class PrivacyControllerTest < ActionDispatch::IntegrationTest
     body = response.parsed_body
     assert_equal true, body["found"]
     assert_equal true, body["dry_run"]
-    assert_equal({ "users" => 1, "versions" => 1, "projects" => 2, "journals" => 3, "lapse_timelapses" => 2, "xp_entries" => 2 }, body["deleted"])
+    assert_equal({ "users" => 1, "versions" => 1, "projects" => 2, "journals" => 3, "lapse_timelapses" => 2, "xp_entries" => 2, "project_transfers" => 1 }, body["deleted"])
     assert_equal [], body["retained"]
     assert User.exists?(member.id)
   end

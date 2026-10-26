@@ -1,7 +1,8 @@
 # One line in the XP ledger; users.xp is the sum of the kept ones. A journal's entry follows its hours
 # (Journal#sync_xp) and keeps the multiplier the person had when it was first saved. Deleting its source discards the
 # entry rather than removing it, so the ledger still shows what was earned and taken back. Everything else is granted once: by its source, or by kind
-# and day, so a week can be closed again without paying twice. `day` is the person's own calendar day.
+# and day, so a week can be closed again without paying twice. `day` is the person's own calendar day. A transfer's
+# XP is the amount its reviewer set (ProjectTransfer#approve); its journals earn none of their own.
 # == Schema Information
 #
 # Table name: xp_entries
@@ -37,7 +38,7 @@ class XpEntry < ApplicationRecord
   has_paper_trail
 
   PER_HOUR = 8
-  KINDS = %w[journal early_bird weekly_bonus team_win streak stupendous].freeze
+  KINDS = %w[journal early_bird weekly_bonus team_win streak stupendous transfer].freeze
   # Once per person, for the first journal that says "stupendous", spelled right, in any case.
   STUPENDOUS_BONUS = 20
   STUPENDOUS = /stupendous/i
@@ -50,7 +51,8 @@ class XpEntry < ApplicationRecord
   validates :day, presence: true
 
   scope :journals, -> { where(kind: "journal") }
-  scope :during, ->(week) { kept.where(day: week.days) }
+  # XP earned in the week, for the team race. A transfer's XP was earned in another program.
+  scope :during, ->(week) { kept.where(day: week.days).where.not(kind: "transfer") }
 
   after_save :recount_user
   after_create_commit -> { StupendousBonusJob.perform_later(self) }, if: -> { kind == "stupendous" }

@@ -36,6 +36,16 @@ class SyncJournalToSlackJobTest < ActiveJob::TestCase
     end
   end
 
+  test "leaves transferred journals off Slack" do
+    journal = projects(:station).journals.create!(user: users(:member), body: "Written in another program.", duration_minutes: 60, source: "transfer")
+
+    with_fake_slack do |slack|
+      SyncJournalToSlackJob.perform_now(journal, "create")
+      assert_empty slack.calls_to(:chat_postMessage)
+    end
+    assert_not journal.reload.on_slack?
+  end
+
   test "splits a journal longer than one slack section across several" do
     paragraph = "Wired the amp and tested every key on the board. " * 20
     journal = projects(:station).journals.create!(user: users(:member), body: Array.new(8, paragraph.strip).join("\n\n"), duration_minutes: 60, source: "web", images: [ photo ])

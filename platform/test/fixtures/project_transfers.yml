@@ -1,0 +1,87 @@
+# Member's Stardance project, fetched: two devlogs, 3h logged there, 4h claimed on the form.
+# == Schema Information
+# Schema version: 20261026190000
+#
+# Table name: project_transfers
+#
+#  id                 :bigint           not null, primary key
+#  approved_minutes   :integer
+#  claimed_minutes    :integer
+#  decided_at         :datetime
+#  discarded_at       :datetime
+#  email              :string           not null
+#  error              :text
+#  fallen_project_url :string
+#  fetched_at         :datetime
+#  name               :string
+#  note               :text
+#  project_name       :string
+#  snapshot           :jsonb
+#  source             :string
+#  source_ref         :string
+#  source_url         :string           not null
+#  status             :string           default("pending"), not null
+#  submitted_at       :datetime         not null
+#  xp                 :integer
+#  created_at         :datetime         not null
+#  updated_at         :datetime         not null
+#  airtable_id        :string           not null
+#  project_id         :bigint
+#  reviewer_id        :bigint
+#  user_id            :bigint
+#
+# Indexes
+#
+#  index_project_transfers_on_airtable_id            (airtable_id) UNIQUE
+#  index_project_transfers_on_discarded_at           (discarded_at)
+#  index_project_transfers_on_email                  (email)
+#  index_project_transfers_on_project_id             (project_id)
+#  index_project_transfers_on_reviewer_id            (reviewer_id)
+#  index_project_transfers_on_source_and_source_ref  (source,source_ref)
+#  index_project_transfers_on_status                 (status)
+#  index_project_transfers_on_submitted_at           (submitted_at)
+#  index_project_transfers_on_user_id                (user_id)
+#  index_project_transfers_unfetched                 (source) WHERE (fetched_at IS NULL)
+#
+# Foreign Keys
+#
+#  fk_rails_...  (project_id => projects.id)
+#  fk_rails_...  (reviewer_id => users.id)
+#  fk_rails_...  (user_id => users.id)
+#
+stardance:
+  airtable_id: recSTARDANCE
+  user: member
+  email: member@example.com
+  name: Member Person
+  project_name: Hexapod
+  source_url: https://stardance.hackclub.com/projects/22328
+  source: stardance
+  source_ref: "22328"
+  claimed_minutes: 240
+  submitted_at: 2026-10-21 18:24:03
+  fetched_at: 2026-10-21 18:30:00
+  snapshot:
+    title: Hexapod robot
+    description: Six legs
+    repo_url: https://github.com/example/hexapod
+    demo_url:
+    status:
+    hardware: true
+    owner: { name: "@member", avatar: "https://cachet.hackclub.com/users/U0MEMBER/r", slack_id: U0MEMBER }
+    author_slack_ids: [U0MEMBER]
+    entry_count: 2
+    minutes: 180
+    entries:
+      - { ref: "1", at: "2026-07-17T00:02:58Z", minutes: 60, body: "Designed the legs.", images: ["https://stardance.hackclub.com/rails/active_storage/leg.webp"] }
+      - { ref: "2", at: "2026-07-20T10:00:00Z", minutes: 120, body: "Printed and wired them.", images: [] }
+
+# From a program with no fetcher, by someone with no Fallen account.
+stranger:
+  airtable_id: recSTRANGER
+  email: stranger@example.com
+  name: Stranger Danger
+  project_name: Macondo thing
+  source_url: https://macondo.hackclub.com/projects/8216
+  claimed_minutes: 600
+  submitted_at: 2026-10-22 10:00:00

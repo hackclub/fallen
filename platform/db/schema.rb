@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_26_120100) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_26_190000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -309,6 +309,43 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_26_120100) do
     t.datetime "updated_at", null: false
     t.index ["project_id", "user_id"], name: "index_project_members_on_project_id_and_user_id", unique: true
     t.index ["user_id"], name: "index_project_members_on_user_id"
+  end
+
+  create_table "project_transfers", force: :cascade do |t|
+    t.string "airtable_id", null: false
+    t.bigint "user_id"
+    t.bigint "reviewer_id"
+    t.bigint "project_id"
+    t.string "email", null: false
+    t.string "name"
+    t.string "project_name"
+    t.string "source_url", null: false
+    t.string "source"
+    t.string "source_ref"
+    t.string "fallen_project_url"
+    t.integer "claimed_minutes"
+    t.string "status", default: "pending", null: false
+    t.jsonb "snapshot"
+    t.datetime "fetched_at"
+    t.text "error"
+    t.integer "approved_minutes"
+    t.integer "xp"
+    t.text "note"
+    t.datetime "decided_at"
+    t.datetime "submitted_at", null: false
+    t.datetime "discarded_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["airtable_id"], name: "index_project_transfers_on_airtable_id", unique: true
+    t.index ["discarded_at"], name: "index_project_transfers_on_discarded_at"
+    t.index ["email"], name: "index_project_transfers_on_email"
+    t.index ["project_id"], name: "index_project_transfers_on_project_id"
+    t.index ["reviewer_id"], name: "index_project_transfers_on_reviewer_id"
+    t.index ["source", "source_ref"], name: "index_project_transfers_on_source_and_source_ref"
+    t.index ["source"], name: "index_project_transfers_unfetched", where: "(fetched_at IS NULL)"
+    t.index ["status"], name: "index_project_transfers_on_status"
+    t.index ["submitted_at"], name: "index_project_transfers_on_submitted_at"
+    t.index ["user_id"], name: "index_project_transfers_on_user_id"
   end
 
   create_table "projects", force: :cascade do |t|
@@ -641,6 +678,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_26_120100) do
   add_foreign_key "project_invites", "users", column: "inviter_id"
   add_foreign_key "project_members", "projects"
   add_foreign_key "project_members", "users"
+  add_foreign_key "project_transfers", "projects"
+  add_foreign_key "project_transfers", "users"
+  add_foreign_key "project_transfers", "users", column: "reviewer_id"
   add_foreign_key "projects", "users"
   add_foreign_key "solid_queue_batch_executions", "solid_queue_batches", column: "batch_id", on_delete: :cascade
   add_foreign_key "solid_queue_batch_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade

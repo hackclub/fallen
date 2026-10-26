@@ -94,6 +94,14 @@ Rails.application.routes.draw do
         post :impersonate, on: :member
       end
       resources :projects, only: %i[index show update]
+      resources :transfers, only: %i[index show] do
+        member do
+          post :approve
+          post :reject
+          post :refetch
+        end
+        post :sync, on: :collection
+      end
 
       get "stats" => "stats#show", as: :stats
       get "insights(/:kind)" => "insights#show", as: :insights, constraints: { kind: /requests|jobs/ }

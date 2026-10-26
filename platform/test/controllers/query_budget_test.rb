@@ -72,6 +72,9 @@ class QueryBudgetTest < ActionDispatch::IntegrationTest
     assert_query_budget(8) { load_deferred(admin_projects_path, "Admin/Projects/Index", "projects", "pagy", "total_count") }
     # Plus the team's members.
     assert_query_budget(10) { get admin_project_path(projects(:station)) }
+    assert_query_budget(3) { get admin_transfers_path }
+    assert_query_budget(8) { load_deferred(admin_transfers_path, "Admin/Transfers/Index", "transfers", "pagy", "counts") }
+    assert_query_budget(6) { get admin_transfer_path(project_transfers(:stardance)) }
 
     assert_query_budget(3) { get admin_insights_path }
     # One aggregate per panel, whatever the number of requests recorded.

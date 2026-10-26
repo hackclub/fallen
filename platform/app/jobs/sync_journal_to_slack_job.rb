@@ -1,4 +1,5 @@
-# Mirrors a web-written journal into the project's Slack thread: create, update or delete.
+# Mirrors a web-written journal into the project's Slack thread: create, update or delete. Transferred journals
+# (ProjectTransfer) were written in another program and stay off Slack.
 class SyncJournalToSlackJob < ApplicationJob
   queue_as :slack
   retry_on Slack::Web::Api::Errors::TooManyRequestsError, wait: :polynomially_longer, attempts: 5
@@ -20,7 +21,7 @@ class SyncJournalToSlackJob < ApplicationJob
 
   def create(journal)
     project = journal.project
-    return if journal.discarded? || journal.on_slack?
+    return if journal.discarded? || journal.on_slack? || journal.transferred?
     return PostProjectToSlackJob.perform_later(project) unless project.slack_linked?
 
     posted = SlackMessaging.post(journal.user, channel: project.slack_channel_id, thread_ts: project.slack_thread_ts, **SlackMessages.journal(journal))
