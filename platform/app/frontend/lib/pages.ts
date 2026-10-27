@@ -10,16 +10,21 @@ export const pages = {
   settings: 'Settings/Show',
 } as const
 
-// An instant visit still waits for the page's lazy chunk, so fetch them once the signed-in shell is idle.
+// An instant visit still waits for the page's lazy chunk, so fetch them once the signed-in shell is idle. Warming is
+// best effort: a tab left open across a deploy asks for chunks that are gone, and Safari also fails imports cut off by
+// a navigation. Either way the real visit goes through inertia.ts, which reloads for a missing chunk.
 export function warmPages() {
   const load = () => {
-    void import('@/pages/Home/Index.svelte')
-    void import('@/pages/Projects/Index.svelte')
-    void import('@/pages/Projects/Show.svelte')
-    void import('@/pages/Shop/Show.svelte')
-    void import('@/pages/Docs/Show.svelte')
-    void import('@/pages/Transfers/Show.svelte')
-    void import('@/pages/Settings/Show.svelte')
+    for (const page of [
+      import('@/pages/Home/Index.svelte'),
+      import('@/pages/Projects/Index.svelte'),
+      import('@/pages/Projects/Show.svelte'),
+      import('@/pages/Shop/Show.svelte'),
+      import('@/pages/Docs/Show.svelte'),
+      import('@/pages/Transfers/Show.svelte'),
+      import('@/pages/Settings/Show.svelte'),
+    ])
+      page.catch(() => {})
   }
   if ('requestIdleCallback' in window) requestIdleCallback(load)
   else setTimeout(load, 1000)
