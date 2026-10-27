@@ -102,6 +102,7 @@ class User < ApplicationRecord
   # Finishing onboarding (picking a pet) or linking Slack while sitting in the huddle gets a welcome (HuddleWelcomeJob).
   after_commit -> { HuddleWelcomeJob.perform_later(self) }, on: %i[create update], if: :just_joined_fallen?
   after_commit -> { JoinMembersChannelJob.perform_later(self) }, on: %i[create update], if: :just_joined_fallen?
+  after_commit -> { JoinTeamChannelJob.perform_later(self) }, on: %i[create update], if: :joined_team?
   after_save :revoke_admin_tokens, if: :lost_admin_access?
 
   scope :admins, -> { where("roles @> ARRAY[?]::varchar[]", "admin") }
@@ -316,7 +317,9 @@ class User < ApplicationRecord
     (saved_change_to_pet? && pet_before_last_save.nil?) || (saved_change_to_slack_id? && slack_id_before_last_save.nil?)
   end
 
-  def switching_pet? = will_save_change_to_pet? && pet_in_database.present? && pet.present?
+  def joined_team? = slack_id.present? && pet.present? && (saved_change_to_pet? || saved_change_to_slack_id?)
+
+  def switching_pet? =will_save_change_to_pet? && pet_in_database.present? && pet.present?
 
   def pet_switch_allowed
     switch = pet_switch
