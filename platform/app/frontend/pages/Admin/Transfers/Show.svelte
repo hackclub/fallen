@@ -219,14 +219,16 @@
               >A new project, “{snapshot?.title ?? transfer.project_name ?? 'Transferred project'}”</option
             >
             {#each transfer.user_projects as project (project.id)}
-              <option value={project.id}>{project.title}</option>
+              <option value={project.id}
+                >{project.title}{project.owner ? ` (on ${project.owner}'s team)` : ''}</option
+              >
             {/each}
           </select>
           {#if transfer.fallen_project_url}
             <p class="text-xs text-muted-foreground">
               The form named {transfer.fallen_project_url}{transfer.named_project_id
                 ? ''
-                : ", which isn't one of this person's projects"}.
+                : ", which this person isn't on the team of"}.
             </p>
           {/if}
           {#if errors.project}<p class="text-sm text-destructive">Project {errors.project}</p>{/if}

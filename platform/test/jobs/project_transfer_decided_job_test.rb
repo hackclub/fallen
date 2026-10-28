@@ -24,9 +24,38 @@ class ProjectTransferDecidedJobTest < ActiveJob::TestCase
         assert transfer.approve(reviewer: users(:admin), minutes: 60, xp: 0, project: projects(:station))
       end
       text = slack.calls_to(:chat_postMessage).sole[:text]
-      assert_includes text, "Its journals were added to your project *#{projects(:station).title}*."
+      assert_includes text, "Its journals were added to *#{projects(:station).title}*."
       assert_includes text, "was approved!"
       assert_not_includes text, "note from the reviewer"
+    end
+  end
+
+  test "an approval into a team project tells the rest of the team, without the XP or the reviewer's message" do
+    transfer = project_transfers(:stardance)
+    projects(:admins).memberships.create!(user: users(:member))
+    with_fake_slack do |slack|
+      perform_enqueued_jobs(only: ProjectTransferDecidedJob) do
+        assert transfer.approve(reviewer: users(:admin), minutes: 60, xp: 8, project: projects(:admins), message: "Nice work")
+      end
+      messages = slack.calls_to(:chat_postMessage).index_by { it[:channel] }
+      assert_equal [ users(:admin).slack_id, users(:member).slack_id ].sort, messages.keys.sort
+      assert messages[users(:member).slack_id][:text].start_with?("Your project transfer for *Hexapod robot* was approved, with +8 XP!")
+
+      team = messages[users(:admin).slack_id][:text]
+      assert_equal "Member Person's project transfer for *Hexapod robot* was approved, and its journals were added to *Admin's thing*.", team
+      assert_includes messages[users(:admin).slack_id][:blocks].to_s, projects(:admins).public_id
+    end
+  end
+
+  test "a banned teammate isn't told" do
+    transfer = project_transfers(:stardance)
+    projects(:admins).memberships.create!(user: users(:member))
+    users(:admin).update_column(:is_banned, true)
+    with_fake_slack do |slack|
+      perform_enqueued_jobs(only: ProjectTransferDecidedJob) do
+        assert transfer.approve(reviewer: users(:admin), minutes: 60, xp: 0, project: projects(:admins))
+      end
+      assert_equal [ users(:member).slack_id ], slack.calls_to(:chat_postMessage).pluck(:channel)
     end
   end
 

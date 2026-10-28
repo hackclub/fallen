@@ -76,7 +76,7 @@ module SlackMessages
         project = escape(transfer.project.title)
         xp = ", with +#{transfer.xp} XP" if transfer.xp.positive?
         [ "Your project transfer for *#{name}* was approved#{xp}!",
-          new_project ? "It's now a new project on Fallen, *#{project}*." : "Its journals were added to your project *#{project}*." ]
+          new_project ? "It's now a new project on Fallen, *#{project}*." : "Its journals were added to *#{project}*." ]
       else
         [ "Your project transfer for *#{name}* wasn't approved." ]
       end
@@ -84,6 +84,16 @@ module SlackMessages
     text = lines.join("\n")
     blocks = [ SlackBot::Blocks.section(text) ]
     blocks << SlackBot::Blocks.actions(SlackBot::Blocks.button("See the project", "open_fallen", url: project_url(transfer.project), style: "primary")) if transfer.approved?
+    { text: text, blocks: blocks }
+  end
+
+  # DMed by ProjectTransferDecidedJob to the rest of the team when an approved transfer is added to their project.
+  def project_transfer_added_to_team(transfer)
+    name = escape(transfer.snapshot&.dig("title").presence || transfer.project_name || "a project")
+    text = "#{escape(transfer.user.display_name)}'s project transfer for *#{name}* was approved, " \
+           "and its journals were added to *#{escape(transfer.project.title)}*."
+    blocks = [ SlackBot::Blocks.section(text),
+               SlackBot::Blocks.actions(SlackBot::Blocks.button("See the project", "open_fallen", url: project_url(transfer.project), style: "primary")) ]
     { text: text, blocks: blocks }
   end
 

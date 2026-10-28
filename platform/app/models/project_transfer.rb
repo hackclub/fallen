@@ -161,10 +161,10 @@ class ProjectTransfer < ApplicationRecord
     ids.include?(user.slack_id) ? "matches" : "differs"
   end
 
-  # The project the form named, if it's one of the person's own.
+  # The project the form named, if it's one the person is on the team of.
   def named_project
     id = fallen_project_url.to_s[%r{/projects/(prj_\w+)}, 1]
-    id && user&.projects&.kept&.find_by_public_id(id)
+    id && user && Project.teamed_with(user).kept.find_by_public_id(id)
   end
 
   def fetch!
@@ -180,7 +180,7 @@ class ProjectTransfer < ApplicationRecord
     errors.add(:base, "No Fallen account has #{email}") if user.nil?
     errors.add(:approved_minutes, "must be more than zero") unless minutes&.positive?
     errors.add(:xp, "must be zero or more") unless xp && xp >= 0
-    errors.add(:project, "must be one of #{user&.display_name}'s projects") if project && (project.user_id != user_id || project.discarded?)
+    errors.add(:project, "must be a project #{user&.display_name} is on the team of") if project && (!project.on_team?(user) || project.discarded?)
     return false if errors.any?
 
     new_project = project.nil?
@@ -200,7 +200,7 @@ class ProjectTransfer < ApplicationRecord
     return false unless journals
 
     ActiveJob.perform_all_later(journals.select { it.body.match?(PHOTO_LINK) }.map { CopyTransferPhotosJob.new(it) })
-    ProjectTransferDecidedJob.perform_later(self, new_project:)
+    ActiveJob.perform_all_later(project.teammates.map { ProjectTransferDecidedJob.new(self, new_project:, to: it) })
     true
   rescue ActiveRecord::RecordInvalid => e
     errors.add(:base, "Couldn't import the #{e.record.model_name.human.downcase}: #{e.record.errors.full_messages.to_sentence}")

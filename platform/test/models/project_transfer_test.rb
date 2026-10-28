@@ -156,6 +156,17 @@ class ProjectTransferTest < ActiveSupport::TestCase
     assert_not users(:member).xp_entries.exists?(kind: "transfer"), "no XP entry for zero XP"
   end
 
+  test "approving can add to a project the person is a member of, not only one they own" do
+    transfer = project_transfers(:stardance)
+    transfer.update!(snapshot: nil, fallen_project_url: "https://fallen.hackclub.com/projects/#{projects(:admins).public_id}")
+    assert_nil transfer.named_project, "not on its team yet"
+    projects(:admins).memberships.create!(user: users(:member))
+
+    assert_equal projects(:admins), transfer.reload.named_project
+    assert transfer.approve(reviewer: users(:admin), minutes: 60, xp: 0, project: projects(:admins))
+    assert_equal users(:member), projects(:admins).journals.find_by!(source: "transfer").user
+  end
+
   test "approving refuses what can't be imported" do
     stranger = project_transfers(:stranger)
     assert_not stranger.approve(reviewer: users(:admin), minutes: 60, xp: 8)

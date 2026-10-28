@@ -31,7 +31,7 @@ type AdminProjectTransferDetail = {
   named_project_id: string | null;
   reviewer: { id: string; display_name: string } | null;
   project: { id: string; title: string } | null;
-  user_projects: Array<{ id: string; title: string }>;
+  user_projects: Array<{ id: string; title: string; owner: string | null }>;
 }
 
 export type { AdminProjectTransferDetail };

@@ -6,7 +6,7 @@ class AdminProjectTransferDetailSerializer < AdminProjectTransferSerializer
   typelize airtable_url: :string, suggested_minutes: [ :number, nullable: true ], suggested_xp: :number,
            named_project_id: [ :string, nullable: true ], fetched_at: [ :string, nullable: true ],
            reviewer: "{ id: string; display_name: string } | null", project: "{ id: string; title: string } | null",
-           user_projects: "Array<{ id: string; title: string }>",
+           user_projects: "Array<{ id: string; title: string; owner: string | null }>",
            snapshot: "{ title: string; description: string | null; repo_url: string | null; demo_url: string | null; hardware: boolean; " \
                      "owner: { name: string | null; avatar: string | null; slack_id: string | null }; entry_count: number; minutes: number; " \
                      "entries: Array<{ ref: string; at: string | null; minutes: number; body: string; images: string[] }> } | null"
@@ -17,7 +17,12 @@ class AdminProjectTransferDetailSerializer < AdminProjectTransferSerializer
   attribute(:named_project_id) { |transfer| transfer.named_project&.public_id }
   attribute(:reviewer) { |transfer| transfer.reviewer && { id: transfer.reviewer.public_id, display_name: transfer.reviewer.display_name } }
   attribute(:project) { |transfer| transfer.project && { id: transfer.project.public_id, title: transfer.project.title } }
+  # Their own projects and the ones they are a member of; `owner` names whoever owns one of the latter.
   attribute(:user_projects) do |transfer|
-    transfer.user ? transfer.user.projects.kept.recent.map { { id: it.public_id, title: it.title } } : []
+    next [] unless transfer.user
+
+    Project.teamed_with(transfer.user).kept.recent.includes(:user).map do |project|
+      { id: project.public_id, title: project.title, owner: (project.user.display_name unless project.user_id == transfer.user_id) }
+    end
   end
 end
