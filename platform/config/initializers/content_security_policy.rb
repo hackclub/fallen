@@ -25,7 +25,7 @@ Rails.application.configure do
                    "https://secure.gravatar.com", "https://i0.wp.com", "https://i1.wp.com", "https://i2.wp.com", # ...or Gravatar, whose fallback image comes through wp.com
                    "https://lookout.hackclub.com", "https://lookout.hackclub-assets.com", # Lookout thumbnails redirect to its asset host
                    "https://public.lapse-hackclub.link", # Lapse thumbnails
-                   "https://stardance.hackclub.com", "https://fabricate.hackclub-assets.com", # photos in transferred journals (ProjectTransfer)
+                   "https://stardance.hackclub.com", "https://fabricate.hackclub-assets.com", "https://stasis.hackclub-assets.com", # photos in transferred journals (ProjectTransfer)
                    "https://fallout.hackclub.com", "https://cdn.hackclub.com", "https://user-cdn.hackclub-assets.com", # ...where Hack Club's CDN redirects to its asset host
                    "https://i.ytimg.com", *r2_host
     policy.frame_src "https://www.youtube-nocookie.com"

@@ -1,8 +1,8 @@
 # A project someone started in another Hack Club program and asked to carry on here, on the transfer form linked
 # from /transfers. The form writes to the Project Transfers table in Fallen's Airtable; SyncProjectTransfersJob copies
 # each row here, matched to an account by email, and FetchProjectTransferJob reads the project from the program it
-# came from into `snapshot` (Stardance, Fabricate, Macondo, Fallout, Forge). Other programs have no fetcher, so a
-# reviewer opens the link.
+# came from into `snapshot` (Stardance, Fabricate, Macondo, Fallout, Forge, Stasis). Other programs have no fetcher,
+# so a reviewer opens the link.
 #
 # Approving copies the snapshot's entries into a project as journals (source "transfer"), dated when they were
 # written, with the hours the reviewer counts shared out over them in proportion to what each logged (evenly when none
@@ -77,7 +77,7 @@ class ProjectTransfer < ApplicationRecord
     "fldN6Td9tKGU1jxCv" => :hours,
     "fldlbmugGwq1AVUzq" => :fallen_project_url
   }.freeze
-  FETCHERS = { "stardance" => Stardance, "fabricate" => Fabricate, "macondo" => Macondo, "fallout" => Fallout, "forge" => Forge }.freeze
+  FETCHERS = { "stardance" => Stardance, "fabricate" => Fabricate, "macondo" => Macondo, "fallout" => Fallout, "forge" => Forge, "stasis" => Stasis }.freeze
   STATUSES = %w[pending approved rejected].freeze
   LINK = %r{\Ahttps?://\S+\z}
   EMBEDDED_IMAGE = /!\[[^\]]*\]\(\s*<?([^)\s>]+)>?[^)]*\)/

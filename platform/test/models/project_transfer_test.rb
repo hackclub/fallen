@@ -54,7 +54,7 @@ class ProjectTransferTest < ActiveSupport::TestCase
   test "sync copies the form's rows, matches accounts by email and reads the program from the link" do
     rows = [
       record("recNEW", email: " Member@Example.com", source_url: "https://fabricate.hackclub.com/projects/333", hours: 1.5, first_name: "Mem", last_name: "Ber"),
-      record("recOTHER", email: "nobody@example.com", source_url: "https://forge.hackclub.com/projects/3740"),
+      record("recOTHER", email: "nobody@example.com", source_url: "https://blueprint.hackclub.com/projects/3740"),
       record("recBLANK", email: "", source_url: "https://stardance.hackclub.com/projects/1")
     ]
     count = sync(rows)

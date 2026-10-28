@@ -21,8 +21,9 @@ class AdminProjectTransferDetailSerializer < AdminProjectTransferSerializer
   attribute(:user_projects) do |transfer|
     next [] unless transfer.user
 
-    Project.teamed_with(transfer.user).kept.recent.includes(:user).map do |project|
-      { id: project.public_id, title: project.title, owner: (project.user.display_name unless project.user_id == transfer.user_id) }
-    end
+    projects = Project.teamed_with(transfer.user).kept.recent.to_a
+    others = projects.map(&:user_id).uniq - [ transfer.user_id ]
+    owners = others.any? ? User.where(id: others).pluck(:id, :display_name).to_h : {}
+    projects.map { |project| { id: project.public_id, title: project.title, owner: owners[project.user_id] } }
   end
 end

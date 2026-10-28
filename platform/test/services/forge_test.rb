@@ -34,6 +34,6 @@ class ForgeTest < ActiveSupport::TestCase
 
   private
 
-  def page(props) = %(<script data-page="app" type="application/json">#{ERB::Util.html_escape({ component: "Projects/Show", props: props }.to_json)}</script>)
+  def page(props) = %(<script data-page="app" type="application/json">#{{ component: "Projects/Show", props: props }.to_json}</script>)
   def with_forge(stubs, &) = stub_method(Forge, :connection, Faraday.new { it.adapter :test, stubs }, &)
 end

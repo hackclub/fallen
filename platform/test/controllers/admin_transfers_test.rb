@@ -26,6 +26,14 @@ class AdminTransfersTest < ActionDispatch::IntegrationTest
     assert props["can"]["approve"]
   end
 
+  test "the person's projects name the owner of the ones they are only a member of" do
+    projects(:admins).memberships.create!(user: users(:member))
+    owners = inertia_props(admin_transfer_path(project_transfers(:stardance)), "Admin/Transfers/Show")["transfer"]["user_projects"].to_h { [ it["id"], it["owner"] ] }
+
+    assert_equal "Admin Person", owners[projects(:admins).public_id]
+    assert_nil owners[projects(:station).public_id]
+  end
+
   test "approving imports the journals and issues the XP the reviewer typed" do
     transfer = project_transfers(:stardance)
     post approve_admin_transfer_path(transfer), params: { transfer: { hours: "2.5", xp: "25", project_id: projects(:station).public_id, note: "Looks right", message: "Welcome!" } }
@@ -34,7 +42,7 @@ class AdminTransfersTest < ActionDispatch::IntegrationTest
     transfer.reload
     assert_equal [ "approved", 150, 25, projects(:station), users(:admin) ], transfer.values_at(:status, :approved_minutes, :xp, :project, :reviewer)
     assert_equal [ "Looks right", "Welcome!" ], transfer.values_at(:note, :message)
-    assert_enqueued_with(job: ProjectTransferDecidedJob, args: [ transfer, { new_project: false } ])
+    assert_enqueued_with(job: ProjectTransferDecidedJob, args: [ transfer, { new_project: false, to: users(:member) } ])
     assert_equal 150, projects(:station).journals.where(source: "transfer").sum(:duration_minutes)
   end
 
