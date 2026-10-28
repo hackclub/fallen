@@ -7,7 +7,7 @@ class CopyTransferPhotosJob < ApplicationJob
   queue_as :background
   limits_concurrency key: ->(journal) { journal }, duration: 5.minutes, on_conflict: :discard
 
-  HOSTS = %w[stardance.hackclub.com fabricate.hackclub-assets.com].freeze
+  HOSTS = %w[stardance.hackclub.com fabricate.hackclub-assets.com cdn.hackclub.com fallout.hackclub.com].freeze
   REDIRECTS = 3
 
   def perform(journal)

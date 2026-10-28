@@ -138,6 +138,14 @@ class ProjectTransferTest < ActiveSupport::TestCase
     assert_not XpEntry.during(Week.of(entry.day)).exists?(kind: "transfer"), "left out of the team race"
   end
 
+  test "approving shares the hours evenly when no entry logged any" do
+    transfer = project_transfers(:stardance)
+    transfer.update!(snapshot: transfer.snapshot.merge("entries" => transfer.snapshot["entries"].map { it.merge("minutes" => 0) }))
+
+    assert transfer.approve(reviewer: users(:admin), minutes: 90, xp: 0)
+    assert_equal [ 45, 45 ], transfer.project.journals.order(:created_at).map(&:duration_minutes)
+  end
+
   test "approving without entries makes one journal and can add to an existing project" do
     transfer = project_transfers(:stardance)
     transfer.update!(snapshot: nil)

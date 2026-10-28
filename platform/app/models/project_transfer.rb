@@ -1,12 +1,13 @@
 # A project someone started in another Hack Club program and asked to carry on here, on the transfer form linked
 # from /transfers. The form writes to the Project Transfers table in Fallen's Airtable; SyncProjectTransfersJob copies
 # each row here, matched to an account by email, and FetchProjectTransferJob reads the project from the program it
-# came from into `snapshot` (Stardance, Fabricate). Other programs have no fetcher, so a reviewer opens the link.
+# came from into `snapshot` (Stardance, Fabricate, Macondo, Fallout, Forge). Other programs have no fetcher, so a
+# reviewer opens the link.
 #
 # Approving copies the snapshot's entries into a project as journals (source "transfer"), dated when they were
-# written, with the hours the reviewer counts shared out over them in proportion to what each logged (one journal
-# when there are no entries). The journals earn no XP themselves: the reviewer sets the XP, which is one "transfer"
-# entry in the ledger, left out of the weekly team race.
+# written, with the hours the reviewer counts shared out over them in proportion to what each logged (evenly when none
+# logged any, and one journal when there are no entries). The journals earn no XP themselves: the reviewer sets the
+# XP, which is one "transfer" entry in the ledger, left out of the weekly team race.
 # A row reviewed here keeps its decision even if the form's row changes; one still pending follows it. The person is
 # DMed the decision, with the reviewer's `message` to them (ProjectTransferDecidedJob); `note` is for staff.
 # == Schema Information
@@ -76,7 +77,7 @@ class ProjectTransfer < ApplicationRecord
     "fldN6Td9tKGU1jxCv" => :hours,
     "fldlbmugGwq1AVUzq" => :fallen_project_url
   }.freeze
-  FETCHERS = { "stardance" => Stardance, "fabricate" => Fabricate }.freeze
+  FETCHERS = { "stardance" => Stardance, "fabricate" => Fabricate, "macondo" => Macondo, "fallout" => Fallout, "forge" => Forge }.freeze
   STATUSES = %w[pending approved rejected].freeze
   LINK = %r{\Ahttps?://\S+\z}
   EMBEDDED_IMAGE = /!\[[^\]]*\]\(\s*<?([^)\s>]+)>?[^)]*\)/
@@ -152,7 +153,7 @@ class ProjectTransfer < ApplicationRecord
   def self.suggested_xp(minutes) = minutes.to_i.positive? ? XpEntry.journal_xp(minutes, 1) : 0
 
   # Whether the account's Slack ID wrote the project in the program it came from. Unknown when that program
-  # doesn't say (Fabricate) or there is no account.
+  # doesn't say (Fabricate, Fallout, Forge) or there is no account.
   def owner_check
     ids = Array(snapshot&.dig("author_slack_ids"))
     return nil if ids.empty? || user&.slack_id.blank?
@@ -168,7 +169,7 @@ class ProjectTransfer < ApplicationRecord
 
   def fetch!
     update!(snapshot: photos_apart(FETCHERS.fetch(source).project(source_ref)), error: nil, fetched_at: Time.current)
-  rescue Stardance::Error, Fabricate::Error, Faraday::Error, JSON::ParserError => e
+  rescue *FETCHERS.values.map { it::Error }, Faraday::Error, JSON::ParserError => e
     update!(error: e.message, fetched_at: Time.current)
   end
 
@@ -231,8 +232,10 @@ class ProjectTransfer < ApplicationRecord
 
   def journal_attributes(minutes)
     entries = Array(snapshot&.dig("entries"))
+    return [ { body: footer("#{project_name || 'Transferred project'}, from #{source_url}."), duration_minutes: minutes, created_at: submitted_at } ] if entries.empty?
+
     logged = entries.map { it["minutes"].to_i }
-    return [ { body: footer("#{project_name || 'Transferred project'}, from #{source_url}."), duration_minutes: minutes, created_at: submitted_at } ] if logged.sum.zero?
+    logged = logged.map { 1 } if logged.sum.zero?
 
     entries.zip(share(logged, minutes)).map do |entry, share|
       written = Time.zone.parse(entry["at"].to_s) rescue nil
@@ -260,7 +263,7 @@ class ProjectTransfer < ApplicationRecord
   def photos_apart(project)
     project.merge("entries" => Array(project["entries"]).map do |entry|
       body = entry["body"].to_s
-      entry.merge("body" => body.gsub(EMBEDDED_IMAGE, "").gsub(/\n{3,}/, "\n\n").strip, "images" => Array(entry["images"]) + body.scan(EMBEDDED_IMAGE).flatten)
+      entry.merge("body" => body.gsub(EMBEDDED_IMAGE, "").gsub(/\n{3,}/, "\n\n").strip, "images" => (Array(entry["images"]) + body.scan(EMBEDDED_IMAGE).flatten).uniq)
     end)
   end
 

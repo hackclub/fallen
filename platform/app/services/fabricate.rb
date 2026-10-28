@@ -26,7 +26,7 @@ module Fabricate
     raise Error, "Fabricate shows this project only to its owner, or it was deleted" if response.status.in?([ 301, 302, 404 ])
     raise Error, "Fabricate answered #{response.status}" unless response.success?
 
-    props = page_props(response.body)
+    props = InertiaPage.from(response.body)&.dig("props") or raise Error, "Fabricate's page had no Inertia props; did it change?"
     project = props["project"] or raise Error, "Fabricate's page had no project on it"
     {
       "title" => project["name"],
@@ -41,13 +41,6 @@ module Fabricate
       "minutes" => project["effective_seconds"].to_i / 60,
       "entries" => Array(props["entries"]).map { |entry| entry(entry) }.sort_by { it["at"].to_s }
     }
-  end
-
-  def page_props(html)
-    json = Nokogiri::HTML(html).at_css('script[data-page="app"]')&.text
-    raise Error, "Fabricate's page had no Inertia props; did it change?" if json.blank?
-
-    JSON.parse(json).fetch("props")
   end
 
   def entry(entry)
@@ -68,5 +61,5 @@ module Fabricate
       f.options.timeout = 15
     end
   end
-  private_class_method :page_props, :entry
+  private_class_method :entry
 end

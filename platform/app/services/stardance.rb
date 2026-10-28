@@ -66,45 +66,12 @@ module Stardance
       "at" => devlog.at_css("time.feed-post-card__time")&.[]("datetime"),
       "minutes" => minutes(devlog.at_css(".feed-post-card__duration")&.text),
       "body" => markdown(devlog.at_css(".feed-post-card__body.markdown-content")),
-      "images" => devlog.css("img.feed-post-card__image").filter_map { absolute(it["src"]) }
+      "images" => devlog.css("img.feed-post-card__image").filter_map { HtmlMarkdown.absolute(it["src"], "https://#{HOST}/") }
     }
   end
 
-  # Stardance renders its Markdown before we see it; this turns the few tags a devlog uses back into Markdown.
-  def markdown(node)
-    return "" if node.nil?
-
-    node.children.map { |child| markdown_of(child) }.join.gsub(/\n{3,}/, "\n\n").strip
-  end
-
-  def markdown_of(node)
-    return node.text if node.text?
-    return "" unless node.element?
-
-    inner = node.children.map { |child| markdown_of(child) }.join
-    case node.name
-    when "p", "div" then "#{inner.strip}\n\n"
-    when "br" then "\n"
-    when /\Ah([1-6])\z/ then "#{'#' * Regexp.last_match(1).to_i} #{inner.strip}\n\n"
-    when "strong", "b" then "**#{inner}**"
-    when "em", "i" then "*#{inner}*"
-    when "code" then node.parent&.name == "pre" ? inner : "`#{inner}`"
-    when "pre" then "```\n#{node.text.strip}\n```\n\n"
-    when "a" then node["href"].present? ? "[#{inner}](#{absolute(node['href'])})" : inner
-    when "img" then node["class"].to_s.include?("emote") ? node["alt"].to_s : "![#{node['alt']}](#{absolute(node['src'])})"
-    when "ul" then node.css("> li").map { "- #{markdown(it)}\n" }.join + "\n"
-    when "ol" then node.css("> li").each_with_index.map { |li, i| "#{i + 1}. #{markdown(li)}\n" }.join + "\n"
-    when "blockquote" then inner.strip.lines.map { "> #{it}" }.join + "\n\n"
-    else inner
-    end
-  end
-
-  # Stardance's own links and photos can be relative to it.
-  def absolute(url)
-    url.present? ? URI.join("https://#{HOST}/", url.strip).to_s : nil
-  rescue URI::Error
-    nil
-  end
+  # Stardance renders its Markdown before we see it.
+  def markdown(node) = HtmlMarkdown.from(node, base: "https://#{HOST}/")
 
   def connection
     Faraday.new(url: "https://#{HOST}", headers: { "Accept" => "text/html" }) do |f|
@@ -112,5 +79,5 @@ module Stardance
       f.options.timeout = 15
     end
   end
-  private_class_method :author, :entry, :markdown, :markdown_of, :absolute
+  private_class_method :author, :entry, :markdown
 end
