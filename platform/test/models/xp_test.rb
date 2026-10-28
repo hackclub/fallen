@@ -184,7 +184,7 @@ class XpTest < ActiveSupport::TestCase
     2.times { user.team.close_week(week) }
     assert_equal 1.15, user.reload.xp_multiplier, "the streak starts with the first journal"
     assert_equal 3, user.streak_freezes
-    assert_equal 1, user.xp_entries.where(kind: "streak").count
+    assert_equal 1, user.streak_weeks.count
 
     journal_on(user, week.days.map { |day| day + 7 }.first(5))
     user.team.close_week(Week.of(week.start + 7))

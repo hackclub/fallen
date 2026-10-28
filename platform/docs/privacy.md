@@ -30,7 +30,8 @@ Only from the token's `subject`: any `emails` (case-insensitive against `users.e
 | Slack's join and leave events for the huddle, by Slack id and time | `huddle_events` |
 | The pet's timer: when they started and stopped the site's timer, what they said they would work on and got done with it and how many of its hours were really work, paused in the huddle, and their hourly check-ins (what they said they had got done so far, and the Slack DM that asked) | `timer_sessions`, `huddle_pauses`, `time_milestones` |
 | The days they opened the site, by UTC date, for daily active counts | `active_days` |
-| XP earned, line by line (journal XP, bonuses, streak checks) | `xp_entries`, `users.xp` |
+| XP earned, line by line (journal XP, bonuses) | `xp_entries`, `users.xp` |
+| Team Sami's weekly streak results (days missed and excused, multiplier and freezes before and after), and changes staff made to their streak (days excused, freezes given, values set) with the staff reason, the message DMed to them and what it changed. Changes they made to other people's streaks as staff lose their name | `streak_weeks`, `streak_adjustments` |
 | Project transfer requests: their email and name as typed on the transfer form, the other program's project link, the hours they claimed, a copy of that project's public page (title, writing, photo links, the author's Slack id), and the reviewer's decision, their note and the message sent to the person in a Slack DM. Their reviews of other people's transfers lose the reviewer | `project_transfers` |
 | Feature flags an admin turned on for them by name (their public id on the flag) | `flipper_gates` |
 | Admins only: their MCP tokens (name, digest, last four characters, when made, last used, expiry), the calls made with them, and the SQL writes their agent asked for with previews of the rows they touched | `admin_tokens`, `mcp_actions`, `mcp_sql_changes` |

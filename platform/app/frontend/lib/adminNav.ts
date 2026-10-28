@@ -2,6 +2,7 @@ import Bot from '@lucide/svelte/icons/bot'
 import BriefcaseBusiness from '@lucide/svelte/icons/briefcase-business'
 import ChartLine from '@lucide/svelte/icons/chart-line'
 import Flag from '@lucide/svelte/icons/flag'
+import Flame from '@lucide/svelte/icons/flame'
 import FolderOpen from '@lucide/svelte/icons/folder-open'
 import ArrowLeftRight from '@lucide/svelte/icons/arrow-left-right'
 import Gauge from '@lucide/svelte/icons/gauge'
@@ -15,6 +16,7 @@ import {
   adminProjects,
   adminRoot,
   adminStats,
+  adminStreaks,
   adminTransfers,
   adminUsers,
 } from '@/routes'
@@ -46,6 +48,7 @@ export const adminNav: AdminNavSection[] = [
       { label: 'Projects', href: adminProjects.index().url, icon: FolderOpen, statKey: 'projects_count' },
       { label: 'Users', href: adminUsers.index().url, icon: Users, statKey: 'users_count' },
       { label: 'Transfers', href: adminTransfers.index().url, icon: ArrowLeftRight },
+      { label: 'Streaks', href: adminStreaks.index().url, icon: Flame },
     ],
   },
   {

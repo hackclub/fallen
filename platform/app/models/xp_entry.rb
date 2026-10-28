@@ -38,7 +38,7 @@ class XpEntry < ApplicationRecord
   has_paper_trail
 
   PER_HOUR = 8
-  KINDS = %w[journal early_bird weekly_bonus team_win streak stupendous transfer].freeze
+  KINDS = %w[journal early_bird weekly_bonus team_win stupendous transfer].freeze
   # Once per person, for the first journal that says "stupendous", spelled right, in any case.
   STUPENDOUS_BONUS = 20
   STUPENDOUS = /stupendous/i

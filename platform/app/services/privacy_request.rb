@@ -64,6 +64,8 @@ class PrivacyRequest
     deleted["journal_drafts"] = forget(JournalDraft.where(user_id: ids).or(JournalDraft.where(project_id: project_ids)))
     ActiveStorage::Attachment.where(record_type: "Project", record_id: project_ids).delete_all
     deleted["xp_entries"] = forget(XpEntry.where(user_id: ids))
+    deleted["streak_weeks"] = forget(StreakWeek.where(user_id: ids))
+    deleted["streak_adjustments"] = forget(StreakAdjustment.where(user_id: ids))
     deleted["huddle_sessions"] = forget(HuddleSession.where(user_id: ids).or(HuddleSession.where(slack_id: users.filter_map(&:slack_id))))
     deleted["huddle_events"] = forget(HuddleEvent.where(slack_id: users.filter_map(&:slack_id)))
     deleted["huddle_pauses"] = forget(HuddlePause.where(user_id: ids))
@@ -84,6 +86,8 @@ class PrivacyRequest
     deleted["mcp_actions"] = mcp_actions.or(McpAction.where(subject_type: "Project", subject_id: project_ids)).delete_all
     deleted["mcp_sql_changes"] = McpSqlChange.where(user_id: ids).delete_all
     McpSqlChange.where(reviewer_id: ids).update_all(reviewer_id: nil)
+    StreakAdjustment.where(admin_id: ids).update_all(admin_id: nil)
+    StreakAdjustment.where(undone_by_id: ids).update_all(undone_by_id: nil)
     deleted["admin_tokens"] = forget(AdminToken.where(user_id: ids))
     deleted["users"] = User.where(id: removable.map(&:id)).delete_all
     deleted["versions"] = @versions

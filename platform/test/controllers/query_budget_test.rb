@@ -67,6 +67,7 @@ class QueryBudgetTest < ActionDispatch::IntegrationTest
     assert_query_budget(3) { get admin_users_path }
     assert_query_budget(8) { load_deferred(admin_users_path, "Admin/Users/Index", "users", "pagy", "total_count") }
     assert_query_budget(6) { get admin_user_path(users(:member)) }
+    assert_query_budget(8) { load_deferred(admin_user_path(users(:member)), "Admin/Users/Show", "streak") }
 
     assert_query_budget(3) { get admin_projects_path }
     assert_query_budget(8) { load_deferred(admin_projects_path, "Admin/Projects/Index", "projects", "pagy", "total_count") }
@@ -75,6 +76,9 @@ class QueryBudgetTest < ActionDispatch::IntegrationTest
     assert_query_budget(3) { get admin_transfers_path }
     assert_query_budget(8) { load_deferred(admin_transfers_path, "Admin/Transfers/Index", "transfers", "pagy", "counts") }
     assert_query_budget(6) { get admin_transfer_path(project_transfers(:stardance)) }
+    assert_query_budget(3) { get admin_streaks_path }
+    assert_query_budget(9) { load_deferred(admin_streaks_path, "Admin/Streaks/Index", "rows", "pagy", "weeks", "counts") }
+    assert_query_budget(8) { load_deferred(admin_streaks_path(tab: "log"), "Admin/Streaks/Index", "rows", "pagy") }
 
     assert_query_budget(3) { get admin_insights_path }
     # One aggregate per panel, whatever the number of requests recorded.

@@ -87,6 +87,27 @@ module SlackMessages
     { text: text, blocks: blocks }
   end
 
+  # DMed by StreakAdjustedJob.
+  def streak_adjusted(adjustment)
+    effect = adjustment.effect
+    days = adjustment.days.count
+    lines =
+      case adjustment.kind
+      when "excuse" then [ "We excused #{adjustment.days_text} for your streak, so #{days == 1 ? 'it counts' : 'they count'} like #{days == 1 ? 'a day' : 'days'} you journaled." ]
+      when "freezes" then [ adjustment.freezes.positive? ? "You got #{adjustment.freezes} streak #{'freeze'.pluralize(adjustment.freezes)}!" : "#{-adjustment.freezes} of your streak freezes were taken back." ]
+      else [ "Your streak was updated." ]
+      end
+    if adjustment.user.pet == "sami" && effect["multiplier"] && (adjustment.kind != "freezes" || effect["multiplier"].uniq.size > 1)
+      lines << "You're on #{format('%.2f', effect['multiplier'].last)}x with #{effect['freezes'].last} #{'freeze'.pluralize(effect['freezes'].last)} left."
+    elsif adjustment.kind != "freezes" && effect["freezes"]
+      lines << "You have #{effect['freezes'].last} streak #{'freeze'.pluralize(effect['freezes'].last)}."
+    end
+    lines << "That's +#{effect['xp']} XP." if effect["xp"].to_i.positive?
+    lines << "\nA note from the Fallen team:\n#{escape(adjustment.message.truncate(2000)).gsub(/^/, '> ')}" if adjustment.message.present?
+    text = lines.join("\n")
+    { text: text, blocks: [ SlackBot::Blocks.section(text) ] }
+  end
+
   # DMed by StupendousBonusJob.
   def stupendous_bonus(amount) = { text: "heya! you just received a stupendous +#{amount} XP :)" }
 

@@ -83,6 +83,9 @@ class User < ApplicationRecord
   has_many :time_milestones, dependent: :delete_all
   has_many :lapse_timelapses, dependent: :destroy
   has_many :active_days, dependent: :delete_all
+  # Team Sami's judged weeks, and the changes admins made to the person's streak (StreakAdjustment).
+  has_many :streak_weeks, dependent: :delete_all
+  has_many :streak_adjustments, dependent: :delete_all
   # MCP tokens and the calls made with them stay after a token dies; PrivacyRequest deletes both.
   has_many :admin_tokens
 

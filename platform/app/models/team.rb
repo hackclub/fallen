@@ -3,7 +3,7 @@
 # Lulu or Sami. The pet picked in onboarding is also the team, and each team rewards a week of journaling its own
 # way: Lulu pays a bonus for enough journal days in each week counted from the person's first journal, Sami raises
 # the multiplier on every journal for each Monday-to-Sunday week without a gap, with a few freezes
-# (users.streak_freezes) to cover missed days. `Team.close_week` settles a calendar week for everyone (CloseWeekJob):
+# (users.streak_freezes) to cover missed days. A day an admin excused (StreakAdjustment) counts as journaled for both. `Team.close_week` settles a calendar week for everyone (CloseWeekJob):
 # the team that earned the most XP gets WIN_BONUS for each member who earned some, then Sami judges its members' week.
 # `Team.settle` pays Lulu's weeks as each person's ends (SettleLuluWeeksJob).
 class Team
@@ -64,6 +64,11 @@ class Team
   # Days of the week with a journal.
   def journal_days(week) = journal_xp(week).keys.sort
 
+  # Days of the week with a journal or an excuse, which is what the teams' weekly rewards count.
+  def streak_days(week) = (journal_days(week) | week.days.select { excused_days.include?(it) }).sort
+
+  def excused_days = @excused_days ||= StreakAdjustment.excused_days(user)
+
   # The streak starts with the first journal.
   def first_journal_day = user.xp_entries.kept.journals.minimum(:day)
 
@@ -91,7 +96,8 @@ class Team
     end
 
     # A bonus for each week that can still reach DAYS_FOR_BONUS and is paid by the last day, the day after it ends.
-    # Only this week can be out of reach already: the days left in it with the ones journaled before today.
+    # Only this week can be out of reach already: the days left in it with the ones journaled before today. Excused
+    # days are left out of this forecast, which runs on every home page; paying the bonus counts them.
     def best_bonus_xp(days)
       current = week(days.first)
       reachable = journal_days(current).count { |day| day < days.first } + (current.finish - days.first).to_i + 1 >= DAYS_FOR_BONUS
@@ -109,7 +115,7 @@ class Team
     # Never twice for the same days, even if the weeks have moved since a bonus was paid: a bonus sits on the last day
     # of its week, so one from start to six days after finish covered some of these days.
     def pay_for(week)
-      return if journal_days(week).size < DAYS_FOR_BONUS
+      return if streak_days(week).size < DAYS_FOR_BONUS
       return if user.xp_entries.kept.where(kind: "weekly_bonus", day: week.start..week.finish + 6).exists?
 
       user.xp_entries.create_or_find_by!(kind: "weekly_bonus", day: week.finish) { |entry| entry.amount = WEEKLY_BONUS }
@@ -128,27 +134,29 @@ class Team
     STEP = 0.15
     MAX_MULTIPLIER = 1.75
 
+    # Every multiplier a streak can reach, 1 then up STEP at a time.
+    def self.multipliers = (0..((MAX_MULTIPLIER - 1) / STEP).round).map { (1 + it * STEP.to_d).round(2) }
+
     # Up STEP every Monday, when the week before is closed, to MAX_MULTIPLIER.
     def best_multipliers(days)
       days.map { |day| [ user.xp_multiplier + STEP * ((day.beginning_of_week - days.first.beginning_of_week).to_i / 7), MAX_MULTIPLIER ].min }
     end
 
-    # Each missed day spends a freeze; a miss with none left drops the multiplier back to 1. A week kept (freezes or
-    # not) raises it. The result is written once per week as a `streak` entry worth 0 XP.
+    # Writes the week's StreakWeek and the multiplier and freezes it leaves, once. Locked against StreakAdjustment
+    # changing them at the same time.
     def close_week(week)
       first = first_journal_day
       return if first.nil? || first > week.finish
 
-      freezes = user.streak_freezes - missed_days(week, since: first)
-      multiplier = freezes.negative? ? 1.0 : [ user.xp_multiplier + STEP, MAX_MULTIPLIER ].min
       user.transaction do
-        entry = user.xp_entries.create_or_find_by!(kind: "streak", day: week.finish) { |e| e.assign_attributes(amount: 0, multiplier: multiplier) }
-        user.update!(xp_multiplier: multiplier, streak_freezes: [ freezes, 0 ].max) if entry.previously_new_record?
+        user.lock!
+        next if user.streak_weeks.exists?(start: week.start)
+
+        judged = StreakWeek.judge(multiplier: user.xp_multiplier, freezes: user.streak_freezes, days: [ first, week.start ].max..week.finish,
+                                  journaled: journal_days(week), excused: excused_days)
+        user.streak_weeks.create!(start: week.start, multiplier_before: user.xp_multiplier, freezes_before: user.streak_freezes, **judged.attributes)
+        user.update!(xp_multiplier: judged.multiplier, streak_freezes: judged.attributes[:freezes])
       end
     end
-
-    private
-
-    def missed_days(week, since:) = ([ since, week.start ].max..week.finish).count - journal_days(week).size
   end
 end

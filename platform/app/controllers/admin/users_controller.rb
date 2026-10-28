@@ -19,11 +19,17 @@ class Admin::UsersController < Admin::ApplicationController
     authorize @user
     projects = Project.kept.involving(@user).recent.includes(:user, memberships: :user).with_attached_banner.to_a
 
+    streak = policy([ :admin, StreakAdjustment.new(user: @user) ])
+
     render inertia: "Admin/Users/Show", props: {
       user: AdminUserDetailSerializer.render(@user),
       projects: AdminProjectSerializer.render(projects, **Project.journal_totals(projects)),
       roles: User::ROLES,
-      can: { update: policy(@user).update?, impersonate: policy(@user).impersonate? }
+      can: { update: policy(@user).update?, impersonate: policy(@user).impersonate?, streak: streak.create? },
+      streak_blocked: streak.why_not,
+      streak: InertiaRails.defer(group: "streak") { AdminStreakSerializer.render(StreakCalendar.new(@user)) },
+      # What a restore form would do, asked for as it is filled in.
+      streak_preview: InertiaRails.optional { user_streak_preview }
     }
   end
 
@@ -55,6 +61,13 @@ class Admin::UsersController < Admin::ApplicationController
   end
 
   def include_deleted? = params[:include_deleted] == "1"
+
+  def user_streak_preview
+    fields = params.fetch(:preview, {})
+    return streak_preview(build_streak_adjustment(fields, user: @user)) if fields[:undo].blank?
+
+    streak_plan(@user.streak_adjustments.find_by_public_id!(fields[:undo]).undo_preview)
+  end
 
   def user_params
     params.expect(user: [ :is_banned, roles: [] ])

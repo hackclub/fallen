@@ -3,33 +3,39 @@
 </script>
 
 <script lang="ts">
-  import { Link, router, useForm } from '@inertiajs/svelte'
+  import { Deferred, Link, router, useForm } from '@inertiajs/svelte'
   import ArrowLeft from '@lucide/svelte/icons/arrow-left'
   import Ban from '@lucide/svelte/icons/ban'
   import VenetianMask from '@lucide/svelte/icons/venetian-mask'
   import DataTable from '@/components/admin/DataTable.svelte'
   import RoleBadges from '@/components/admin/RoleBadges.svelte'
+  import StreakCard from '@/components/admin/streaks/StreakCard.svelte'
   import * as AlertDialog from '@/components/admin/ui/alert-dialog'
   import { Badge } from '@/components/admin/ui/badge'
   import { Button } from '@/components/admin/ui/button'
   import * as Card from '@/components/admin/ui/card'
   import { Checkbox } from '@/components/admin/ui/checkbox'
   import { Label } from '@/components/admin/ui/label'
+  import { Skeleton } from '@/components/admin/ui/skeleton'
   import { projectColumns, trialLabel } from '@/lib/adminColumns'
   import { formatDate, formatDateTime } from '@/lib/format'
   import { adminUsers, impersonateAdminUser } from '@/routes'
-  import type { AdminProject, AdminUserDetail } from '@/types'
+  import type { AdminProject, AdminStreak, AdminUserDetail } from '@/types'
 
   let {
     user,
     projects,
     roles,
     can,
+    streak,
+    streak_blocked,
   }: {
     user: AdminUserDetail
     projects: AdminProject[]
     roles: string[]
-    can: { update: boolean; impersonate: boolean }
+    can: { update: boolean; impersonate: boolean; streak: boolean }
+    streak?: AdminStreak
+    streak_blocked: string | null
   } = $props()
 
   // svelte-ignore state_referenced_locally
@@ -57,7 +63,6 @@
       label: 'XP',
       value: `${user.xp} (stage ${Math.max(user.pet_form, 1)}${user.pet ? `, ${user.pet}` : ''})`,
     },
-    { label: 'Multiplier', value: `${user.xp_multiplier}x, ${user.streak_freezes} freezes left` },
     { label: 'Last seen', value: formatDateTime(user.last_seen_at) },
     { label: 'Joined', value: formatDate(user.created_at) },
     { label: 'Came from', value: signupSource(user.signup_source) },
@@ -223,6 +228,13 @@
     </Card.Content>
   </Card.Root>
 </div>
+
+<Deferred data="streak">
+  {#snippet fallback()}
+    <Skeleton class="mt-6 h-72 w-full rounded-xl" />
+  {/snippet}
+  {#if streak}<StreakCard {user} {streak} canAdjust={can.streak} blocked={streak_blocked} />{/if}
+</Deferred>
 
 <h2 class="mt-8 mb-4 text-lg font-semibold tracking-tight">{user.display_name}'s projects</h2>
 <DataTable {columns} data={projects} noun="projects" />

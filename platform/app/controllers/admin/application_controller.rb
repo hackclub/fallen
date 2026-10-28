@@ -26,6 +26,23 @@ class Admin::ApplicationController < ApplicationController
     }
   end
 
+  # A StreakAdjustment from a restore form's fields (StreakAdjustment::FIELDS), made by the admin at the keyboard.
+  def build_streak_adjustment(fields, user:)
+    StreakAdjustment.new(**fields.permit(*StreakAdjustment::FIELDS).to_h.symbolize_keys, user:, admin: true_user)
+  end
+
+  # What a restore form would do, for its preview: { errors:, plan: }. Nothing is saved.
+  def streak_preview(adjustment)
+    adjustment.reason = "preview" if adjustment.reason.blank?
+    return { errors: adjustment.errors.full_messages, plan: nil } unless adjustment.valid?
+
+    streak_plan(adjustment.preview)
+  end
+
+  def streak_plan(result)
+    result.is_a?(String) ? { errors: [ result ], plan: nil } : { errors: [], plan: result && AdminStreakPreviewSerializer.render(result) }
+  end
+
   def require_admin!
     raise ActionController::RoutingError, "Not Found" unless current_user&.admin?
   end

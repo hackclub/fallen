@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_27_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_28_120100) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -540,6 +540,46 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_27_120000) do
     t.index ["key"], name: "index_solid_queue_semaphores_on_key", unique: true
   end
 
+  create_table "streak_adjustments", force: :cascade do |t|
+    t.bigint "user_id"
+    t.bigint "admin_id"
+    t.bigint "undone_by_id"
+    t.string "kind", null: false
+    t.date "starts_on"
+    t.date "ends_on"
+    t.integer "freezes"
+    t.decimal "multiplier", precision: 3, scale: 2
+    t.boolean "reprice", default: true, null: false
+    t.boolean "notify", default: false, null: false
+    t.text "reason", null: false
+    t.text "message"
+    t.jsonb "effect", default: {}, null: false
+    t.datetime "discarded_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["admin_id"], name: "index_streak_adjustments_on_admin_id"
+    t.index ["created_at"], name: "index_streak_adjustments_on_created_at"
+    t.index ["discarded_at"], name: "index_streak_adjustments_on_discarded_at"
+    t.index ["kind", "starts_on", "ends_on"], name: "index_streak_adjustments_on_kind_and_starts_on_and_ends_on"
+    t.index ["undone_by_id"], name: "index_streak_adjustments_on_undone_by_id"
+    t.index ["user_id"], name: "index_streak_adjustments_on_user_id"
+  end
+
+  create_table "streak_weeks", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.date "start", null: false
+    t.decimal "multiplier_before", precision: 3, scale: 2, null: false
+    t.integer "freezes_before", null: false
+    t.integer "missed", null: false
+    t.integer "excused", default: 0, null: false
+    t.decimal "multiplier", precision: 3, scale: 2, null: false
+    t.integer "freezes", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["start", "multiplier"], name: "index_streak_weeks_on_start_and_multiplier"
+    t.index ["user_id", "start"], name: "index_streak_weeks_on_user_id_and_start", unique: true
+  end
+
   create_table "time_milestones", force: :cascade do |t|
     t.bigint "user_id", null: false
     t.datetime "since", null: false
@@ -691,6 +731,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_27_120000) do
   add_foreign_key "solid_queue_ready_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_recurring_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_scheduled_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
+  add_foreign_key "streak_adjustments", "users"
+  add_foreign_key "streak_adjustments", "users", column: "admin_id"
+  add_foreign_key "streak_adjustments", "users", column: "undone_by_id"
+  add_foreign_key "streak_weeks", "users"
   add_foreign_key "time_milestones", "users"
   add_foreign_key "timer_sessions", "users"
   add_foreign_key "writing_checks", "journals"

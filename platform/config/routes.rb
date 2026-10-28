@@ -102,6 +102,8 @@ Rails.application.routes.draw do
         end
         post :sync, on: :collection
       end
+      resources :streaks, only: :index
+      resources :streak_adjustments, only: %i[create destroy]
 
       get "stats" => "stats#show", as: :stats
       get "insights(/:kind)" => "insights#show", as: :insights, constraints: { kind: /requests|jobs/ }
