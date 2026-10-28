@@ -1,13 +1,21 @@
 <script lang="ts">
   import { useForm } from '@inertiajs/svelte'
   import { onDestroy, onMount, untrack } from 'svelte'
+  import HoursCheckDialog from '@/components/HoursCheckDialog.svelte'
   import LapsePicker, { type LapseStatus } from '@/components/LapsePicker.svelte'
   import MarkdownEditor from '@/components/MarkdownEditor.svelte'
   import Sketchbook from '@/components/Sketchbook.svelte'
   import SubmitButton from '@/components/SubmitButton.svelte'
   import WritingCheckDialog from '@/components/WritingCheckDialog.svelte'
   import { formatDate } from '@/lib/format'
-  import { MINUTES_PER_PHOTO, countWords, journalLengthNeeded, writtenLength } from '@/lib/markdown'
+  import {
+    HOURS_REMINDER_MINUTES,
+    MAX_PHOTOS,
+    MINUTES_PER_PHOTO,
+    countWords,
+    journalLengthNeeded,
+    writtenLength,
+  } from '@/lib/markdown'
   import { trackedHours } from '@/lib/timer.svelte'
   import type { UploadedImage } from '@/lib/uploads'
   import { checkWriting } from '@/lib/writingCheck'
@@ -54,6 +62,8 @@
   // While Pangram reads the writing the button looks the same as while posting. A flagged check waits on the dialog.
   let checking = $state(false)
   let flaggedCheck: string | null = $state(null)
+  let hoursCheck = $state(false)
+  let durationInput: HTMLInputElement | undefined = $state()
   let pasteHint: HTMLParagraphElement | undefined = $state()
   let selfWritten = $state(false)
   const closing = new AbortController()
@@ -121,12 +131,28 @@
   const timelapsed = $derived(form.lapse_timelapses.length > 0)
   const hours = $derived(form.duration.trim().match(/^(\d*\.?\d+)\s*h?$/i)?.[1])
   // What the server will log: typed hours, or the picked timelapses' time when nothing is typed.
-  const minutes = $derived(hours ? parseFloat(hours) * 60 : timelapsed ? picked : 0)
+  const minutes = $derived(
+    locked ? (journal?.duration_minutes ?? 0) : hours ? parseFloat(hours) * 60 : timelapsed ? picked : 0,
+  )
   // Enough for a reviewer to follow, more for more hours. An older, shorter journal can still be saved as long as its
   // text is untouched.
   const untouched = $derived(editing && form.body === journal?.body)
   const lengthNeeded = $derived(journalLengthNeeded(minutes))
   const longEnough = $derived(written >= lengthNeeded || untouched)
+  // Photos live in the writing; deleting one there drops it. Photos a Slack journal brought along aren't in its
+  // writing, so they stay.
+  // svelte-ignore state_referenced_locally
+  const unembedded = new Set(
+    (journal?.images ?? []).filter((i) => !journal?.body.includes(i.id)).map((i) => i.id),
+  )
+  const photos = $derived(form.images.filter((i) => unembedded.has(i.id) || form.body.includes(i.id)))
+  // One per two hours (Journal#images_cover_hours). A journal whose hours are logged may keep the photos it has.
+  const photosNeeded = $derived.by(() => {
+    if (minutes <= 0) return null
+    const needed = Math.ceil(Math.round(minutes) / MINUTES_PER_PHOTO)
+    return (locked ? Math.min(needed, journal?.images.length ?? 0) : needed) || null
+  })
+  const photosMissing = $derived(photosNeeded === null ? 0 : Math.max(photosNeeded - photos.length, 0))
   // Why the button is greyed out, shown on hover. Typed hours always count. With timelapses picked and nothing typed,
   // the server takes their recorded time.
   const blocker = $derived(
@@ -140,27 +166,28 @@
             ? 'Pick a timelapse or fill in your hours.'
             : uploading > 0
               ? 'Waiting for your photos to upload.'
-              : null,
+              : photosMissing > 0
+                ? `Add ${photosMissing} more ${photosMissing === 1 ? 'photo' : 'photos'}, one for every ${MINUTES_PER_PHOTO / 60} hours logged.`
+                : photos.length > MAX_PHOTOS
+                  ? `A journal can hold at most ${MAX_PHOTOS} photos (${photos.length} so far).`
+                  : null,
   )
   const canSubmit = $derived(blocker === null && !form.processing && !checking)
-
-  // Photos live in the writing; deleting one there drops it. Photos a Slack journal brought along aren't in its
-  // writing, so they stay.
-  // svelte-ignore state_referenced_locally
-  const unembedded = new Set(
-    (journal?.images ?? []).filter((i) => !journal?.body.includes(i.id)).map((i) => i.id),
-  )
-  const photos = $derived(form.images.filter((i) => unembedded.has(i.id) || form.body.includes(i.id)))
-  const photosNeeded = $derived(hours ? Math.ceil((parseFloat(hours) * 60) / MINUTES_PER_PHOTO) : null)
+  const hoursText = $derived(String(Math.round((minutes / 60) * 100) / 100))
 
   function addImage(image: UploadedImage) {
     uploadError = null
     form.images = [...form.images, image]
   }
 
-  async function submit(event: SubmitEvent) {
+  function submit(event: SubmitEvent) {
     event.preventDefault()
     if (!canSubmit) return
+    if (!locked && minutes > HOURS_REMINDER_MINUTES) hoursCheck = true
+    else checkThenPost()
+  }
+
+  async function checkThenPost() {
     if (!writingCheck || (editing && form.body === journal?.body)) return post()
 
     checking = true
@@ -200,6 +227,11 @@
     editor?.focus()
   }
 
+  function editHours() {
+    hoursCheck = false
+    durationInput?.focus()
+  }
+
   // Pasted text is a nudge to write it yourself. Pasted photos are welcome, so they don't set it off.
   function onPaste(event: ClipboardEvent) {
     const data = event.clipboardData
@@ -211,7 +243,8 @@
 
   function onKeydown(event: KeyboardEvent) {
     if (event.key !== 'Escape') return
-    if (flaggedCheck) editFlagged()
+    if (hoursCheck) editHours()
+    else if (flaggedCheck) editFlagged()
     else onClose()
   }
 </script>
@@ -275,7 +308,7 @@
               {:else if draftRestored}Draft restored.{/if}
             </span>
             <span class="flex shrink-0 gap-3 tabular-nums">
-              <span>
+              <span class:text-red-700={photosMissing > 0}>
                 {#if photosNeeded !== null}{photos.length}/{photosNeeded}
                   {photosNeeded === 1 ? 'photo' : 'photos'}
                 {:else}{photos.length} {photos.length === 1 ? 'photo' : 'photos'}{/if}
@@ -320,6 +353,7 @@
               <span class="flex items-baseline gap-1.5">
                 <input
                   id="journal-duration"
+                  bind:this={durationInput}
                   type="text"
                   bind:value={form.duration}
                   placeholder={timelapsed ? 'auto' : '1.5'}
@@ -352,7 +386,7 @@
           title={form.processing || checking ? undefined : (blocker ?? undefined)}
         >
           <SubmitButton
-            busy={form.processing || checking || flaggedCheck !== null}
+            busy={form.processing || checking || hoursCheck || flaggedCheck !== null}
             disabled={!canSubmit}
             busyLabel={editing ? 'Saving' : 'Logging'}
             label={uploading ? 'Waiting for photos…' : editing ? 'Save journal' : 'Log journal'}
@@ -362,6 +396,17 @@
     </div>
   </form>
 </Sketchbook>
+
+{#if hoursCheck}
+  <HoursCheckDialog
+    hours={hoursText}
+    onEdit={editHours}
+    onconfirm={() => {
+      hoursCheck = false
+      checkThenPost()
+    }}
+  />
+{/if}
 
 {#if flaggedCheck}
   <WritingCheckDialog

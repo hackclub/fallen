@@ -44,6 +44,11 @@ export function journalLengthNeeded(minutes: number): number {
 
 // A photo for every this many minutes logged (Journal::MINUTES_PER_IMAGE).
 export const MINUTES_PER_PHOTO = 120
+// The most one journal can hold (Journal::MAX_IMAGES).
+export const MAX_PHOTOS = 10
+
+// Logging more than this many minutes asks the person to confirm their hours are honest first.
+export const HOURS_REMINDER_MINUTES = 90
 
 export function countWords(markdown: string): number {
   const text = markdown

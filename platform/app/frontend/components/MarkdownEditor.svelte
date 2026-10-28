@@ -297,7 +297,12 @@
     />
   </div>
 
-  <div class="ruled relative min-h-[280px] flex-1 overflow-y-auto" role="presentation" onkeydown={onKeydown}>
+  <!-- Starts at 280px but gives way in a short window, so the footer's counts and errors stay on screen. -->
+  <div
+    class="ruled relative min-h-0 flex-[1_1_280px] overflow-y-auto"
+    role="presentation"
+    onkeydown={onKeydown}
+  >
     <div bind:this={mount} class="min-h-full"></div>
   </div>
   {#if footer}
