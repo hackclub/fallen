@@ -8,30 +8,34 @@ class AdminTeamsTest < ActionDispatch::IntegrationTest
     props = inertia_props(admin_teams_path, "Admin/Teams/Show")
 
     assert_equal Week.of(Date.current).start.iso8601, props["week"]["start"]
-    assert_equal [ Week.of(Date.current).start.iso8601 ], props["weeks"].map { it["start"] }, "week 1 is the first XP's"
+    assert_equal TeamRace::START.iso8601, props["weeks"].first["start"]
+    assert_equal Week.of(Date.current).start.iso8601, props["weeks"].last["start"]
     assert_not props["can"]["pay"], "this week is still running"
     assert_not props.key?("leaders"), "the race is deferred"
   end
 
-  test "the weeks run Monday to Sunday from the race's first XP, transfers aside" do
+  test "the weeks run Monday to Sunday from the race's start, whatever XP came before it" do
     sign_in_as users(:admin)
-    users(:member).xp_entries.create!(kind: "transfer", amount: 100, day: Date.current - 30)
-    users(:member).xp_entries.create!(kind: "early_bird", amount: 5, day: Date.current - 10)
+    users(:member).xp_entries.create!(kind: "journal", amount: 33, day: TeamRace::START - 1)
 
     weeks = inertia_props(admin_teams_path, "Admin/Teams/Show")["weeks"]
-    starts = (Week.of(Date.current - 10).start..Week.of(Date.current).start).step(7).map(&:iso8601)
-    assert_equal starts, weeks.map { it["start"] }
+    assert_equal (TeamRace::START..Week.of(Date.current).start).step(7).map(&:iso8601), weeks.map { it["start"] }
     assert weeks.all? { Date.iso8601(it["start"]).monday? && Date.iso8601(it["finish"]).sunday? }
-    assert weeks.first["over"]
     assert_not weeks.last["over"]
+
+    early = admin_teams_path(week: (TeamRace::START - 1).iso8601)
+    assert_equal TeamRace::START.iso8601, inertia_props(early, "Admin/Teams/Show")["week"]["start"], "a week before the start shows week 1"
+    assert_equal 20, load_deferred(early, "Admin/Teams/Show", "overall_timeline")["overall_timeline"].last["lulu"],
+      "XP before the start isn't in the race"
   end
 
   test "the race loads, never for a week after this one" do
     sign_in_as users(:admin)
     props = load_deferred(admin_teams_path(week: (Date.current + 30).iso8601), "Admin/Teams/Show", "history", "overall_timeline", "teams", "timeline", "leaders", "projects")
 
-    assert_equal [ { "start" => Week.of(Date.current).start.iso8601, "xp" => { "lulu" => 20, "sami" => 0 },
-                     "transferred" => { "lulu" => 0, "sami" => 0 }, "paid" => false } ], props["history"]
+    assert_equal TeamRace.weeks.map { it.start.iso8601 }, props["history"].map { it["start"] }
+    assert_equal({ "start" => Week.of(Date.current).start.iso8601, "xp" => { "lulu" => 20, "sami" => 0 },
+                     "transferred" => { "lulu" => 0, "sami" => 0 }, "paid" => false }, props["history"].last)
     assert_equal({ "lulu" => 0, "sami" => 0 }, props["timeline"].first.slice("lulu", "sami"))
     assert_equal({ "lulu" => 20, "sami" => 0 }, props["timeline"].last.slice("lulu", "sami"), "running totals up to now")
     assert_equal props["timeline"].last.slice("lulu", "sami"), props["overall_timeline"].last.slice("lulu", "sami")
@@ -79,7 +83,7 @@ class AdminTeamsTest < ActionDispatch::IntegrationTest
 
   test "paying a week that is over queues the payout once" do
     sign_in_as users(:admin)
-    week = Week.of(Date.new(2026, 9, 7))
+    week = Week.of(TeamRace::START)
 
     assert_enqueued_with(job: TeamWinJob, args: [ week.start ]) { post admin_pay_teams_path(week: week.start.iso8601) }
     assert_redirected_to admin_teams_path(week: week.start.iso8601)

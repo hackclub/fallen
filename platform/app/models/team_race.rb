@@ -5,6 +5,9 @@
 # towards winning (XpEntry.during); with `transfers:` the people, projects and charts count them anyway, on the day
 # they were approved, with the hours their reviewer approved.
 class TeamRace
+  # The race's first Monday. XP from before it (testing before Fallen opened) stays in people's totals but isn't part
+  # of the race.
+  START = Date.new(2026, 10, 19)
   TOP = 10
   CHART_POINTS = 500
   # The project and hours behind an entry from `sourced`: a journal's, or a transfer's.
@@ -13,11 +16,8 @@ class TeamRace
 
   attr_reader :week, :transfers
 
-  # The race's weeks so far, Monday to Sunday, oldest first: week 1 is the one the first XP that counts in it landed in.
-  def self.weeks
-    first = XpEntry.raced.minimum(:day) || Date.current
-    (Week.of(first).start..Week.of(Date.current).start).step(7).map { Week.new(start: it) }
-  end
+  # The race's weeks so far, Monday to Sunday, oldest first, from START.
+  def self.weeks = (START..Week.of([ Date.current, START ].max).start).step(7).map { Week.new(start: it) }
 
   # Each week's XP by team, its transferred XP apart, and whether its win was paid, for the week tabs and the overall
   # totals. One grouped query over every week, so the weeks never cost a query each.
@@ -37,7 +37,7 @@ class TeamRace
   def self.overall_timeline(weeks = self.weeks, transfers: false)
     from = weeks.first.start.in_time_zone
     step = [ ((Time.current - from) / CHART_POINTS / 1.hour).ceil, 1 ].max.hours
-    running(XpEntry.raced(transfers:), from, Time.current, step)
+    running(XpEntry.raced(transfers:).where(day: START..), from, Time.current, step)
   end
 
   # [{ at:, lulu:, sami: }] every `step` from `from` to `to`: each team's XP logged up to then. XP logged before `from`

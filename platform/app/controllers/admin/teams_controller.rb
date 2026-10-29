@@ -46,9 +46,9 @@ class Admin::TeamsController < Admin::ApplicationController
 
   def serialize_people(rows) = rows.map { |row| row.merge(user: AdminUserSerializer.render(row[:user])) }
 
-  # Never a week after this one.
+  # Never a week after this one, nor before the race started.
   def find_and_authorize
-    TeamRace.new(Week.of([ requested_day, Date.current ].min), transfers: params[:transfers] == "1").tap { authorize [ :admin, it ] }
+    TeamRace.new(Week.of([ [ requested_day, Date.current ].min, TeamRace::START ].max), transfers: params[:transfers] == "1").tap { authorize [ :admin, it ] }
   end
 
   def requested_day
