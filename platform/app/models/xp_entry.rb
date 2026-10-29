@@ -51,8 +51,12 @@ class XpEntry < ApplicationRecord
   validates :day, presence: true
 
   scope :journals, -> { where(kind: "journal") }
-  # XP earned in the week, for the team race. A transfer's XP was earned in another program.
-  scope :during, ->(week) { kept.where(day: week.days).where.not(kind: "transfer") }
+  # XP that counts in the team race. A transfer's was earned in another program (admins can look at it alongside, on
+  # /admin/teams), and the win is the race's prize: it lands on the Sunday of the week it was won for and must not add
+  # to that week.
+  scope :raced, ->(transfers: false) { kept.where.not(kind: transfers ? "team_win" : %w[transfer team_win]) }
+  # XP earned in the week, for the team race.
+  scope :during, ->(week, transfers: false) { raced(transfers:).where(day: week.days) }
 
   after_save :recount_user
   after_create_commit -> { StupendousBonusJob.perform_later(self) }, if: -> { kind == "stupendous" }

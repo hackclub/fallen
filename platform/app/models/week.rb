@@ -10,6 +10,10 @@ Week = Data.define(:start) do
   def self.previous(today = Date.current) = of(today - 7)
 
   def finish = start + 6
+
+  # Sunday has ended everywhere by noon UTC on the Monday after: the last time zone is UTC-12.
+  def ends_at = (finish + 1).in_time_zone("UTC") + 12.hours
+  def over?(now = Time.current) = now >= ends_at
   def days = start..finish
   def to_s = "week of #{start.to_fs(:long)}"
 end

@@ -1,6 +1,6 @@
 require "test_helper"
 
-# XP: the ledger (XpEntry), the pet's growth (Evolution) and the teams' weeks (Team, closed by CloseWeekJob and SettleLuluWeeksJob).
+# XP: the ledger (XpEntry), the pet's growth (Evolution) and the teams' weeks (Team, closed by CloseWeekJob and SettleLuluWeeksJob, won by TeamWinJob).
 class XpTest < ActiveSupport::TestCase
   test "a journal's entry follows its hours and is worth at least 1 xp" do
     user = users(:member)
@@ -202,15 +202,19 @@ class XpTest < ActiveSupport::TestCase
     assert_equal Team::Sami::MAX_MULTIPLIER, user.reload.xp_multiplier
   end
 
-  test "closing a week pays the winning team's contributors" do
+  test "paying a week's win pays the winning team's contributors, once" do
     week = Week.of(Date.new(2026, 9, 7))
     journal_on(users(:member), [ week.start ], hours: "5h")
     journal_on(users(:admin), [ week.start ], hours: "1h")
     users(:newcomer).update!(pet: "lulu")
 
     assert_equal({ "lulu" => 40, "sami" => 8 }, XpEntry.team_totals(week))
-    2.times { CloseWeekJob.perform_now(week.finish) }
+    CloseWeekJob.perform_now(week.finish)
+    assert_not XpEntry.exists?(kind: "team_win"), "closing the week leaves the win to an admin"
+
+    2.times { TeamWinJob.perform_now(week.start) }
     assert_equal [ Team::WIN_BONUS ], users(:member).xp_entries.where(kind: "team_win").pluck(:amount)
+    assert_equal({ "lulu" => 40, "sami" => 8 }, XpEntry.team_totals(week), "the win doesn't add to the week it was won for")
     assert_not users(:newcomer).xp_entries.exists?(kind: "team_win"), "only members who earned xp that week"
     assert_not users(:admin).xp_entries.exists?(kind: "team_win")
     assert_equal 20 + 40 + Team::WIN_BONUS, users(:member).reload.xp
@@ -219,11 +223,38 @@ class XpTest < ActiveSupport::TestCase
   test "a week is won once, even if the other team pulls ahead before the job runs again" do
     week = Week.of(Date.new(2026, 9, 7))
     journal_on(users(:member), [ week.start ], hours: "5h")
-    CloseWeekJob.perform_now(week.finish)
+    TeamWinJob.perform_now(week.start)
 
     journal_on(users(:admin), [ week.start + 1 ], hours: "10h")
-    CloseWeekJob.perform_now(week.finish)
+    TeamWinJob.perform_now(week.start)
     assert_equal [ users(:member) ], XpEntry.where(kind: "team_win").map(&:user)
+  end
+
+  test "a week is not won before Sunday has ended everywhere" do
+    week = Week.of(Date.new(2026, 9, 7))
+    journal_on(users(:member), [ week.start ], hours: "5h")
+
+    travel_to (week.finish + 1).in_time_zone("UTC").change(hour: 11, min: 59) do
+      assert_not TeamRace.new(week).payable?
+      TeamWinJob.perform_now(week.start)
+      assert_not XpEntry.exists?(kind: "team_win")
+    end
+    travel_to (week.finish + 1).in_time_zone("UTC").change(hour: 12) do
+      assert TeamRace.new(week).payable?
+    end
+  end
+
+  test "the race leaves transfers out of the teams and the leaderboard" do
+    week = Week.of(Date.new(2026, 9, 7))
+    journal_on(users(:member), [ week.start ], hours: "2h")
+    journal_on(users(:admin), [ week.start ], hours: "1h")
+    users(:admin).xp_entries.create!(kind: "transfer", amount: 500, day: week.start)
+
+    race = TeamRace.new(week)
+    assert_equal({ "lulu" => 16, "sami" => 8 }, race.teams.to_h { [ it[:pet], it[:xp] ] })
+    assert_equal [ [ users(:member), "lulu", 16, 120 ], [ users(:admin), "sami", 8, 60 ] ],
+      race.leaders.map { it.values_at(:user, :pet, :xp, :minutes) }
+    assert_equal [ [ "lulu", 16, 1 ], [ "sami", 8, 1 ] ], race.projects.map { it.values_at(:pet, :xp, :people) }
   end
 
   private

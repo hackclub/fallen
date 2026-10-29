@@ -6,6 +6,7 @@ import Flame from '@lucide/svelte/icons/flame'
 import FolderOpen from '@lucide/svelte/icons/folder-open'
 import ArrowLeftRight from '@lucide/svelte/icons/arrow-left-right'
 import Gauge from '@lucide/svelte/icons/gauge'
+import Trophy from '@lucide/svelte/icons/trophy'
 import LayoutDashboard from '@lucide/svelte/icons/layout-dashboard'
 import Users from '@lucide/svelte/icons/users'
 import {
@@ -17,6 +18,7 @@ import {
   adminRoot,
   adminStats,
   adminStreaks,
+  adminTeams,
   adminTransfers,
   adminUsers,
 } from '@/routes'
@@ -40,6 +42,7 @@ export const adminNav: AdminNavSection[] = [
     items: [
       { label: 'Dashboard', href: adminRoot().url, icon: LayoutDashboard },
       { label: 'Stats', href: adminStats.show().url, icon: ChartLine },
+      { label: 'Team stats', href: adminTeams.show().url, icon: Trophy },
     ],
   },
   {
