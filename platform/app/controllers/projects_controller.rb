@@ -38,7 +38,7 @@ class ProjectsController < ApplicationController
       slack: slack_props,
       direct_upload_url: uploads_path,
       lapse: InertiaRails.defer { lapse_props(timelapses: true) if @project.on_team?(current_user) },
-      writing_check: WritingCheck.enabled_for?(current_user),
+      writing_check: WritingCheck.mode_for(current_user),
       can: {
         update: policy.update?, destroy: policy.destroy?, journal: policy(@project.journals.build(user: current_user)).create?,
         invite: policy.invite?, leave: policy.leave?, remove_teammate: policy.remove_teammate?

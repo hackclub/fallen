@@ -3,8 +3,9 @@
   import Modal from '@/components/Modal.svelte'
   import ModalButton from '@/components/ModalButton.svelte'
 
-  // Shown over the composer when Pangram reads a journal as AI-written (WritingCheck): a reminder of the rule. The
-  // easy way out is editing, and posting as is takes a long hold. The composer handles Escape.
+  // Shown over the composer when Pangram reads a journal as AI-written, or when text was pasted into it and Pangram is
+  // off (WritingCheck.mode_for): a reminder of the rule. The easy way out is editing, and posting as is takes a long
+  // hold. The composer handles Escape.
   let { onEdit, onconfirm }: { onEdit: () => void; onconfirm: () => void } = $props()
 
   // The composer is a stacking context of its own; on <body> this sits above it.

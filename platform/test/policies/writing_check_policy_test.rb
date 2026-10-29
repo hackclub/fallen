@@ -12,6 +12,18 @@ class WritingCheckPolicyTest < ActiveSupport::TestCase
     end
   end
 
+  test "disable_pangram sends nothing and leaves the composer the paste reminder" do
+    member = users(:member)
+    Flipper.enable(:writing_check)
+    Flipper.enable(:disable_pangram)
+    with_env("PANGRAM_API_KEY" => "key") do
+      assert_equal "paste", WritingCheck.mode_for(member)
+      assert_not WritingCheckPolicy.new(member, WritingCheck).create?
+      Flipper.disable(:writing_check)
+      assert_nil WritingCheck.mode_for(member)
+    end
+  end
+
   test "only the writer sees a check" do
     check = WritingCheck.new(user: users(:member), body: "x")
     assert WritingCheckPolicy.new(users(:member), check).show?

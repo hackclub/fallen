@@ -54,7 +54,18 @@ class WritingCheck < ApplicationRecord
 
   validates :status, inclusion: { in: STATUSES }
 
-  def self.enabled_for?(user) = Pangram.configured? && Flipper.enabled?(:writing_check, user)
+  # How the composer checks writing before "Log journal", for people the writing_check flag is on for: "pangram"
+  # sends it to Pangram, "paste" (with the disable_pangram flag on) sends nothing and reminds only people who pasted
+  # text in. Nil for everyone else.
+  def self.mode_for(user)
+    return unless Flipper.enabled?(:writing_check, user)
+
+    if Flipper.enabled?(:disable_pangram, user) then "paste"
+    elsif Pangram.configured? then "pangram"
+    end
+  end
+
+  def self.enabled_for?(user) = mode_for(user) == "pangram"
 
   # The same writing is only sent once: a check not yet on a journal is reused, and one that is lends its score.
   def self.start(user, body, journal: nil)

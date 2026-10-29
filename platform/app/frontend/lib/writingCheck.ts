@@ -3,6 +3,9 @@ import { writingCheck, writingChecks } from '@/routes'
 
 // WritingChecksController: Pangram's read on a journal's writing, asked for when it's about to be posted. An error
 // or a slow answer resolves to an unflagged result (or null), so the journal posts as if nothing was checked.
+// WritingCheck.mode_for: "paste" asks nothing and reminds only people who pasted text into the journal.
+export type WritingCheckMode = 'pangram' | 'paste'
+
 export type WritingCheck = {
   id: string
   status: 'pending' | 'done' | 'failed' | 'skipped' | 'limited'

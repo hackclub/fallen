@@ -20,6 +20,7 @@
   import { shared } from '@/lib/shared.svelte'
   import type { TeamStatus } from '@/lib/team'
   import * as sfx from '@/lib/sfx'
+  import type { WritingCheckMode } from '@/lib/writingCheck'
   import { stagger } from '@/lib/stagger'
   import type { Journal, Pagy, Person, Project } from '@/types'
 
@@ -46,8 +47,8 @@
     people?: Person[]
     // Deferred, and null on a project the person is not on the team of.
     lapse?: LapseStatus | null
-    // Whether "Log journal" asks Pangram about the writing first (WritingCheck).
-    writing_check?: boolean
+    // How "Log journal" checks the writing first (WritingCheck.mode_for).
+    writing_check?: WritingCheckMode | null
     can?: {
       update: boolean
       destroy: boolean
@@ -233,7 +234,7 @@
     journal={composer.journal}
     directUploadUrl={direct_upload_url}
     {lapse}
-    writingCheck={writing_check ?? false}
+    writingCheck={writing_check ?? null}
     onClose={() => (composer = { open: false, journal: null })}
   />
 {/if}

@@ -18,7 +18,7 @@
   } from '@/lib/markdown'
   import { trackedHours } from '@/lib/timer.svelte'
   import type { UploadedImage } from '@/lib/uploads'
-  import { checkWriting } from '@/lib/writingCheck'
+  import { checkWriting, type WritingCheckMode } from '@/lib/writingCheck'
   import { journals, project as projectRoute, projectJournals } from '@/routes'
   import type { Journal, Project } from '@/types'
 
@@ -27,15 +27,15 @@
     journal = null,
     directUploadUrl,
     lapse,
-    writingCheck = false,
+    writingCheck = null,
     onClose,
   }: {
     project: Project
     journal?: Journal | null
     directUploadUrl: string
     lapse?: LapseStatus | null
-    // Ask Pangram about new writing before posting it (WritingCheckDialog).
-    writingCheck?: boolean
+    // Ask Pangram about new writing before posting it, or only remind people who pasted text in (WritingCheckDialog).
+    writingCheck?: WritingCheckMode | null
     onClose: () => void
   } = $props()
 
@@ -59,9 +59,11 @@
   let uploadError: string | null = $state(null)
   let uploading = $state(0)
   let draftRestored = $state(false)
-  // While Pangram reads the writing the button looks the same as while posting. A flagged check waits on the dialog.
+  // While Pangram reads the writing the button looks the same as while posting. A flagged check, or pasted text
+  // without Pangram, waits on the dialog.
   let checking = $state(false)
-  let flaggedCheck: string | null = $state(null)
+  let reminder: { checkId?: string } | null = $state(null)
+  let pasted = $state(false)
   let hoursCheck = $state(false)
   let durationInput: HTMLInputElement | undefined = $state()
   let pasteHint: HTMLParagraphElement | undefined = $state()
@@ -100,6 +102,7 @@
         form.duration = parsed.duration ?? ''
         form.lapse_timelapses = parsed.lapse_timelapses ?? []
         form.images = parsed.images ?? []
+        pasted = parsed.pasted ?? false
         draftRestored = true
       }
     } catch {
@@ -114,6 +117,7 @@
       duration: form.duration,
       lapse_timelapses: form.lapse_timelapses,
       images: form.images,
+      pasted,
     }
     const timer = setTimeout(() => {
       try {
@@ -189,12 +193,17 @@
 
   async function checkThenPost() {
     if (!writingCheck || (editing && form.body === journal?.body)) return post()
+    if (writingCheck === 'paste') {
+      if (pasted) reminder = {}
+      else post()
+      return
+    }
 
     checking = true
     const check = await checkWriting(form.body, closing.signal)
     checking = false
     if (closing.signal.aborted) return
-    if (check?.flagged) flaggedCheck = check.id
+    if (check?.flagged) reminder = { checkId: check.id }
     else post(check?.id)
   }
 
@@ -223,7 +232,7 @@
   }
 
   function editFlagged() {
-    flaggedCheck = null
+    reminder = null
     editor?.focus()
   }
 
@@ -236,6 +245,7 @@
   function onPaste(event: ClipboardEvent) {
     const data = event.clipboardData
     if (!pasteHint || !data || data.files.length > 0 || !data.getData('text/plain').trim()) return
+    pasted = true
     pasteHint.classList.remove('flash')
     void pasteHint.offsetWidth
     pasteHint.classList.add('flash')
@@ -244,7 +254,7 @@
   function onKeydown(event: KeyboardEvent) {
     if (event.key !== 'Escape') return
     if (hoursCheck) editHours()
-    else if (flaggedCheck) editFlagged()
+    else if (reminder) editFlagged()
     else onClose()
   }
 </script>
@@ -386,7 +396,7 @@
           title={form.processing || checking ? undefined : (blocker ?? undefined)}
         >
           <SubmitButton
-            busy={form.processing || checking || hoursCheck || flaggedCheck !== null}
+            busy={form.processing || checking || hoursCheck || reminder !== null}
             disabled={!canSubmit}
             busyLabel={editing ? 'Saving' : 'Logging'}
             label={uploading ? 'Waiting for photos…' : editing ? 'Save journal' : 'Log journal'}
@@ -408,12 +418,12 @@
   />
 {/if}
 
-{#if flaggedCheck}
+{#if reminder}
   <WritingCheckDialog
     onEdit={editFlagged}
     onconfirm={() => {
-      const id = flaggedCheck ?? undefined
-      flaggedCheck = null
+      const id = reminder?.checkId
+      reminder = null
       post(id, true)
     }}
   />
