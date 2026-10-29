@@ -174,7 +174,8 @@
 
   async function crack() {
     const now = performance.now()
-    if (phase !== 'cracking' || now - lastTap < 130) return
+    // taps can reach TAPS before charge() flips the phase: on a slow phone the hit stop outlasts the debounce.
+    if (phase !== 'cracking' || taps >= TAPS || now - lastTap < 130) return
     lastTap = now
     taps++
     hint = false
