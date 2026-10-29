@@ -5,7 +5,8 @@
 # again from today's journals, the others keep the days they were judged on, and each hands what it left to the next.
 # What happened between two weeks stays: freezes granted or taken as a difference, a multiplier set by a pet switch or
 # an admin as it was. With `reprice`, journals saved at a multiplier that changed are worth the new one. Team Lulu's
-# bonus is paid, or taken back, for each ended week holding a changed day since the person joined Lulu.
+# bonus is paid, or taken back, for each ended week holding a changed day since the person joined Lulu. Both count
+# only days on the team: a Sami week from the day of a switch to Sami in it, Lulu's from the switch to Lulu.
 class StreakReplay
   Change = Data.define(:week, :attributes) do
     def broken? = attributes[:freezes_before] < attributes[:missed]
@@ -115,7 +116,8 @@ class StreakReplay
   def judge(week, multiplier, freezes)
     return StreakWeek.settle(multiplier:, freezes:, missed: week.missed, excused: week.excused) unless week.week.days.any? { changed.include?(it) }
 
-    StreakWeek.judge(multiplier:, freezes:, days: [ first_journal_day || week.start, week.start ].max..week.week.finish, journaled:, excused:)
+    from = [ first_journal_day || week.start, week.start, joined_sami(week) ].compact.max
+    StreakWeek.judge(multiplier:, freezes:, days: from..week.week.finish, journaled:, excused:)
   end
 
   # Journals saved after a week was judged, until the next week or a boundary, have the multiplier it left. None when
@@ -152,7 +154,7 @@ class StreakReplay
     paid = user.xp_entries.kept.where(kind: "weekly_bonus").to_a
     weeks = changed.map { team.week(it) }.uniq.select { it.finish < today && (joined.nil? || it.finish >= joined) }
     weeks.filter_map do |week|
-      days = week.days.count { journaled.include?(it) || excused.include?(it) }
+      days = week.days.count { (joined.nil? || it >= joined) && (journaled.include?(it) || excused.include?(it)) }
       entry = paid.find { it.day.between?(week.start, week.finish + 6) }
       if days >= Team::Lulu::DAYS_FOR_BONUS && entry.nil?
         Bonus.new(week, nil)
@@ -165,11 +167,20 @@ class StreakReplay
   def journaled = @journaled ||= user.xp_entries.kept.journals.distinct.pluck(:day).to_set
   def first_journal_day = journaled.min
 
-  # When the multiplier was set some other way than a week closing: pet switches (from the user's history) and admins
-  # setting it, or undoing that.
+  # The day in the week the person switched to Sami, if they did.
+  def joined_sami(week) = switches.filter_map { |time, pet| user.local_date(time) if pet == "sami" }.select { week.week.days.cover?(it) }.max
+
+  # Pet switches from the user's history: when, and to which pet.
+  def switches
+    @switches ||= PaperTrail::Version.where(item_type: "User", item_id: user.id).where("object_changes ? 'pet_switched_at'")
+      .pluck(:created_at, Arel.sql("object_changes -> 'pet' ->> 1"))
+  end
+
+  # When the multiplier was set some other way than a week closing: pet switches and admins setting it, or undoing
+  # that.
   def boundaries
     @boundaries ||= [
-      *PaperTrail::Version.where(item_type: "User", item_id: user.id).where("object_changes ? 'pet_switched_at'").pluck(:created_at).map { [ it, :pet ] },
+      *switches.map { [ it.first, :pet ] },
       *user.streak_adjustments.where(kind: "set").pluck(:created_at, :discarded_at).flatten.compact.map { [ it, :set ] }
     ].sort_by(&:first)
   end

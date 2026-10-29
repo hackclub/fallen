@@ -9,6 +9,7 @@
 #  discarded_at :datetime
 #  kind         :string           not null
 #  multiplier   :decimal(3, 2)
+#  pet          :string
 #  source_type  :string
 #  created_at   :datetime         not null
 #  updated_at   :datetime         not null
@@ -17,6 +18,7 @@
 #
 # Indexes
 #
+#  index_xp_entries_on_created_at_and_pet                  (created_at,pet)
 #  index_xp_entries_on_discarded_at                        (discarded_at)
 #  index_xp_entries_on_source_type_and_source_id_and_kind  (source_type,source_id,kind) UNIQUE WHERE (source_id IS NOT NULL)
 #  index_xp_entries_on_user_id                             (user_id)
@@ -31,6 +33,7 @@
 first:
   user: member
   kind: journal
+  pet: lulu
   amount: 12
   multiplier: 1.0
   day: <%= Date.current.iso8601 %>
@@ -39,6 +42,7 @@ first:
 web_only:
   user: member
   kind: journal
+  pet: lulu
   amount: 8
   multiplier: 1.0
   day: <%= Date.current.iso8601 %>

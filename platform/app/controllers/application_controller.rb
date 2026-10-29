@@ -56,14 +56,15 @@ class ApplicationController < ActionController::Base
   def user_for_paper_trail = true_user&.id
   def info_for_paper_trail = { source: "web:#{controller_path}##{action_name}" }
 
-  # The frontend sends the browser's IANA zone on every Inertia visit (app/frontend/entrypoints/inertia.ts).
+  # The frontend sends the browser's IANA zone on every Inertia visit (app/frontend/entrypoints/inertia.ts). Changes
+  # are limited and logged (User#change_timezone).
   def sync_browser_timezone
     return unless current_user && !impersonating?
 
     zone = request.headers["X-Browser-Timezone"]
-    return if zone.blank? || zone == current_user.timezone || ActiveSupport::TimeZone[zone].nil?
+    return if zone.blank? || zone == current_user.timezone
 
-    current_user.update_column(:timezone, zone)
+    current_user.change_timezone(zone, source: "browser")
   end
 
   def user_not_authorized

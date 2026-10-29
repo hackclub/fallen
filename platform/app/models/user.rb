@@ -24,6 +24,7 @@
 #  soft_signup             :string
 #  streak_freezes          :integer          default(3), not null
 #  timezone                :string           default("UTC"), not null
+#  timezone_changed_at     :datetime
 #  verification_status     :string
 #  xp                      :integer          default(0), not null
 #  xp_multiplier           :decimal(3, 2)    default(1.0), not null
@@ -51,6 +52,8 @@ class User < ApplicationRecord
   # The desktop pet picked during onboarding, an egg until the first journal (Evolution). It is also the team (Team),
   # so switching it is limited (PetSwitch).
   PETS = %w[lulu sami].freeze
+  # How long after a timezone change the next one waits (#change_timezone).
+  TIMEZONE_CHANGE_EVERY = 7.days
   SLACK_ID = /\A[UW][A-Z0-9]{6,20}\z/
   # Soft signups make a trial account before the person visits, so they are in Airtable right away, and never sign
   # anyone in: nobody holds a session for one, so signing in with Hack Club Auth can claim it (from_hca_code!). A trial
@@ -86,6 +89,7 @@ class User < ApplicationRecord
   # Team Sami's judged weeks, and the changes admins made to the person's streak (StreakAdjustment).
   has_many :streak_weeks, dependent: :delete_all
   has_many :streak_adjustments, dependent: :delete_all
+  has_many :timezone_changes, dependent: :delete_all
   # MCP tokens and the calls made with them stay after a token dies; PrivacyRequest deletes both.
   has_many :admin_tokens
 
@@ -199,6 +203,28 @@ class User < ApplicationRecord
 
   def local_date(time = Time.current) = time.in_time_zone(timezone).to_date
 
+  # Moves the person to `zone`, at most once every TIMEZONE_CHANGE_EVERY after the first: the day a journal counts for
+  # follows the timezone, so switching back and forth would cover two days with one sitting. Every change is logged
+  # (TimezoneChange), and so is the first refused one for each zone since the last change. Another name for the same
+  # zone (Asia/Calcutta and Asia/Kolkata) is no change. True if it moved.
+  def change_timezone(zone, source:)
+    to = ActiveSupport::TimeZone[zone.to_s]
+    return false if to.nil? || to.tzinfo.canonical_identifier == ActiveSupport::TimeZone[timezone]&.tzinfo&.canonical_identifier
+
+    if timezone_changed_at && timezone_changed_at > TIMEZONE_CHANGE_EVERY.ago
+      unless timezone_changes.where(refused: true, to: zone, created_at: timezone_changed_at..).exists?
+        timezone_changes.create!(from: timezone, to: zone, source: source, refused: true)
+      end
+      return false
+    end
+
+    transaction do
+      timezone_changes.create!(from: timezone, to: zone, source: source)
+      update_columns(timezone: zone, timezone_changed_at: Time.current)
+    end
+    true
+  end
+
   def team = Team.for(self)
   def pet_switch = PetSwitch.new(self)
   def hatched? = xp.positive?
@@ -308,7 +334,8 @@ class User < ApplicationRecord
     profile = info.user.profile
     updates = {}
     updates[:display_name] = profile.display_name.presence || profile.real_name.presence || display_name
-    updates[:timezone] = info.user.tz if ActiveSupport::TimeZone[info.user.tz.to_s]
+    # Only a first guess: once the browser has set it, the timezone changes there (#change_timezone).
+    updates[:timezone] = info.user.tz if timezone_changed_at.nil? && ActiveSupport::TimeZone[info.user.tz.to_s]
     update!(updates)
   end
 

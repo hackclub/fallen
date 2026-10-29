@@ -257,6 +257,103 @@ class XpTest < ActiveSupport::TestCase
     assert_equal [ [ "lulu", 16, 1 ], [ "sami", 8, 1 ] ], race.projects.map { it.values_at(:pet, :xp, :people) }
   end
 
+  test "the race's week runs Monday to Sunday anywhere on Earth, by when XP was made" do
+    week = Week.of(Date.new(2026, 9, 7))
+    user = users(:member)
+    user.update!(timezone: "Asia/Kolkata")
+    journal_on(user, [ week.start + 7 ])
+    assert_equal week.start + 7, user.xp_entries.journals.order(:id).last.day, "Monday on their calendar"
+    assert_equal 8, XpEntry.team_totals(week)["lulu"], "but Sunday hasn't ended everywhere, so it's the race's last week"
+
+    travel_to(week.ends_at + 1.hour) { user.xp_entries.create!(kind: "weekly_bonus", amount: Team::Lulu::WEEKLY_BONUS, day: week.finish) }
+    assert_equal 8, XpEntry.team_totals(week)["lulu"], "a bonus made after the week ended never changes it"
+    assert_equal Team::Lulu::WEEKLY_BONUS, XpEntry.team_totals(Week.new(start: week.start + 7))["lulu"]
+
+    assert_equal week, Week.racing(week.ends_at - 1.second)
+    assert_equal Week.new(start: week.start + 7), Week.racing(week.ends_at)
+  end
+
+  test "the race's last week ends early, when its last day has ended everywhere, and is paid on that day" do
+    last = Week.of(TeamRace::FINISH)
+    assert_equal TeamRace::FINISH, last.race_finish
+    assert_equal (TeamRace::FINISH + 1).in_time_zone(Week::RACE_ZONE), last.ends_at
+    assert_equal last, Week.racing(last.ends_at + 30.days), "the last week stays the race's after it ends"
+
+    journal_on(users(:member), [ last.start ], hours: "2h")
+    users(:admin).xp_entries.create!(kind: "journal", amount: 40, day: TeamRace::FINISH + 1, created_at: last.ends_at)
+    assert_equal({ "lulu" => 16 }, XpEntry.team_totals(last), "XP after the race isn't in it")
+
+    travel_to(last.ends_at) { TeamWinJob.perform_now(last.start) }
+    assert_equal [ TeamRace::FINISH ], users(:member).xp_entries.where(kind: "team_win").pluck(:day)
+  end
+
+  test "XP counts for the team it was made on, and the win goes to people still on that team who journaled for it" do
+    week = Week.of(Date.new(2026, 9, 7))
+    member, admin, newcomer = users(:member), users(:admin), users(:newcomer)
+    newcomer.update!(pet: "lulu")
+    journal_on(member, [ week.start ], hours: "5h")
+    member.update_columns(pet: "sami", pet_switched_at: (week.start + 1).in_time_zone.change(hour: 9))
+    journal_on(member, [ week.start + 2 ])
+    journal_on(admin, [ week.start + 2 ])
+    journal_on(newcomer, [ week.start + 3 ])
+
+    assert_equal({ "lulu" => 48, "sami" => 16 }, XpEntry.team_totals(week), "the switch took no XP with it")
+    TeamWinJob.perform_now(week.start)
+    assert_equal [ newcomer ], XpEntry.where(kind: "team_win").map(&:user), "member left Lulu, so isn't paid for its win"
+    assert_equal [ "lulu" ], XpEntry.where(kind: "team_win").pluck(:pet)
+
+    following = Week.new(start: week.start + 7)
+    journal_on(admin, [ following.start ], hours: "10h")
+    journal_on(member, [ following.start ])
+    TeamWinJob.perform_now(following.start)
+    assert_equal [ admin, member ].sort, XpEntry.where(kind: "team_win", day: following.finish).map(&:user).sort,
+      "a switcher who journaled for Sami shares its win"
+  end
+
+  test "a banned person's XP leaves the race" do
+    week = Week.of(Date.new(2026, 9, 7))
+    journal_on(users(:member), [ week.start ], hours: "5h")
+    journal_on(users(:admin), [ week.start ], hours: "1h")
+    users(:member).update_column(:is_banned, true)
+
+    assert_equal({ "sami" => 8 }, XpEntry.team_totals(week))
+    TeamWinJob.perform_now(week.start)
+    assert_equal [ users(:admin) ], XpEntry.where(kind: "team_win").map(&:user)
+  end
+
+  test "a switch to sami starts its streak that day: days before it spend no freezes, and a week before it isn't judged" do
+    week = Week.of(Date.new(2026, 9, 7))
+    user = users(:member)
+    journal_on(user, [ week.start ])
+    user.update_columns(pet: "sami", pet_switched_at: (week.start + 3).in_time_zone.change(hour: 9))
+    journal_on(user, ((week.start + 3)..week.finish).to_a)
+    user.team.close_week(week)
+    assert_equal [ 0, 3, 1.15 ], user.streak_weeks.sole.values_at(:missed, :freezes, :multiplier).map { it.is_a?(BigDecimal) ? it.to_f : it }
+
+    newcomer = users(:newcomer)
+    newcomer.update!(pet: "lulu")
+    journal_on(newcomer, [ week.start ])
+    newcomer.update_columns(pet: "sami", pet_switched_at: (week.finish + 1).in_time_zone.change(hour: 6))
+    newcomer.team.close_week(week)
+    assert_not newcomer.streak_weeks.exists?, "switched on Monday, before the week before was closed"
+    assert_equal 1.0, newcomer.reload.xp_multiplier
+  end
+
+  test "lulu's bonus counts only days journaled since the switch to lulu" do
+    first = Date.new(2026, 9, 10) # a Thursday
+    user = users(:admin)
+    journal_on(user, [ first, first + 1 ])
+    user.update_columns(pet: "lulu", pet_switched_at: (first + 2).in_time_zone.change(hour: 9))
+    journal_on(user, [ first + 2, first + 3, first + 4 ])
+
+    (7..13).each { |n| user.team.settle(first + n) }
+    assert_not user.xp_entries.exists?(kind: "weekly_bonus"), "five days in the week, but two were on Team Sami"
+
+    journal_on(user, [ first + 5, first + 6 ])
+    (7..13).each { |n| user.team.settle(first + n) }
+    assert user.xp_entries.exists?(kind: "weekly_bonus", day: first + 6)
+  end
+
   private
 
   def journal_on(user, days, hours: "1h")

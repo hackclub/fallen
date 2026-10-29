@@ -66,6 +66,7 @@ class PrivacyRequest
     deleted["xp_entries"] = forget(XpEntry.where(user_id: ids))
     deleted["streak_weeks"] = forget(StreakWeek.where(user_id: ids))
     deleted["streak_adjustments"] = forget(StreakAdjustment.where(user_id: ids))
+    deleted["timezone_changes"] = forget(TimezoneChange.where(user_id: ids))
     deleted["huddle_sessions"] = forget(HuddleSession.where(user_id: ids).or(HuddleSession.where(slack_id: users.filter_map(&:slack_id))))
     deleted["huddle_events"] = forget(HuddleEvent.where(slack_id: users.filter_map(&:slack_id)))
     deleted["huddle_pauses"] = forget(HuddlePause.where(user_id: ids))

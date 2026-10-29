@@ -24,7 +24,9 @@
   import type { AdminUser, Pagy } from '@/types'
 
   type Team = { pet: string; xp: number; transferred: number; contributors: number; paid: number }
-  type Leader = { user: AdminUser; pet: string; xp: number; minutes: number }
+  // A day of the race's week: the teams the person was on (two on the day they switched), and the ones they earned XP for.
+  type Day = { date: string; on: string[]; earned: string[] }
+  type Leader = { user: AdminUser; pet: string; xp: number; minutes: number; days: Day[] }
   type Project = { id: string; title: string; pet: string; xp: number; minutes: number; people: number }
   type Week = { start: string; finish: string; over: boolean }
   type Result = {
@@ -32,6 +34,7 @@
     xp: Record<string, number>
     transferred: Record<string, number>
     paid: boolean
+    paid_to: string[]
   }
   type Point = { at: string } & Record<string, number | string>
 
@@ -100,11 +103,21 @@
     { autoStart: current },
   )
 
-  // Weeks are calendar dates, not instants: shown as written, whatever the admin's time zone.
+  // Weeks are shown as calendar dates, whatever the admin's time zone. Each runs Monday to Sunday anywhere on Earth,
+  // so from noon UTC on its Monday to noon UTC on the next.
   const dayFormatter = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeZone: 'UTC' })
   const day = (iso: string) => dayFormatter.format(new Date(iso))
+  const weekdayFormatter = new Intl.DateTimeFormat(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    timeZone: 'UTC',
+  })
+  const dayTitle = (d: Day) =>
+    `${weekdayFormatter.format(new Date(d.date))}: ${d.on.map(teamName).join(', then ')}${d.earned.length ? `, earned XP for ${d.earned.map(teamName).join(' and ')}` : ', no XP'}`
 
-  // The teams with the most XP, or none when nobody earned any.
+  // The teams with the most XP, or none when nobody earned any. A paid week shows who was paid instead: its totals
+  // can still move after (a journal's hours edited, a ban).
   const winners = (xp: Record<string, number>) => {
     const most = Math.max(0, ...Object.values(xp))
     return most > 0 ? PETS.filter((pet) => xp[pet] === most) : []
@@ -210,7 +223,7 @@
     {@const result =
       weeks.find((row) => row.start === start)?.over && history?.find((row) => row.start === start)}
     {#if result}
-      {@const won = winners(result.xp)}
+      {@const won = result.paid ? result.paid_to : winners(result.xp)}
       {#if !won.length}
         <Badge variant="outline" class="text-[10px]">No XP</Badge>
       {:else}
@@ -309,6 +322,7 @@
         <Table.Head>Top contributors</Table.Head>
         <Table.Head class="text-right">XP</Table.Head>
         <Table.Head class="text-right">Hours</Table.Head>
+        <Table.Head>Days</Table.Head>
       </Table.Row>
     </Table.Header>
     <Table.Body>
@@ -318,10 +332,40 @@
           <Table.Cell><UserCell user={leader.user} /></Table.Cell>
           <Table.Cell class="text-right font-medium tabular-nums">{formatCount(leader.xp)}</Table.Cell>
           <Table.Cell class="text-right tabular-nums">{formatMinutes(leader.minutes)}</Table.Cell>
+          <Table.Cell>
+            <div class="flex gap-1">
+              {#each leader.days as d (d.date)}{@render dot(d)}{/each}
+            </div>
+          </Table.Cell>
         </Table.Row>
       {/each}
     </Table.Body>
   </Table.Root>
+  <p class="mt-2 text-xs text-muted-foreground">
+    Hours are for this team. A dot per day: the team they were on, filled if they earned XP for it, split on
+    the day they switched.
+  </p>
+{/snippet}
+
+<!-- One team: a circle. Two (the day of a switch): a half for each, the first on the left. -->
+{#snippet dot(d: Day)}
+  <svg viewBox="0 0 12 12" class="size-3 shrink-0" role="img" aria-label={dayTitle(d)}>
+    <title>{dayTitle(d)}</title>
+    {#each d.on.slice(0, 2) as pet, i (pet)}
+      {@const color = PET_COLORS[pet] ?? 'currentColor'}
+      {@const fill = d.earned.includes(pet) ? color : 'none'}
+      {#if d.on.length === 1}
+        <circle cx="6" cy="6" r="5" {fill} stroke={color} stroke-width="1.5" />
+      {:else}
+        <path
+          d={i === 0 ? 'M6 1 A5 5 0 0 0 6 11 Z' : 'M6 1 A5 5 0 0 1 6 11 Z'}
+          {fill}
+          stroke={color}
+          stroke-width="1.5"
+        />
+      {/if}
+    {/each}
+  </svg>
 {/snippet}
 
 {#snippet loading()}

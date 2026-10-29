@@ -28,7 +28,8 @@ class HomeController < ApplicationController
   end
 
   # Where the person stands: XP and form, their team's week so far (Lulu's start on their first journal), and the
-  # race between the teams this Monday-to-Sunday week.
+  # race between the teams this week, Monday to Sunday anywhere on Earth (Week.racing). The streak shows from the first
+  # journal, or the switch to the team if that was later.
   def xp
     today = current_user.local_date
     week = team ? team.week(today) : Week.of(today)
@@ -39,8 +40,9 @@ class HomeController < ApplicationController
       week: {
         start: week.start.iso8601, today: today.iso8601,
         days: team ? team.journal_days(week).map(&:iso8601) : [],
-        since: team&.first_journal_day&.iso8601,
-        totals: XpEntry.team_totals(Week.of(today))
+        since: team&.streak_since&.iso8601,
+        totals: XpEntry.team_totals(Week.racing),
+        race_finish: Week.racing.race_finish.iso8601
       }
     }
   end

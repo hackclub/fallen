@@ -135,7 +135,7 @@ class ProjectTransferTest < ActiveSupport::TestCase
     assert_equal xp_before + 12, users(:member).reload.xp
     entry = users(:member).xp_entries.find_by!(kind: "transfer")
     assert_equal [ 12, transfer ], [ entry.amount, entry.source ]
-    assert_not XpEntry.during(Week.of(entry.day)).exists?(kind: "transfer"), "left out of the team race"
+    assert_not XpEntry.raced_in(Week.racing).exists?(kind: "transfer"), "left out of the team race"
   end
 
   test "approving shares the hours evenly when no entry logged any" do

@@ -1,7 +1,7 @@
 require "test_helper"
 
-# The daily goal on the home page. In UTC the deadline (11 December, 23:59 in New York) falls on 12 December, so from
-# Wednesday 25 November there are 18 days left.
+# The daily goal on the home page. In UTC the deadline (9 December, 23:59 in New York) falls on 10 December, so from
+# Wednesday 25 November there are 16 days left.
 class DailyGoalTest < ActiveSupport::TestCase
   NOW = Time.utc(2026, 11, 25, 12)
 
@@ -21,19 +21,19 @@ class DailyGoalTest < ActiveSupport::TestCase
   test "spreads the xp left over the days left, and holds still while they journal today" do
     user = users(:admin)
     goal = DailyGoal.for(user)
-    assert_equal 18, goal.days.count
-    assert_equal (1000 / (8 / 60.0 * 18)).ceil, goal.minutes
+    assert_equal 16, goal.days.count
+    assert_equal (1000 / (8 / 60.0 * 16)).ceil, goal.minutes
 
     user.xp_entries.create!(kind: "journal", amount: 40, day: Date.new(2026, 11, 25))
     assert_equal goal.minutes, DailyGoal.for(user.reload).minutes
 
     user.xp_entries.create!(kind: "journal", amount: 40, day: Date.new(2026, 11, 24))
-    assert_equal (960 / (8 / 60.0 * 18)).ceil, DailyGoal.for(user.reload).minutes
+    assert_equal (960 / (8 / 60.0 * 16)).ceil, DailyGoal.for(user.reload).minutes
   end
 
   test "sami's best case raises the multiplier every monday, up to the most" do
     user = users(:admin)
-    multipliers = 5 * 1.0 + 7 * 1.15 + 6 * 1.3
+    multipliers = 5 * 1.0 + 7 * 1.15 + 4 * 1.3
     assert_equal (1000 / (8 / 60.0 * multipliers)).ceil, DailyGoal.for(user).best_minutes
 
     user.update_columns(xp_multiplier: 1.75)
@@ -45,19 +45,19 @@ class DailyGoalTest < ActiveSupport::TestCase
     user = users(:newcomer)
     user.update!(pet: "lulu")
     # Weeks from today: 25 November to 1 December, then 2 to 8 December. 9 to 15 December is paid too late.
-    assert_equal ((1000 - 60) / (8 / 60.0 * 18)).ceil, DailyGoal.for(user).best_minutes
+    assert_equal ((1000 - 60) / (8 / 60.0 * 16)).ceil, DailyGoal.for(user).best_minutes
 
     # A first journal last Friday: this week (20 to 26 November) has one day journaled and two to go, so no bonus.
-    # The next two end 3 and 10 December; the one after ends on the last day, too late to be paid.
+    # The next ends 3 December; the one after ends on the last day, 10 December, too late to be paid.
     user.xp_entries.create!(kind: "journal", amount: 8, day: Date.new(2026, 11, 20))
-    assert_equal ((992 - 60) / (8 / 60.0 * 18)).ceil, DailyGoal.for(user.reload).best_minutes
+    assert_equal ((992 - 30) / (8 / 60.0 * 16)).ceil, DailyGoal.for(user.reload).best_minutes
   end
 
   test "the egg picker's preview compares each pet for someone starting today, without a query" do
     user = users(:newcomer)
     preview = assert_no_queries { DailyGoal.preview(user) }
-    assert_equal({ days_left: 18, minutes: (1000 / (8 / 60.0 * 18)).ceil,
-                   best_minutes: { "lulu" => ((1000 - 60) / (8 / 60.0 * 18)).ceil, "sami" => (1000 / (8 / 60.0 * 20.85)).ceil } }, preview)
+    assert_equal({ days_left: 16, minutes: (1000 / (8 / 60.0 * 16)).ceil,
+                   best_minutes: { "lulu" => ((1000 - 60) / (8 / 60.0 * 16)).ceil, "sami" => (1000 / (8 / 60.0 * 18.25)).ceil } }, preview)
 
     travel_to DailyGoal::DEADLINE + 1.second
     assert_nil DailyGoal.preview(users(:newcomer))

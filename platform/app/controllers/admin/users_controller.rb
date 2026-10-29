@@ -1,4 +1,7 @@
 class Admin::UsersController < Admin::ApplicationController
+  # The latest timezone changes shown on a person's page.
+  TIMEZONE_CHANGES = 20
+
   before_action :set_user, except: :index
 
   def index
@@ -28,6 +31,9 @@ class Admin::UsersController < Admin::ApplicationController
       can: { update: policy(@user).update?, impersonate: policy(@user).impersonate?, streak: streak.create? },
       streak_blocked: streak.why_not,
       streak: InertiaRails.defer(group: "streak") { AdminStreakSerializer.render(StreakCalendar.new(@user)) },
+      timezone_changes: InertiaRails.defer(group: "streak") do
+        AdminTimezoneChangeSerializer.render(@user.timezone_changes.order(created_at: :desc).limit(TIMEZONE_CHANGES))
+      end,
       # What a restore form would do, asked for as it is filled in.
       streak_preview: InertiaRails.optional { user_streak_preview }
     }

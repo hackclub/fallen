@@ -2,7 +2,8 @@
 # (Journal#sync_xp) and keeps the multiplier the person had when it was first saved. Deleting its source discards the
 # entry rather than removing it, so the ledger still shows what was earned and taken back. Everything else is granted once: by its source, or by kind
 # and day, so a week can be closed again without paying twice. `day` is the person's own calendar day. A transfer's
-# XP is the amount its reviewer set (ProjectTransfer#approve); its journals earn none of their own.
+# XP is the amount its reviewer set (ProjectTransfer#approve); its journals earn none of their own. `pet` is the team
+# the person was on when it was made, which it counts for in the race whatever they switch to later.
 # == Schema Information
 #
 # Table name: xp_entries
@@ -13,6 +14,7 @@
 #  discarded_at :datetime
 #  kind         :string           not null
 #  multiplier   :decimal(3, 2)
+#  pet          :string
 #  source_type  :string
 #  created_at   :datetime         not null
 #  updated_at   :datetime         not null
@@ -21,6 +23,7 @@
 #
 # Indexes
 #
+#  index_xp_entries_on_created_at_and_pet                  (created_at,pet)
 #  index_xp_entries_on_discarded_at                        (discarded_at)
 #  index_xp_entries_on_source_type_and_source_id_and_kind  (source_type,source_id,kind) UNIQUE WHERE (source_id IS NOT NULL)
 #  index_xp_entries_on_user_id                             (user_id)
@@ -51,13 +54,17 @@ class XpEntry < ApplicationRecord
   validates :day, presence: true
 
   scope :journals, -> { where(kind: "journal") }
+  # XP on the days of the week, on the person's calendar, for the teams' own weekly rewards.
+  scope :during, ->(week) { kept.where(day: week.days) }
   # XP that counts in the team race. A transfer's was earned in another program (admins can look at it alongside, on
-  # /admin/teams), and the win is the race's prize: it lands on the Sunday of the week it was won for and must not add
-  # to that week.
+  # /admin/teams), and the win is the race's prize: it lands on the last day of the week it was won for and must not
+  # add to that week.
   scope :raced, ->(transfers: false) { kept.where.not(kind: transfers ? "team_win" : %w[transfer team_win]) }
-  # XP earned in the week, for the team race.
-  scope :during, ->(week, transfers: false) { raced(transfers:).where(day: week.days) }
+  # XP made during the race's week (Week#race_times). A bonus made after a week has ended counts in the week it was
+  # made, even when its `day` is in the one before, so a week that has been paid never changes.
+  scope :raced_in, ->(week, transfers: false) { raced(transfers:).where(created_at: week.race_times) }
 
+  before_create -> { self.pet ||= user.pet }
   after_save :recount_user
   after_create_commit -> { StupendousBonusJob.perform_later(self) }, if: -> { kind == "stupendous" }
 
@@ -85,8 +92,9 @@ class XpEntry < ApplicationRecord
     end
   end
 
-  # XP each team earned in the week, by pet name.
-  def self.team_totals(week) = during(week).joins(:user).where.not(users: { pet: nil }).group("users.pet").sum(:amount)
+  # XP each team earned in the race's week, by pet name: each entry for the team it was made on, from people who can
+  # still be paid (User.on_a_team), so a ban takes someone's XP out of the race.
+  def self.team_totals(week) = raced_in(week).joins(:user).merge(User.on_a_team).where.not(pet: nil).group("xp_entries.pet").sum(:amount)
 
   private
 

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_28_120100) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_29_130000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -607,6 +607,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_28_120100) do
     t.index ["user_id"], name: "index_timer_sessions_one_running_per_user", unique: true, where: "(stopped_at IS NULL)"
   end
 
+  create_table "timezone_changes", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "from", null: false
+    t.string "to", null: false
+    t.string "source", null: false
+    t.boolean "refused", default: false, null: false
+    t.datetime "created_at", null: false
+    t.index ["user_id", "created_at"], name: "index_timezone_changes_on_user_id_and_created_at"
+  end
+
   create_table "users", force: :cascade do |t|
     t.string "hca_id"
     t.string "email", null: false
@@ -637,6 +647,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_28_120100) do
     t.datetime "slack_skipped_at"
     t.datetime "pet_switched_at"
     t.string "soft_signup"
+    t.datetime "timezone_changed_at"
     t.index ["airtable_synced_at"], name: "index_users_on_airtable_synced_at"
     t.index ["created_at"], name: "index_users_on_created_at"
     t.index ["discarded_at"], name: "index_users_on_discarded_at"
@@ -688,6 +699,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_28_120100) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.datetime "discarded_at"
+    t.string "pet"
+    t.index ["created_at", "pet"], name: "index_xp_entries_on_created_at_and_pet"
     t.index ["discarded_at"], name: "index_xp_entries_on_discarded_at"
     t.index ["source_type", "source_id", "kind"], name: "index_xp_entries_on_source_type_and_source_id_and_kind", unique: true, where: "(source_id IS NOT NULL)"
     t.index ["user_id", "day"], name: "index_xp_entries_on_user_id_and_day"
@@ -737,6 +750,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_28_120100) do
   add_foreign_key "streak_weeks", "users"
   add_foreign_key "time_milestones", "users"
   add_foreign_key "timer_sessions", "users"
+  add_foreign_key "timezone_changes", "users"
   add_foreign_key "writing_checks", "journals"
   add_foreign_key "writing_checks", "users"
   add_foreign_key "xp_entries", "users"

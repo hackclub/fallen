@@ -26,6 +26,7 @@ require "test_helper"
 #  soft_signup             :string
 #  streak_freezes          :integer          default(3), not null
 #  timezone                :string           default("UTC"), not null
+#  timezone_changed_at     :datetime
 #  verification_status     :string
 #  xp                      :integer          default(0), not null
 #  xp_multiplier           :decimal(3, 2)    default(1.0), not null

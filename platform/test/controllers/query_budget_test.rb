@@ -67,7 +67,8 @@ class QueryBudgetTest < ActionDispatch::IntegrationTest
     assert_query_budget(3) { get admin_users_path }
     assert_query_budget(8) { load_deferred(admin_users_path, "Admin/Users/Index", "users", "pagy", "total_count") }
     assert_query_budget(6) { get admin_user_path(users(:member)) }
-    assert_query_budget(8) { load_deferred(admin_user_path(users(:member)), "Admin/Users/Show", "streak") }
+    # The streak calendar, then the latest timezone changes.
+    assert_query_budget(9) { load_deferred(admin_user_path(users(:member)), "Admin/Users/Show", "streak", "timezone_changes") }
 
     assert_query_budget(3) { get admin_projects_path }
     assert_query_budget(8) { load_deferred(admin_projects_path, "Admin/Projects/Index", "projects", "pagy", "total_count") }
@@ -88,9 +89,9 @@ class QueryBudgetTest < ActionDispatch::IntegrationTest
     # the funnel in one; the AI-writing checks in one.
     assert_query_budget(13) { load_deferred(admin_stats_path, "Admin/Stats/Show", "active", "daily", "funnel", "writing") }
     assert_query_budget(4) { get admin_teams_path }
-    # The race's first XP, every week's XP by team, which were paid and the chart's running totals; then the week's
-    # teams, chart, leaders and projects.
-    assert_query_budget(11) { load_deferred(admin_teams_path, "Admin/Teams/Show", "history", "overall_timeline", "teams", "timeline", "leaders", "projects") }
+    # Every week's XP by team, which were paid and the chart's running totals; then the week's teams, chart, leaders
+    # (with their hours, pet changes and days with XP) and projects.
+    assert_query_budget(13) { load_deferred(admin_teams_path, "Admin/Teams/Show", "history", "overall_timeline", "teams", "timeline", "leaders", "projects") }
     assert_query_budget(3) { get admin_jobs_path }
     # A count per status tab, the queue names, then the page of jobs with the execution its status shows.
     assert_query_budget(11) { load_deferred(admin_jobs_path, "Admin/Jobs/Index", "jobs", "pagy", "counts", "queue_names") }

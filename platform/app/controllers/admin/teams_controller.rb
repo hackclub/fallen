@@ -9,9 +9,9 @@ class Admin::TeamsController < Admin::ApplicationController
     week = race.week
 
     render inertia: "Admin/Teams/Show", props: {
-      week: { start: week.start.iso8601, finish: week.finish.iso8601 },
+      week: { start: week.start.iso8601, finish: week.race_finish.iso8601 },
       transfers: race.transfers,
-      weeks: weeks.map { { start: it.start.iso8601, finish: it.finish.iso8601, over: it.over? } },
+      weeks: weeks.map { { start: it.start.iso8601, finish: it.race_finish.iso8601, over: it.over? } },
       current: race.current?,
       over: week.over?,
       paid: race.paid?,
@@ -48,7 +48,7 @@ class Admin::TeamsController < Admin::ApplicationController
 
   # Never a week after this one, nor before the race started.
   def find_and_authorize
-    TeamRace.new(Week.of([ [ requested_day, Date.current ].min, TeamRace::START ].max), transfers: params[:transfers] == "1").tap { authorize [ :admin, it ] }
+    TeamRace.new(Week.of([ [ requested_day, Week.racing.start ].min, TeamRace::START ].max), transfers: params[:transfers] == "1").tap { authorize [ :admin, it ] }
   end
 
   def requested_day

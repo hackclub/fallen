@@ -36,10 +36,11 @@
         ? `Your ${petSwitch.multiplier}x multiplier goes back to 1x.`
         : null,
       pet === 'lulu' ? `Days journaled this week stop counting toward Lulu's +${rules.lulu_bonus} XP.` : null,
-      other === 'sami'
-        ? `Sami's weeks run Monday to Sunday, so days missed since Monday use up its freezes.`
+      other === 'sami' ? `Your Sami streak starts today. Days before it don't use up freezes.` : null,
+      other === 'lulu'
+        ? `Only days you journal from today count toward Lulu's +${rules.lulu_bonus} XP.`
         : null,
-      `This week's XP counts for Team ${PET_NAMES[other]} in the race.`,
+      `XP you've already earned stays with Team ${PET_NAMES[pet]} in the race. New XP counts for Team ${PET_NAMES[other]}.`,
     ].filter((line): line is string => line !== null),
   )
 
@@ -88,7 +89,12 @@
         {#each changes as change (change)}<li class="flex gap-2"><span>•</span>{change}</li>{/each}
       </ul>
 
-      <p class="mt-5 rounded-2xl bg-paper-well px-4 py-3 text-center text-sm text-ink">
+      <p class="mt-5 rounded-2xl border-2 border-hc-orange px-4 py-3 text-center text-sm text-ink">
+        <strong>Heads up:</strong> if Team {PET_NAMES[pet]} wins this week, you won't get its +{rules.win_bonus}
+        XP. Journal after switching to share in Team {PET_NAMES[other]}'s win instead.
+      </p>
+
+      <p class="mt-3 rounded-2xl bg-paper-well px-4 py-3 text-center text-sm text-ink">
         {#if petSwitch.free}
           Switching is free until your second journal. After that you get one switch a week.
         {:else}

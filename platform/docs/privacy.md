@@ -20,7 +20,7 @@ Only from the token's `subject`: any `emails` (case-insensitive against `users.e
 
 | What | Where |
 | --- | --- |
-| The account: name, email, avatar, Slack id, timezone, roles, HCA token, Slack user token or when they chose not to connect Slack, Lapse token, verification status, pet and when they last switched it, when they first watched it hatch, where they came from when they signed up (UTM tags, `ref`, the referring page without its query string, the page they landed on) | `users` |
+| The account: name, email, avatar, Slack id, timezone and when it last changed, roles, HCA token, Slack user token or when they chose not to connect Slack, Lapse token, verification status, pet and when they last switched it, when they first watched it hatch, where they came from when they signed up (UTM tags, `ref`, the referring page without its query string, the page they landed on) | `users` |
 | Their projects and journals (text, hours, the tracked time before each and whether the hours went over it, Lapse links, Slack message ids and text), project banners and journal photos | `projects`, `journals`, Active Storage |
 | Which project teams they are on and the invites they sent or got | `project_members`, `project_invites` |
 | Their Lapse timelapses as Fallen copied them (Lapse id, name, recorded time, visibility, video and thumbnail links). The videos stay on Lapse | `lapse_timelapses` |
@@ -32,6 +32,7 @@ Only from the token's `subject`: any `emails` (case-insensitive against `users.e
 | The days they opened the site, by UTC date, for daily active counts | `active_days` |
 | XP earned, line by line (journal XP, bonuses) | `xp_entries`, `users.xp` |
 | Team Sami's weekly streak results (days missed and excused, multiplier and freezes before and after), and changes staff made to their streak (days excused, freezes given, values set) with the staff reason, the message DMed to them and what it changed. Changes they made to other people's streaks as staff lose their name | `streak_weeks`, `streak_adjustments` |
+| Each change to their timezone, and changes refused for coming too soon: the zone before and after, where it came from and when | `timezone_changes` |
 | Project transfer requests: their email and name as typed on the transfer form, the other program's project link, the hours they claimed, a copy of that project's public page (title, writing, photo links, the author's Slack id), and the reviewer's decision, their note and the message sent to the person in a Slack DM. Their reviews of other people's transfers lose the reviewer | `project_transfers` |
 | Feature flags an admin turned on for them by name (their public id on the flag) | `flipper_gates` |
 | Admins only: their MCP tokens (name, digest, last four characters, when made, last used, expiry), the calls made with them, and the SQL writes their agent asked for with previews of the rows they touched | `admin_tokens`, `mcp_actions`, `mcp_sql_changes` |

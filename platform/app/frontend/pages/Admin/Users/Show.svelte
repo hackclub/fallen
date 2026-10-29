@@ -20,7 +20,7 @@
   import { projectColumns, trialLabel } from '@/lib/adminColumns'
   import { formatDate, formatDateTime } from '@/lib/format'
   import { adminUsers, impersonateAdminUser } from '@/routes'
-  import type { AdminProject, AdminStreak, AdminUserDetail } from '@/types'
+  import type { AdminProject, AdminStreak, AdminTimezoneChange, AdminUserDetail } from '@/types'
 
   let {
     user,
@@ -29,6 +29,7 @@
     can,
     streak,
     streak_blocked,
+    timezone_changes,
   }: {
     user: AdminUserDetail
     projects: AdminProject[]
@@ -36,6 +37,7 @@
     can: { update: boolean; impersonate: boolean; streak: boolean }
     streak?: AdminStreak
     streak_blocked: string | null
+    timezone_changes?: AdminTimezoneChange[]
   } = $props()
 
   // svelte-ignore state_referenced_locally
@@ -234,6 +236,32 @@
     <Skeleton class="mt-6 h-72 w-full rounded-xl" />
   {/snippet}
   {#if streak}<StreakCard {user} {streak} canAdjust={can.streak} blocked={streak_blocked} />{/if}
+</Deferred>
+
+<!-- The day a journal counts for follows the timezone, so changes are limited and kept (User#change_timezone). -->
+<Deferred data="timezone_changes">
+  {#snippet fallback()}{/snippet}
+  {#if timezone_changes?.length}
+    <Card.Root class="mt-6">
+      <Card.Header>
+        <Card.Title>Timezone changes</Card.Title>
+        <Card.Description
+          >The latest first. A refused change came too soon after the last one.</Card.Description
+        >
+      </Card.Header>
+      <Card.Content>
+        <ul class="space-y-2 text-sm">
+          {#each timezone_changes as change (change.created_at + change.to)}
+            <li class="flex flex-wrap items-center gap-2">
+              <span class="text-muted-foreground tabular-nums">{formatDateTime(change.created_at)}</span>
+              <span>{change.from} → {change.to}</span>
+              {#if change.refused}<Badge variant="destructive" class="text-[10px]">Refused</Badge>{/if}
+            </li>
+          {/each}
+        </ul>
+      </Card.Content>
+    </Card.Root>
+  {/if}
 </Deferred>
 
 <h2 class="mt-8 mb-4 text-lg font-semibold tracking-tight">{user.display_name}'s projects</h2>

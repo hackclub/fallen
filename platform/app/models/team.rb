@@ -4,9 +4,10 @@
 # way: Lulu pays a bonus for enough journal days in each week counted from the person's first journal, Sami raises
 # the multiplier on every journal for each Monday-to-Sunday week without a gap, with a few freezes
 # (users.streak_freezes) to cover missed days. A day an admin excused (StreakAdjustment) counts as journaled for both.
-# `Team.close_week` has Sami judge its members' calendar week (CloseWeekJob). The team that earned the most XP in it
-# gets WIN_BONUS for each member who earned some, paid when an admin presses the button on /admin/teams (TeamRace,
-# TeamWinJob). `Team.settle` pays Lulu's weeks as each person's ends (SettleLuluWeeksJob).
+# Both count only days since the person joined the team. `Team.close_week` has Sami judge its members' calendar week
+# (CloseWeekJob). `Team.settle` pays Lulu's weeks as each person's ends (SettleLuluWeeksJob). The team that made the
+# most XP in the race's week (Week#race_times) gets WIN_BONUS for each person still on it who journaled for it that
+# week, paid when an admin presses the button on /admin/teams (TeamRace, TeamWinJob).
 class Team
   WIN_BONUS = 10
 
@@ -34,19 +35,24 @@ class Team
   # Once per week, all or nothing, and only once the week is over everywhere: XP that lands after the payout must not
   # hand a second team the win.
   def self.reward_winners(week)
-    return if !week.over? || XpEntry.exists?(kind: "team_win", day: week.finish)
+    return if !week.over? || XpEntry.exists?(kind: "team_win", day: week.race_finish)
 
     totals = XpEntry.team_totals(week)
     best = totals.values.max.to_i
     return if best.zero?
 
     winners = totals.select { |_, xp| xp == best }.keys
-    contributors = User.on_a_team.where(pet: winners).where(id: XpEntry.during(week).where("amount > 0").select(:user_id))
     XpEntry.transaction do
-      contributors.find_each do |user|
-        user.xp_entries.create_or_find_by!(kind: "team_win", day: week.finish) { |entry| entry.amount = WIN_BONUS }
+      contributors(week, winners).find_each do |user|
+        user.xp_entries.create_or_find_by!(kind: "team_win", day: week.race_finish) { |entry| entry.amount = WIN_BONUS }
       end
     end
+  end
+
+  # People still on one of `pets` who journaled for it in the race's week: XP from before a switch counts for the team
+  # it was made on, but its win is for the people on that team.
+  def self.contributors(week, pets)
+    User.on_a_team.where(pet: pets).where(id: XpEntry.raced_in(week).journals.where("amount > 0").where("xp_entries.pet = users.pet").select(:user_id))
   end
 
   attr_reader :user
@@ -64,8 +70,16 @@ class Team
   # Days of the week with a journal.
   def journal_days(week) = journal_xp(week).keys.sort
 
-  # Days of the week with a journal or an excuse, which is what the teams' weekly rewards count.
-  def streak_days(week) = (journal_days(week) | week.days.select { excused_days.include?(it) }).sort
+  # Days of the week with a journal or an excuse since joining the team, which is what the teams' weekly rewards count.
+  def streak_days(week) = (journal_days(week) | week.days.select { excused_days.include?(it) }).select { on_team?(it) }.sort
+
+  # The day the person switched to this team, on their calendar; nil if it's the pet they first picked.
+  def joined_on = user.pet_switched_at && user.local_date(user.pet_switched_at)
+
+  def on_team?(day) = joined_on.nil? || day >= joined_on
+
+  # The first day the streak counts: the first journal, or the switch to the team if that was later.
+  def streak_since = (first = first_journal_day) && [ first, joined_on ].compact.max
 
   def excused_days = @excused_days ||= StreakAdjustment.excused_days(user)
 
@@ -100,7 +114,7 @@ class Team
     # days are left out of this forecast, which runs on every home page; paying the bonus counts them.
     def best_bonus_xp(days)
       current = week(days.first)
-      reachable = journal_days(current).count { |day| day < days.first } + (current.finish - days.first).to_i + 1 >= DAYS_FOR_BONUS
+      reachable = journal_days(current).count { |day| day < days.first && on_team?(day) } + (current.finish - days.first).to_i + 1 >= DAYS_FOR_BONUS
       weeks = Enumerator.produce(current) { |w| Week.new(start: w.start + 7) }.take_while { |w| w.finish < days.last }
       weeks.count { |w| w != current || reachable } * WEEKLY_BONUS
     end
@@ -143,9 +157,10 @@ class Team
     end
 
     # Writes the week's StreakWeek and the multiplier and freezes it leaves, once. Locked against StreakAdjustment
-    # changing them at the same time.
+    # changing them at the same time. Days count from the first journal or the switch to Sami, whichever is later, so a
+    # week that ended before either isn't judged and raises nothing.
     def close_week(week)
-      first = first_journal_day
+      first = streak_since
       return if first.nil? || first > week.finish
 
       user.transaction do

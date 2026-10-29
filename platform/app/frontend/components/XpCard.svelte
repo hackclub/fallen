@@ -17,12 +17,14 @@
       days: string[]
       since: string | null
       totals: Record<string, number>
+      race_finish: string
     }
   }
 
   const TEAM_NAMES: Record<string, string> = { lulu: 'Lulu', sami: 'Sami' }
   const weekdayFormatter = new Intl.DateTimeFormat(undefined, { weekday: 'narrow' })
   const dayFormatter = new Intl.DateTimeFormat(undefined, { weekday: 'long', month: 'short', day: 'numeric' })
+  const weekdayLongFormatter = new Intl.DateTimeFormat(undefined, { weekday: 'long' })
 
   const parse = (iso: string) => {
     const [y, m, d] = iso.split('-').map(Number)
@@ -177,7 +179,8 @@
             {/each}
           </ol>
           <p class="mt-3 text-sm text-sky-ice/60">
-            +{xp.rules.win_bonus} XP to everyone on the leading team on Monday.
+            +{xp.rules.win_bonus} XP to everyone on the winning team who journaled for it this week. The week ends
+            {weekdayLongFormatter.format(parse(xp.week.race_finish))} night, anywhere on Earth.
           </p>
         </div>
       </div>
