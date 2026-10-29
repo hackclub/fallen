@@ -106,6 +106,8 @@ Rails.application.routes.draw do
       resources :streak_adjustments, only: %i[create destroy]
 
       get "stats" => "stats#show", as: :stats
+      get "teams" => "teams#show", as: :teams
+      post "teams/pay" => "teams#pay", as: :pay_teams
       get "insights(/:kind)" => "insights#show", as: :insights, constraints: { kind: /requests|jobs/ }
 
       resources :jobs, only: %i[index show destroy] do

@@ -13,6 +13,7 @@
     kind = 'area',
     hourly = false,
     format = (value: number) => String(value),
+    yAxis = true,
     class: className = 'h-[220px]',
   }: {
     points: Point[]
@@ -21,6 +22,9 @@
     // Label the x axis with times of day rather than dates.
     hourly?: boolean
     format?: (value: number) => string
+    // Without the y axis's labels the plot runs edge to edge, lined up with what sits above it; hovering still
+    // shows the numbers.
+    yAxis?: boolean
     class?: string
   } = $props()
 
@@ -29,7 +33,19 @@
       series.map((s) => [s.key, { label: s.label, color: s.color }]),
     ) satisfies Chart.ChartConfig,
   )
-  const data = $derived(points.map((point) => ({ ...point, at: new Date(point.at) })))
+  // Kept as is when a poll brings back the same points, so the chart doesn't redraw under the cursor.
+  let data = $state.raw<Record<string, unknown>[]>([])
+  let drawn = ''
+  $effect.pre(() => {
+    const next = JSON.stringify(points)
+    if (next === drawn) return
+    drawn = next
+    data = points.map((point) => ({ ...point, at: new Date(point.at) }))
+  })
+  // The dots go straight to the point under the cursor rather than springing there.
+  const highlight = { lines: true, points: true, motion: 'none' } as const
+  const axis = $derived(yAxis ? true : 'x')
+  const padding = $derived(yAxis ? undefined : { top: 4, left: 0, right: 0, bottom: 20 })
 
   const axisFormat = $derived(
     hourly
@@ -48,7 +64,17 @@
 
 <Chart.Container {config} class="aspect-auto w-full {className}">
   {#if kind === 'area'}
-    <AreaChart {data} x="at" xScale={scaleUtc()} {series} seriesLayout="overlap" props={chartProps}>
+    <AreaChart
+      {data}
+      x="at"
+      xScale={scaleUtc()}
+      {series}
+      seriesLayout="overlap"
+      {axis}
+      {padding}
+      {highlight}
+      props={chartProps}
+    >
       {#snippet tooltip()}
         <Chart.Tooltip labelFormatter={labelFormat} indicator="line">
           {#snippet formatter({ value, name, item })}
@@ -63,7 +89,7 @@
       {/snippet}
     </AreaChart>
   {:else}
-    <LineChart {data} x="at" xScale={scaleUtc()} {series} props={chartProps}>
+    <LineChart {data} x="at" xScale={scaleUtc()} {series} {axis} {padding} {highlight} props={chartProps}>
       {#snippet tooltip()}
         <Chart.Tooltip labelFormatter={labelFormat} indicator="line">
           {#snippet formatter({ value, name, item })}

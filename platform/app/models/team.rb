@@ -3,9 +3,10 @@
 # Lulu or Sami. The pet picked in onboarding is also the team, and each team rewards a week of journaling its own
 # way: Lulu pays a bonus for enough journal days in each week counted from the person's first journal, Sami raises
 # the multiplier on every journal for each Monday-to-Sunday week without a gap, with a few freezes
-# (users.streak_freezes) to cover missed days. A day an admin excused (StreakAdjustment) counts as journaled for both. `Team.close_week` settles a calendar week for everyone (CloseWeekJob):
-# the team that earned the most XP gets WIN_BONUS for each member who earned some, then Sami judges its members' week.
-# `Team.settle` pays Lulu's weeks as each person's ends (SettleLuluWeeksJob).
+# (users.streak_freezes) to cover missed days. A day an admin excused (StreakAdjustment) counts as journaled for both.
+# `Team.close_week` has Sami judge its members' calendar week (CloseWeekJob). The team that earned the most XP in it
+# gets WIN_BONUS for each member who earned some, paid when an admin presses the button on /admin/teams (TeamRace,
+# TeamWinJob). `Team.settle` pays Lulu's weeks as each person's ends (SettleLuluWeeksJob).
 class Team
   WIN_BONUS = 10
 
@@ -23,7 +24,6 @@ class Team
   end
 
   def self.close_week(week)
-    reward_winners(week)
     User.on_a_team.find_each { |user| user.team.close_week(week) }
   end
 
@@ -31,10 +31,10 @@ class Team
     User.on_a_team.where(pet: "lulu").find_each { |user| user.team.settle }
   end
 
-  # Once per week, all or nothing: CloseWeekJob runs again until it gets through, and XP that lands after the first
-  # run must not hand a second team the win.
+  # Once per week, all or nothing, and only once the week is over everywhere: XP that lands after the payout must not
+  # hand a second team the win.
   def self.reward_winners(week)
-    return if XpEntry.exists?(kind: "team_win", day: week.finish)
+    return if !week.over? || XpEntry.exists?(kind: "team_win", day: week.finish)
 
     totals = XpEntry.team_totals(week)
     best = totals.values.max.to_i
