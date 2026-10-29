@@ -107,9 +107,7 @@ class User < ApplicationRecord
   before_save -> { assign_attributes(pet_switched_at: Time.current, xp_multiplier: 1.0) }, if: :switching_pet?
   after_save -> { HuddleSession.where(slack_id: slack_id, user_id: nil).update_all(user_id: id) }, if: -> { saved_change_to_slack_id? && slack_id.present? }
   # Finishing onboarding (picking a pet) or linking Slack while sitting in the huddle gets a welcome (HuddleWelcomeJob).
-  after_commit -> { HuddleWelcomeJob.perform_later(self) }, on: %i[create update], if: :just_joined_fallen?
-  after_commit -> { JoinMembersChannelJob.perform_later(self) }, on: %i[create update], if: :just_joined_fallen?
-  after_commit -> { JoinTeamChannelJob.perform_later(self) }, on: %i[create update], if: :joined_team?
+  after_commit :enqueue_slack_onboarding, on: %i[create update], if: :joined_team?
   after_save :revoke_admin_tokens, if: :lost_admin_access?
 
   scope :admins, -> { where("roles @> ARRAY[?]::varchar[]", "admin") }
@@ -348,6 +346,13 @@ class User < ApplicationRecord
   end
 
   def joined_team? = slack_id.present? && pet.present? && (saved_change_to_pet? || saved_change_to_slack_id?)
+
+  # Enqueued together so signing in costs one insert instead of one per job.
+  def enqueue_slack_onboarding
+    jobs = [ JoinTeamChannelJob.new(self) ]
+    jobs.unshift(HuddleWelcomeJob.new(self), JoinMembersChannelJob.new(self)) if just_joined_fallen?
+    ActiveJob.perform_all_later(jobs)
+  end
 
   def switching_pet? =will_save_change_to_pet? && pet_in_database.present? && pet.present?
 
