@@ -13,9 +13,9 @@ class TeamRace
 
   attr_reader :week, :transfers
 
-  # Fallen's weeks so far, oldest first: week 1 is the one its first journal was written in.
+  # The race's weeks so far, Monday to Sunday, oldest first: week 1 is the one the first XP that counts in it landed in.
   def self.weeks
-    first = Journal.written_here.minimum(:created_at)&.to_date || Date.current
+    first = XpEntry.raced.minimum(:day) || Date.current
     (Week.of(first).start..Week.of(Date.current).start).step(7).map { Week.new(start: it) }
   end
 
