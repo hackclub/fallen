@@ -10,7 +10,7 @@ class AdminStreakSerializer < ApplicationSerializer
           "bonus_xp: number | null; days: { date: string; state: 'before' | 'journal' | 'excused' | 'missed' | 'frozen' | 'today' | 'future'; " \
           "xp: number | null; excuse_id: string | null }[]; judged: #{JUDGED} | null }[]",
     judged: "#{JUDGED}[]",
-    rules: "{ multipliers: number[]; step: number; max_freezes: number; max_excuse_days: number; lulu_days: number; lulu_bonus: number }"
+    rules: "{ multipliers: number[]; step: number; max_freezes: number; max_xp: number; max_excuse_days: number; lulu_days: number; lulu_bonus: number }"
 
   attribute(:team, &:team)
   attribute(:multiplier) { |calendar| calendar.user.xp_multiplier.to_f }
@@ -25,7 +25,7 @@ class AdminStreakSerializer < ApplicationSerializer
     end
   end
   attribute(:rules) do
-    { multipliers: Team::Sami.multipliers.map(&:to_f), step: Team::Sami::STEP, max_freezes: StreakAdjustment::MAX_FREEZES,
+    { multipliers: Team::Sami.multipliers.map(&:to_f), step: Team::Sami::STEP, max_freezes: StreakAdjustment::MAX_FREEZES, max_xp: StreakAdjustment::MAX_XP,
       max_excuse_days: StreakAdjustment::MAX_EXCUSE_DAYS, lulu_days: Team::Lulu::DAYS_FOR_BONUS, lulu_bonus: Team::Lulu::WEEKLY_BONUS }
   end
   many :adjustments, resource: AdminStreakAdjustmentSerializer

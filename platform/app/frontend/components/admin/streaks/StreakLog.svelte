@@ -3,6 +3,7 @@
   import CalendarCheck from '@lucide/svelte/icons/calendar-check'
   import Megaphone from '@lucide/svelte/icons/megaphone'
   import SlidersHorizontal from '@lucide/svelte/icons/sliders-horizontal'
+  import Sparkles from '@lucide/svelte/icons/sparkles'
   import Snowflake from '@lucide/svelte/icons/snowflake'
   import Undo2 from '@lucide/svelte/icons/undo-2'
   import StreakPreviewPanel from '@/components/admin/streaks/StreakPreviewPanel.svelte'
@@ -23,7 +24,7 @@
   let loading = $state(false)
   let saving = $state(false)
 
-  const ICONS = { excuse: CalendarCheck, freezes: Snowflake, set: SlidersHorizontal }
+  const ICONS = { excuse: CalendarCheck, freezes: Snowflake, set: SlidersHorizontal, xp: Sparkles }
 
   function askUndo(adjustment: AdminStreakAdjustment) {
     undoing = adjustment
@@ -130,6 +131,8 @@
             background.
           {:else if undoing.kind === 'excuse'}
             The days stop counting, and the weeks holding them are judged again.
+          {:else if undoing.kind === 'xp'}
+            The XP comes off again. The line stays in their ledger, marked undone.
           {:else}
             Their freezes{undoing.kind === 'set' ? ' and multiplier' : ''} go back to what they were.
           {/if}

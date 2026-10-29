@@ -171,6 +171,45 @@ class StreakTest < ActiveSupport::TestCase
     end
   end
 
+  test "freezes and the multiplier are only Team Sami's" do
+    lulu = users(:member)
+    assert_not adjust(lulu, kind: "freezes", freezes: 2, apply: false).valid?
+    assert_not adjust(lulu, kind: "set", multiplier: 1.0, freezes: 5, apply: false).valid?
+    assert adjust(sami, kind: "freezes", freezes: 2, apply: false).valid?
+  end
+
+  test "xp is given on either team as its own ledger line, left out of the race, and undone" do
+    user = users(:member)
+    xp = user.xp
+    totals = XpEntry.team_totals(Week.racing)
+    given = adjust(user, kind: "xp", xp: 50)
+
+    assert_equal xp + 50, user.reload.xp
+    assert_equal [ "grant", 50, "lulu", user.local_date ], given.grant.values_at(:kind, :amount, :pet, :day)
+    assert_equal 50, given.effect["xp"]
+    assert_equal totals, XpEntry.team_totals(Week.racing), "an admin's XP isn't the team's"
+    assert_equal 50, given.preview.xp
+
+    assert_equal(-50, given.undo_preview.xp)
+    assert given.undo!(users(:admin))
+    assert given.grant.reload.discarded?, "kept in the ledger"
+    assert_equal xp, user.reload.xp
+
+    assert_not adjust(user, kind: "xp", xp: 0, apply: false).valid?
+    assert_not adjust(user, kind: "xp", xp: StreakAdjustment::MAX_XP + 1, apply: false).valid?
+    assert_not adjust(user, kind: "xp", xp: -(xp + 1), apply: false).valid?
+  end
+
+  test "the person is DMed the XP they were given" do
+    user = users(:member)
+    with_fake_slack do |slack|
+      perform_enqueued_jobs(only: StreakAdjustedJob) { adjust(user, kind: "xp", xp: 25, notify: true) }
+      text = slack.calls_to(:chat_postMessage).sole[:text]
+      assert_includes text, "You got +25 XP!"
+      assert_not_includes text, "That's"
+    end
+  end
+
   private
 
   def sami(user = users(:newcomer)) = user.tap { it.update_columns(pet: "sami") }

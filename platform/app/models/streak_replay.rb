@@ -23,12 +23,14 @@ class StreakReplay
   end
 
   # `multiplier` and `freezes` are [now, after]. `open_days` are changed days in weeks Sami hasn't judged yet, which
-  # count when they close.
-  Plan = Data.define(:changes, :multiplier, :freezes, :reprices, :bonuses, :open_days) do
-    def xp = reprices.sum(&:xp) + bonuses.sum(&:xp)
+  # count when they close. `granted` is XP an admin gives outright (StreakAdjustment kind "xp").
+  Plan = Data.define(:changes, :multiplier, :freezes, :reprices, :bonuses, :open_days, :granted) do
+    def initialize(granted: 0, **fields) = super(granted:, **fields)
+
+    def xp = reprices.sum(&:xp) + bonuses.sum(&:xp) + granted
     def restored = changes.count { it.week.broken? && !it.broken? }
     def broken = changes.count { !it.week.broken? && it.broken? }
-    def changed? = changes.any? || multiplier.uniq.size > 1 || freezes.uniq.size > 1 || reprices.any? || bonuses.any?
+    def changed? = changes.any? || multiplier.uniq.size > 1 || freezes.uniq.size > 1 || reprices.any? || bonuses.any? || granted.nonzero?
 
     def effect
       { "multiplier" => multiplier.map(&:to_f), "freezes" => freezes, "weeks" => changes.size, "restored" => restored, "broken" => broken,

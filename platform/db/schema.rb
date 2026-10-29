@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_10_29_130000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_29_140000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -557,6 +557,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_10_29_130000) do
     t.datetime "discarded_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "xp"
     t.index ["admin_id"], name: "index_streak_adjustments_on_admin_id"
     t.index ["created_at"], name: "index_streak_adjustments_on_created_at"
     t.index ["discarded_at"], name: "index_streak_adjustments_on_discarded_at"

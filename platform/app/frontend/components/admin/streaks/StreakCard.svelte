@@ -2,6 +2,7 @@
   import Check from '@lucide/svelte/icons/check'
   import Lock from '@lucide/svelte/icons/lock'
   import SlidersHorizontal from '@lucide/svelte/icons/sliders-horizontal'
+  import Sparkles from '@lucide/svelte/icons/sparkles'
   import Snowflake from '@lucide/svelte/icons/snowflake'
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert'
   import X from '@lucide/svelte/icons/x'
@@ -184,11 +185,16 @@
 
     {#if canAdjust}
       <div class="flex flex-wrap gap-2">
-        <Button variant="outline" size="sm" onclick={() => open('freezes')}>
-          <Snowflake data-icon="inline-start" /> Give freezes
-        </Button>
-        <Button variant="outline" size="sm" onclick={() => open('set')}>
-          <SlidersHorizontal data-icon="inline-start" /> Set {sami ? 'multiplier and freezes' : 'freezes'}
+        {#if sami}
+          <Button variant="outline" size="sm" onclick={() => open('freezes')}>
+            <Snowflake data-icon="inline-start" /> Give freezes
+          </Button>
+          <Button variant="outline" size="sm" onclick={() => open('set')}>
+            <SlidersHorizontal data-icon="inline-start" /> Set multiplier and freezes
+          </Button>
+        {/if}
+        <Button variant="outline" size="sm" onclick={() => open('xp')}>
+          <Sparkles data-icon="inline-start" /> Give XP
         </Button>
         {#if latestBroken}
           <Button size="sm" onclick={() => restore(latestBroken)}>

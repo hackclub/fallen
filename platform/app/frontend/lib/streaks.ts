@@ -17,6 +17,7 @@ export type StreakFields = {
   ends_on?: string
   freezes?: number
   multiplier?: number
+  xp?: number
   reason: string
   message: string
   notify: boolean
@@ -109,6 +110,10 @@ export function describeAdjustment(adjustment: AdminStreakAdjustment) {
   if (adjustment.kind === 'freezes') {
     const count = adjustment.freezes ?? 0
     return `${count >= 0 ? 'Gave' : 'Took back'} ${plural(Math.abs(count), 'freeze')}`
+  }
+  if (adjustment.kind === 'xp') {
+    const xp = adjustment.xp ?? 0
+    return `${xp >= 0 ? 'Gave' : 'Took back'} ${Math.abs(xp)} XP`
   }
   return `Set to ${formatMultiplier(adjustment.multiplier ?? 1)} and ${plural(adjustment.freezes ?? 0, 'freeze')}`
 }

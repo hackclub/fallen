@@ -46,6 +46,23 @@ class AdminStreaksTest < ActionDispatch::IntegrationTest
     assert_equal [ 1.15, 0 ], [ user.reload.xp_multiplier, user.streak_freezes ]
   end
 
+  test "giving XP from a person's page writes a ledger line, logs who and why, and undoes" do
+    user = users(:member)
+    xp = user.xp
+    post admin_streak_adjustments_path, params: { adjustment: { kind: "xp", user_id: user.public_id, xp: "50", reason: "Site bug" } }
+    assert_redirected_to admin_user_path(user)
+    assert_equal "Gave 50 XP for Member Person.", flash[:notice]
+    adjustment = user.streak_adjustments.sole
+    assert_equal [ users(:admin), "Site bug", 50, 50 ], [ adjustment.admin, adjustment.reason, adjustment.xp, adjustment.effect["xp"] ]
+    assert_equal xp + 50, user.reload.xp
+
+    delete admin_streak_adjustment_path(adjustment)
+    assert_equal xp, user.reload.xp
+
+    post admin_streak_adjustments_path, params: { adjustment: { kind: "freezes", user_id: user.public_id, freezes: "2", reason: "Site bug" } }
+    assert_equal 1, user.streak_adjustments.count, "freezes are Team Sami's, and member is on Lulu"
+  end
+
   test "a form that doesn't hold up changes nothing, and nobody restores their own streak" do
     user = broken_sami
     post admin_streak_adjustments_path, params: { adjustment: { kind: "freezes", user_id: user.public_id, freezes: "2", reason: "" } }

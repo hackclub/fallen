@@ -25,7 +25,7 @@
   import { adminStreakAdjustments } from '@/routes'
   import type { AdminStreak, AdminUserDetail } from '@/types'
 
-  // Excusing days, giving or taking freezes, or setting the streak outright, with a live preview of what it does.
+  // Excusing days, giving or taking freezes or XP, or setting the streak outright, with a live preview of what it does.
   // The preview is the page's optional `streak_preview` prop, asked for again as the fields change and kept here.
   let {
     open = $bindable(),
@@ -48,6 +48,7 @@
     ends_on: range?.to ?? streak.today,
     freezes: kind === 'set' ? streak.freezes : 1,
     multiplier: streak.multiplier,
+    xp: 10,
     reason: '',
     message: '',
     notify: false,
@@ -72,6 +73,7 @@
     ...(kind === 'excuse' && { starts_on: form.starts_on, ends_on: form.ends_on }),
     ...(kind === 'freezes' && { freezes: form.freezes }),
     ...(kind === 'set' && { freezes: form.freezes, multiplier: form.multiplier }),
+    ...(kind === 'xp' && { xp: form.xp }),
   })
   const fields = $derived<StreakFields>({
     ...change,
@@ -84,19 +86,24 @@
       ? `Excuse ${form.starts_on && form.ends_on ? rangeLabel(form.starts_on, form.ends_on) : 'days'}`
       : kind === 'freezes'
         ? 'Give or take freezes'
-        : 'Set the streak',
+        : kind === 'xp'
+          ? 'Give or take XP'
+          : 'Set the streak',
   )
   const action = $derived(
     kind === 'excuse'
       ? `Excuse ${plural(days, 'day')}`
       : kind === 'freezes'
         ? `${form.freezes >= 0 ? 'Give' : 'Take'} ${plural(Math.abs(form.freezes), 'freeze')}`
-        : 'Set streak',
+        : kind === 'xp'
+          ? `${form.xp >= 0 ? 'Give' : 'Take'} ${Math.abs(form.xp)} XP`
+          : 'Set streak',
   )
   const blocked = $derived(
     saving ||
       !form.reason.trim() ||
       (kind === 'freezes' && form.freezes === 0) ||
+      (kind === 'xp' && !form.xp) ||
       Boolean(shown?.errors.length),
   )
 
@@ -158,6 +165,9 @@
             Weeks already judged are judged again; open ones count them when they close.
           {:else if kind === 'freezes'}
             Freezes cover missed days from now on. To save a week that already broke, excuse its days instead.
+          {:else if kind === 'xp'}
+            Added to {user.display_name}'s XP as its own line, for anything their journals didn't earn. It
+            doesn't count in the team race.
           {:else}
             For anything an excuse or freezes don't cover. Set values carry on from here as if earned.
           {/if}
@@ -217,7 +227,28 @@
           </p>
         {/if}
 
-        {#if kind !== 'excuse'}
+        {#if kind === 'xp'}
+          <div class="grid gap-1.5">
+            <Label for="streak-xp">XP to give</Label>
+            <div class="flex items-center gap-2">
+              <Input
+                id="streak-xp"
+                type="number"
+                class="w-24 text-center tabular-nums"
+                bind:value={form.xp}
+              />
+              <span class="text-sm text-muted-foreground tabular-nums">
+                {user.xp} now, {user.xp + (form.xp || 0)} after
+              </span>
+            </div>
+            <p class="text-xs text-muted-foreground">
+              A negative number takes XP back. At most {streak.rules.max_xp} at a time.
+            </p>
+            {#if errors.xp}<p class="text-sm text-destructive">XP {errors.xp}</p>{/if}
+          </div>
+        {/if}
+
+        {#if kind === 'freezes' || kind === 'set'}
           <div class="grid gap-1.5">
             <Label for="streak-freezes">{kind === 'set' ? 'Freezes' : 'Freezes to give'}</Label>
             <div class="flex items-center gap-2">
@@ -282,7 +313,7 @@
           {#if errors.reason}<p class="text-sm text-destructive">Reason {errors.reason}</p>{/if}
         </div>
 
-        {#if kind !== 'freezes' && sami}
+        {#if (kind === 'excuse' || kind === 'set') && sami}
           <Label class="flex items-start gap-2 font-normal">
             <Checkbox
               checked={form.reprice}

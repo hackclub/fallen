@@ -41,7 +41,7 @@ class XpEntry < ApplicationRecord
   has_paper_trail
 
   PER_HOUR = 8
-  KINDS = %w[journal early_bird weekly_bonus team_win stupendous transfer].freeze
+  KINDS = %w[journal early_bird weekly_bonus team_win stupendous transfer grant].freeze
   # Once per person, for the first journal that says "stupendous", spelled right, in any case.
   STUPENDOUS_BONUS = 20
   STUPENDOUS = /stupendous/i
@@ -57,9 +57,9 @@ class XpEntry < ApplicationRecord
   # XP on the days of the week, on the person's calendar, for the teams' own weekly rewards.
   scope :during, ->(week) { kept.where(day: week.days) }
   # XP that counts in the team race. A transfer's was earned in another program (admins can look at it alongside, on
-  # /admin/teams), and the win is the race's prize: it lands on the last day of the week it was won for and must not
-  # add to that week.
-  scope :raced, ->(transfers: false) { kept.where.not(kind: transfers ? "team_win" : %w[transfer team_win]) }
+  # /admin/teams), the win is the race's prize (it lands on the last day of the week it was won for and must not add
+  # to that week), and a grant is an admin's (StreakAdjustment), not the team's.
+  scope :raced, ->(transfers: false) { kept.where.not(kind: transfers ? %w[team_win grant] : %w[transfer team_win grant]) }
   # XP made during the race's week (Week#race_times). A bonus made after a week has ended counts in the week it was
   # made, even when its `day` is in the one before, so a week that has been paid never changes.
   scope :raced_in, ->(week, transfers: false) { raced(transfers:).where(created_at: week.race_times) }

@@ -4,12 +4,14 @@
 # - excuse: days (each person's own calendar days) that count as journaled for both teams' weekly rewards, for one
 #   person or, as an incident, everyone. Weeks already judged are judged again (StreakReplay); ones still open count
 #   them when they close.
-# - freezes: freezes given (or taken), from now on. A week that already broke needs its days excused instead.
-# - set: the multiplier and freezes set outright, for what nothing else covers.
+# - freezes: freezes given (or taken), from now on, on Team Sami. A week that already broke needs its days excused
+#   instead.
+# - set: the multiplier and freezes set outright, on Team Sami, for what nothing else covers.
+# - xp: XP given (or taken back), as its own line in the ledger (XpEntry kind "grant"), on either team. It doesn't
+#   count in the team race.
 # `effect` is what applying it changed, for the log. `notify` DMs the person (StreakAdjustedJob) with `message`;
 # `reason` is for staff.
 # == Schema Information
-# Schema version: 20261028120100
 #
 # Table name: streak_adjustments
 #
@@ -25,6 +27,7 @@
 #  reason       :text             not null
 #  reprice      :boolean          default(TRUE), not null
 #  starts_on    :date
+#  xp           :integer
 #  created_at   :datetime         not null
 #  updated_at   :datetime         not null
 #  admin_id     :bigint
@@ -53,23 +56,29 @@ class StreakAdjustment < ApplicationRecord
   set_public_id_prefix :stk
   has_paper_trail
 
-  KINDS = %w[excuse freezes set].freeze
-  FIELDS = %i[kind starts_on ends_on freezes multiplier reason message notify reprice].freeze
+  KINDS = %w[excuse freezes set xp].freeze
+  FIELDS = %i[kind starts_on ends_on freezes multiplier xp reason message notify reprice].freeze
   # Longer absences than this are better as several excuses with their own reasons.
   MAX_EXCUSE_DAYS = 14
   MAX_FREEZES = 20
+  # The most XP one change gives or takes.
+  MAX_XP = 1000
 
   belongs_to :user, optional: true
   belongs_to :admin, class_name: "User", optional: true
   belongs_to :undone_by, class_name: "User", optional: true
+  # The ledger line an xp change wrote.
+  has_one :grant, -> { where(kind: "grant") }, as: :source, class_name: "XpEntry"
 
   validates :kind, inclusion: { in: KINDS }
   validates :reason, presence: true, length: { maximum: 1000 }
   validates :message, length: { maximum: 2000 }
   validates :user, presence: true, unless: :excuse?
   validate :excuse_days, if: :excuse?
+  validate :on_sami, if: -> { kind.in?(%w[freezes set]) }
   validate :freezes_given, if: -> { kind == "freezes" }
   validate :state_set, if: -> { kind == "set" }
+  validate :xp_given, if: -> { kind == "xp" }
 
   scope :excuses, -> { where(kind: "excuse") }
   scope :incidents, -> { excuses.where(user_id: nil) }
@@ -93,11 +102,12 @@ class StreakAdjustment < ApplicationRecord
       case kind
       when "excuse" then "Excused #{days_text}"
       when "freezes" then "#{freezes.positive? ? 'Gave' : 'Took'} #{freezes.abs} #{'freeze'.pluralize(freezes.abs)}"
+      when "xp" then "#{xp.positive? ? 'Gave' : 'Took back'} #{xp.abs} XP"
       else "Set the streak"
       end
     changes = [ ("#{format('%.2f', effect['multiplier'].first)}x → #{format('%.2f', effect['multiplier'].last)}x" if effect["multiplier"]&.uniq&.size == 2),
                 ("#{effect['freezes'].first} → #{effect['freezes'].last} freezes" if effect["freezes"]&.uniq&.size == 2),
-                ("#{effect['xp'].positive? ? '+' : ''}#{effect['xp']} XP" if effect["xp"].to_i.nonzero?) ].compact
+                ("#{effect['xp'].positive? ? '+' : ''}#{effect['xp']} XP" if effect["xp"].to_i.nonzero? && kind != "xp") ].compact
     "#{what} for #{user.display_name}#{changes.any? ? ": #{changes.join(', ')}" : ''}.#{' They will get a DM.' if notify?}"
   end
 
@@ -125,6 +135,7 @@ class StreakAdjustment < ApplicationRecord
 
       user.lock!
       update!(effect: excuse? ? replay.then { it.apply!(it.plan) } : apply_state!(state_plan))
+      user.xp_entries.create!(kind: "grant", amount: xp, day: user.local_date, source: self) if kind == "xp"
     end
     StreakAdjustedJob.perform_later(self) if notify? && user
     true
@@ -141,7 +152,7 @@ class StreakAdjustment < ApplicationRecord
   # What stands in the way of undoing it, if anything.
   def undo_error
     return "Already undone." if discarded?
-    return if excuse?
+    return if excuse? || kind == "xp"
 
     if kind == "freezes"
       "They have spent #{freezes - user.streak_freezes} of these freezes already." if freezes > user.streak_freezes
@@ -162,6 +173,7 @@ class StreakAdjustment < ApplicationRecord
 
       user.lock!
       excuse? ? replay.run! : apply_state!(undo_state_plan)
+      grant&.discard
     end
     true
   end
@@ -183,12 +195,12 @@ class StreakAdjustment < ApplicationRecord
   # Back to the multiplier it replaced (a set) and the freezes less what it gave.
   def undo_state_plan
     multiplier = kind == "set" ? effect["multiplier"].first.to_d : user.xp_multiplier
-    plan_to(multiplier, user.streak_freezes - (effect["freezes"].last - effect["freezes"].first))
+    plan_to(multiplier, user.streak_freezes - (effect["freezes"].last - effect["freezes"].first), granted: kind == "xp" ? -xp : 0)
   end
 
-  def plan_to(multiplier, freezes)
+  def plan_to(multiplier, freezes, granted: kind == "xp" ? xp.to_i : 0)
     StreakReplay::Plan.new(changes: [], multiplier: [ user.xp_multiplier, multiplier ], freezes: [ user.streak_freezes, freezes ],
-                           reprices: reprices_to(multiplier), bonuses: [], open_days: [])
+                           reprices: reprices_to(multiplier), bonuses: [], open_days: [], granted:)
   end
 
   def reprices_to(multiplier)
@@ -222,11 +234,20 @@ class StreakAdjustment < ApplicationRecord
     errors.add(:freezes, "would leave #{total}, which must be between 0 and #{MAX_FREEZES}") unless total.between?(0, MAX_FREEZES)
   end
 
+  # Freezes and the multiplier are Team Sami's; Team Lulu has neither.
+  def on_sami
+    errors.add(:base, "Freezes and the multiplier only count on Team Sami; #{user.display_name} is on Team #{user.pet&.capitalize || 'nothing'}") if user && user.pet != "sami"
+  end
+
+  def xp_given
+    return errors.add(:xp, "must be a whole number other than zero") unless xp.is_a?(Integer) && xp.nonzero?
+    return errors.add(:xp, "must be at most #{MAX_XP} at a time") if xp.abs > MAX_XP
+
+    errors.add(:xp, "would leave #{user.xp + xp}, below zero") if user && (user.xp + xp).negative?
+  end
+
   def state_set
     errors.add(:multiplier, "must be one of #{Team::Sami.multipliers.join(', ')}") unless Team::Sami.multipliers.include?(multiplier&.to_d)
     errors.add(:freezes, "must be between 0 and #{MAX_FREEZES}") unless freezes.is_a?(Integer) && freezes.between?(0, MAX_FREEZES)
-    if user && multiplier && multiplier.to_d != user.xp_multiplier && user.pet != "sami"
-      errors.add(:multiplier, "only counts on Team Sami; #{user.display_name} is on Team #{user.pet&.capitalize || 'nothing'}")
-    end
   end
 end
