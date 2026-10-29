@@ -8,5 +8,8 @@ export function initSentry(dsn: string) {
     environment: 'production',
     integrations: [Sentry.browserTracingIntegration()],
     tracesSampleRate: 1.0,
+    // Microsoft's Safe Links scanner opens links from emails in a headless browser and its injected script
+    // rejects with this.
+    ignoreErrors: [/Object Not Found Matching Id:\d+, MethodName:\w+, ParamCount:\d+/],
   })
 }
