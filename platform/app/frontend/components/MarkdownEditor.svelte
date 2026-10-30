@@ -142,6 +142,12 @@
     return editor?.isActive(name) ?? false
   }
 
+  // On Android, Tiptap's focus command focuses the writing partway through, and ProseMirror can dispatch its own
+  // change from that, leaving the command's transaction stale ("Applying a mismatched transaction"). Focus first.
+  function focusView(e: Editor) {
+    if (!e.view.hasFocus()) e.view.dom.focus({ preventScroll: true })
+  }
+
   function openLink() {
     if (!editor) return
     linkUrl = editor.getAttributes('link').href ?? ''
@@ -157,6 +163,7 @@
     if (!editor) return
     const typed = linkUrl.trim()
     const href = typed && !/^[a-z][a-z\d+.-]*:/i.test(typed) ? `https://${typed}` : typed
+    focusView(editor)
     const chain = editor.chain().focus().extendMarkRange('link')
     if (!href) chain.unsetLink().run()
     else if (editor.state.selection.empty && !editor.isActive('link'))
@@ -189,7 +196,9 @@
   }
 
   export function focus() {
-    editor?.commands.focus('end')
+    if (!editor) return
+    focusView(editor)
+    editor.commands.focus('end')
   }
 
   export function pickFiles() {
@@ -266,7 +275,11 @@
             aria-pressed={isActive(tool.active)}
             title="{tool.label} ({mod}{tool.keys})"
             disabled={!editor}
-            onclick={() => editor && tool.run(editor)}
+            onclick={() => {
+              if (!editor) return
+              focusView(editor)
+              tool.run(editor)
+            }}
           >
             <tool.icon class="size-4" strokeWidth={2.4} />
           </button>
