@@ -1,14 +1,15 @@
 <script lang="ts" generics="Id extends string">
   import { onMount, type Snippet } from 'svelte'
-  import { flashOnClick, nudge, nudgeSpring } from '@/lib/rail'
+  import { flashOnClick, nudge, nudgeSpring, reveal } from '@/lib/rail'
   import * as sfx from '@/lib/sfx'
   import { stagger } from '@/lib/stagger'
 
   // Settings and Docs: a rail of tabs beside a glass panel, moved through like a game menu. The tabs feel like the
   // nav rail, arrow keys step through them with a blip, the open tab is kept in the URL (the hash, /settings#sound, or
   // the path from `href`, /docs/journaling) without a visit, and the panel eases to the height of what is open while its children fade in one after another.
-  // Tabs without icons stay a column on phones; with icons they become a row that keeps only the open tab's word.
-  // On wider screens the rail is as wide as its longest label, never under 200px, and stays in view as the page scrolls.
+  // Below lg the rail sits above the panel: tabs without icons stay a column; with icons they become a row that keeps
+  // only the open tab's word, scrolling sideways when it is still wider than the phone. From lg the rail is as wide as
+  // its longest label, never under 200px, and stays in view as the page scrolls.
   let {
     items,
     label,
@@ -42,6 +43,9 @@
     if (ids.includes(id)) current = id
   })
 
+  let list: HTMLUListElement
+  $effect(() => reveal(list, tabs[current]))
+
   function open(id: Id) {
     if (id === current) return
     current = id
@@ -68,21 +72,24 @@
   }
 </script>
 
-<div class="grid gap-6 md:grid-cols-[minmax(200px,max-content)_minmax(0,1fr)] md:items-start">
+<div
+  class="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(200px,max-content)_minmax(0,1fr)] lg:items-start"
+>
   <!-- svelte-ignore a11y_interactive_supports_focus -->
   <ul
+    bind:this={list}
     role="tablist"
     aria-label={label}
     aria-orientation="vertical"
     {onkeydown}
     {@attach flashOnClick}
     class={[
-      'rail flex overflow-hidden rounded-[4px] bg-white/10 md:sticky md:top-8 md:w-auto md:flex-col',
-      row ? 'w-fit' : 'flex-col',
+      'rail flex overflow-hidden rounded-[4px] bg-white/10 lg:sticky lg:top-8 lg:w-auto lg:flex-col',
+      row ? 'rail-row w-fit max-w-full [scrollbar-width:none] max-lg:overflow-x-auto' : 'flex-col',
     ]}
   >
     {#each items as item (item.id)}
-      <li {@attach nudge(spring(item.id))} class="shrink-0 md:w-full" role="presentation">
+      <li {@attach nudge(spring(item.id))} class="shrink-0 lg:w-full" role="presentation">
         <button
           bind:this={tabs[item.id]}
           type="button"
@@ -102,7 +109,7 @@
             style:transform="translateX({spring(item.id).current}px)"
           >
             {#if item.icon}<span class="shrink-0">{@render item.icon()}</span>{/if}
-            <span class={['whitespace-nowrap md:pr-8', row && current !== item.id && 'max-sm:sr-only']}
+            <span class={['whitespace-nowrap lg:pr-8', row && current !== item.id && 'max-lg:sr-only']}
               >{item.label}</span
             >
           </span>

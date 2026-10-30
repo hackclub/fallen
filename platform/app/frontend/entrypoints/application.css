@@ -489,6 +489,24 @@
   }
 }
 
+/* TabbedPanel's row of icon tabs stays a row until lg, so between md and lg its glow keeps the row's bottom edge. */
+@media (width >= 48rem) and (width < 64rem) {
+  .rail-row .rail-item::before {
+    background-image: linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, 0.55) 92%,
+      rgba(255, 255, 255, 0.85) 100%
+    );
+  }
+
+  .rail-row .rail-item::after {
+    inset: auto 0 0;
+    width: auto;
+    height: 1px;
+  }
+}
+
 @keyframes rail-glow-in {
   0% {
     opacity: 0;

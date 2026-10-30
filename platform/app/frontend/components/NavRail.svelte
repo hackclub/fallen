@@ -8,7 +8,7 @@
   import SolarTransfer from '@/components/icons/SolarTransfer.svelte'
   import { docs, home, projects, settings, shop, transfers } from '@/routes'
   import { pages } from '@/lib/pages'
-  import { flashOnClick, nudge, nudgeSpring } from '@/lib/rail'
+  import { flashOnClick, nudge, nudgeSpring, reveal } from '@/lib/rail'
 
   let { class: className = '' }: { class?: string } = $props()
 
@@ -23,10 +23,17 @@
 
   const path = $derived(page.url.split(/[?#]/)[0])
   const current = (url: string) => path === url || path.startsWith(`${url}/`)
+
+  let list: HTMLUListElement
+  $effect(() => reveal(list, list.children[items.findIndex((item) => current(item.href.url))]))
 </script>
 
 <nav aria-label="Main" class={className}>
-  <ul {@attach flashOnClick} class="rail flex overflow-hidden rounded-[4px] bg-white/10 md:flex-col">
+  <ul
+    bind:this={list}
+    {@attach flashOnClick}
+    class="rail flex overflow-hidden rounded-[4px] bg-white/10 [scrollbar-width:none] max-md:overflow-x-auto md:flex-col"
+  >
     {#each items as item (item.label)}
       <li {@attach nudge(item.x)} class="md:w-full">
         <!-- prefetch: the page's props are asked for on hover, so the click itself feels instant. -->

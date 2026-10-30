@@ -62,7 +62,7 @@
         </Link>
 
         {#if user}
-          <NavRail class="relative w-fit md:mt-10 md:ml-[53px] md:w-[204px]" />
+          <NavRail class="relative w-fit max-w-full md:mt-10 md:ml-[53px] md:w-[204px]" />
           <NameTag {user} class="mt-auto ml-[67px] hidden md:block" />
         {:else}
           <!-- Signed out (only Docs is public): signing in where the name tag would be. A full visit, it leaves for

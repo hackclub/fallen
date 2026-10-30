@@ -61,3 +61,13 @@ export function nudge(x: Spring<number>) {
     }
   }
 }
+
+// On a phone a rail is a row that can be wider than the screen and scrolls sideways. Brings an item into view along
+// the row only: scrollIntoView would also scroll the page up to the rail.
+export function reveal(list: HTMLElement, item: Element | undefined) {
+  if (!item) return
+  const box = list.getBoundingClientRect()
+  const { left, right } = item.getBoundingClientRect()
+  if (left < box.left) list.scrollLeft -= box.left - left
+  else if (right > box.right) list.scrollLeft += right - box.right
+}
