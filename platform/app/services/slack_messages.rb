@@ -479,6 +479,13 @@ module SlackMessages
     { text: text, blocks: blocks }
   end
 
+  # In the main huddle's thread once Slack stops letting people in (HuddleFullJob).
+  def huddle_full
+    teams = Team::BY_PET.keys.filter_map { |pet| (channel = SlackHuddle.team_channel_id(pet)) && "• Team #{pet.capitalize}: <##{channel}> (<#{SlackHuddle.huddle_url(channel)}|join the huddle>)" }
+    text = "This huddle hit Slack's join limit, so nobody else can get in until it restarts. Huddle with your team instead!\n#{teams.join("\n")}"
+    { text: text, blocks: [ SlackBot::Blocks.section(text) ] }
+  end
+
   # Slack fetches icon_url itself, and fallen.hackclub.com sits behind Orchard's login, so the pictures can't be
   # served from the app.
   PET_PFPS = {

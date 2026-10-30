@@ -196,6 +196,40 @@ class HuddleSyncJobTest < ActiveSupport::TestCase
     assert_equal 1, users(:member).huddle_pauses.open.count
   end
 
+  test "keeps the team channels' huddles too, and asks for them to be opened while the main one is full" do
+    main = Huddle.create!(call_id: "R1", channel_id: CHANNEL, started_at: 1.hour.ago)
+    rooms = { "R1" => room("R1", %w[U0BOT]), "R2" => room("R2", %w[U0BOT U0MEMBER]) }
+    browser = FakeBrowserClient.new(
+      "screenhero.rooms.info" => ->(fields) { { "ok" => true, "room" => rooms.fetch(fields[:room]) } },
+      "conversations.history" => ->(fields) { { "ok" => true, "messages" => fields[:channel] == "CLULU" ? [ huddle_message("R2", %w[U0BOT U0MEMBER]) ] : [] } }
+    )
+
+    with_env("SLACK_HUDDLE_LULU_CHANNEL_ID" => "CLULU", "SLACK_HUDDLE_SAMI_CHANNEL_ID" => "CSAMI") do
+      sync(browser)
+      assert_equal "", SlackHuddle::OVERFLOW_FILE.read
+
+      main.update!(full_at: Time.current)
+      sync(browser)
+      assert_equal "CLULU\nCSAMI\n", SlackHuddle::OVERFLOW_FILE.read
+    end
+
+    team = Huddle.find_by!(call_id: "R2")
+    assert_equal [ "CLULU", %w[U0MEMBER] ], [ team.channel_id, team.sessions.ongoing.pluck(:slack_id) ]
+  ensure
+    SlackHuddle::OVERFLOW_FILE.delete if SlackHuddle::OVERFLOW_FILE.exist?
+  end
+
+  test "leaving one huddle keeps a pause while still in the other" do
+    main = Huddle.create!(call_id: "R1", channel_id: CHANNEL, started_at: 1.hour.ago)
+    main.sessions.create!(slack_id: "U0MEMBER", user: users(:member), joined_at: 30.minutes.ago, last_seen_at: Time.current, mode: "working")
+    Huddle.create!(call_id: "R2", channel_id: "CLULU", started_at: 1.hour.ago).sessions.create!(slack_id: "U0MEMBER", user: users(:member), joined_at: 5.minutes.ago)
+    pause = users(:member).huddle_pauses.create!(started_at: 10.minutes.ago)
+
+    sync(fake_browser(room: room("R1", %w[U0BOT])))
+
+    assert_nil pause.reload.ended_at
+  end
+
   test "does nothing until the huddle is configured" do
     with_env("SLACK_HUDDLE_CHANNEL_ID" => nil) { HuddleSyncJob.perform_now }
     assert_equal 0, Huddle.count

@@ -26,12 +26,13 @@ class HuddleEvent < ApplicationRecord
   validates :call_id, :slack_id, :occurred_at, presence: true
   validates :kind, inclusion: { in: KINDS.values }
 
-  # Stores a socket event if it is a join or leave in the huddle's channel.
+  # Stores a socket event if it is a join or leave in one of the huddle channels (SlackHuddle.channel_ids).
   def self.record(event)
     kind = KINDS[event["type"]]
     room = event["room"]
     return unless kind && room.is_a?(Hash) && event["user"].present? && event["event_ts"].present?
-    return unless Array(room["channels"]).include?(SlackHuddle.channel_id) || event.dig("huddle", "channel_id") == SlackHuddle.channel_id
+    channels = SlackHuddle.channel_ids
+    return unless Array(room["channels"]).intersect?(channels) || channels.include?(event.dig("huddle", "channel_id"))
 
     create!(call_id: room["id"], slack_id: event["user"], kind: kind, occurred_at: Time.zone.at(event["event_ts"].to_r))
   end

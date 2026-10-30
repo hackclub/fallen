@@ -105,6 +105,10 @@ message is the project; each reply by the owner is a journal. Both sides stay in
   new huddle's thread and rung into it (`HuddleHandoffJob`, `rooms.notifyMember`), and keep their answer if they join
   within 15 minutes. A huddle that has run 12 hours with only the bot in it is restarted. The bot needs to be in the
   huddle channel.
+- Slack lets a huddle take 250 joins, rejoins included. Once a ring comes back `invite_failed` the huddle is marked
+  full (`Huddle#full!`), its thread is told, and until it restarts each team is sent to a huddle the account opens in
+  its own channel (`SLACK_HUDDLE_LULU_CHANNEL_ID`, `SLACK_HUDDLE_SAMI_CHANNEL_ID`), tracked like the main one. Both
+  the account and the bot need to be in those channels too.
 - Web -> Slack: `PostProjectToSlackJob` posts the thread anchor, `SyncJournalToSlackJob` posts, edits and deletes
   journal replies. Messages go out as the person when they have connected Slack (`SlackAuthController`, user scope
   `chat:write`, needs `SLACK_CLIENT_ID` / `SLACK_CLIENT_SECRET` and the redirect URL from the manifest). Someone who

@@ -7,8 +7,7 @@ class HuddlePromptsController < ApplicationController
 
   def create
     authorize current_user, :track_time?
-    huddle = Huddle.current
-    huddle&.sessions&.ongoing&.find_by(user: current_user)&.ask_again!
-    render json: TrackedTimeSerializer.render(TrackedTime.new(current_user), huddle: huddle)
+    current_user.huddle_sessions.ongoing.joins(:huddle).merge(Huddle.live).order(:joined_at).last&.ask_again!
+    render json: TrackedTimeSerializer.render(TrackedTime.new(current_user), huddle: Huddle.current)
   end
 end

@@ -3,6 +3,9 @@
 # The huddle the user bot keeps open in SLACK_HUDDLE_CHANNEL_ID (script/slack_huddle.mjs), read the way Slack's
 # own client reads it. Huddles have no public API, so this uses the account's browser session
 # (SLACK_BROWSER_TOKEN and SLACK_BROWSER_COOKIE). HuddleSyncJob and HuddleHandoffJob use it.
+#
+# Slack lets a huddle take 250 joins, rejoins included, so a busy day fills it. Each team then gets a huddle of its
+# own in its channel (SLACK_HUDDLE_LULU_CHANNEL_ID, SLACK_HUDDLE_SAMI_CHANNEL_ID) until the main one restarts.
 module SlackHuddle
   Room = Data.define(:call_id, :thread_ts, :link, :participant_ids, :screenshare_ids, :camera_ids, :started_at, :ended_at) do
     def ended? = !ended_at.nil?
@@ -10,12 +13,33 @@ module SlackHuddle
 
   # How far back to look for the huddle's message in the channel. Slack ends huddles after 24 hours.
   LOOKBACK = 25.hours
+  # The team channels the account should keep a huddle open in besides the main one, one per line, written by
+  # HuddleSyncJob and read by script/slack_huddle.mjs, which run in the same container.
+  OVERFLOW_FILE = Rails.root.join("tmp/huddle_overflow")
 
   module_function
 
   def channel_id = ENV["SLACK_HUDDLE_CHANNEL_ID"].presence
 
   def configured? = channel_id.present? && ENV["SLACK_BROWSER_TOKEN"].present? && ENV["SLACK_BROWSER_COOKIE"].present?
+
+  # Where a team goes when the main huddle is full, or nil when that team has no channel set up.
+  def team_channel_id(pet) = pet.present? ? ENV["SLACK_HUDDLE_#{pet.upcase}_CHANNEL_ID"].presence : nil
+
+  def team_channel_ids = Team::BY_PET.keys.filter_map { |pet| team_channel_id(pet) }
+
+  def channel_ids = [ channel_id, *team_channel_ids ].compact
+
+  # Asks script/slack_huddle.mjs to keep the account in a huddle in these team channels too.
+  def overflow!(channel_ids)
+    text = channel_ids.map { |id| "#{id}\n" }.join
+    return if OVERFLOW_FILE.exist? && OVERFLOW_FILE.read == text
+
+    OVERFLOW_FILE.dirname.mkpath
+    temp = "#{OVERFLOW_FILE}.#{Process.pid}"
+    File.write(temp, text)
+    File.rename(temp, OVERFLOW_FILE)
+  end
 
   # Opens the channel's huddle in Slack. Not the app.slack.com link Slack shares (Room#link): that one redirects to
   # slack.com/huddle/C… and loses the workspace on the way, see SlackMessaging::WORKSPACE_URL.
@@ -24,8 +48,8 @@ module SlackHuddle
   end
 
   # The huddle running in the channel now, found from the message Slack posts when one starts. Nil when none is.
-  def live_room
-    body = client.call("conversations.history", channel: channel_id, oldest: LOOKBACK.ago.to_i, limit: 200)
+  def live_room(channel = channel_id)
+    body = client.call("conversations.history", channel: channel, oldest: LOOKBACK.ago.to_i, limit: 200)
     message = Array(body["messages"]).find { |m| m["subtype"] == "huddle_thread" && m["room"].is_a?(Hash) }
     return unless message
 
@@ -42,9 +66,10 @@ module SlackHuddle
     nil
   end
 
-  # Rings someone into the channel's huddle, like "Invite to huddle" in Slack's client.
-  def ring(slack_id)
-    client.call("rooms.notifyMember", channel_id: channel_id, user_id: slack_id, _x_reason: "huddle-notify-member")
+  # Rings someone into the channel's huddle, like "Invite to huddle" in Slack's client. Slack answers
+  # `invite_failed` once the huddle is full.
+  def ring(slack_id, channel = channel_id)
+    client.call("rooms.notifyMember", channel_id: channel, user_id: slack_id, _x_reason: "huddle-notify-member")
   end
 
   # The Slack user id of the account behind the browser session, which sits in the huddle around the clock.

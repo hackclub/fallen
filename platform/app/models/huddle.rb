@@ -7,6 +7,7 @@
 #
 #  id            :bigint           not null, primary key
 #  ended_at      :datetime
+#  full_at       :datetime
 #  handed_off_at :datetime
 #  link          :string
 #  message_count :integer          default(0), not null
@@ -44,10 +45,27 @@ class Huddle < ApplicationRecord
 
   scope :live, -> { where(ended_at: nil) }
 
-  # The huddle running in SLACK_HUDDLE_CHANNEL_ID now, if one is set up.
-  def self.current = SlackHuddle.channel_id && live.where(channel_id: SlackHuddle.channel_id).order(:started_at).last
+  # The huddle running in the channel now, the main one (SLACK_HUDDLE_CHANNEL_ID) unless another is given.
+  def self.current(channel_id = SlackHuddle.channel_id) = channel_id && live.where(channel_id: channel_id).order(:started_at).last
+
+  # Where someone should huddle: the main channel, or their team's (SlackHuddle.team_channel_id) while `main`, the
+  # main huddle running now, is full.
+  def self.channel_for(user, main = current)
+    (main&.full? && SlackHuddle.team_channel_id(user&.pet)) || SlackHuddle.channel_id
+  end
 
   def ended? = ended_at.present?
+
+  def full? = full_at.present?
+
+  # Slack turned someone away (HuddleRingJob). From now until it restarts, each team is sent to its own huddle.
+  def full!
+    return if full? || !Huddle.where(id: id, full_at: nil).update_all(full_at: Time.current).positive?
+
+    reload
+    HuddleSyncJob.perform_later
+    HuddleFullJob.perform_later(self)
+  end
 
   # Closes every open session at the moment the huddle ended, or earlier for anyone known to have left before.
   def end!(at)
@@ -110,7 +128,4 @@ class Huddle < ApplicationRecord
 
   # The message Slack posts for the huddle, which carries its Join button.
   def slack_url = thread_ts && SlackMessaging.permalink(channel_id, thread_ts)
-
-  # Opens the huddle itself in Slack.
-  def join_url = SlackHuddle.huddle_url(channel_id)
 end

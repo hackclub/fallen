@@ -7,6 +7,9 @@
 // When the huddle ends (Slack stops every huddle after 24 hours) or the connection drops, it joins again. A huddle
 // that has run for RESTART_ALONE_AFTER with nobody else in it is left so a fresh one starts, which puts Slack's
 // 24 hour cut at a quiet time instead of in the middle of someone's session.
+// Slack lets a huddle take 250 joins, rejoins included. Once the main one is full, HuddleSyncJob lists the team
+// channels in tmp/huddle_overflow and this keeps a huddle open in each of them too, until it is no longer listed
+// and nobody else is in it.
 // The method shapes follow https://github.com/ingoau/huddlefm; the Chime protocol is chime/SignalingProtocol.proto.
 //
 // bin/worker and bin/dev start this; it idles quietly when the variables are missing.
@@ -44,7 +47,7 @@ async function slack(method, fields) {
   return body
 }
 
-async function joinRoom() {
+async function joinRoom(channel) {
   const body = await slack('rooms.join', { channel_id: channel, regions: region, multidevice: 'true' })
   return { callId: body.call.call_id, ...body.call.free_willy }
 }
@@ -344,26 +347,23 @@ const CHECK_EVERY = 5 * 60_000
 const MAX_BACKOFF = 60_000
 const REMOVED_PAUSE = 5 * 60_000
 const RESTART_ALONE_AFTER = 12 * 60 * 60_000
+const OVERFLOW_FILE = new URL('../tmp/huddle_overflow', import.meta.url)
+const OVERFLOW_CHECK_EVERY = 15_000
 
-async function keepInHuddle() {
-  const userId = (await slack('auth.test')).user_id
+// How to leave each huddle the account is in, by channel, so stopping leaves all of them.
+const leaves = new Map()
+
+// Keeps the account in the channel's huddle for as long as `wanted()` says, or around the clock.
+async function keepInHuddle(userId, channel, wanted = () => true) {
   let failures = 0
-  let leave
-  const stop = () => {
-    log('stopping')
-    leave?.()
-    process.exit(0)
-  }
-  process.on('SIGTERM', stop)
-  process.on('SIGINT', stop)
 
-  for (;;) {
+  while (wanted()) {
     let wait = Math.min(MAX_BACKOFF, 1_000 * 2 ** failures)
     try {
-      const room = await joinRoom()
+      const room = await joinRoom(channel)
       const over = Promise.withResolvers()
       const media = await connectMedia(room, (reason, final) => over.resolve({ reason, final }))
-      leave = media.leave
+      leaves.set(channel, media.leave)
       failures = 0
       log('joined', { call_id: room.callId, channel })
 
@@ -374,23 +374,61 @@ async function keepInHuddle() {
         if (state === null) over.resolve({ reason: 'huddle ended', final: true })
         else if (!state.participants.includes(userId))
           over.resolve({ reason: 'not listed as a participant', final: false })
+        else if (state.participants.length === 1 && !wanted())
+          over.resolve({ reason: 'no longer needed', final: true })
         else if (state.participants.length === 1 && state.ageMs > RESTART_ALONE_AFTER)
           over.resolve({ reason: 'restarting a quiet huddle', final: true, restart: true })
       }, CHECK_EVERY)
       const { reason, final, restart } = await over.promise
       clearInterval(checks)
-      leave = undefined
+      leaves.delete(channel)
       media.leave()
-      log('left', { call_id: room.callId, reason })
+      log('left', { call_id: room.callId, channel, reason })
       // Slack ends a huddle once its last person leaves; joining before then would land back in the old one.
       if (restart) await waitForEnd(room.callId)
       wait = reason.includes('removed') ? REMOVED_PAUSE : final ? 2_000 : 1_000
     } catch (error) {
       failures += 1
-      log('failed', { error: error.message, retry_in_ms: wait })
+      log('failed', { channel, error: error.message, retry_in_ms: wait })
     }
     await sleep(wait)
   }
+}
+
+function overflowChannels() {
+  try {
+    return new Set(readFileSync(OVERFLOW_FILE, 'utf8').split('\n').filter(Boolean))
+  } catch {
+    return new Set()
+  }
+}
+
+// Opens a huddle in each team channel HuddleSyncJob lists, and lets it go once it is no longer listed.
+async function keepOverflowHuddles(userId) {
+  const running = new Set()
+  let listed = new Set()
+  for (;;) {
+    listed = overflowChannels()
+    for (const channel of listed) {
+      if (running.has(channel)) continue
+      running.add(channel)
+      keepInHuddle(userId, channel, () => listed.has(channel)).finally(() => running.delete(channel))
+    }
+    await sleep(OVERFLOW_CHECK_EVERY)
+  }
+}
+
+async function main() {
+  const stop = () => {
+    log('stopping')
+    for (const leave of leaves.values()) leave()
+    process.exit(0)
+  }
+  process.on('SIGTERM', stop)
+  process.on('SIGINT', stop)
+
+  const userId = (await slack('auth.test')).user_id
+  await Promise.all([keepInHuddle(userId, channel), keepOverflowHuddles(userId)])
 }
 
 async function waitForEnd(callId) {
@@ -405,5 +443,5 @@ if (!token || !cookie || !channel) {
   console.log('[huddle] SLACK_BROWSER_TOKEN, SLACK_BROWSER_COOKIE or SLACK_HUDDLE_CHANNEL_ID not set - idle.')
   setInterval(() => {}, 1 << 30)
 } else {
-  await keepInHuddle()
+  await main()
 }

@@ -12,7 +12,8 @@ class TrackedTimeSerializer < ApplicationSerializer
   attribute(:check_in) { |time| time.check_in&.then { |check_in| { id: check_in.public_id, so_far: SlackMessages.duration_words(check_in.minutes) } } }
   attribute(:max_hours) { |_| TimerSession::MAX_LENGTH.in_hours.to_i }
   attribute(:in_huddle, &:in_huddle?)
-  attribute(:huddle_url) { |_| params[:huddle]&.join_url || SlackHuddle.huddle_url }
+  # Their team's huddle while the main one is full (Huddle.channel_for); `huddle` is the main one running now.
+  attribute(:huddle_url) { |time| SlackHuddle.huddle_url(Huddle.channel_for(time.user, params[:huddle])) }
   # The ring itself happens on the worker (HuddleRingJob), which holds the huddle account's session; the web
   # only needs to know there is a huddle channel.
   attribute(:can_ring) { |time| SlackHuddle.channel_id.present? && time.user.slack_id.present? }
