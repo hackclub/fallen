@@ -156,6 +156,44 @@ class ProjectTransferTest < ActiveSupport::TestCase
     assert_not users(:member).xp_entries.exists?(kind: "transfer"), "no XP entry for zero XP"
   end
 
+  test "journals written in share the hours, need writing or photos, and take the place of the one journal" do
+    transfer = project_transfers(:stardance)
+    transfer.update!(snapshot: nil)
+    image = photo("board.png").tap { it.update!(metadata: it.metadata.merge(Journal::UPLOADER_KEY => users(:admin).id)) }
+    journals = [
+      { body: "Made a hairpin ![board.png](/rails/active_storage/blobs/redirect/#{image.signed_id}/board.png)", date: "2026-10-20", images: [ image.signed_id ] },
+      { body: "", date: "2026-10-21", images: [] },
+      { body: "Named it", date: "" }
+    ]
+
+    assert transfer.approve(reviewer: users(:admin), minutes: 8 * 60, xp: 40, journals:), transfer.errors.full_messages.to_sentence
+    first, second = transfer.project.journals.order(:created_at, :id)
+    assert_equal 2, transfer.project.journals.count, "the blank one is skipped and no placeholder is made"
+    assert_equal [ 240, Time.zone.parse("2026-10-20 12:00"), [ image ] ], [ first.duration_minutes, first.created_at, first.images.blobs.to_a ]
+    assert_equal [ 240, transfer.submitted_at ], [ second.duration_minutes, second.created_at ]
+    assert second.body.start_with?("Named it")
+    assert transfer.project.journals.all? { it.transferred? && it.xp_entry.nil? }
+    assert_equal [ 480, 40 ], transfer.reload.values_at(:approved_minutes, :xp)
+    assert_equal 480, transfer.project.total_minutes
+  end
+
+  test "journals written in share the hours with fetched entries, each counted as an average entry" do
+    transfer = project_transfers(:stardance)
+
+    assert transfer.approve(reviewer: users(:admin), minutes: 90, xp: 0, journals: [ { body: "Extra" } ])
+    assert_equal [ 20, 40, 30 ], transfer.project.journals.order(:id).map(&:duration_minutes)
+    assert_equal 90, transfer.project.total_minutes
+  end
+
+  test "journals written in with a bad date import nothing" do
+    transfer = project_transfers(:stardance)
+
+    assert_not transfer.approve(reviewer: users(:admin), minutes: 60, xp: 0, journals: [ { body: "x", date: "soon" } ])
+    assert_equal [ "1: the date isn't one" ], transfer.errors[:journals]
+    assert transfer.reload.pending?
+    assert_equal 0, Journal.where(source: "transfer").count
+  end
+
   test "approving can add to a project the person is a member of, not only one they own" do
     transfer = project_transfers(:stardance)
     transfer.update!(snapshot: nil, fallen_project_url: "https://fallen.hackclub.com/projects/#{projects(:admins).public_id}")

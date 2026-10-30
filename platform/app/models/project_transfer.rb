@@ -6,8 +6,10 @@
 #
 # Approving copies the snapshot's entries into a project as journals (source "transfer"), dated when they were
 # written, with the hours the reviewer counts shared out over them in proportion to what each logged (evenly when none
-# logged any, and one journal when there are no entries). The journals earn no XP themselves: the reviewer sets the
-# XP, which is one "transfer" entry in the ledger, left out of the weekly team race.
+# logged any, and one journal when there are no entries). The reviewer can also write journals in by hand for work the
+# other program doesn't show; those share the hours too, each counted as an average entry, and take the place of the
+# one journal. The hours approved are always the project's total from the transfer. The journals earn no XP
+# themselves: the reviewer sets the XP, which is one "transfer" entry in the ledger, left out of the weekly team race.
 # A row reviewed here keeps its decision even if the form's row changes; one still pending follows it. The person is
 # DMed the decision, with the reviewer's `message` to them (ProjectTransferDecidedJob); `note` is for staff.
 # == Schema Information
@@ -173,9 +175,10 @@ class ProjectTransfer < ApplicationRecord
     update!(error: e.message, fetched_at: Time.current)
   end
 
-  def approve(reviewer:, minutes:, xp:, project: nil, note: nil, message: nil)
+  def approve(reviewer:, minutes:, xp:, project: nil, note: nil, message: nil, journals: [])
     minutes = Integer(minutes, exception: false)
     xp = Integer(xp, exception: false)
+    written = written_journals(journals)
     errors.add(:base, "This transfer was already reviewed") unless pending?
     errors.add(:base, "No Fallen account has #{email}") if user.nil?
     errors.add(:approved_minutes, "must be more than zero") unless minutes&.positive?
@@ -191,7 +194,7 @@ class ProjectTransfer < ApplicationRecord
       next if errors.any?
 
       project ||= user.projects.create!(project_attributes.merge(transferred: true))
-      made = journal_attributes(minutes).map { project.journals.create!(it.merge(user: user, source: "transfer")) }
+      made = journal_attributes(minutes, written).map { project.journals.create!(it.merge(user: user, source: "transfer", imported_by: reviewer)) }
       user.xp_entries.create!(kind: "transfer", amount: xp, day: user.local_date, source: self) if xp.positive?
       update!(status: "approved", reviewer: reviewer, project: project, approved_minutes: minutes, xp: xp, note: note.presence, message: message.presence,
               decided_at: Time.current)
@@ -230,16 +233,35 @@ class ProjectTransfer < ApplicationRecord
     }
   end
 
-  def journal_attributes(minutes)
+  def journal_attributes(minutes, written)
     entries = Array(snapshot&.dig("entries"))
-    return [ { body: footer("#{project_name || 'Transferred project'}, from #{source_url}."), duration_minutes: minutes, created_at: submitted_at } ] if entries.empty?
+    if entries.empty? && written.empty?
+      return [ { body: footer("#{project_name || 'Transferred project'}, from #{source_url}."), duration_minutes: minutes, created_at: submitted_at } ]
+    end
 
     logged = entries.map { it["minutes"].to_i }
     logged = logged.map { 1 } if logged.sum.zero?
+    # A journal written in weighs as much as an average entry.
+    weights = logged + [ logged.empty? ? 1 : logged.sum.to_r / logged.size ] * written.size
 
-    entries.zip(share(logged, minutes)).map do |entry, share|
-      written = Time.zone.parse(entry["at"].to_s) rescue nil
-      { body: footer(entry_text(entry)), duration_minutes: share.nonzero?, created_at: written || submitted_at }
+    fetched = entries.map do |entry|
+      at = Time.zone.parse(entry["at"].to_s) rescue nil
+      { body: footer(entry_text(entry)), created_at: at || submitted_at }
+    end
+    (fetched + written).zip(share(weights, minutes)).map { |journal, part| journal.merge(duration_minutes: part.nonzero?) }
+  end
+
+  # Journals the reviewer wrote in, as `{ body, date, images }` with photos as signed ids they uploaded. Ones with
+  # neither writing nor photos are skipped.
+  def written_journals(journals)
+    Array(journals).map { it.to_h.symbolize_keys }.each_with_index.filter_map do |journal, i|
+      body = journal[:body].to_s.strip
+      images = Array(journal[:images]).compact_blank
+      next if body.empty? && images.empty?
+
+      at = (Time.zone.parse(journal[:date].to_s)&.change(hour: 12) rescue nil) if journal[:date].present?
+      errors.add(:journals, "#{i + 1}: the date isn't one") if journal[:date].present? && at.nil?
+      { body: footer(body.presence || "(No writing in this entry.)"), created_at: at || submitted_at, images: images }
     end
   end
 

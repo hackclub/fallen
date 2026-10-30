@@ -46,6 +46,17 @@ class AdminTransfersTest < ActionDispatch::IntegrationTest
     assert_equal 150, projects(:station).journals.where(source: "transfer").sum(:duration_minutes)
   end
 
+  test "approving can write journals in by hand" do
+    transfer = project_transfers(:stardance)
+    transfer.update!(snapshot: nil)
+    post approve_admin_transfer_path(transfer), params: { transfer: { hours: "8", xp: "40", journals: [ { body: "Made a hairpin", date: "2026-10-20", images: [] } ] } }
+
+    assert_redirected_to admin_transfer_path(transfer)
+    journal = transfer.reload.project.journals.sole
+    assert_equal [ 480, "transfer" ], [ journal.duration_minutes, journal.source ]
+    assert journal.body.start_with?("Made a hairpin")
+  end
+
   test "approving with bad hours says why and imports nothing" do
     transfer = project_transfers(:stardance)
     post approve_admin_transfer_path(transfer), params: { transfer: { hours: "lots", xp: "25", project_id: "", note: "" } }

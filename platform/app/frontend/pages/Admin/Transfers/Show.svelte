@@ -7,8 +7,11 @@
   import ArrowLeft from '@lucide/svelte/icons/arrow-left'
   import BadgeCheck from '@lucide/svelte/icons/badge-check'
   import ExternalLink from '@lucide/svelte/icons/external-link'
+  import ImagePlus from '@lucide/svelte/icons/image-plus'
+  import Plus from '@lucide/svelte/icons/plus'
   import RefreshCw from '@lucide/svelte/icons/refresh-cw'
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert'
+  import X from '@lucide/svelte/icons/x'
   import Markdown from '@/components/Markdown.svelte'
   import UserCell from '@/components/admin/UserCell.svelte'
   import * as AlertDialog from '@/components/admin/ui/alert-dialog'
@@ -20,16 +23,19 @@
   import { Textarea } from '@/components/admin/ui/textarea'
   import { adminDark } from '@/lib/adminDark.svelte'
   import { formatDate, formatDateTime, formatMinutes, timeAgo } from '@/lib/format'
+  import { uploadImage, type UploadedImage } from '@/lib/uploads'
   import { adminProject, adminTransfers } from '@/routes'
   import type { AdminProjectTransferDetail } from '@/types'
 
   let {
     transfer,
     xp_per_hour,
+    direct_upload_url,
     can,
   }: {
     transfer: AdminProjectTransferDetail
     xp_per_hour: number
+    direct_upload_url: string
     can: { approve: boolean; reject: boolean; refetch: boolean }
   } = $props()
 
@@ -54,6 +60,31 @@
   let xpTouched = $state(false)
   let confirmReject = $state(false)
 
+  // Journals written in by hand (ProjectTransfer#written_journals). They share the hours above; none earn XP.
+  type WrittenJournal = { body: string; date: string; images: UploadedImage[] }
+  let journals: WrittenJournal[] = $state([])
+  let uploading = $state(0)
+  let uploadError: string | null = $state(null)
+  // The reviewer's own day, as the date input wants it (YYYY-MM-DD): en-CA writes dates that way.
+  const today = () => new Date().toLocaleDateString('en-CA')
+
+  // Photos go into the writing where the journal shows them, the way the journal composer puts them.
+  async function addPhotos(journal: WrittenJournal, files: FileList | null) {
+    uploadError = null
+    for (const file of Array.from(files ?? [])) {
+      uploading++
+      try {
+        const image = await uploadImage(file, direct_upload_url)
+        journal.images.push(image)
+        journal.body = `${journal.body.trimEnd()}\n\n![${image.filename}](${image.url})`.trimStart()
+      } catch (error) {
+        uploadError = error instanceof Error ? error.message : 'Upload failed'
+      } finally {
+        uploading--
+      }
+    }
+  }
+
   function setHours(value: string) {
     form.hours = value
     if (!xpTouched) form.xp = xpFor(value)
@@ -62,7 +93,15 @@
   function approve(event: SubmitEvent) {
     event.preventDefault()
     form
-      .transform((data) => ({ transfer: data }))
+      .transform((data) => ({
+        transfer: {
+          ...data,
+          journals: journals.map(({ images, ...journal }) => ({
+            ...journal,
+            images: images.filter((image) => journal.body.includes(image.id)).map((image) => image.id),
+          })),
+        },
+      }))
       .post(adminTransfers.approve(transfer.id).url, { preserveScroll: true })
   }
 
@@ -182,8 +221,10 @@
       <Card.Title>Review</Card.Title>
       <Card.Description>
         Approving copies {snapshot?.entries.length
-          ? `the ${snapshot.entries.length} entries in as journals, dated when they were written, with these hours shared out over them`
-          : 'one journal with these hours'}, and issues the XP. Journals from a transfer earn no XP of their
+          ? `the ${snapshot.entries.length} entries in as journals, dated when they were written, with these hours shared out over them${journals.length ? ' and the journals written below' : ''}`
+          : journals.length
+            ? 'in the journals written below, with these hours shared out over them'
+            : 'one journal with these hours'}, and issues the XP. Journals from a transfer earn no XP of their
         own.
       </Card.Description>
     </Card.Header>
@@ -198,6 +239,9 @@
             oninput={(e) => setHours(e.currentTarget.value)}
             placeholder="12.5"
           />
+          <p class="text-xs text-muted-foreground">
+            The project's total from this transfer, shared out over every journal it makes.
+          </p>
           {#if errors.approved_minutes}<p class="text-sm text-destructive">
               Hours {errors.approved_minutes}
             </p>{/if}
@@ -233,6 +277,73 @@
           {/if}
           {#if errors.project}<p class="text-sm text-destructive">Project {errors.project}</p>{/if}
         </div>
+        <div class="grid gap-3 sm:col-span-2">
+          <div>
+            <Label>Journals to write in</Label>
+            <p class="mt-1 text-xs text-muted-foreground">
+              For work the other program doesn't show. Each gets a share of the hours above, counted as an
+              average entry, and earns no XP of its own.{snapshot?.entries.length
+                ? ''
+                : ' They take the place of the one journal.'}
+            </p>
+          </div>
+          {#each journals as journal, i (journal)}
+            <div class="grid gap-3 rounded-md border p-3 sm:grid-cols-[1fr_auto]">
+              <div class="grid gap-1.5">
+                <Label for="journal-{i}-date">Written on</Label>
+                <Input id="journal-{i}-date" type="date" bind:value={journal.date} />
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                class="self-end"
+                aria-label="Remove journal {i + 1}"
+                onclick={() => journals.splice(i, 1)}
+              >
+                <X />
+              </Button>
+              <div class="grid gap-1.5 sm:col-span-2">
+                <Label for="journal-{i}-body">Writing</Label>
+                <Textarea id="journal-{i}-body" bind:value={journal.body} rows={6} />
+                {#if journal.images.some((image) => journal.body.includes(image.id))}
+                  <div class="flex flex-wrap gap-2">
+                    {#each journal.images.filter( (image) => journal.body.includes(image.id) ) as image (image.id)}
+                      <img src={image.url} alt={image.filename} class="h-20 rounded-md border object-cover" />
+                    {/each}
+                  </div>
+                {/if}
+                <label
+                  class="inline-flex w-fit cursor-pointer items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+                >
+                  <ImagePlus class="size-4" /> Add photos
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/gif,image/webp"
+                    multiple
+                    class="sr-only"
+                    onchange={(e) => {
+                      addPhotos(journal, e.currentTarget.files)
+                      e.currentTarget.value = ''
+                    }}
+                  />
+                </label>
+              </div>
+            </div>
+          {/each}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            class="w-fit"
+            onclick={() => journals.push({ body: '', date: today(), images: [] })}
+          >
+            <Plus data-icon="inline-start" /> Add a journal
+          </Button>
+          {#if uploading}<p class="text-sm text-muted-foreground">Uploading photos…</p>{/if}
+          {#if uploadError}<p class="text-sm text-destructive">{uploadError}</p>{/if}
+          {#if errors.journals}<p class="text-sm text-destructive">Journal {errors.journals}</p>{/if}
+        </div>
         <div class="grid gap-1.5 sm:col-span-2">
           <Label for="message">Message to them (optional)</Label>
           <Textarea
@@ -253,7 +364,7 @@
         </div>
         {#if errors.base}<p class="text-sm text-destructive sm:col-span-2">{errors.base}</p>{/if}
         <div class="flex flex-wrap gap-2 sm:col-span-2">
-          <Button type="submit" disabled={form.processing || !transfer.user}>
+          <Button type="submit" disabled={form.processing || uploading > 0 || !transfer.user}>
             <BadgeCheck data-icon="inline-start" /> Approve and import
           </Button>
           {#if can.reject}

@@ -23,16 +23,18 @@ class Admin::TransfersController < Admin::ApplicationController
     render inertia: "Admin/Transfers/Show", props: {
       transfer: AdminProjectTransferDetailSerializer.render(transfer),
       xp_per_hour: XpEntry::PER_HOUR,
+      direct_upload_url: uploads_path,
       can: { approve: policy.approve?, reject: policy.reject?, refetch: policy.refetch? }
     }
   end
 
   def approve
     transfer = find_and_authorize
-    review = params.expect(transfer: %i[hours xp project_id note message])
+    review = params.expect(transfer: [ :hours, :xp, :project_id, :note, :message, journals: [ [ :body, :date, images: [] ] ] ])
     project = Project.find_by_public_id!(review[:project_id]) if review[:project_id].present?
 
-    if transfer.approve(reviewer: true_user, minutes: Duration.parse(review[:hours]), xp: review[:xp], project: project, note: review[:note], message: review[:message])
+    if transfer.approve(reviewer: true_user, minutes: Duration.parse(review[:hours]), xp: review[:xp], project: project, note: review[:note], message: review[:message],
+                        journals: review[:journals])
       redirect_to admin_transfer_path(transfer), notice: "Transfer approved: #{transfer.project.title} has the journals and #{transfer.xp} XP."
     else
       inertia_errors(transfer, fallback_location: admin_transfer_path(transfer))

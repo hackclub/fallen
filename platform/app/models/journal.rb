@@ -72,6 +72,8 @@ class Journal < ApplicationRecord
   attr_accessor :incoming_images
   # Set by JournalsController: an edit made on the site, whichever side the journal was first written on.
   attr_accessor :edited_on_site
+  # Set by ProjectTransfer#approve: the reviewer, who uploads the photos for journals they write in.
+  attr_accessor :imported_by
 
   IMAGE_TYPES = %w[image/png image/jpeg image/gif image/webp].freeze
   MAX_IMAGES = 10
@@ -281,7 +283,7 @@ class Journal < ApplicationRecord
 
   def images_are_new_uploads
     added = images.attachments.select(&:new_record?).map(&:blob)
-    errors.add(:images, "must be photos you uploaded for this journal") if Journal.reused_uploads?(added, uploaders: [ user_id ], record: self)
+    errors.add(:images, "must be photos you uploaded for this journal") if Journal.reused_uploads?(added, uploaders: [ user_id, imported_by&.id ].compact, record: self)
   end
 
   # The writing shows only this journal's own photos, never a picture from anywhere else.
