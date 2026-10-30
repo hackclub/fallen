@@ -16,8 +16,13 @@
   import type { AdminStreakAdjustment } from '@/types'
 
   // Every change to the person's streak and the incidents that touched it, newest first, each undoable while it
-  // stands. Undoing asks for the same preview a change does, so the admin sees what it takes back.
-  let { adjustments, canUndo }: { adjustments: AdminStreakAdjustment[]; canUndo: boolean } = $props()
+  // stands. Undoing asks for the same preview a change does, so the admin sees what it takes back. `linkIncidents` is
+  // off on the incidents tab, where the Everyone badge would link to the page it is on.
+  let {
+    adjustments,
+    canUndo,
+    linkIncidents = true,
+  }: { adjustments: AdminStreakAdjustment[]; canUndo: boolean; linkIncidents?: boolean } = $props()
 
   let preview = $state<StreakPreview>()
   let undoing = $state<AdminStreakAdjustment | null>(null)
@@ -77,10 +82,12 @@
             <span class={['text-sm font-medium', undone && 'line-through']}
               >{describeAdjustment(adjustment)}</span
             >
-            {#if adjustment.incident}
+            {#if adjustment.incident && linkIncidents}
               <a href={adminStreaks.index({ query: { tab: 'incidents' } }).url}>
                 <Badge variant="outline" class="text-[10px]">Everyone</Badge>
               </a>
+            {:else if adjustment.incident}
+              <Badge variant="outline" class="text-[10px]">Everyone</Badge>
             {/if}
             {#if undone}<Badge variant="secondary" class="text-[10px]"
                 >Undone by {adjustment.undone_by ?? 'someone'}</Badge
