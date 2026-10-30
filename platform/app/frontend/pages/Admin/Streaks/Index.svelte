@@ -185,11 +185,7 @@
     {/snippet}
     <div class="rounded-xl border p-4">
       {#if rows?.length}
-        <StreakLog
-          adjustments={rows as AdminStreakAdjustment[]}
-          canUndo={can.create}
-          linkIncidents={false}
-        />
+        <StreakLog adjustments={rows as AdminStreakAdjustment[]} canUndo={can.create} linkIncidents={false} />
       {:else}
         <p class="text-sm text-muted-foreground">
           No incidents yet. When something on our side stops people journaling, make one for the days it
