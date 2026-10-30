@@ -3,12 +3,15 @@
 # never retried; the prompt and the handoff post also link the huddle.
 #
 # Slack refuses the ring once the main huddle is full, which is how Fallen finds out: the huddle is marked full
-# (Huddle#full!) and the person is rung into their team's huddle instead once the account has opened it.
+# (Huddle#full!) and the person is rung into their team's huddle instead once the account has opened it. Slack says
+# `invite_failed`, or `permission_denied` when the account itself is out of the huddle because a full huddle would
+# not let it back in (script/slack_huddle.mjs logs `rooms_free_willy_create_attendee_failed`).
 class HuddleRingJob < ApplicationJob
   queue_as :realtime
 
   # How long script/slack_huddle.mjs takes to notice a new team huddle is wanted and open it.
   TEAM_HUDDLE_OPENS_IN = 45.seconds
+  REFUSED = %w[invite_failed permission_denied].freeze
 
   def perform(user_or_slack_id, retried: false)
     user = user_or_slack_id.is_a?(User) ? user_or_slack_id : User.kept.find_by(slack_id: user_or_slack_id)
@@ -20,7 +23,7 @@ class HuddleRingJob < ApplicationJob
     begin
       SlackHuddle.ring(slack_id, channel)
     rescue SlackBot::BrowserClient::Error => e
-      raise unless e.code == "invite_failed" && channel == SlackHuddle.channel_id && main && !retried
+      raise unless REFUSED.include?(e.code) && channel == SlackHuddle.channel_id && main && !retried
       return if main.sessions.ongoing.exists?(slack_id: slack_id)
 
       main.full!

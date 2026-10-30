@@ -27,6 +27,14 @@ class HuddleRingJobTest < ActiveSupport::TestCase
     assert_equal LULU, browser.calls.last.last[:channel_id]
   end
 
+  test "a ring refused because the account could not get back into the full huddle marks it full too" do
+    huddle = Huddle.create!(call_id: "R1", channel_id: CHANNEL, started_at: 1.hour.ago)
+
+    ring(fake_browser { SlackBot::BrowserClient::Error.new("rooms.notifyMember", "permission_denied") }, users(:member))
+
+    assert huddle.reload.full?
+  end
+
   test "a refused ring for someone already in the huddle does not mark it full" do
     huddle = Huddle.create!(call_id: "R1", channel_id: CHANNEL, started_at: 1.hour.ago)
     huddle.sessions.create!(slack_id: "U0MEMBER", joined_at: 10.minutes.ago)
