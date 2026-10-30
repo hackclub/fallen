@@ -12,6 +12,7 @@ class Admin::StatsController < Admin::ApplicationController
       active: InertiaRails.defer(group: "active") { stats.active },
       daily: InertiaRails.defer(group: "daily") { stats.daily },
       funnel: InertiaRails.defer(group: "funnel") { stats.funnel },
+      sources: InertiaRails.defer(group: "sources") { stats.sources },
       writing: InertiaRails.defer(group: "writing") { stats.writing }
     }
   end

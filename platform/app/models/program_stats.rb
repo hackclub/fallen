@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
-# The numbers on /admin/stats over a range of days in the program's timezone (ZONE): who opened the site (ActiveDay) and who built, the time the
+# The numbers on /stats and /admin/stats over a range of days in the program's timezone (ZONE): who opened the site (ActiveDay) and who built, the time the
 # pet's timer tracked for everyone (TrackedTime's rules, not cut at each person's last journal) next to the hours
-# journals logged, how far the people who signed up in the range got, and what the AI-writing check (WritingCheck)
-# caught. Each public method is one deferred prop.
+# journals logged, how far the people who signed up in the range got and where they came from, and what the AI-writing
+# check (WritingCheck) caught. Each public method is one deferred prop.
 class ProgramStats
   # Range => days, nil for since the first signup.
   ZONE = "America/New_York"
@@ -34,6 +34,17 @@ class ProgramStats
     SQL
   ].freeze
   FUNNEL_COUNTS = FUNNEL.each_index.map { |i| "COUNT(*) FILTER (WHERE #{FUNNEL[..i].map { |(*, sql)| "(#{sql})" }.join(" AND ")})" }.freeze
+  # Signups, and those who ever tracked time or wrote a journal.
+  SOURCE_COUNTS = [ "COUNT(*)", "COUNT(*) FILTER (WHERE #{FUNNEL.to_h { |key, _, sql| [ key, "(#{sql})" ] }.values_at("tracked", "journaled").join(" OR ")})" ].freeze
+
+  # Where a signup came from (SignupSource): the UTM source, else `ref`, else the referring site's host, else "".
+  SOURCE = <<~SQL.squish
+    COALESCE(NULLIF(signup_source->>'utm_source', ''), NULLIF(signup_source->>'ref', ''),
+             substring(signup_source->>'referrer' from '://([^/]+)'), '')
+  SQL
+  # Anyone can make up a UTM tag, and the page is public, so a source shows by name only once this many signed up from it.
+  SOURCE_MIN_SIGNUPS = 5
+  SOURCE_ROWS = 10
 
   WRITING_COUNTS = {
     checked: "status = 'done'",
@@ -103,6 +114,17 @@ class ProgramStats
   def funnel
     counts = User.kept.where(is_banned: false, created_at: from..).pick(*FUNNEL_COUNTS.map { Arel.sql(it) })
     FUNNEL.zip(counts).map { |(key, label), count| { key:, label:, count: } }
+  end
+
+  # Signups by source, most first, and how many of them tracked time or journaled. No source is "", and the small ones are
+  # summed under nil.
+  def sources
+    rows = User.kept.where(is_banned: false, created_at: from..).group(Arel.sql(SOURCE))
+      .pluck(Arel.sql(SOURCE), *SOURCE_COUNTS.map { Arel.sql(it) })
+    named, rest = rows.sort_by { |source, signups| [ -signups, source ] }.partition { |source, signups| source.empty? || signups >= SOURCE_MIN_SIGNUPS }
+    rest += named.slice!(SOURCE_ROWS..) || []
+    named << [ nil, rest.sum { it[1] }, rest.sum { it[2] } ] if rest.any?
+    named.map { |source, signups, builders| { source:, signups:, builders: } }
   end
 
   # Checks a day and how many were flagged, plus the range's totals and what Pangram billed for them.

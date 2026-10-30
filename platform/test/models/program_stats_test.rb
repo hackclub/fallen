@@ -64,6 +64,16 @@ class ProgramStatsTest < ActiveSupport::TestCase
     assert_equal 0, counts["returned"]
   end
 
+  test "sources group signups by UTM source, then ref, then referring site, and sum the small ones" do
+    User.update_all(created_at: 1.day.ago, signup_source: {})
+    users(:member).update_columns(signup_source: { "utm_source" => "bigemailthing", "ref" => "slack-join" })
+    users(:admin).update_columns(signup_source: { "referrer" => "https://chatgpt.com/c/abc" })
+    ProgramStats::SOURCE_MIN_SIGNUPS.times { User.start_trial!(email: "ref#{it}@example.com", signup_source: { "ref" => "fallout-link" }) }
+
+    assert_equal [ { source: "fallout-link", signups: 5, builders: 0 }, { source: "", signups: 1, builders: 0 }, { source: nil, signups: 2, builders: 1 } ],
+      ProgramStats.new(range: "7d").sources, "banned accounts are left out; the member journaled"
+  end
+
   private
 
   def session(user, mode: nil, **times)
