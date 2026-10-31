@@ -61,6 +61,13 @@
   )
   const totalText = $derived(`${Math.round((totalMinutes / 60) * 100) / 100}h`)
 
+  // A restored draft can still pick one another journal has taken since. Its tile can't be clicked, so drop it.
+  $effect(() => {
+    if (locked) return
+    const taken = options.filter((t) => blocked(t) && selected.includes(t.id)).map((t) => t.id)
+    if (taken.length) untrack(() => (selected = selected.filter((id) => !taken.includes(id))))
+  })
+
   // Lapse is only asked when the composer opens or on Refresh; the list itself comes from Fallen's copy.
   function sync() {
     if (locked || !lapse?.connected || syncing) return
