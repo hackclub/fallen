@@ -19,14 +19,14 @@ gem "thruster", require: false
 
 # Frontend: Vite + Inertia (Svelte lives in app/frontend)
 gem "vite_rails", "~> 3.0"
-gem "inertia_rails", "~> 3.10"
+gem "inertia_rails", "~> 3.23"
 
 # Props are Alba serializers; typelizer turns them (and the routes) into TypeScript: bin/rails typelizer:generate
 gem "alba", "~> 4.0"
 gem "typelizer", "~> 0.14"
 
 # Auth (Hack Club Auth OAuth) & authorization
-gem "faraday", "~> 2.13"
+gem "faraday", "~> 2.15"
 gem "pundit", "~> 2.4"
 
 # Privacy hub tokens (ES256 JWTs). See app/services/privacy_token.rb
@@ -39,7 +39,7 @@ gem "slack-ruby-client", "~> 3.0"
 gem "hashid-rails", "~> 1.4"
 gem "paper_trail", "~> 17.0"
 gem "pg_search", "~> 2.3"
-gem "pagy", "~> 43.2"
+gem "pagy", "~> 43.8"
 
 # Storage
 gem "image_processing", "~> 1.2"
@@ -50,7 +50,7 @@ gem "rack-attack", "~> 6.7"
 gem "sentry-ruby", "~> 7.0"
 gem "sentry-rails", "~> 7.0"
 # Sentry profiles: Ruby stacks for sampled traces
-gem "vernier", "~> 1.11"
+gem "vernier", "~> 1.12"
 # Per-action request and job timings: its tables and models, read by /admin/insights (the engine is not mounted)
 gem "activeinsights", "~> 1.3"
 # Feature flags, managed at /admin/flags
