@@ -17,7 +17,6 @@ Build one big project in ~50 days and level up your character to attend a hardwa
 ## XP, streaks and the pet
 
 - Everyone has a desktop pet. If the pet has evolved to its final stage by the deadline, you have qualified.
-- Per session: 3h = +10 XP, 2h = +5 XP, 1.5h = +3 XP, under 1.5h = +0 XP (deflated to account for streaks).
 - Streaks give XP multipliers.
 - Mini events and "stellar ships" give streak freezes.
 - All XP earned after qualifying goes towards travel.
