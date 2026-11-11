@@ -4,6 +4,7 @@
   import Key from '@/components/review/Key.svelte'
   import CollapsibleCard from '@/components/review/CollapsibleCard.svelte'
   import PersonChip from '@/components/review/PersonChip.svelte'
+  import CheckDetail from '@/components/submission/CheckDetail.svelte'
   import StatusBadge from '@/components/review/StatusBadge.svelte'
   import { formatDate, formatDateTime, formatMinutes, timeAgo } from '@/lib/format'
   import type { ReviewPage } from '@/lib/review.svelte'
@@ -194,7 +195,8 @@
           ></span>
           <span class="min-w-0">
             <span class={check.status === 'pass' ? 'text-muted-foreground' : ''}>{check.label}</span>
-            {#if check.detail}<span class="block text-xs text-muted-foreground">{check.detail}</span>{/if}
+            {#if check.detail}<span class="block text-xs text-muted-foreground"><CheckDetail {check} /></span
+              >{/if}
           </span>
         </li>
       {/each}

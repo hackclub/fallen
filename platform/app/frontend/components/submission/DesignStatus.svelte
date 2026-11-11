@@ -33,7 +33,7 @@
   const payout = $derived(
     submission?.payout_status === 'sent'
       ? 'Sent! Check your email for the HCB card grant.'
-      : 'We’re sending it to you as an HCB card grant, by email.',
+      : 'We’ll send it to you by email, as an HCB card grant.',
   )
 </script>
 
@@ -50,12 +50,13 @@
         </h2>
         <p class="mt-1 font-outfit text-sm text-sky-ice/70">
           Sent {formatDate(submission.created_at)}, asking for {money(submission.requested_cents)}. A reviewer
-          will read your journals and repo, then message you on Slack.
+          will read your journals and check your repo. When your project has been reviewed, you’ll receive a
+          Slack message!
         </p>
       </div>
       {#if canWithdraw}
         <button type="button" class="pill-glass h-10 text-sm" disabled={withdrawing} onclick={withdraw}>
-          {withdrawing ? 'Taking it back...' : 'Take it back'}
+          {withdrawing ? 'Unsubmitting...' : 'Unsubmit'}
         </button>
       {/if}
     </div>
@@ -70,7 +71,7 @@
           it. {payout}
         </p>
       {:else}
-        <p class="mt-1 font-outfit text-sm text-sky-ice/70">On to building it!</p>
+        <p class="mt-1 font-outfit text-sm text-sky-ice/70">Start building!!</p>
       {/if}
       {#if submission.feedback}
         <blockquote
@@ -157,7 +158,7 @@
         >Submit your design</span
       >
       <span class="mt-0.5 block font-outfit text-sm text-sky-ice/60"
-        >Finished designing it? Send it in to get the parts funded.</span
+        >Finished designing it? Submit it for review to get the parts funded!</span
       >
     </span>
     <span class="pill-cream h-11 text-base max-sm:hidden">Submit</span>

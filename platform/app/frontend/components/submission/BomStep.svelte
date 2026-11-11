@@ -68,7 +68,7 @@
 
   async function upload(file: File | undefined) {
     if (!file) return
-    if (file.size > 200_000) return (error = 'That file is too big. A BOM CSV is usually a few KB.')
+    if (file.size > 200_000) return (error = 'That file is too big. A bom.csv is usually a few KB.')
     if (/\.(xlsx|xls|ods|numbers)$/i.test(file.name))
       return (error = 'Export it as CSV first (File, then Download or Export, then CSV).')
     await load(await file.text(), file.name)

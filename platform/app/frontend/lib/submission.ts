@@ -44,6 +44,7 @@ export interface Check {
   label: string
   status: 'pass' | 'warn' | 'fail'
   detail: string | null
+  doc?: string | null
 }
 
 export const MAX_SCREENSHOTS = 5

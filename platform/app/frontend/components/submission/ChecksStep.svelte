@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte'
+  import CheckDetail from '@/components/submission/CheckDetail.svelte'
   import { runChecks, type Check, type SubmissionDraft } from '@/lib/submission'
 
   type Fixable = 'ready' | 'repo' | 'screenshots' | 'bom'
@@ -111,7 +112,7 @@
           >
           <span class="min-w-0 flex-1">
             <span class="block font-semibold text-ink">{check.label}</span>
-            {#if check.detail}<span class="block text-ink-soft">{check.detail}</span>{/if}
+            {#if check.detail}<span class="block text-ink-soft"><CheckDetail {check} /></span>{/if}
           </span>
           {#if check.status !== 'pass' && FIX[check.key]}
             <button

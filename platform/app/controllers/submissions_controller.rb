@@ -1,4 +1,4 @@
-# Sending a project's design for review from the submit popup, and taking it back while it waits.
+# Sending a project's design for review from the submit popup, and unsubmitting it while it waits.
 class SubmissionsController < ApplicationController
   skip_after_action :verify_policy_scoped # No index action (Rails raises on `only: :index` otherwise)
   skip_after_action :verify_authorized # Re-added below: Rails raises on the `except: :index` default without an index action
@@ -27,6 +27,6 @@ class SubmissionsController < ApplicationController
     submission = Submission.find_by_public_id!(params[:id])
     authorize submission
     submission.withdraw!
-    redirect_to project_path(submission.project), notice: "Taken back. Submit it again when it's ready."
+    redirect_to project_path(submission.project), notice: "Unsubmitted. Submit it again when it's ready."
   end
 end

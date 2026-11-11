@@ -73,7 +73,7 @@
 </div>
 
 <p class="mt-4 text-center text-xs text-ink-soft">
-  While it’s waiting, your journals stay put, and you can take it back if you need to change something.
+  You can unsubmit your project later if you need to change anything.
 </p>
 
 {#if serverErrors.length > 0}

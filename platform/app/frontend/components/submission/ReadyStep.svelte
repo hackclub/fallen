@@ -2,7 +2,8 @@
   export const PROMISES = [
     'My design is finished, and I’ve done my best to make sure it’ll work.',
     'My repository has everything someone else would need to build it.',
-    'It’s my own design. If I followed a guide, I changed it and made it mine.',
+    'It’s my own design. If I followed a guide, I changed it and made it my own.',
+    'I’ve read the submission guidelines and believe my project is ready to submit.',
   ]
 </script>
 
@@ -18,7 +19,7 @@
   {:else}
     A reviewer will read your journals and repo, then fund the parts you need to build it.
   {/if}
-  Most send-backs are things you can fix in five minutes, so have a look at the
+  Most send-backs are things you can fix in five minutes, so please look over the
   <a
     href={docs.show({ page: 'submitting' }).url}
     target="_blank"

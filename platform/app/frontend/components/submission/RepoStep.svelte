@@ -44,8 +44,7 @@
 </script>
 
 <p class="text-center text-sm text-ink-soft">
-  Paste the link to your project’s public repository. GitHub, GitLab, Codeberg or your own git server all
-  work.
+  Paste the link to your project’s public repository (e.g. GitHub).
 </p>
 
 <form class="mt-5 flex flex-col gap-2 sm:flex-row" onsubmit={check} novalidate>
@@ -72,7 +71,7 @@
     >
       <span class="size-4 shrink-0 animate-spin rounded-full border-2 border-ink/20 border-t-[#1cb0f6]"
       ></span>
-      Reading your repository. Big ones can take up to a minute.
+      Reading your repository. This can take up to a minute.
     </div>
   {:else if error}
     <div class="rounded-xl border-2 border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{error}</div>
@@ -121,7 +120,8 @@
         </li>
       </ul>
       <p class="mt-3 text-xs text-ink-soft">
-        This is what the reviewer sees. Pushed something since? Check again before you send it.
+        This is what the reviewer sees. Modified something since? Check your project again before you submit
+        it.
       </p>
     </div>
   {/if}

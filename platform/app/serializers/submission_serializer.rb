@@ -59,7 +59,7 @@
 class SubmissionSerializer < ApplicationSerializer
   typelize_from Submission
   typelize id: :string, status: "'pending' | 'approved' | 'returned' | 'rejected' | 'withdrawn'",
-           checks: "Array<{ key: string; label: string; status: 'pass' | 'warn' | 'fail'; detail: string | null }>",
+           checks: "Array<{ key: string; label: string; status: 'pass' | 'warn' | 'fail'; detail: string | null; doc?: string | null }>",
            screenshots: "Array<{ id: string; url: string }>", payout_status: [ :string, nullable: true ]
   attributes :status, :repo_url, :commit_sha, :made_with, :note, :requested_cents, :approved_cents, :feedback, :checks, :created_at, :decided_at
   attribute(:id) { |submission| submission.public_id }

@@ -111,6 +111,19 @@ class SubmissionTest < ActiveSupport::TestCase
     assert_match "is empty", check["detail"]
   end
 
+  test "a project with no journal hours fails with a link to the start-here docs, sent without the link brackets" do
+    project = projects(:station)
+    project.journals.kept.update_all(discarded_at: Time.current)
+    check = SubmissionChecks.new(project:, snapshot: read_snapshot(project), made_with: [], screenshots: 1, items: bom_rows.map { BomItem.new(it) }).run.find { it["key"] == "journals" }
+
+    assert_equal [ "fail", "start-here" ], check.values_at("status", "doc")
+    assert_match "[here]", check["detail"]
+
+    refused = submit_design(project)
+    assert_match "Learn more here!", refused.errors[:checks].join
+    assert_no_match(/\[|\]/, refused.errors[:checks].join)
+  end
+
   test "a bad parts list is refused row by row" do
     project = projects(:station)
     project.journals.kept.needing_hours.update_all(duration_minutes: 30)

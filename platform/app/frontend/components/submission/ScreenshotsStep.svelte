@@ -54,7 +54,7 @@
 
 <p class="text-center text-sm text-ink-soft">
   Add a screenshot that shows as much of your design as you can, like a render of the whole thing put
-  together. Add up to {MAX_SCREENSHOTS}: the PCB, the schematic, close-ups.
+  together. Add up to {MAX_SCREENSHOTS}: the PCB, the schematic, close-up shots, etc.
 </p>
 
 <div class="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">

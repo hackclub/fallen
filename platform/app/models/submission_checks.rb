@@ -14,7 +14,8 @@ class SubmissionChecks
   IMAGE = /!\[[^\]]*\]\([^)]+\)|<img\b/i
   SELF_CLAIMED_SHARE = 0.5
 
-  Check = Data.define(:key, :label, :status, :detail)
+  # A detail with a doc names a page under /docs; the [bracketed] words in it link there.
+  Check = Data.define(:key, :label, :status, :detail, :doc)
 
   def self.blocking?(checks) = checks.any? { |check| check["status"] == "fail" }
 
@@ -32,7 +33,7 @@ class SubmissionChecks
 
   private
 
-  def check(key, label, ok, detail, level: "fail") = Check.new(key:, label:, status: ok ? "pass" : level, detail: ok ? nil : detail)
+  def check(key, label, ok, detail, level: "fail", doc: nil) = Check.new(key:, label:, status: ok ? "pass" : level, detail: ok ? nil : detail, doc: ok ? nil : doc)
 
   def repo_checks
     unless @snapshot&.done?
@@ -98,9 +99,9 @@ class SubmissionChecks
     short = logged.pluck(:body, :duration_minutes).count { |body, m| Journal.written_length(body) < Journal.body_length_needed(m) }
     flagged = WritingCheck.where(journal_id: journals.select(:id)).flagged.exists?
     [
-      check("journals", "Has journals", minutes.positive?, "Log your work in journals first. Reviewers read them to see how it was made."),
+      check("journals", "Has journals", minutes.positive?, "Log journals first. You must have a finished design by this point! Learn more [here]!", doc: "start-here"),
       check("journal_hours", "Every journal has hours", !journals.needing_hours.exists?, "Some journals still need their hours."),
-      check("self_claimed", "Hours are backed by tracked time", minutes.zero? || claimed < minutes * SELF_CLAIMED_SHARE, "Most of the hours weren't tracked. Reviewers will look closely at those journals.", level: "warn"),
+      check("self_claimed", "Hours are backed by tracked time", minutes.zero? || claimed < minutes * SELF_CLAIMED_SHARE, "Most of the hours weren't tracked (huddle or Lapse). Reviewers will look closely at those journals, so make sure they're detailed. If you're unsure, check [this] out.", level: "warn", doc: "journaling"),
       check("journal_length", "Journals explain the work", short.zero?, "#{short} #{short == 1 ? "journal is" : "journals are"} short for the time logged.", level: "warn"),
       check("writing", "Journals are in your own words", !flagged, "A journal was flagged as likely AI-written.", level: "warn")
     ]

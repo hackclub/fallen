@@ -168,7 +168,7 @@ class Submission < ApplicationRecord
       item.errors.full_messages.each { |message| errors.add(:bom_items, "row #{i + 1}: #{message}") } unless item.valid?
     end
     failed = checks.select { |check| check["status"] == "fail" }
-    errors.add(:checks, failed.map { |check| check["detail"] }.join(" ")) if failed.any?
+    errors.add(:checks, failed.map { |check| check["detail"].delete("[]") }.join(" ")) if failed.any?
   end
 
   private
