@@ -13,6 +13,12 @@ export const events: CommunityEvent[] = [
   { start: '2026-11-10T12:00-05:00', end: '2026-11-10T13:30-05:00', title: 'Game sesh', host: 'Ayush' },
   { start: '2026-11-11T12:00-05:00', end: '2026-11-11T13:30-05:00', title: 'Yap time', host: 'Rehan' },
   {
+    start: '2026-11-11T19:00-05:00',
+    end: '2026-11-11T21:00-05:00',
+    title: 'Hardware review',
+    host: 'migrantor main',
+  },
+  {
     start: '2026-11-12T17:00-05:00',
     end: '2026-11-12T22:00-05:00',
     title: 'Hardware help',
@@ -20,7 +26,7 @@ export const events: CommunityEvent[] = [
     note: '+ surprise',
   },
   { start: '2026-11-13T09:00-05:00', end: '2026-11-13T10:30-05:00', title: 'Show & tell', host: 'Ayush' },
-  { start: '2026-11-14T12:00-05:00', end: '2026-11-14T13:30-05:00', title: 'Hardware help' },
+  { start: '2026-11-14T12:00-05:00', end: '2026-11-14T13:30-05:00', title: 'Hardware help', host: 'DS010' },
   { start: '2026-11-14T19:00-05:00', end: '2026-11-14T20:00-05:00', title: 'Game sesh', host: 'Qweezi' },
   { start: '2026-11-15T12:00-05:00', end: '2026-11-15T13:30-05:00', title: 'Yap time', host: 'Vynu' },
   { start: '2026-11-15T19:00-05:00', end: '2026-11-15T20:00-05:00', title: 'Game sesh' },
