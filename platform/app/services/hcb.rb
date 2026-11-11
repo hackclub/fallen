@@ -6,6 +6,8 @@ module Hcb
 
   # restricted makes the token deny-by-default: it can only make and read card grants, nothing else on the org.
   SCOPES = "restricted card_grants:read card_grants:write".freeze
+  # How long a new card grant stays spendable. Top-ups don't move it.
+  GRANT_LIFETIME = 1.month
 
   module_function
 
@@ -28,7 +30,7 @@ module Hcb
     client = authed
     return stub(:create_card_grant, id: "cdg_stub#{SecureRandom.hex(4)}", email:, status: "active") unless writes_allowed?
 
-    client.post("/api/v4/organizations/#{organization_id}/card_grants", { amount_cents:, email:, purpose: }.to_json, "Content-Type" => "application/json").body
+    client.post("/api/v4/organizations/#{organization_id}/card_grants", { amount_cents:, email:, purpose:, expiration_at: GRANT_LIFETIME.from_now.to_date.iso8601 }.to_json, "Content-Type" => "application/json").body
   end
 
   def topup_card_grant(id, amount_cents:)
