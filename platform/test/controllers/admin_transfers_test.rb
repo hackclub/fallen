@@ -37,7 +37,7 @@ class AdminTransfersTest < ActionDispatch::IntegrationTest
     end
 
     assert_response :ok
-    assert_equal({ "result" => "saved", "note" => "Hours look high", "message" => nil }, response.parsed_body)
+    assert_equal({ "result" => "saved", "note" => "Hours look high", "message" => nil }, response.parsed_body.except("draft_saved_at"))
     assert_equal [ "Hours look high", nil ], transfer.reload.values_at(:note, :message)
     assert_equal "Hours look high", inertia_props(admin_transfer_path(transfer), "Admin/Transfers/Show").dig("transfer", "note")
 
@@ -57,7 +57,7 @@ class AdminTransfersTest < ActionDispatch::IntegrationTest
     # The other reviewer opened it before that note: editing only the message leaves the note and hands it back.
     patch draft_admin_transfer_path(transfer), params: { transfer: { message: "Nice work" }, was: { message: "" } }, as: :json
     assert_response :ok
-    assert_equal({ "result" => "saved", "note" => "Hours look high", "message" => "Nice work" }, response.parsed_body)
+    assert_equal({ "result" => "saved", "note" => "Hours look high", "message" => "Nice work" }, response.parsed_body.except("draft_saved_at"))
 
     # Editing the note they never saw is refused rather than wiping it.
     patch draft_admin_transfer_path(transfer), params: { transfer: { note: "Looks fine" }, was: { note: "" } }, as: :json
@@ -155,5 +155,81 @@ class AdminTransfersTest < ActionDispatch::IntegrationTest
     sign_in_as users(:member)
     get admin_transfers_path
     assert_response :not_found
+  end
+
+  test "saving the note says when, so the page can show when it was last saved" do
+    transfer = project_transfers(:stardance)
+    patch draft_admin_transfer_path(transfer), params: { transfer: { note: "Hours look high" }, was: { note: "" } }, as: :json
+
+    saved_at = response.parsed_body["draft_saved_at"]
+    assert saved_at
+    assert_equal transfer.reload.draft_saved_at.as_json, saved_at
+    assert_equal saved_at, inertia_props(admin_transfer_path(transfer), "Admin/Transfers/Show").dig("transfer", "draft_saved_at")
+  end
+
+  test "reaching out records who did it, and the first one keeps it" do
+    transfer = project_transfers(:stardance)
+    post reach_out_admin_transfer_path(transfer)
+
+    assert_redirected_to admin_transfers_path
+    assert_equal users(:admin), transfer.reload.reached_out_by
+    assert transfer.reached_out_at
+
+    reviewer = users(:newcomer).tap { it.update!(roles: %w[user reviewer]) }
+    sign_in_as reviewer
+    post reach_out_admin_transfer_path(transfer)
+    assert_equal users(:admin), transfer.reload.reached_out_by
+
+    row = load_deferred(admin_transfers_path, "Admin/Transfers/Index", "transfers")["transfers"].find { it["id"] == transfer.public_id }
+    assert_equal "Admin Person", row.dig("reached_out_by", "name")
+    assert_equal "Admin Person", inertia_props(admin_transfer_path(transfer), "Admin/Transfers/Show").dig("transfer", "reached_out_by", "name")
+  end
+
+  test "marking reached out isn't versioned, and a discarded transfer offers no button and refuses it" do
+    transfer = project_transfers(:stardance)
+    assert inertia_props(admin_transfer_path(transfer), "Admin/Transfers/Show")["can"]["reach_out"]
+    assert_no_difference -> { transfer.versions.count } do
+      post reach_out_admin_transfer_path(transfer)
+      delete reach_out_admin_transfer_path(transfer)
+    end
+
+    transfer.discard
+    assert_not inertia_props(admin_transfer_path(transfer), "Admin/Transfers/Show")["can"]["reach_out"]
+    post reach_out_admin_transfer_path(transfer)
+    assert_nil transfer.reload.reached_out_by
+  end
+
+  test "reaching out from a transfer's page goes back to it" do
+    transfer = project_transfers(:stardance)
+    post reach_out_admin_transfer_path(transfer), headers: { "HTTP_REFERER" => admin_transfer_url(transfer) }
+
+    assert_redirected_to admin_transfer_url(transfer)
+    assert_equal users(:admin), transfer.reload.reached_out_by
+  end
+
+  test "anyone reviewing transfers can take a reach out back off, and then reach out again" do
+    transfer = project_transfers(:stardance)
+    post reach_out_admin_transfer_path(transfer)
+
+    sign_in_as users(:newcomer).tap { it.update!(roles: %w[user reviewer]) }
+    delete reach_out_admin_transfer_path(transfer), headers: { "HTTP_REFERER" => admin_transfer_url(transfer) }
+    assert_redirected_to admin_transfer_url(transfer)
+    assert_nil transfer.reload.reached_out_by
+    assert_nil transfer.reached_out_at
+
+    post reach_out_admin_transfer_path(transfer)
+    assert_equal users(:newcomer), transfer.reload.reached_out_by
+  end
+
+  test "members can't reach out" do
+    sign_in_as users(:member)
+    post reach_out_admin_transfer_path(project_transfers(:stardance))
+    assert_response :not_found
+    assert_nil project_transfers(:stardance).reload.reached_out_by
+
+    project_transfers(:stardance).reach_out(by: users(:admin))
+    delete reach_out_admin_transfer_path(project_transfers(:stardance))
+    assert_response :not_found
+    assert_equal users(:admin), project_transfers(:stardance).reload.reached_out_by
   end
 end

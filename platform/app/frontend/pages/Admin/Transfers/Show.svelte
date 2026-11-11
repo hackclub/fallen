@@ -6,6 +6,7 @@
   import { onMount } from 'svelte'
   import { router, useForm } from '@inertiajs/svelte'
   import Link from '@/components/Link.svelte'
+  import TransferReachOut from '@/components/admin/TransferReachOut.svelte'
   import ArrowLeft from '@lucide/svelte/icons/arrow-left'
   import BadgeCheck from '@lucide/svelte/icons/badge-check'
   import ExternalLink from '@lucide/svelte/icons/external-link'
@@ -13,6 +14,7 @@
   import MessageCircle from '@lucide/svelte/icons/message-circle'
   import Plus from '@lucide/svelte/icons/plus'
   import RefreshCw from '@lucide/svelte/icons/refresh-cw'
+  import Save from '@lucide/svelte/icons/save'
   import Video from '@lucide/svelte/icons/video'
   import TriangleAlert from '@lucide/svelte/icons/triangle-alert'
   import X from '@lucide/svelte/icons/x'
@@ -41,7 +43,7 @@
     transfer: AdminProjectTransferDetail
     xp_per_hour: number
     direct_upload_url: string
-    can: { approve: boolean; reject: boolean; refetch: boolean }
+    can: { approve: boolean; reject: boolean; refetch: boolean; reach_out: boolean }
   } = $props()
 
   const hoursText = (minutes: number | null) =>
@@ -98,6 +100,7 @@
   type DraftField = 'note' | 'message'
   const draftFields: DraftField[] = ['note', 'message']
   let draftState: 'saved' | 'saving' | 'failed' | 'conflict' | 'decided' | null = $state(null)
+  let draftSavedAt: string | null = $state(initial.draft_saved_at)
   let draftTimer: ReturnType<typeof setTimeout> | undefined
   let draftDirty = false
   let draftStopped = false
@@ -139,6 +142,7 @@
           result: 'saved' | 'conflict' | 'decided'
           note: string | null
           message: string | null
+          draft_saved_at: string | null
         } = await response.json()
         if (saved.result !== 'saved') {
           draftStopped = true
@@ -154,6 +158,7 @@
             form[field] = value
           }
         }
+        draftSavedAt = saved.draft_saved_at
         // A save sent while leaving may have been refused first; that stays on screen.
         if (!draftDirty && draftState === 'saving') draftState = 'saved'
       })
@@ -167,6 +172,24 @@
           draftTimer = setTimeout(saveDraft, draftState === 'failed' ? 5000 : 0)
       })
   }
+
+  // The Save button: now, rather than a moment after the last change.
+  function saveDraftNow() {
+    if (draftStopped) return
+    draftDirty = draftFields.some((field) => form[field] !== lastSaved[field])
+    saveDraft()
+  }
+
+  const draftSavedTime = $derived(
+    draftSavedAt
+      ? new Date(draftSavedAt).toLocaleString(undefined, {
+          month: 'short',
+          day: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+        })
+      : null,
+  )
 
   function stopDraft() {
     draftStopped = true
@@ -522,14 +545,27 @@
         <div class="grid gap-1.5 sm:col-span-2">
           <Label for="note">Staff note (optional)</Label>
           <Textarea id="note" bind:value={form.note} rows={2} placeholder="Why these hours, or why not" />
-          <p class="text-xs text-muted-foreground" aria-live="polite">
-            {#if draftState === 'saving'}Saving…{:else if draftState === 'saved'}The note and message are
-              saved, for anyone who opens this transfer.{:else if draftState === 'failed'}Couldn't save the
-              note and message; trying again.{:else if draftState === 'decided'}Not saved: someone decided
-              this transfer while it was open. Reload to see the decision.{:else if draftState === 'conflict'}Not
-              saved: another reviewer changed the note or message while you were typing. Copy what you wrote,
-              then reload to see theirs.{:else}The note and message save as you type.{/if}
-          </p>
+          <div class="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onclick={saveDraftNow}
+              disabled={draftState === 'saving' || draftState === 'decided' || draftState === 'conflict'}
+            >
+              <Save data-icon="inline-start" /> Save note
+            </Button>
+            <p class="text-xs text-muted-foreground" aria-live="polite">
+              {#if draftState === 'saving'}Saving…{:else if draftState === 'saved' && draftSavedTime}Last
+                saved at
+                {draftSavedTime}, for anyone who opens this transfer.{:else if draftState === 'failed'}Couldn't
+                save the note and message; trying again.{:else if draftState === 'decided'}Not saved: someone
+                decided this transfer while it was open. Reload to see the decision.{:else if draftState === 'conflict'}Not
+                saved: another reviewer changed the note or message while you were typing. Copy what you
+                wrote, then reload to see theirs.{:else if draftSavedTime}Last saved at {draftSavedTime}.{:else}The
+                note and message save as you type.{/if}
+            </p>
+          </div>
         </div>
         {#if errors.base}<p class="text-sm text-destructive sm:col-span-2">{errors.base}</p>{/if}
         <div class="flex flex-wrap gap-2 sm:col-span-2">
@@ -558,6 +594,7 @@
               </AlertDialog.Content>
             </AlertDialog.Root>
           {/if}
+          {#if can.reach_out}<TransferReachOut {transfer} size="default" />{/if}
         </div>
       </form>
     </Card.Content>

@@ -8,6 +8,7 @@
 #  claimed_minutes    :integer
 #  decided_at         :datetime
 #  discarded_at       :datetime
+#  draft_saved_at     :datetime
 #  email              :string           not null
 #  error              :text
 #  fallen_project_url :string
@@ -22,6 +23,7 @@
 #  name               :string
 #  note               :text
 #  project_name       :string
+#  reached_out_at     :datetime
 #  snapshot           :jsonb
 #  source             :string
 #  source_ref         :string
@@ -34,6 +36,7 @@
 #  airtable_id        :string           not null
 #  hackatime_user_id  :string
 #  project_id         :bigint
+#  reached_out_by_id  :bigint
 #  reviewer_id        :bigint
 #  user_id            :bigint
 #
@@ -43,6 +46,7 @@
 #  index_project_transfers_on_discarded_at           (discarded_at)
 #  index_project_transfers_on_email                  (email)
 #  index_project_transfers_on_project_id             (project_id)
+#  index_project_transfers_on_reached_out_by_id      (reached_out_by_id)
 #  index_project_transfers_on_reviewer_id            (reviewer_id)
 #  index_project_transfers_on_source_and_source_ref  (source,source_ref)
 #  index_project_transfers_on_status                 (status)
@@ -53,6 +57,7 @@
 # Foreign Keys
 #
 #  fk_rails_...  (project_id => projects.id)
+#  fk_rails_...  (reached_out_by_id => users.id)
 #  fk_rails_...  (reviewer_id => users.id)
 #  fk_rails_...  (user_id => users.id)
 #

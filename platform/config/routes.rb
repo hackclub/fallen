@@ -167,6 +167,8 @@ Rails.application.routes.draw do
           post :approve
           post :reject
           patch :draft
+          post :reach_out
+          delete :reach_out, action: :undo_reach_out
           post :refetch
         end
         resource :lapse, only: %i[show update], controller: "transfer_lapses" do

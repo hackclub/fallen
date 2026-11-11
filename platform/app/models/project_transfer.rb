@@ -22,6 +22,7 @@
 #  claimed_minutes    :integer
 #  decided_at         :datetime
 #  discarded_at       :datetime
+#  draft_saved_at     :datetime
 #  email              :string           not null
 #  error              :text
 #  fallen_project_url :string
@@ -36,6 +37,7 @@
 #  name               :string
 #  note               :text
 #  project_name       :string
+#  reached_out_at     :datetime
 #  snapshot           :jsonb
 #  source             :string
 #  source_ref         :string
@@ -48,6 +50,7 @@
 #  airtable_id        :string           not null
 #  hackatime_user_id  :string
 #  project_id         :bigint
+#  reached_out_by_id  :bigint
 #  reviewer_id        :bigint
 #  user_id            :bigint
 #
@@ -57,6 +60,7 @@
 #  index_project_transfers_on_discarded_at           (discarded_at)
 #  index_project_transfers_on_email                  (email)
 #  index_project_transfers_on_project_id             (project_id)
+#  index_project_transfers_on_reached_out_by_id      (reached_out_by_id)
 #  index_project_transfers_on_reviewer_id            (reviewer_id)
 #  index_project_transfers_on_source_and_source_ref  (source,source_ref)
 #  index_project_transfers_on_status                 (status)
@@ -67,6 +71,7 @@
 # Foreign Keys
 #
 #  fk_rails_...  (project_id => projects.id)
+#  fk_rails_...  (reached_out_by_id => users.id)
 #  fk_rails_...  (reviewer_id => users.id)
 #  fk_rails_...  (user_id => users.id)
 #
@@ -100,6 +105,7 @@ class ProjectTransfer < ApplicationRecord
 
   belongs_to :user, optional: true
   belongs_to :reviewer, class_name: "User", optional: true
+  belongs_to :reached_out_by, class_name: "User", optional: true
   belongs_to :project, optional: true
 
   validates :airtable_id, :email, :source_url, :submitted_at, presence: true
@@ -233,9 +239,21 @@ class ProjectTransfer < ApplicationRecord
       next :decided unless pending? && kept?
       next :conflict if changes.keys.any? { self[it].to_s != was[it].to_s }
 
-      PaperTrail.request(enabled: false) { update!(changes.transform_values(&:presence)) }
+      PaperTrail.request(enabled: false) { update!(**changes.transform_values(&:presence), draft_saved_at: Time.current) }
       :saved
     end
+  end
+
+  # Marks that a staff member has contacted the person about this transfer; it sends nothing itself. The first one to
+  # mark it keeps it, until someone takes it back off. Not versioned, like save_draft: each version would copy the
+  # whole row, snapshot and all, for a flag.
+  def reach_out(by:)
+    with_lock { reached_out_by_id || PaperTrail.request(enabled: false) { update!(reached_out_by: by, reached_out_at: Time.current) } }
+    true
+  end
+
+  def undo_reach_out
+    PaperTrail.request(enabled: false) { update!(reached_out_by: nil, reached_out_at: nil) }
   end
 
   def reject(reviewer:, note: nil, message: nil)

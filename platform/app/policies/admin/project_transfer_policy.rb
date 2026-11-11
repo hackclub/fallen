@@ -7,6 +7,8 @@ class Admin::ProjectTransferPolicy < ApplicationPolicy
   def approve? = transfer_reviewer? && record.pending? && !record.discarded?
   def reject? = approve?
   def refetch? = approve? && record.fetchable?
+  def reach_out? = transfer_reviewer? && !record.discarded?
+  def undo_reach_out? = reach_out?
   def sync? = admin?
   def lapse? = transfer_reviewer?
   def review_lapse? = approve?

@@ -3,13 +3,13 @@ class Admin::TransfersController < Admin::ApplicationController
   TABS = %w[pending approved rejected all].freeze
 
   # Reviewers work transfers too; the route constraint and Admin::ProjectTransferPolicy decide who gets in.
-  skip_before_action :require_admin!, only: %i[index show approve reject draft refetch sync]
-  before_action :require_transfer_reviewer!, only: %i[index show approve reject draft refetch sync]
+  skip_before_action :require_admin!, only: %i[index show approve reject draft reach_out undo_reach_out refetch sync]
+  before_action :require_transfer_reviewer!, only: %i[index show approve reject draft reach_out undo_reach_out refetch sync]
 
   def index
     tab = TABS.include?(params[:status]) ? params[:status] : "pending"
     scope = policy_scope([ :admin, ProjectTransfer ]).kept
-    rows = (tab == "all" ? scope : scope.where(status: tab)).includes(:user, :reviewer).order(submitted_at: tab == "pending" ? :asc : :desc)
+    rows = (tab == "all" ? scope : scope.where(status: tab)).includes(:user, :reviewer, :reached_out_by).order(submitted_at: tab == "pending" ? :asc : :desc)
 
     render inertia: "Admin/Transfers/Index", props: {
       status: tab,
@@ -29,7 +29,7 @@ class Admin::TransfersController < Admin::ApplicationController
       transfer: AdminProjectTransferDetailSerializer.render(transfer),
       xp_per_hour: XpEntry::PER_HOUR,
       direct_upload_url: uploads_path,
-      can: { approve: policy.approve?, reject: policy.reject?, refetch: policy.refetch? }
+      can: { approve: policy.approve?, reject: policy.reject?, refetch: policy.refetch?, reach_out: policy.reach_out? }
     }
   end
 
@@ -61,7 +61,19 @@ class Admin::TransfersController < Admin::ApplicationController
   def draft
     transfer = find_and_authorize(:show?)
     result = transfer.save_draft(params.expect(transfer: [ :note, :message ]), was: params.fetch(:was, {}).permit(:note, :message))
-    render json: { result: result, **transfer.slice(:note, :message) }, status: result == :saved ? :ok : :conflict
+    render json: { result: result, **transfer.slice(:note, :message, :draft_saved_at) }, status: result == :saved ? :ok : :conflict
+  end
+
+  def reach_out
+    transfer = find_and_authorize
+    transfer.reach_out(by: true_user)
+    redirect_back_or_to admin_transfers_path, notice: "Marked as reached out."
+  end
+
+  def undo_reach_out
+    transfer = find_and_authorize
+    transfer.undo_reach_out
+    redirect_back_or_to admin_transfers_path, notice: "No longer marked as reached out."
   end
 
   def refetch

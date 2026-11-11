@@ -124,6 +124,9 @@ class QueryBudgetTest < ActionDispatch::IntegrationTest
     assert_query_budget(10) { get admin_project_path(projects(:station)) }
     assert_query_budget(3) { get admin_transfers_path }
     assert_query_budget(8) { load_deferred(admin_transfers_path, "Admin/Transfers/Index", "transfers", "pagy", "counts") }
+    # Plus whoever reached out, once anyone has.
+    project_transfers(:stardance).update_columns(reached_out_by_id: users(:admin).id, reached_out_at: Time.current)
+    assert_query_budget(9) { load_deferred(admin_transfers_path, "Admin/Transfers/Index", "transfers", "pagy", "counts") }
     assert_query_budget(6) { get admin_transfer_path(project_transfers(:stardance)) }
     assert_query_budget(5) { get admin_grants_path }
     assert_query_budget(8) { load_deferred(admin_grants_path, "Admin/Grants/Index", "payouts", "pagy", "totals") }

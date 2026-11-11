@@ -11,6 +11,7 @@
   import LinkTabs from '@/components/admin/LinkTabs.svelte'
   import Morph from '@/components/admin/Morph.svelte'
   import TransferCell from '@/components/admin/TransferCell.svelte'
+  import TransferReachOut from '@/components/admin/TransferReachOut.svelte'
   import UserCell from '@/components/admin/UserCell.svelte'
   import PersonChip from '@/components/review/PersonChip.svelte'
   import { Button } from '@/components/admin/ui/button'
@@ -92,6 +93,11 @@
             ? 'Rejected'
             : timeAgo(row.original.submitted_at),
     },
+    {
+      id: 'reach_out',
+      header: 'Reached out',
+      cell: ({ row }) => renderComponent(TransferReachOut, { transfer: row.original }),
+    },
     ...(status === 'pending'
       ? []
       : [
@@ -156,9 +162,19 @@
         'Claimed',
         'Logged there',
         'Owner',
+        'Reached out',
         ...(status === 'pending' ? ['Submitted'] : ['Decision', 'Reviewer']),
       ]}
     />
   {/snippet}
-  <DataTable {columns} data={transfers ?? []} {pagy} noun="transfers" />
+  <DataTable
+    {columns}
+    data={transfers ?? []}
+    {pagy}
+    noun="transfers"
+    rowClass={(transfer) =>
+      transfer.reached_out_by
+        ? 'bg-yellow-100 hover:bg-yellow-200/70 dark:bg-yellow-400/15 dark:hover:bg-yellow-400/20'
+        : undefined}
+  />
 </Deferred>

@@ -88,6 +88,7 @@ class PrivacyRequest
     emails = users.map { it.email.downcase }
     deleted["project_transfers"] = forget(ProjectTransfer.where(user_id: ids).or(ProjectTransfer.where(project_id: project_ids)).or(ProjectTransfer.where(email: emails)))
     ProjectTransfer.where(reviewer_id: ids).update_all(reviewer_id: nil)
+    ProjectTransfer.where(reached_out_by_id: ids).update_all(reached_out_by_id: nil)
     deleted.merge!(forget_submissions(ids, project_ids, journal_ids))
     deleted.merge!(forget_progress_reviews(ids, project_ids))
     deleted["journals"] = forget(Journal.where(id: journal_ids))
