@@ -4,6 +4,9 @@
 module Hcb
   class Error < StandardError; end
 
+  # restricted makes the token deny-by-default: it can only make and read card grants, nothing else on the org.
+  SCOPES = "restricted card_grants:read card_grants:write".freeze
+
   module_function
 
   def host = ENV.fetch("HCB_HOST", "https://hcb.hackclub.com").chomp("/")
@@ -12,7 +15,7 @@ module Hcb
   def writes_allowed? = Rails.env.production? || ActiveModel::Type::Boolean.new.cast(ENV["HCB_ALLOW_WRITES"])
 
   def authorize_url(redirect_uri, state)
-    params = { client_id: ENV.fetch("HCB_CLIENT_ID"), redirect_uri:, response_type: "code", scope: "read", state: }
+    params = { client_id: ENV.fetch("HCB_CLIENT_ID"), redirect_uri:, response_type: "code", scope: SCOPES, state: }
     "#{host}/api/v4/oauth/authorize?#{params.to_query}"
   end
 
