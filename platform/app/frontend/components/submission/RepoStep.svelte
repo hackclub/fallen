@@ -9,7 +9,14 @@
     url = $bindable(),
     snapshot = $bindable(),
     checkedUrl = $bindable(),
-  }: { projectId: string; url: string; snapshot: RepoSnapshot | null; checkedUrl: string } = $props()
+    onChecked,
+  }: {
+    projectId: string
+    url: string
+    snapshot: RepoSnapshot | null
+    checkedUrl: string
+    onChecked: (snapshot: RepoSnapshot) => void
+  } = $props()
 
   let checking = $state(false)
   let error = $state<string | null>(null)
@@ -32,6 +39,7 @@
       else {
         checkedUrl = asked
         snapshot = result
+        onChecked(result)
       }
     } catch (e) {
       error = e instanceof Error ? e.message : 'Couldn’t read that repository'

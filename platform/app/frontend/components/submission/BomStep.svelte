@@ -174,24 +174,22 @@
     </button>
   {:else}
     <!-- Its own scroll area, so the column names stay in view on a long list. -->
-    <div
-      class="mt-5 max-h-[55vh] overflow-auto overscroll-contain rounded-xl border-2 border-paper-rim bg-[#fffdf8]"
-    >
-      <table class="w-full min-w-[760px] text-left text-sm">
+    <div class="mt-5 max-h-[45vh] overflow-auto rounded-xl border-2 border-paper-rim bg-[#fffdf8]">
+      <table class="w-full text-left text-sm max-md:min-w-[760px] md:table-fixed">
         <thead
           class="sticky top-0 z-10 bg-[#fffdf8] text-xs text-ink-soft shadow-[0_2px_0_var(--color-paper-rim)]"
         >
           <tr>
-            <th class="w-[34%] px-3 py-2 font-semibold">Part, and what it’s for</th>
-            <th class="w-16 px-1 py-2 font-semibold">Qty</th>
-            <th class="w-24 px-1 py-2 font-semibold">Each ($)</th>
-            <th class="w-24 px-1 py-2 font-semibold">Total ($)</th>
+            <th class="w-[30%] px-3 py-2 font-semibold">Part, and what it’s for</th>
+            <th class="w-14 px-1 py-2 font-semibold">Qty</th>
+            <th class="w-20 px-1 py-2 font-semibold">Each ($)</th>
+            <th class="w-20 px-1 py-2 font-semibold">Total ($)</th>
             <th class="px-1 py-2 font-semibold">Link</th>
             <th
-              class="w-14 px-1 py-2 text-center font-semibold"
+              class="w-12 px-1 py-2 text-center font-semibold"
               title="Parts you already have cost nothing, but list them anyway">Have it</th
             >
-            <th class="w-9"><span class="sr-only">Remove</span></th>
+            <th class="w-8"><span class="sr-only">Remove</span></th>
           </tr>
         </thead>
         <tbody>

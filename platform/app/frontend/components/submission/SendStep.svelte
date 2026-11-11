@@ -1,4 +1,5 @@
 <script lang="ts">
+  import CheckDetail from '@/components/submission/CheckDetail.svelte'
   import { money, requestedCents, type Check, type SubmissionDraft } from '@/lib/submission'
 
   let {
@@ -15,7 +16,8 @@
     errors: Record<string, string>
   } = $props()
 
-  const warnings = $derived(checks?.filter((c) => c.status === 'warn').length ?? 0)
+  const warned = $derived(checks?.filter((c) => c.status === 'warn') ?? [])
+  const warnings = $derived(warned.length)
   const serverErrors = $derived(Object.values(errors).filter(Boolean))
 </script>
 
@@ -50,9 +52,31 @@
     {#if warnings > 0}
       <div>
         <dt class="text-xs text-ink-soft">Checks</dt>
-        <dd class="text-amber-800">
-          {warnings}
-          {warnings === 1 ? 'warning' : 'warnings'} the reviewer will see
+        <dd>
+          <details class="group">
+            <summary
+              class="flex cursor-pointer list-none items-center gap-1.5 text-amber-800 [&::-webkit-details-marker]:hidden"
+            >
+              {warnings}
+              {warnings === 1 ? 'warning' : 'warnings'} the reviewer will see
+              <svg
+                viewBox="0 0 12 12"
+                class="size-3 transition-transform group-open:rotate-180"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                aria-hidden="true"><path d="M2.5 4.5l3.5 3.5 3.5-3.5" stroke-linecap="round" /></svg
+              >
+            </summary>
+            <ul class="mt-1.5 space-y-1.5">
+              {#each warned as check (check.key)}
+                <li class="rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs text-amber-900">
+                  <span class="block font-semibold">{check.label}</span>
+                  {#if check.detail}<span class="block"><CheckDetail {check} /></span>{/if}
+                </li>
+              {/each}
+            </ul>
+          </details>
         </dd>
       </div>
     {/if}

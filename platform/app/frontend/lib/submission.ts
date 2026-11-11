@@ -36,6 +36,9 @@ export interface SubmissionDraft {
   screenshots: Screenshot[]
   items: DraftItem[]
   bomCsv: string
+  // The repository (its link as the server cleaned it up) and its bom.csv when it was last checked, so a later check
+  // can tell whether the parts list belongs to a different repository or an older bom.csv.
+  bomRepo: { url: string; csv: string } | null
   note: string
 }
 
@@ -59,6 +62,7 @@ export const emptyDraft = (repoUrl = ''): SubmissionDraft => ({
   screenshots: [],
   items: [],
   bomCsv: '',
+  bomRepo: null,
   note: '',
 })
 
