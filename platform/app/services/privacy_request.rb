@@ -138,7 +138,8 @@ class PrivacyRequest
       "journal_reviews" => forget(JournalReview.where(submission_id: submission_ids).or(JournalReview.where(journal_id: journal_ids))),
       "reviewer_notes" => forget(ReviewerNote.where(project_id: project_ids).or(ReviewerNote.where(submission_id: submission_ids))),
       "grant_payouts" => forget(GrantPayout.where(submission_id: submission_ids).or(GrantPayout.where(user_id: ids))),
-      "hcb_grant_cards" => forget(HcbGrantCard.where(user_id: ids))
+      "hcb_grant_cards" => forget(HcbGrantCard.where(user_id: ids)),
+      "hcb_org_grants" => forget(HcbOrgGrant.where(user_id: ids))
     }
     result["submissions"] = forget(Submission.where(id: submission_ids))
     snapshots = RepoSnapshot.where(user_id: ids).or(RepoSnapshot.where(project_id: project_ids))
@@ -154,6 +155,7 @@ class PrivacyRequest
     JournalReview.where(reviewer_id: ids).update_all(reviewer_id: nil)
     ReviewerNote.where(user_id: ids).update_all(user_id: nil)
     GrantPayout.where(sent_by_id: ids).update_all(sent_by_id: nil)
+    HcbOrgGrant.where(ignored_by_id: ids).update_all(ignored_by_id: nil)
     HcbConnection.where(connected_by_id: ids).delete_all
     result
   end

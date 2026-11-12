@@ -3,13 +3,15 @@
 #
 # Table name: hcb_connections
 #
-#  id               :bigint           not null, primary key
-#  access_token     :text
-#  refresh_token    :text
-#  token_expires_at :datetime
-#  created_at       :datetime         not null
-#  updated_at       :datetime         not null
-#  connected_by_id  :bigint           not null
+#  id                :bigint           not null, primary key
+#  access_token      :text
+#  ledger_checked_at :datetime
+#  ledger_error      :text
+#  refresh_token     :text
+#  token_expires_at  :datetime
+#  created_at        :datetime         not null
+#  updated_at        :datetime         not null
+#  connected_by_id   :bigint           not null
 #
 # Indexes
 #

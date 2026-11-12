@@ -194,14 +194,17 @@ Rails.application.routes.draw do
       resources :grants, only: :index do
         member do
           post :send_now
-          post :retry
+          post :check
           post :mark_sent
         end
         collection do
           get :connect, as: :hcb_connect
           get :callback, as: :hcb_callback
+          post :sync, as: :hcb_sync
         end
       end
+      # Fallen's copy of the card grants in the HCB org (HcbOrgGrant): leave one out of the ledger, or count it again.
+      resources :hcb_grants, only: :update
       resources :streak_adjustments, only: %i[create destroy]
 
       get "stats" => "stats#show", as: :stats

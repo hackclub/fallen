@@ -51,6 +51,35 @@ module ActiveSupport
     ensure
       previous.each { |k, v| ENV[k] = v }
     end
+
+    # HCB's card grant API, in memory: `hcb` is the org's grants as HCB lists them, and creates and top-ups change it.
+    # `lose_reply: true` makes the next write reach HCB and then time out, the case that pays people twice.
+    def with_fake_hcb(grants = [])
+      hcb = { grants:, lose_reply: false }
+      reply = ->(value) { hcb[:lose_reply] ? (hcb[:lose_reply] = false; raise Faraday::TimeoutError) : value }
+      fakes = {
+        writes_allowed?: -> { true },
+        org_card_grants: -> { hcb[:grants].map(&:dup) },
+        create_card_grant: lambda { |amount_cents:, email:, purpose:|
+          grant = { id: "cdg_#{hcb[:grants].size + 1}", email:, amount_cents:, balance_cents: amount_cents, status: "active",
+                    expires_on: (Date.current + 1.month).iso8601, purpose: }
+          hcb[:grants] << grant
+          reply.(grant)
+        },
+        topup_card_grant: lambda { |id, amount_cents:|
+          grant = hcb[:grants].find { it[:id] == id }
+          raise Faraday::ForbiddenError, "not active" unless grant[:status] == "active"
+
+          grant[:amount_cents] += amount_cents
+          reply.(grant)
+        }
+      }
+      originals = fakes.keys.to_h { [ it, Hcb.method(it) ] }
+      fakes.each { |name, fake| Hcb.define_singleton_method(name, &fake) }
+      yield hcb
+    ensure
+      originals&.each { |name, original| Hcb.define_singleton_method(name, original) }
+    end
   end
 end
 

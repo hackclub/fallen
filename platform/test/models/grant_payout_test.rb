@@ -42,42 +42,97 @@ class GrantPayoutTest < ActiveSupport::TestCase
   end
 
   test "the first payout makes the person's card, the next one tops it up" do
-    stub_method(Hcb, :create_card_grant, { id: "cdg_1", email: "m@example.com" }) { @payout.send! }
-    assert @payout.reload.sent?
-    assert_equal "cdg_1", @payout.hcb_reference
+    with_fake_hcb do |hcb|
+      @payout.send!
+      assert @payout.reload.sent?
+      assert_equal "cdg_1", @payout.hcb_reference
 
-    topped = []
-    second = GrantPayout.create!(submission: submit_design(projects(:unlinked)), user: @submission.user, amount_cents: 300)
-    Hcb.define_singleton_method(:topup_card_grant) { |id, amount_cents:| topped << [ id, amount_cents ] }
-    second.send!
-    assert second.reload.sent?
-    assert_equal [ [ "cdg_1", 300 ] ], topped
-    assert_equal 1000, @payout.hcb_grant_card.reload.amount_cents
-  ensure
-    Hcb.singleton_class.remove_method(:topup_card_grant) if Hcb.singleton_methods(false).include?(:topup_card_grant) && topped
-    load Rails.root.join("app/services/hcb.rb")
+      second = GrantPayout.create!(submission: submit_design(projects(:unlinked)), user: @submission.user, amount_cents: 300)
+      second.send!
+      assert second.reload.sent?
+      assert_equal [ 1000 ], hcb[:grants].pluck(:amount_cents), "topped up, not a second card"
+      assert_equal 1000, @payout.hcb_grant_card.reload.amount_cents
+    end
   end
 
-  test "not connected leaves it waiting; a failed call is never retried by itself" do
+  test "not connected leaves it waiting" do
     @payout.send!
     assert @payout.reload.pending?
     assert_match "connected", @payout.error
-
-    Hcb.define_singleton_method(:create_card_grant) { |**| raise Faraday::TimeoutError }
-    @payout.send!
-    assert @payout.reload.failed?
-    assert_match "check there", @payout.error
-    @payout.send!
-    assert @payout.reload.failed?, "a failed send isn't tried again until an admin says it didn't go through"
-
-    @payout.retry!
-    assert @payout.reload.pending?
-  ensure
-    load Rails.root.join("app/services/hcb.rb")
   end
 
-  test "an admin marks one sent by hand" do
-    @payout.mark_sent!(by: users(:admin), reference: "cdg_hand")
+  test "a send that reached HCB but timed out is never sent again; Check HCB marks it sent" do
+    with_fake_hcb do |hcb|
+      hcb[:lose_reply] = true
+      @payout.send!
+      assert @payout.reload.failed?
+      assert_match "Check HCB", @payout.error
+
+      @payout.send!
+      assert @payout.reload.failed?, "a failed send isn't tried again by itself"
+
+      @payout.check_hcb!
+      assert @payout.reload.sent?
+      assert_equal "cdg_1", @payout.hcb_reference
+      assert_equal 1, hcb[:grants].size
+      assert_equal @payout.hcb_grant_card, @submission.user.hcb_grant_cards.active.sole, "adopts the card HCB made"
+    end
+  end
+
+  test "a send that never reached HCB goes back to unsent on Check HCB" do
+    with_fake_hcb do
+      @payout.update!(status: "failed", error: "Faraday::TimeoutError")
+      @payout.check_hcb!
+      assert @payout.reload.pending?
+    end
+  end
+
+  test "a send that is still in flight isn't checked" do
+    with_fake_hcb do
+      @payout.update!(status: "sending")
+      @payout.check_hcb!
+      assert @payout.reload.sending?
+    end
+  end
+
+  test "nothing is sent while HCB shows money Fallen doesn't know about" do
+    with_fake_hcb([ { id: "cdg_hand", email: @submission.user.email, amount_cents: 700, status: "active", purpose: "made by hand" } ]) do |hcb|
+      @payout.send!
+      assert @payout.reload.failed?
+      assert_match "HCB shows $7", @payout.error
+      assert_equal [ "cdg_hand" ], hcb[:grants].pluck(:id), "nothing new on HCB"
+
+      @payout.check_hcb!
+      assert @payout.reload.sent?, "the hand-made grant is exactly this payout, so it counts as sent"
+    end
+  end
+
+  test "an expired card isn't topped up; a new one is made" do
+    with_fake_hcb do |hcb|
+      @payout.send!
+      hcb[:grants].first[:status] = "expired"
+
+      second = GrantPayout.create!(submission: submit_design(projects(:unlinked)), user: @submission.user, amount_cents: 300)
+      second.send!
+      assert second.reload.sent?
+      assert_equal [ 700, 300 ], hcb[:grants].pluck(:amount_cents)
+      assert_equal "expired", @payout.hcb_grant_card.reload.status
+    end
+  end
+
+  test "a card about to expire isn't topped up either" do
+    with_fake_hcb do |hcb|
+      @payout.send!
+      hcb[:grants].first[:expires_on] = Date.tomorrow.iso8601
+
+      second = GrantPayout.create!(submission: submit_design(projects(:unlinked)), user: @submission.user, amount_cents: 300)
+      second.send!
+      assert_equal 2, hcb[:grants].size
+    end
+  end
+
+  test "an admin marks one sent by hand, and the grant's link becomes its reference" do
+    @payout.mark_sent!(by: users(:admin), reference: "https://hcb.hackclub.com/grants/cdg_hand")
     assert_equal %w[sent manual cdg_hand], @payout.reload.attributes.values_at("status", "via", "hcb_reference")
   end
 end

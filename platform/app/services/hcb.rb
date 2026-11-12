@@ -24,6 +24,9 @@ module Hcb
   def exchange_code(code, redirect_uri) = token(grant_type: "authorization_code", code:, redirect_uri:)
   def refresh(refresh_token) = token(grant_type: "refresh_token", refresh_token:)
 
+  # Every card grant in the organization, however it was made. One unpaginated list.
+  def org_card_grants = authed.get("/api/v4/organizations/#{organization_id}/card_grants", { expand: "balance_cents" }).body
+
   def card_grant(id) = authed.get("/api/v4/card_grants/#{id}", { expand: "balance_cents" }).body
 
   def create_card_grant(amount_cents:, email:, purpose:)

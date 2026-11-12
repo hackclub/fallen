@@ -3,7 +3,8 @@
 # as the review is in; otherwise (or when sending fails) an admin sends it on HCB and marks it here (/admin/grants).
 #
 # Sending is "at most once": the row is marked "sending" and committed before HCB is called, so a crash or a timeout
-# mid-call leaves it failed for an admin to check on HCB, never sent twice.
+# mid-call leaves it failed, never sent twice. Before calling HCB it checks that HCB's total for the person matches what
+# Fallen has sent (GrantLedger), and a failed one is settled from HCB's numbers by check_hcb!, not by someone's eye.
 # == Schema Information
 #
 # Table name: grant_payouts
@@ -66,7 +67,8 @@ class GrantPayout < ApplicationRecord
     return unless GrantPayout.where(id:, status: "pending").update_all(status: "sending", error: nil, updated_at: Time.current) == 1
 
     reload
-    card = user.hcb_grant_cards.active.first
+    GrantLedger.check!(user)
+    card = top_up_card
     if card
       Hcb.topup_card_grant(card.hcb_id, amount_cents:)
       card.update!(amount_cents: card.amount_cents + amount_cents, last_synced_at: Time.current)
@@ -75,22 +77,66 @@ class GrantPayout < ApplicationRecord
       card = HcbGrantCard.create!(user:, hcb_id: data[:id], email: data[:email] || user.email, amount_cents:, last_synced_at: Time.current)
     end
     update!(status: "sent", via: "auto", hcb_grant_card: card, hcb_reference: card.hcb_id, sent_at: Time.current)
+    GrantLedgerSyncJob.perform_later
+  rescue GrantLedger::Mismatch => e
+    update!(status: "failed", error: e.message)
+    Sentry.capture_message("HCB and Fallen disagree on a person's design funding", level: :warning, extra: { payout: public_id, error: e.message })
   rescue Hcb::Error, KeyError => e
     update!(status: "pending", error: e.message)
   rescue StandardError => e
-    update!(status: "failed", error: "#{e.class}: #{e.message.truncate(500)}. It may have reached HCB: check there before sending again.")
+    update!(status: "failed", error: "#{e.class}: #{e.message.truncate(500)}. It may have reached HCB: use Check HCB before sending again.")
     Sentry.capture_exception(e)
   end
 
-  # An admin sent it on HCB by hand, or checked that a failed send went through.
+  # Settles a failed (or stuck) send from HCB's own numbers: if HCB holds exactly this much more than Fallen has sent
+  # the person, it went through; if HCB matches Fallen, it didn't and it goes back to unsent; anything else is left
+  # for a person to sort out on HCB.
+  def check_hcb!
+    return unless failed? || (sending? && updated_at < GrantLedger::SENDING_GRACE.ago)
+
+    GrantLedger.sync!
+    extra = GrantLedger.paid_cents(user) - GrantLedger.sent_cents(user)
+    if extra == amount_cents
+      landed!
+    elsif extra.zero?
+      update!(status: "pending", error: nil)
+    else
+      update!(status: "failed", error: "HCB shows #{Money.format(extra)} more than Fallen has sent #{user.email}, which doesn't match " \
+        "this #{Money.format(amount_cents)}. Sort it out on HCB, then Mark sent or Check HCB again.")
+    end
+  rescue Hcb::Error => e
+    update!(error: e.message)
+  end
+
+  # An admin sent it on HCB by hand. With the grant's id (or link) as the reference, the ledger ties that grant to
+  # this person even when HCB has it under another email.
   def mark_sent!(by:, reference:)
     raise ActiveRecord::RecordInvalid, self if sent?
 
-    update!(status: "sent", via: "manual", sent_by: by, hcb_reference: reference.to_s.strip.presence, sent_at: Time.current, error: nil)
+    update!(status: "sent", via: "manual", sent_by: by, hcb_reference: reference.to_s[/cdg_\w+/] || reference.to_s.strip.presence, sent_at: Time.current, error: nil)
   end
 
-  # After an admin checked HCB and the failed send didn't go through.
-  def retry!
-    update!(status: "pending", error: nil) if failed? || sending?
+  private
+
+  # The person's card to top up, unless HCB has closed it or it is about to expire; then a new one is made.
+  def top_up_card
+    card = user.hcb_grant_cards.active.first
+    copy = card && HcbOrgGrant.find_by(hcb_id: card.hcb_id)
+    return card if card.nil? || !Hcb.writes_allowed? || (copy&.status == "active" && !copy.expires_soon?)
+
+    card.update!(status: copy&.status.presence_in(%w[canceled expired]) || "expired")
+    nil
+  end
+
+  def landed!
+    card = user.hcb_grant_cards.active.first
+    card ? card.update!(amount_cents: card.amount_cents + amount_cents, last_synced_at: Time.current) : card = adopt_card
+    update!(status: "sent", via: "auto", hcb_grant_card: card, hcb_reference: card&.hcb_id, sent_at: Time.current, error: nil)
+  end
+
+  # A create that reached HCB but never got back to Fallen: the newest grant to this person that no card points at.
+  def adopt_card
+    grant = HcbOrgGrant.counted.where(user:).where.not(hcb_id: HcbGrantCard.select(:hcb_id)).order(:id).last
+    grant && HcbGrantCard.create!(user:, hcb_id: grant.hcb_id, email: grant.email, amount_cents:, last_synced_at: Time.current)
   end
 end

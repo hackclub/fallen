@@ -129,7 +129,12 @@ class QueryBudgetTest < ActionDispatch::IntegrationTest
     assert_query_budget(9) { load_deferred(admin_transfers_path, "Admin/Transfers/Index", "transfers", "pagy", "counts") }
     assert_query_budget(6) { get admin_transfer_path(project_transfers(:stardance)) }
     assert_query_budget(5) { get admin_grants_path }
-    assert_query_budget(8) { load_deferred(admin_grants_path, "Admin/Grants/Index", "payouts", "pagy", "totals") }
+    # With HCB connected and checked: one person HCB and Fallen disagree about, one grant to an unknown email.
+    HcbConnection.create!(connected_by: users(:admin), access_token: "t", token_expires_at: 1.hour.from_now, ledger_checked_at: Time.current)
+    HcbOrgGrant.create!(hcb_id: "cdg_a", email: users(:member).email, user: users(:member), amount_cents: 500, status: "active", synced_at: Time.current)
+    HcbOrgGrant.create!(hcb_id: "cdg_b", email: "nobody@example.com", amount_cents: 200, status: "active", synced_at: Time.current)
+    assert_query_budget(11) { load_deferred(admin_grants_path, "Admin/Grants/Index", "payouts", "pagy", "totals", "ledger") }
+    assert_query_budget(10) { load_deferred(admin_grants_path(tab: "hcb"), "Admin/Grants/Index", "grants", "pagy", "ledger") }
     assert_query_budget(3) { get admin_streaks_path }
     assert_query_budget(3) { get admin_workshop_rsvps_path }
     assert_query_budget(5) { load_deferred(admin_workshop_rsvps_path, "Admin/WorkshopRsvps/Index", "rsvps", "pagy", "counts") }

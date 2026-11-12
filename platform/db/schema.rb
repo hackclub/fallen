@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_10_222034) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_11_210000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -180,6 +180,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_10_222034) do
     t.datetime "token_expires_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.datetime "ledger_checked_at"
+    t.text "ledger_error"
     t.index ["connected_by_id"], name: "index_hcb_connections_on_connected_by_id"
   end
 
@@ -196,6 +198,26 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_10_222034) do
     t.index ["hcb_id"], name: "index_hcb_grant_cards_on_hcb_id", unique: true
     t.index ["user_id"], name: "index_hcb_grant_cards_on_user_id"
     t.index ["user_id"], name: "index_hcb_grant_cards_one_active_per_user", unique: true, where: "((status)::text = 'active'::text)"
+  end
+
+  create_table "hcb_org_grants", force: :cascade do |t|
+    t.string "hcb_id", null: false
+    t.string "email", null: false
+    t.bigint "user_id"
+    t.integer "amount_cents", null: false
+    t.integer "balance_cents"
+    t.string "status", null: false
+    t.date "expires_on"
+    t.string "purpose"
+    t.datetime "ignored_at"
+    t.bigint "ignored_by_id"
+    t.datetime "synced_at", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["email"], name: "index_hcb_org_grants_on_email"
+    t.index ["hcb_id"], name: "index_hcb_org_grants_on_hcb_id", unique: true
+    t.index ["ignored_by_id"], name: "index_hcb_org_grants_on_ignored_by_id"
+    t.index ["user_id"], name: "index_hcb_org_grants_on_user_id"
   end
 
   create_table "huddle_events", force: :cascade do |t|
@@ -1013,6 +1035,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_10_222034) do
   add_foreign_key "grant_payouts", "users", column: "sent_by_id"
   add_foreign_key "hcb_connections", "users", column: "connected_by_id"
   add_foreign_key "hcb_grant_cards", "users"
+  add_foreign_key "hcb_org_grants", "users"
+  add_foreign_key "hcb_org_grants", "users", column: "ignored_by_id"
   add_foreign_key "huddle_pauses", "users"
   add_foreign_key "huddle_sessions", "huddles"
   add_foreign_key "huddle_sessions", "users"
