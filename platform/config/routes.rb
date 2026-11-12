@@ -24,6 +24,9 @@ Rails.application.routes.draw do
   # The workshop sign-up (WorkshopRsvp), linked only from the invite email.
   get "workshops/rsvp" => "workshop_rsvps#new", as: :workshop_rsvp
   post "workshops/rsvp" => "workshop_rsvps#create"
+  # The Tamagotchi workshop guide, shared with attendees on the day.
+  get "tamagotchi-guide" => "workshop_guides#guide", as: :tamagotchi_guide
+  get "tamagotchi(/:page)" => "workshop_guides#show", as: :workshop_guide, constraints: { page: /[a-z0-9-]+/ }
   get "rsvp", as: nil, to: redirect { |_params, req| "/workshops/rsvp#{"?#{req.query_string}" if req.query_string.present?}" }
 
   # Hack Club Auth (OAuth)

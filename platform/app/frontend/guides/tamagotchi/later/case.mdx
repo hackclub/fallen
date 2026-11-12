@@ -1,0 +1,35 @@
+---
+title: Design a case
+order: 6
+group: After the workshop
+---
+
+A case protects your board and makes it feel like a real Tamagotchi. Design is iterative: expect to try a few versions. You can do this in Onshape or any CAD app.
+
+## Get your board into CAD
+
+1. In KiCad's PCB editor, export your board as a 3D model: **File → Export → STEP**.
+2. Import the STEP file into your CAD app.
+3. Find 3D models for any extra parts, like the battery plug. Tanuki used [this header model](https://www.3dcontentcentral.com/download-model.aspx?catalogid=171&id=1025256).
+
+New to CAD? Watch [this Onshape tutorial series](https://www.youtube.com/watch?v=d4QzBdcQoe0&list=PLGqRUdq5ULsMDOxmu10AGPDIOkzNYu7D7&index=2).
+
+## Design the case
+
+1. **Sketch the outline.** Draw your board's shape, then make shapes that add tolerance (a little extra space) and room for the case walls.
+2. **Make the back.** Add 3D-printed standoffs for the board to sit on, and round the edges with large fillets.
+3. **Make the top.** Leave a small gap (tolerance) between the back plate and the top half so they fit together.
+4. **Add holes** for the battery and the USB-C port.
+5. **Check it.** Use the section view tool to confirm nothing overlaps.
+
+> **USB-C hole size:** the port measures about 7 × 13 mm. Make the hole about 1 mm bigger. A 12.5 × 7.5 mm hole worked on one print but was very tight, so go a little bigger.
+
+> **Battery placement:** standing the battery vertically worked best in the example.
+
+## Tips
+
+- Overhangs, like the battery hole, can cause printing issues, but a small amount of bridging should be fine.
+- Don't copy the example 1:1. Your design should be yours.
+- See [Tanuki's Onshape](https://cad.onshape.com/documents/fa5791d8e7f345b436054923/w/ad8e09905eb572b0a8a40e9d/e/e81f06aa82a76dd04f8e6832?renderMode=0&uiState=6990af61d8ec4667253f72ea) for inspiration. Check the feature tree to see every iteration.
+
+> **It's normal if it takes longer than expected.** Printers don't connect, a button stops working after soldering, flashing the wrong COM port... none of it means you did something wrong. If something eats hours with no end in sight, try a completely different approach. #fallen is here to help!

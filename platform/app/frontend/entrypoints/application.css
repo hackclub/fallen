@@ -664,6 +664,9 @@
   & h3 {
     @apply font-montserrat text-lg font-semibold tracking-[-0.02em] text-white;
   }
+  & h4 {
+    @apply font-montserrat font-semibold tracking-[-0.02em] text-white;
+  }
   & strong {
     @apply font-semibold text-cream;
   }
@@ -684,6 +687,23 @@
   }
   & code {
     @apply rounded bg-white/10 px-1 py-0.5 text-[0.9em] text-cream;
+  }
+  & img {
+    @apply h-auto max-w-full rounded-lg;
+  }
+  & hr {
+    @apply border-white/10;
+  }
+  /* Block so a wide table scrolls inside the panel instead of widening the page on a phone. */
+  & table {
+    @apply block max-w-full overflow-x-auto text-sm not-italic;
+  }
+  & th,
+  & td {
+    @apply border border-white/15 px-3 py-1.5;
+  }
+  & th {
+    @apply bg-white/5 font-semibold text-white;
   }
 }
 

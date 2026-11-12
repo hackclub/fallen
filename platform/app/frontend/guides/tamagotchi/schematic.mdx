@@ -1,0 +1,141 @@
+---
+title: 1. Draw the circuit
+order: 3
+group: Workshop
+---
+
+A **schematic** is like a wiring diagram: it describes which components should be connected to each other. It doesn't say where they'll be placed on the board, and it doesn't physically connect them. The real connections get drawn later in the **PCB Editor**.
+
+**The brain:** the **XIAO ESP32-C3** is a tiny computer called a microcontroller (MCU). It runs your code and controls everything else. It also has WiFi, Bluetooth and a built-in battery charger!
+
+## Add the XIAO
+
+Press **A** to open the symbol library and search for `XIAO-ESP32-C3`. Click it, then click anywhere on the sheet to place it.
+
+![The XIAO-ESP32-C3 placed on the schematic sheet.](/guides/tamagotchi/schematic-xiao.png)
+
+### Power symbols
+
+Press **P** to open the Power Symbol Library (pressing **A** opens the entire symbol library, which includes power symbols, but is slower). Search for `+5V`.
+
+Press **W** or click on the end of a pin to start drawing a wire, and connect the **VBUS** pin (pin 14) on our XIAO to the `+5V` symbol.
+
+Here we are defining that the VBUS pin is connected to the +5V net. VBUS gets its power from the USB-C port, so this net is 5 volts whenever we're plugged in!
+
+Next, connect the rest of the power pins the same way:
+
+- **GND** (pin 13) → a `GND` symbol. Press **P** and type "GND".
+- **3V3_OUT** (pin 12) → a `+3V3` symbol. This is the 3.3 volts the XIAO makes for us, and most of our parts run on it.
+- **VBAT** (pin 21) → a `+BATT` symbol. This is where the battery connects.
+- **GND** (pin 22) → another `GND` symbol.
+
+**What is Ground?**
+
+> Ground is the **common** reference point of a circuit. We call it 0 V, and the voltage of other circuit nodes is normally described relative to it. Ground is one large net, connected to any component that requires a return path.
+>
+> GND is a net name, meaning anything connected to the GND symbol will be connected to the ground net.
+
+When you're done, it should look like this:
+
+![The XIAO with its power pins connected to +5V, GND, +3V3 and +BATT symbols.](/guides/tamagotchi/schematic-power.png)
+
+## Add the screen
+
+Press **A** and search for `OLED-0.96in-I2C` in the symbol library. Click it, then place it to the left of the XIAO.
+
+Now we need to connect the screen:
+
+- **VCC** → a `+3V3` symbol. I checked the datasheet attached on the LCSC page and found that VCC should be connected to 3V3.
+- **GND** → a `GND` symbol.
+- **SDA** → pin 5 (**D4**) on the XIAO.
+- **SCL** → pin 6 (**D5**) on the XIAO.
+
+Pin 5 on the microcontroller is SDA and pin 6 is SCL. These are the XIAO's I2C pins, so make sure the screen's SDA goes to pin 5 and its SCL goes to pin 6!
+
+![The OLED screen connected to the XIAO and the power symbols.](/guides/tamagotchi/schematic-oled.png)
+
+**What are SDA, SCL, and GND?**
+
+> - **GND** = Ground, the common reference point for all electrical signals.
+> - **SDA** = Serial Data, the line that carries data back and forth over I2C.
+> - **SCL** = Serial Clock, the line that provides the timing signal for I2C communication.
+>
+> I2C is a protocol that lets multiple devices talk over just two wires (SDA + SCL).
+
+## Add three buttons
+
+Press **A** and search for `SW_Push` in the symbol library. Click it, then place it to the left of the XIAO. Do this two more times so you have three buttons (SW1, SW2 and SW3), since a Tamagotchi has three!
+
+Press **W** to start drawing wires:
+
+- Connect one side of each button to a `GND` symbol. Press **P** and type "GND". All three buttons can share the same one.
+- Connect the other side of **SW1** to **D1** (pin 2), **SW2** to **D2** (pin 3), and **SW3** to **D3** (pin 4) on the XIAO.
+
+![Three SW_Push buttons wired to GND and to pins D1, D2 and D3 of the XIAO.](/guides/tamagotchi/schematic-buttons.png)
+
+**What is a GPIO pin?**
+
+> GPIO stands for _General Purpose Input/Output_. These are the programmable pins on your microcontroller that can be configured as either inputs (to read sensors and buttons) or outputs (to drive LEDs and other parts). On the XIAO, pins like D0–D10 are GPIOs.
+
+**Why no resistors?**
+
+> The XIAO has a built-in pull-up. When a button isn't pressed, its pin reads HIGH. When you press it, the pin is connected to ground and reads LOW. So a button only needs to connect a pin to GND!
+
+## Add the battery
+
+Press **A** and search for `Battery_Cell` in the symbol library. Click it, then place it to the right of the XIAO.
+
+The XIAO has built-in battery charging, so all we need to do is connect a LiPo battery to the VBAT pin. This lets the board run wirelessly, and it charges the battery automatically whenever you plug in USB-C!
+
+Press **W** to start drawing wires:
+
+- Connect the **+** side of the battery to a `+BATT` symbol. Press **P** and search for "+BATT". This is the same net as the XIAO's VBAT pin (pin 21).
+- Connect the other side of the battery to a `GND` symbol.
+
+Here we are defining that the battery is on the +BATT net, so it's connected to the XIAO's VBAT pin. VBAT only connects to the battery, since it's a dedicated charging pin, separate from the main 3.3V power rail. GND, however, is shared across everything on the board, since all the components need a common ground reference to work correctly.
+
+## Add no-connect flags
+
+Last step! Every pin we aren't using needs a no-connect flag. Press **Q** and click on the end of a pin to place a small **X**. Do this for every pin on the XIAO that doesn't have a wire: **D0**, **D6**, **D7**, **D8**, **D9/BOOT**, **D10**, and the pins along the top (15 to 20).
+
+**What is a no-connect flag?**
+
+> A no-connect flag (the little **X**) tells KiCad that you left a pin empty on purpose. Without it, KiCad's checker will warn you that the pin might have been forgotten.
+
+> In schematics, inputs are generally placed on the left and outputs on the right. It's a common convention that makes a schematic easier to read, since signals flow left to right like reading a book. You don't have to follow it strictly, but it's good practice to stay consistent!
+
+## Assign footprints
+
+Our schematic is done, but KiCad still needs to know what each part looks like on the board. Click **Tools → Assign Footprints** (or the Assign Footprints button on the top bar). A window opens with all of your parts on the left, and every footprint KiCad knows about on the right.
+
+**What is a footprint?**
+
+> A footprint defines the physical layout of a part on the PCB: the copper pads you solder it to, its mounting holes, and the markings around it. The symbol is how the part looks in the schematic, and the footprint is how it looks on the board. Every symbol needs a footprint!
+
+Click a part on the left, then double-click its footprint on the right to assign it. To find a footprint quickly, paste its name into the filter box at the top. Use these:
+
+| Part          | Symbol            | Footprint                                                    |
+| ------------- | ----------------- | ------------------------------------------------------------ |
+| BT1           | `Battery_Cell`    | `Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical` |
+| SW1, SW2, SW3 | `SW_Push`         | `Button_Switch_THT:SW_PUSH_6mm`                              |
+| U1            | `XIAO-ESP32-C3`   | `tamagotchi:XIAO-ESP32-C3`                                   |
+| U2            | `OLED-0.96in-I2C` | `tamagotchi:OLED-0.96in-I2C`                                 |
+
+Your window should look like this when you're done:
+
+![The Assign Footprints window with a footprint assigned to every part.](/guides/tamagotchi/assign-footprints.jpg)
+
+Click **Apply, Save Schematic & Continue**, then press **OK**.
+
+## Checkpoint 1
+
+Your schematic should look like this:
+
+![The finished schematic, with the battery connected and no-connect flags on the unused pins.](/guides/tamagotchi/schematic-final.png)
+
+- ☐ Every part is wired
+- ☐ Unused pins have X flags
+- ☐ Every part has a footprint
+- ☐ Saved with Ctrl+S
+
+> **If something's wrong:** click **Inspect → Electrical Rules Checker → Run**. It lists mistakes. For this workshop, you can ignore "power pin not driven" warnings.

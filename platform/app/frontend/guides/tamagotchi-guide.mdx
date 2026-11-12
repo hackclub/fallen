@@ -1,0 +1,344 @@
+I'm making my own Tamagotchi! It has a tiny screen, three buttons and a battery, and you can plug it in over USB-C to charge it and program it. This is the whole build, start to finish, and you don't need any hardware experience to follow along :)
+
+> **Don't copy mine!** Your Tamagotchi should NOT look like mine at the end. Change the shape, move things around, add your own art. That's the fun part!
+
+## The Final PCB:
+
+_(screenshot: the finished PCB in KiCad)_
+
+## The Final Product!
+
+_(photo: the finished Tamagotchi)_
+
+## Setting Up
+
+Before anything else, you'll need KiCad. It's free, and it's what we'll draw the circuit and the board in.
+
+1. Download the **stable release** from [kicad.org/download](https://www.kicad.org/download/). Pick your operating system (most Windows PCs want 64-bit), then the download location closest to you.
+2. Run the installer. The defaults are fine, **including the default libraries**.
+3. Download my parts zip: [tamagotchi-resources.zip](https://cdn.hackclub.com/01a1d1e5-1c6d-7b2e-aa53-1510ce5b848e/tamagotchi-resources.zip), and unzip it. KiCad doesn't come with the microcontroller or the screen we'll be using, so it has their symbols and footprints.
+4. **Import the symbol library.** Click **Preferences → Manage Symbol Libraries**, and on the **Global Libraries** tab click the **folder icon** (Add Existing). Select `tamagotchi.kicad_sym` from the folder you unzipped, then press **OK**.
+
+![The Symbol Libraries window in KiCad. The folder icon at the bottom left is Add Existing.](/guides/tamagotchi/symbol-libraries.png)
+
+5. **Import the footprint library.** Click **Preferences → Manage Footprint Libraries**, and on the **Global Libraries** tab click the **folder icon** (Add Existing). Select the `tamagotchi.pretty` folder, then press **OK**.
+6. **Make a new project** with **File → New Project**, then double-click the schematic file (`.kicad_sch`) to open it.
+
+These are the keys I use the most. Save with **Ctrl+S** every few minutes!
+
+| Key    | What it does                      |
+| ------ | --------------------------------- |
+| **A**  | Add a part                        |
+| **W**  | Draw a wire                       |
+| **P**  | Add a power symbol                |
+| **M**  | Move                              |
+| **R**  | Rotate                            |
+| **X**  | Route a trace                     |
+| **V**  | Switch sides with a via           |
+| **F8** | Update the PCB from the schematic |
+
+## Making the Schematic
+
+A schematic is like a wiring diagram: it describes which components should be connected to each other. It doesn't say where they'll be placed on the board, and it doesn't physically connect them. I'll draw the real connections later in the **PCB Editor**.
+
+**What is an MCU?**
+
+> MCU stands for _microcontroller unit_. It's the tiny computer (the brain) of the project. It runs your code and controls everything else. I'm using the **XIAO ESP32-C3** because it's small, has WiFi and Bluetooth, and even charges a battery for me, so I don't need a charger chip!
+
+Open the schematic file, press **A** to open the symbol library, and search for `XIAO-ESP32-C3`. I click it and place it anywhere on the sheet.
+
+![The XIAO-ESP32-C3 placed on the schematic sheet.](/guides/tamagotchi/schematic-xiao.png)
+
+### Power symbols
+
+Now I give it power. Press **P** to open the Power Symbol Library (pressing **A** opens the entire symbol library, which includes power symbols, but is slower). I search for `+5V`.
+
+Then I press **W** (or click on the end of a pin) to start drawing a wire, and connect the **VBUS** pin (pin 14) to the `+5V` symbol. Here we are defining that VBUS is connected to the +5V net. It gets its power from the USB-C port, so this net is 5 volts whenever I'm plugged in!
+
+I connect the rest of the power pins the same way:
+
+- **GND** (pin 13) → a `GND` symbol. Press **P** and type "GND".
+- **3V3_OUT** (pin 12) → a `+3V3` symbol. This is the 3.3 volts the XIAO makes for us, and most of my parts run on it.
+- **VBAT** (pin 21) → a `+BATT` symbol. This is where the battery connects.
+- **GND** (pin 22) → another `GND` symbol.
+
+**What is Ground?**
+
+> Ground is the **common** reference point of a circuit. We call it 0 V, and the voltage of other circuit nodes is normally described relative to it. Ground is one large net, connected to any component that requires a return path.
+>
+> GND is a net name, meaning anything connected to the GND symbol will be connected to the ground net.
+
+![The XIAO with its power pins connected to +5V, GND, +3V3 and +BATT symbols.](/guides/tamagotchi/schematic-power.png)
+
+### The screen
+
+I'm using a little OLED screen. I press **A**, search for `OLED-0.96in-I2C`, and place it to the left of the XIAO. Then I connect it:
+
+- **VCC** → a `+3V3` symbol. I checked the datasheet attached on the LCSC page and found that VCC should be connected to 3V3.
+- **GND** → a `GND` symbol.
+- **SDA** → pin 5 (**D4**) on the XIAO.
+- **SCL** → pin 6 (**D5**) on the XIAO.
+
+Pin 5 on the microcontroller is SDA and pin 6 is SCL. These are the XIAO's I2C pins, so I make sure the screen's SDA goes to pin 5 and its SCL goes to pin 6!
+
+![The OLED screen connected to the XIAO and the power symbols.](/guides/tamagotchi/schematic-oled.png)
+
+**What are SDA, SCL, and GND?**
+
+> - **GND** = Ground, the common reference point for all electrical signals.
+> - **SDA** = Serial Data, the line that carries data back and forth over I2C.
+> - **SCL** = Serial Clock, the line that provides the timing signal for I2C communication.
+>
+> I2C is a protocol that lets multiple devices talk over just two wires (SDA + SCL). Normally it needs extra pull-up resistors, but the XIAO already has them built in!
+
+### The buttons
+
+A Tamagotchi needs three buttons. I press **A**, search for `SW_Push`, and place it to the left of the XIAO. Then I do it two more times so I have SW1, SW2 and SW3.
+
+I press **W** to draw the wires:
+
+- One side of each button goes to a `GND` symbol. All three can share the same one.
+- The other side of **SW1** goes to **D1** (pin 2), **SW2** to **D2** (pin 3), and **SW3** to **D3** (pin 4) on the XIAO.
+
+![Three SW_Push buttons wired to GND and to pins D1, D2 and D3 of the XIAO.](/guides/tamagotchi/schematic-buttons.png)
+
+**What is a GPIO pin?**
+
+> GPIO stands for _General Purpose Input/Output_. These are the programmable pins on your microcontroller that can be configured as either inputs (to read sensors and buttons) or outputs (to drive LEDs and other parts). On the XIAO, pins like D0–D10 are GPIOs.
+
+**Why no resistors?**
+
+> The XIAO has _internal pull-ups_. When a button isn't pressed the pin reads HIGH, and when you press it, it connects to ground and reads LOW. This is called _active-low_, and it's the most common way to wire a button because all you need is the button and a ground.
+
+### The battery
+
+I press **A** and search for `Battery_Cell`, then place it to the right of the XIAO. The XIAO has built-in battery charging, so all I need to do is connect a LiPo battery to the VBAT pin. This lets the board run wirelessly, and it charges the battery automatically whenever I plug in USB-C!
+
+I press **W** to draw the wires. The **+** side goes to a `+BATT` symbol (press **P** and search "+BATT"), which is the same net as the XIAO's VBAT pin (pin 21). The other side goes to a `GND` symbol.
+
+Here we are defining that the battery is on the +BATT net. VBAT only connects to the battery, since it's a dedicated charging pin, separate from the main 3.3V power rail. GND, however, is shared across everything on the board, since all the components need a common ground reference to work correctly.
+
+### No-connect flags
+
+Last step! Every pin I'm not using needs a no-connect flag. I press **Q** and click on the end of a pin to place a small **X**. I do this for every pin on the XIAO that doesn't have a wire: **D0**, **D6**, **D7**, **D8**, **D9/BOOT**, **D10**, and the pins along the top (15 to 20).
+
+**What is a no-connect flag?**
+
+> A no-connect flag (the little **X**) tells KiCad that I left a pin empty on purpose. Without it, KiCad's checker will warn me that the pin might have been forgotten.
+
+![The finished schematic, with the battery connected and no-connect flags on the unused pins.](/guides/tamagotchi/schematic-final.png)
+
+> In schematics, inputs are generally placed on the left and outputs on the right. It's a common convention that makes a schematic easier to read, since signals flow left to right like reading a book. You don't have to follow it strictly, but it's good practice to stay consistent!
+
+> If you want to double-check, **Inspect → Electrical Rules Checker → Run** shows any mistakes. I ignore the "power pin not driven" warnings.
+
+### Assigning Footprints
+
+My schematic is done, but KiCad still needs to know what each part looks like on the board. I click **Tools → Assign Footprints** (or the Assign Footprints button on the top bar). A window opens with all of my parts on the left, and every footprint KiCad knows about on the right.
+
+**What is a footprint?**
+
+> A footprint defines the physical layout of a part on the PCB: the copper pads you solder it to, its mounting holes, and the markings around it. The symbol is how the part looks in the schematic, and the footprint is how it looks on the board. Every symbol needs a footprint!
+
+I click a part on the left, then double-click its footprint on the right. To find one quickly, I paste its name into the filter box at the top. This is what I ended up with:
+
+| Part          | Symbol            | Footprint                                                    |
+| ------------- | ----------------- | ------------------------------------------------------------ |
+| BT1           | `Battery_Cell`    | `Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical` |
+| SW1, SW2, SW3 | `SW_Push`         | `Button_Switch_THT:SW_PUSH_6mm`                              |
+| U1            | `XIAO-ESP32-C3`   | `tamagotchi:XIAO-ESP32-C3`                                   |
+| U2            | `OLED-0.96in-I2C` | `tamagotchi:OLED-0.96in-I2C`                                 |
+
+![The Assign Footprints window with a footprint assigned to every part.](/guides/tamagotchi/assign-footprints.jpg)
+
+Then I click **Apply, Save Schematic & Continue** and press **OK**.
+
+> **Always check your footprints!** A footprint with a wrong pad number can silently break your circuit. A pin with no net on the PCB almost always means something went wrong. I already fixed the XIAO footprint in the zip, but remember this if you add your own parts.
+
+## Laying out the PCB
+
+A PCB is the real, physical version of the schematic. The copper lines that connect parts are called _traces_.
+
+In the schematic editor, I click **Tools → Switch to PCB Editor**. It's empty at first:
+
+![The empty PCB Editor.](/guides/tamagotchi/pcb-editor-empty.png)
+
+To bring my footprints over, I click the **Update PCB from Schematic** button ![The Update PCB from Schematic button.](/guides/tamagotchi/update-pcb-icon.png) on the top bar (or press **F8**), then click **Update PCB**. I click on the board to drop everything down, and my parts show up tangled in thin blue lines!
+
+![The PCB Editor with every footprint imported in a pile, joined by thin blue lines.](/guides/tamagotchi/pcb-editor-imported.png)
+
+They all land in a pile for now. I'll spread them out next!
+
+> The thin blue lines are called _ratlines_. More on those in a second!
+
+### The board outline
+
+First I tell KiCad where the edge of the board is. In the Layers list on the right, I click **Edge.Cuts**.
+
+**What is Edge.Cuts?**
+
+> The Edge.Cuts layer defines the physical boundary where the PCB will be cut. Everything inside the outline is board, and everything outside gets cut away.
+
+I draw my outline with the drawing tools on the right toolbar (like the line or rectangle tool). It has to be a closed shape with no gaps, and your board can be at most **10 × 10 cm**. A classic Tamagotchi is an egg shape, but you do you :)
+
+I found the default tools a little limiting, so for something more complex I:
+
+1. Drew my outline in Figma (you can use any app!).
+2. Converted the image into a DXF file with an image-to-DXF converter.
+3. Imported the DXF file into KiCad with **File → Import → Graphics**.
+4. Drew a 100 × 100 mm box as a reference and used the measuring tool to check the scale.
+5. Scaled the outline down so it fit within the box.
+
+The tools on the right work well too, so you should try something cool and unique!
+
+### Placing the parts
+
+I drag everything inside the outline. These keys help:
+
+- **M**: move a component
+- **R**: rotate a component
+- **F**: flip a component to the other side of the board
+- **Ctrl+S** / **⌘+S**: save (do this often!)
+
+**What are ratlines?**
+
+> Ratlines are the thin straight blue lines. Each one shows a connection that needs to be made between two pads. Your goal is to arrange components so these lines are as short as possible and don't cross each other, which makes routing much easier.
+
+I put the **screen** in the middle-top, the **buttons** in a row underneath, and the **battery plug** near the edge. The **USB-C** end of the XIAO sits at the edge so I can plug it in. I keep moving parts around until the ratlines are short, and I leave a bit of space around everything. Crowded boards are way harder to route!
+
+![The parts placed inside a round board outline, with ratlines still joining them.](/guides/tamagotchi/pcb-layout.png)
+
+### Ground zone
+
+Before I route, I connect all of the ground pads at once with a **zone**.
+
+**What is a zone?**
+
+> A zone is a filled area of copper that is connected to one net. I'm going to make mine the GND net, so it fills the empty space on the board with copper and connects every GND pad to it automatically. That means way fewer GND wires to route by hand, and it helps reduce noise too!
+
+I click the **Add a filled zone** tool on the right toolbar (or press **Ctrl+Shift+Z**), then click once on the board to start drawing. The **Copper Zone Properties** window opens, and I set it up like this:
+
+- **Layers:** check both **F.Cu** and **B.Cu**
+- **Net name:** **GND**
+- **Clearance:** 0.5 mm
+- **Minimum width:** 0.25 mm
+- **Pad connections:** Thermal reliefs
+- **Thermal relief gap:** 0.5 mm
+- **Thermal spoke width:** 0.5 mm
+- **Corner smoothing:** None
+- **Remove islands:** Always
+
+![The Copper Zone Properties window.](/guides/tamagotchi/zone-properties.png)
+
+I press **OK**, then click around my board to draw a shape that covers the whole outline. It's fine if it goes outside the edge, since the copper gets cut off at the board outline. I double-click to finish the shape.
+
+Now I press **B** to fill the zone. KiCad builds the copper for me!
+
+![The board covered by the filled GND zone.](/guides/tamagotchi/zone-filled.png)
+
+Look at the **Unrouted** number at the bottom left. It dropped from 19 to 10, because every GND pad is now connected through the zone. I only have the other wires left to route!
+
+### Routing
+
+A PCB is made up of multiple layers. Our boards are "two-layer", meaning they have two layers of copper.
+
+**What are the PCB layers?**
+
+> | Layer                       | Description                                                  |
+> | --------------------------- | ------------------------------------------------------------ |
+> | **Top & bottom silkscreen** | The white ink layer where you can add art                    |
+> | **Top & bottom copper**     | The layers where you make your copper wires                  |
+> | **Substrate**               | The actual plastic (usually green) which makes up your board |
+> | **Via**                     | The tunnels which connect the top and bottom copper layers   |
+>
+> ![PCB layers](https://cdn.hackclub.com/019c545f-32f8-71b8-9b46-079aee118944/c2ec73f247fdb1f466903fc86d345fe0f4b47b6f_image.webp)
+
+Now it's time to route the PCB! Hit **X** on your keyboard and click anything with a thin blue line poking out of it. It should dim the entire screen, show you which direction you need to go with a thin blue line, and highlight the destination:
+
+![Routing example](https://cdn.hackclub.com/019c5460-5bb4-737a-8875-2d15ef8f3715/image.png)
+
+**Key routing shortcuts:**
+
+- **X**: Start routing a trace
+- **V**: Add a via (switch trace to the other side of the board mid-route)
+- **Backspace**: Delete the last trace segment while routing
+- **Esc**: Cancel the current route
+- **D**: Drag a trace (reposition it without breaking connections)
+- **U**: Select the entire trace from the point you click
+
+Join the highlighted points together. If there isn't enough space on the front side, or there is a trace already present that is blocking you, you can route on the back side by clicking **B.Cu** on the right toolbar. If you want to change sides during routing, press **V** and a via will be added, which will transfer your trace to the other side of the board.
+
+> **Important:** Traces and pads of different colors (except gold) can't be connected directly! You must use a via to the other side.
+
+**What is a via?**
+
+> A via is a small plated hole that connects a copper trace on one layer of the board to a trace on another layer. Think of it as a tiny tunnel through the PCB. You use them when you can't route a trace on one side because another trace is in the way. Press **V** while routing to drop a via and continue the trace on the other side.
+
+#### Power traces
+
+Not every trace should be the same width. The default is 0.2 mm, which is fine for signals like the buttons and the screen, but power nets (**+BATT**, **+5V** and **+3V3**) carry more current, so I make them wider. GND doesn't need it, since the zone already covers it.
+
+While I'm routing a power trace, I press **W** to open the **Track and Via Dimensions** window. I set it up like this, then press **OK**:
+
+- **Track width:** 0.5 mm
+- **Via diameter:** 0.5 mm
+- **Via hole:** 0.3 mm
+
+![The Track and Via Dimensions window open while routing the +BATT net.](/guides/tamagotchi/track-width.png)
+
+**What is track width?**
+
+> A trace is like a pipe for electricity. A wider trace can carry more current without getting hot, so I use a wider trace for power. The thin default width is plenty for the buttons and the screen.
+
+Your routing is complete!
+
+![Ground plane](https://cdn.hackclub.com/019dafaa-d994-786e-ba6d-d783085a964c/screenshot_2026-04-21_061717.png)
+
+> **Tip:** Place everything based on what shortens the blue lines, and what makes them not cross!
+
+### Final Checks!
+
+Now I run the **Design Rules Check** (the bug icon, then **Run DRC**). It looks for traces that are too close, parts hanging off the board and missing connections. I fix every error. Warnings can usually wait.
+
+> DRC only checks the _board_, not whether the circuit works. That's why I was careful with the schematic!
+
+## The Finished PCB!
+
+I add my name and a little message to the **F.Silkscreen** layer with the text tool. You can also use **File → Image Converter** to turn a picture into silkscreen art. Then I open **View → 3D Viewer** and take a screenshot!
+
+_(screenshot: the 3D view of the finished PCB)_
+
+When you're ready to order, export your Gerber files (**File → Fabrication Outputs → Gerbers**, then **Plot** and **Generate Drill Files**), zip them, and upload them to [JLCPCB](https://jlcpcb.com/) for a price. I keep every default setting except the color, and I **don't** click PCB assembly.
+
+## Adding a Case
+
+I export my board from KiCad as a STEP file (**File → Export → STEP**) and bring it into Onshape. If you're new to CAD, [this tutorial series](https://www.youtube.com/watch?v=d4QzBdcQoe0&list=PLGqRUdq5ULsMDOxmu10AGPDIOkzNYu7D7&index=2) helped me a lot.
+
+Here's what I do:
+
+1. Sketch the outline of my board, then add _tolerance_ (a little extra space) and room for the walls.
+2. Make the back with 3D-printed standoffs for the board to sit on, and add big fillets to round the edges.
+3. Make the top half, leaving a small gap so the two halves fit together.
+4. Add holes for the battery and the USB-C port.
+5. Use the section view tool to make sure nothing overlaps.
+
+> **Make the USB-C hole bigger than you think!** My port measured about 7 × 13 mm. A 12.5 × 7.5 mm hole worked, but it was really tight, so I'd add at least 1 mm.
+
+Design is iterative, and mine took a lot of tries. That's normal! If you get stuck, #fallen is here to help.
+
+## The Finished CAD
+
+_(screenshot: the finished case in Onshape)_
+
+## Programming Your Board
+
+The last step is the code. I program the XIAO with the Arduino IDE over USB-C, and my wiring decides which pins the code uses:
+
+| Part    | Pin                |
+| ------- | ------------------ |
+| Buttons | D1, D2, D3         |
+| Screen  | D4 (SDA), D5 (SCL) |
+
+Follow the [Firmware Setup Tutorial](https://fallout.hackclub.com/docs/guided-projects/tamagotchi-firmware) to get it running. If you moved a wire to a different pin, use that pin in your code!
+
+> Flashing not working? Try a different USB-C cable (some only charge), a different port or a different upload method. And if something is eating hours with no end in sight, it's often faster to try a totally different approach. You've got this!

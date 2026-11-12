@@ -1,0 +1,136 @@
+---
+title: 2. Design the board
+order: 4
+group: Workshop
+---
+
+A **PCB** (printed circuit board) is the physical version of your schematic. Copper lines called **traces** connect the parts.
+
+## Open the PCB Editor
+
+In the schematic editor, click **Tools → Switch to PCB Editor**. A new window opens. It should look like this:
+
+![The empty PCB Editor.](/guides/tamagotchi/pcb-editor-empty.png)
+
+It's empty for now, since we haven't brought any parts over yet. The rectangle with the title block is just the page border, not your board.
+
+## Import your footprints
+
+Click the **Update PCB from Schematic** button ![The Update PCB from Schematic button.](/guides/tamagotchi/update-pcb-icon.png) on the top bar (or press **F8**). A window opens. Click **Update PCB**, then close it.
+
+This sends every footprint we assigned in the schematic over to the PCB. Click anywhere on the board to drop them down. Your footprints show up tangled in thin blue lines!
+
+![The PCB Editor with every footprint imported in a pile, joined by thin blue lines.](/guides/tamagotchi/pcb-editor-imported.png)
+
+They all land in a pile for now. We'll spread them out in a bit!
+
+> The thin blue lines are called **ratlines**. More on those in a second!
+
+> You can press **F8** any time you change the schematic to update the PCB with the latest changes.
+
+## Draw the board outline
+
+Next we need to tell KiCad where the edge of the board is. In the Layers list on the right, click **Edge.Cuts**.
+
+**What is Edge.Cuts?**
+
+> The Edge.Cuts layer defines the physical boundary where the PCB will be cut. Everything inside the outline is board, and everything outside gets cut away.
+
+Use the drawing tools on the right toolbar (like the **line** or **rectangle** tool) to draw the shape of your board. Make sure the outline is a closed shape with no gaps, and keep it under **10 × 10 cm**.
+
+Try something unique: round corners, a heart, an egg! The classic Tamagotchi is an egg shape, so make it big enough to fit the screen and all of the parts.
+
+**Want a fancier outline?**
+
+> The default tools are great, but you can make something more complex too:
+>
+> 1. Draw your outline in any app you like (Figma works!).
+> 2. Convert the image into a DXF file with an image-to-DXF converter.
+> 3. Import the DXF file into KiCad with **File → Import → Graphics**.
+> 4. Draw a 100 × 100 mm box as a reference, and use the measuring tool to check the scale.
+> 5. Scale your outline down so it fits within the box.
+
+## Add a ground zone
+
+Before we route, let's connect all of the ground pads at once with a **zone**.
+
+**What is a zone?**
+
+> A zone is a filled area of copper that is connected to one net. We're going to make ours the GND net, so it fills the empty space on the board with copper and connects every GND pad to it automatically. That means way fewer GND wires to route by hand, and it helps reduce noise too!
+
+Click the **Add a filled zone** tool on the right toolbar (or press **Ctrl+Shift+Z**), then click once on the board to start drawing. The **Copper Zone Properties** window opens. Set it up like this:
+
+- **Layers:** check both **F.Cu** and **B.Cu**
+- **Net name:** **GND**
+- **Clearance:** 0.5 mm
+- **Minimum width:** 0.25 mm
+- **Pad connections:** Thermal reliefs
+- **Thermal relief gap:** 0.5 mm
+- **Thermal spoke width:** 0.5 mm
+- **Corner smoothing:** None
+- **Remove islands:** Always
+
+![The Copper Zone Properties window.](/guides/tamagotchi/zone-properties.png)
+
+Press **OK**, then click around your board to draw a shape that covers the whole outline. It's fine if it goes outside the edge, since the copper gets cut off at the board outline. Double-click to finish the shape.
+
+Now press **B** to fill the zone. KiCad builds the copper for you!
+
+![The board covered by the filled GND zone.](/guides/tamagotchi/zone-filled.png)
+
+Look at the **Unrouted** number at the bottom left. It dropped from 19 to 10, because every GND pad is now connected through the zone. We only have the other wires left to route!
+
+## Routing
+
+A PCB is made up of multiple layers. Our boards are "two-layer", meaning they have two layers of copper.
+
+**What are the PCB layers?**
+
+> | Layer                       | Description                                                  |
+> | --------------------------- | ------------------------------------------------------------ |
+> | **Top & bottom silkscreen** | The white ink layer where you can add art                    |
+> | **Top & bottom copper**     | The layers where you make your copper wires                  |
+> | **Substrate**               | The actual plastic (usually green) which makes up your board |
+> | **Via**                     | The tunnels which connect the top and bottom copper layers   |
+>
+> ![PCB layers](https://cdn.hackclub.com/019c545f-32f8-71b8-9b46-079aee118944/c2ec73f247fdb1f466903fc86d345fe0f4b47b6f_image.webp)
+
+Now it's time to route the PCB! Hit **X** on your keyboard and click anything with a thin blue line poking out of it. It should dim the entire screen, show you which direction you need to go with a thin blue line, and highlight the destination:
+
+![Routing example](https://cdn.hackclub.com/019c5460-5bb4-737a-8875-2d15ef8f3715/image.png)
+
+**Key routing shortcuts:**
+
+- **X**: Start routing a trace
+- **V**: Add a via (switch trace to the other side of the board mid-route)
+- **Backspace**: Delete the last trace segment while routing
+- **Esc**: Cancel the current route
+- **D**: Drag a trace (reposition it without breaking connections)
+- **U**: Select the entire trace from the point you click
+
+Join the highlighted points together. If there isn't enough space on the front side, or there is a trace already present that is blocking you, you can route on the back side by clicking **B.Cu** on the right toolbar. If you want to change sides during routing, press **V** and a via will be added, which will transfer your trace to the other side of the board.
+
+> **Important:** Traces and pads of different colors (except gold) can't be connected directly! You must use a via to the other side.
+
+**What is a via?**
+
+> A via is a small plated hole that connects a copper trace on one layer of the board to a trace on another layer. Think of it as a tiny tunnel through the PCB. You use them when you can't route a trace on one side because another trace is in the way. Press **V** while routing to drop a via and continue the trace on the other side.
+
+Your routing is complete!
+
+![Ground plane](https://cdn.hackclub.com/019dafaa-d994-786e-ba6d-d783085a964c/screenshot_2026-04-21_061717.png)
+
+> **Tip:** Place everything based on what shortens the blue lines, and what makes them not cross!
+
+## Run the Design Rules Check
+
+1. Click the **bug icon** (Design Rules Checker) and press **Run DRC**.
+2. Fix everything in the **Errors** tab. Warnings can usually be ignored.
+
+> **What does DRC check?** Traces too close together, parts off the board, missing connections. It does **not** check that your circuit works. That's why we followed the schematic carefully.
+
+### Checkpoint 2
+
+- ☐ No blue lines left
+- ☐ DRC shows 0 errors
+- ☐ Saved

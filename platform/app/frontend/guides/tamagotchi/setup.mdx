@@ -1,0 +1,52 @@
+---
+title: Setup
+order: 2
+group: Start
+---
+
+## Install KiCad
+
+KiCad is the free app we'll design the circuit board in. Download the **newest stable release** from [kicad.org/download](https://www.kicad.org/download/):
+
+1. Choose your operating system.
+2. Choose the download location closest to you (likely your continent).
+3. After it's downloaded, run the installer (for Windows, run the .exe file). The defaults are fine, including the default libraries.
+
+## Get the starter parts
+
+KiCad doesn't come with the microcontroller or the screen we'll be using, so I made a zip with their symbols (how a part looks in the schematic) and footprints (its shape on the board). **Download [tamagotchi-resources.zip](https://cdn.hackclub.com/01a1d1e5-1c6d-7b2e-aa53-1510ce5b848e/tamagotchi-resources.zip) and unzip it** somewhere you can find it. Then add both libraries to KiCad:
+
+### 1. Import the symbol library
+
+1. Open KiCad and click **Preferences → Manage Symbol Libraries**.
+2. On the **Global Libraries** tab, click the **folder icon** (Add Existing).
+3. Select `tamagotchi.kicad_sym` from the folder you unzipped.
+4. Make sure it shows up in the list, then press **OK**.
+
+![The Symbol Libraries window in KiCad. The folder icon at the bottom left is Add Existing.](/guides/tamagotchi/symbol-libraries.png)
+
+### 2. Import the footprint library
+
+1. In KiCad, click **Preferences → Manage Footprint Libraries**.
+2. On the **Global Libraries** tab, click the **folder icon** (Add Existing).
+3. Select the `tamagotchi.pretty` folder from the folder you unzipped.
+4. Make sure it shows up in the list, then press **OK**.
+
+### 3. Make a new project
+
+1. Click **File → New Project** and pick a name and a place to save it.
+2. In the project, double-click the **schematic** file (`.kicad_sch`) to open it.
+
+## KiCad Shortcuts Reference Table
+
+| Key        | Does                              |
+| ---------- | --------------------------------- |
+| **A**      | Add a part                        |
+| **W**      | Draw a wire                       |
+| **P**      | Add a power symbol (GND, 3V3)     |
+| **M**      | Move                              |
+| **R**      | Rotate                            |
+| **X**      | Route a trace (PCB)               |
+| **V**      | Switch sides with a via (PCB)     |
+| **F8**     | Update the PCB from the schematic |
+| **Ctrl+S** | Save. Do it often!                |

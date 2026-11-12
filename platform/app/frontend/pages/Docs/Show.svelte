@@ -13,6 +13,7 @@
   import SolarPlane from '@/components/icons/SolarPlane.svelte'
   import SolarNotebook from '@/components/icons/SolarNotebook.svelte'
   import SolarRocket from '@/components/icons/SolarRocket.svelte'
+  import SolarSledgehammer from '@/components/icons/SolarSledgehammer.svelte'
   import { docs as docsRoute } from '@/routes'
 
   // One tab per file in app/frontend/docs, named by the file (journaling.mdx is /docs/journaling) and ordered, titled and
@@ -25,6 +26,7 @@
     funding: fundingIcon,
     travel: travelIcon,
     faq: faqIcon,
+    guide: guideIcon,
   }
   const files = import.meta.glob<{
     default: Component
@@ -50,6 +52,7 @@
 {#snippet fundingIcon()}<SolarCard size={24} />{/snippet}
 {#snippet travelIcon()}<SolarPlane size={24} />{/snippet}
 {#snippet faqIcon()}<SolarQuestion size={24} />{/snippet}
+{#snippet guideIcon()}<SolarSledgehammer size={24} />{/snippet}
 
 <svelte:head><title>Docs · Fallen</title></svelte:head>
 
