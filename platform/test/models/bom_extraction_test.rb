@@ -81,6 +81,20 @@ class BomExtractionTest < ActiveSupport::TestCase
     assert_equal "model", snapshot.reload.bom_import["source"]
   end
 
+  test "checking again with the same bom.csv reuses the last reading instead of asking the model" do
+    project = projects(:station)
+    first = RepoSnapshot.create!(project:, user: project.user, url: "https://github.com/someone/thing", status: "done", bom_csv: CSV_TEXT)
+    with_model(answer(FAITHFUL.map { row(**it) })) { first.read_bom! }
+
+    again = RepoSnapshot.create!(project:, user: project.user, url: first.url, status: "done", bom_csv: CSV_TEXT)
+    with_model(OpenRouter::Error.new("should not be asked")) { again.read_bom! }
+    assert_equal first.reload.bom_import, again.reload.bom_import
+
+    changed = RepoSnapshot.create!(project:, user: project.user, url: first.url, status: "done", bom_csv: "#{CSV_TEXT}Wire,1,$2\n")
+    with_model(OpenRouter::Error.new("down")) { changed.read_bom! }
+    assert_equal "parser", changed.reload.bom_import["source"]
+  end
+
   test "a check whose read never happened has it queued again, but not while it's fresh or already read" do
     project = projects(:station)
     snapshot = RepoSnapshot.create!(project:, user: project.user, url: "https://github.com/someone/thing", status: "done", bom_csv: CSV_TEXT, fetched_at: 1.minute.ago)

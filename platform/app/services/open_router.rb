@@ -14,9 +14,9 @@ module OpenRouter
 
   # The model's answer to `system` + `user` as a Hash matching the JSON `schema` (strict structured output). Only
   # providers that support structured output are used, and none that keep or train on what's sent.
-  def json(model:, system:, user:, schema:, max_tokens:)
+  def json(model:, system:, user:, schema:, max_tokens:, effort: nil)
     response = connection.post("/api/v1/chat/completions", {
-      model:, max_tokens:,
+      model:, max_tokens:, **({ reasoning: { effort: } } if effort),
       messages: [ { role: "system", content: system }, { role: "user", content: user } ],
       response_format: { type: "json_schema", json_schema: { name: "answer", strict: true, schema: } },
       provider: { require_parameters: true, data_collection: "deny" }

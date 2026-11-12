@@ -92,7 +92,11 @@ class RepoSnapshot < ApplicationRecord
     BomExtractionJob.perform_later(self)
   end
 
+  # Checking the repo again without touching bom.csv reuses the last reading of it instead of paying for another.
   def read_bom!
+    earlier = RepoSnapshot.where(project_id:).where.not(id:).where.not(bom_import: nil).where(bom_csv:).order(id: :desc).pick(:bom_import)
+    return update!(bom_import: earlier) if earlier
+
     result = BomExtraction.read(bom_csv)
     update!(bom_import: { "items" => result.items.map(&:to_h), "warnings" => result.warnings, "stated_total_cents" => result.stated_total_cents, "source" => result.source })
   end

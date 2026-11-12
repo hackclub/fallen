@@ -6,7 +6,10 @@ require "csv"
 # the list is reworded, corrected or made up. An answer that isn't made of the file's own cells is thrown away, and
 # so is any failure: then the plain parser (BomImport) reads the file instead, so this always has an answer.
 class BomExtraction
-  MODEL = "anthropic/claude-sonnet-5.5"
+  # Matching cells to fields is easy work: a small model thinking a little does it for a twentieth of Sonnet's price,
+  # and a reading that isn't faithful falls back to BomImport anyway.
+  MODEL = "anthropic/claude-haiku-5.5"
+  EFFORT = "low"
   MAX_TOKENS = 32_000
 
   SYSTEM = <<~PROMPT
@@ -66,7 +69,7 @@ class BomExtraction
   def result
     return parsed unless OpenRouter.configured?
 
-    answer = OpenRouter.json(model: MODEL, system: SYSTEM, user: @text, schema: SCHEMA, max_tokens: MAX_TOKENS)
+    answer = OpenRouter.json(model: MODEL, effort: EFFORT, system: SYSTEM, user: @text, schema: SCHEMA, max_tokens: MAX_TOKENS)
     items = answer.fetch("items").first(BomImport::MAX_ROWS).map { |row| item(row) }
     raise Mismatch, "no rows" if items.empty?
 
