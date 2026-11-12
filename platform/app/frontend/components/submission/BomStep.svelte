@@ -269,13 +269,15 @@
                 />
               </td>
               <td class="px-1 py-1.5">
-                <input
-                  aria-label="Link"
-                  type="url"
-                  bind:value={item.link}
-                  placeholder="https://"
-                  class="bom-cell text-xs"
-                />
+                {#if !item.owned}
+                  <input
+                    aria-label="Link"
+                    type="url"
+                    bind:value={item.link}
+                    placeholder="https://"
+                    class="bom-cell text-xs"
+                  />
+                {/if}
                 <input
                   aria-label="Store"
                   bind:value={item.vendor}

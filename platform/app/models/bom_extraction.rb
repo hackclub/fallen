@@ -98,7 +98,7 @@ class BomExtraction
     unit ||= total && (total.to_f / quantity).round
 
     BomImport::Item.new(kind:, name: row["name"].to_s.truncate(BomItem::MAX_NAME), purpose: row["purpose"].presence&.truncate(BomItem::MAX_PURPOSE),
-      quantity:, unit_cents: unit, total_cents: total, link: row["link"].presence&.truncate(BomItem::MAX_LINK),
+      quantity:, unit_cents: unit, total_cents: total, link: row["link"].to_s.strip.presence&.then { |l| l.truncate(BomItem::MAX_LINK) if l.match?(BomItem::URL) },
       vendor: row["vendor"].presence&.truncate(100), owned: row["owned"] == true)
   end
 

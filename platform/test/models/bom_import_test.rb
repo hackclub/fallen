@@ -40,6 +40,15 @@ class BomImportTest < ActiveSupport::TestCase
     assert_match "doesn't match its rows", result.warnings.join
   end
 
+  test "a part they already have keeps no link when the link cell isn't one" do
+    result = BomImport.parse("Name,Qty,Link,Total Cost (EUR),Distributor\nNEMA 17 drivers,2,Owned,Owned,Owned\nCamera,1,https://amazon.ie/x,20.92,Amazon\n")
+
+    owned, camera = result.items
+    assert owned.owned
+    assert_nil owned.link
+    assert_equal "https://amazon.ie/x", camera.link
+  end
+
   test "amounts" do
     assert_equal 123_450, BomImport.cents("$1,234.50")
     assert_equal 123_450, BomImport.cents("1.234,50 €")

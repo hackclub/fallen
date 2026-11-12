@@ -130,7 +130,7 @@ class BomImport
     unit ||= total && quantity.positive? ? (total.to_f / quantity).round : nil
     owned = cell.(:owned).to_s.match?(YES) || [ cell.(:unit), cell.(:total) ].compact.any? { |c| c.match?(/own|have it/i) }
     kind = if name.match?(SHIPPING) then "shipping" elsif name.match?(TAX) then "tax" else "part" end
-    link = cell.(:link) || row.find { |c| c.match?(%r{\Ahttps?://}) }
+    link = [ cell.(:link), *row ].compact.find { |c| c.match?(BomItem::URL) }
 
     [ Item.new(kind:, name: name.truncate(BomItem::MAX_NAME), purpose: cell.(:purpose)&.truncate(BomItem::MAX_PURPOSE), quantity: kind == "part" ? quantity : 1,
       unit_cents: unit, total_cents: total, link: link&.truncate(BomItem::MAX_LINK), vendor: cell.(:vendor)&.truncate(100), owned:), nil ]

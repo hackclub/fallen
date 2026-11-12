@@ -48,8 +48,12 @@ class BomItem < ApplicationRecord
   MAX_ITEMS = 200
   MAX_CENTS = 100_000_00
   FIELDS = %i[kind name purpose quantity unit_cents total_cents link vendor owned].freeze
+  URL = %r{\Ahttps?://[^\s]+\z}
 
   belongs_to :submission
+
+  # Nothing to buy for a part they already have, so a note like "Owned" in the link cell isn't an error.
+  before_validation { self.link = nil if owned? && !link.to_s.strip.match?(URL) }
 
   validates :kind, inclusion: { in: KINDS }
   validates :name, presence: true, length: { maximum: MAX_NAME }
@@ -58,7 +62,7 @@ class BomItem < ApplicationRecord
   validates :quantity, numericality: { only_integer: true, in: 1..10_000 }
   validates :total_cents, numericality: { only_integer: true, in: 0..MAX_CENTS }
   validates :unit_cents, numericality: { only_integer: true, in: 0..MAX_CENTS }, allow_nil: true
-  validates :link, length: { maximum: MAX_LINK }, format: { with: %r{\Ahttps?://[^\s]+\z}, message: "must start with http(s)://" }, allow_blank: true
+  validates :link, length: { maximum: MAX_LINK }, format: { with: URL, message: "must start with http(s)://" }, allow_blank: true
   validates :verdict, inclusion: { in: VERDICTS }, allow_nil: true
   validates :approved_cents, numericality: { only_integer: true, in: 0..MAX_CENTS }, allow_nil: true
 

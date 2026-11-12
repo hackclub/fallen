@@ -141,6 +141,8 @@ export function lineCents(item: DraftItem): number | null {
 export const requestedCents = (items: DraftItem[]) =>
   items.reduce((sum, item) => sum + (item.owned ? 0 : (lineCents(item) ?? 0)), 0)
 
+const isUrl = (link: string) => /^https?:\/\/\S+$/.test(link.trim())
+
 // What the server takes: BomItem::FIELDS.
 export function itemPayload(item: DraftItem) {
   const total = lineCents(item) ?? 0
@@ -151,7 +153,8 @@ export function itemPayload(item: DraftItem) {
     quantity: Math.max(1, Math.round(item.quantity) || 1),
     unit_cents: toCents(item.unit) ?? (item.quantity > 0 ? Math.round(total / item.quantity) : null),
     total_cents: total,
-    link: item.link.trim() || null,
+    // A part they already have needs no link; a note like "Owned" in its place is dropped (BomItem does the same).
+    link: item.owned && !isUrl(item.link) ? null : item.link.trim() || null,
     vendor: item.vendor.trim() || null,
     owned: item.owned,
   }
@@ -163,7 +166,7 @@ export function itemProblem(item: DraftItem): string | null {
   if (item.kind !== 'part' || item.owned) return null
   if (lineCents(item) == null || lineCents(item) === 0) return 'Needs a price'
   if (!item.link.trim()) return 'Needs a link to buy it'
-  if (!/^https?:\/\/\S+$/.test(item.link.trim())) return 'The link must start with https://'
+  if (!isUrl(item.link)) return 'The link must start with https://'
   return null
 }
 
