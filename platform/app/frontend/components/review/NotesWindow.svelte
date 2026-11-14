@@ -3,7 +3,7 @@
   import X from '@lucide/svelte/icons/x'
   import { Button } from '@/components/admin/ui/button'
   import { Textarea } from '@/components/admin/ui/textarea'
-  import PersonChip from '@/components/review/PersonChip.svelte'
+  import PersonLink from '@/components/review/PersonLink.svelte'
   import { rise } from '@/components/review/motion'
   import { timeAgo } from '@/lib/format'
   import { reviewSubmissionNotes } from '@/routes'
@@ -50,7 +50,7 @@
     {#each notes as note (note.id)}
       <div class="text-sm">
         <div class="mb-0.5 flex items-center justify-between text-xs text-muted-foreground">
-          <PersonChip person={note.author} />
+          <PersonLink person={note.author} avatar />
           <span>{timeAgo(note.created_at)}</span>
         </div>
         <p class="whitespace-pre-wrap">{note.body}</p>

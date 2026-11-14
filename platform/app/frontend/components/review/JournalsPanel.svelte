@@ -20,15 +20,19 @@
   const open = $derived(page.journals.filter((j) => !journalDecided(j, draft.journals[j.id])).length)
   const carried = $derived(page.journals.filter((j) => draft.journals[j.id]?.carried).length)
   const cut = $derived(page.journals.filter((j) => journalDeflated(j, draft.journals[j.id])).length)
+  // The journal being worked on stays in a filtered list until focus moves off it, so typing "45" into a deflate
+  // doesn't drop it from "To decide" at the "4".
   const shown = $derived(
     page.journals
       .map((journal, index) => ({ journal, index }))
-      .filter(({ journal }) =>
-        filter === 'open'
-          ? !journalDecided(journal, draft.journals[journal.id])
-          : filter === 'cut'
-            ? journalDeflated(journal, draft.journals[journal.id])
-            : true,
+      .filter(
+        ({ journal, index }) =>
+          index === focused ||
+          (filter === 'open'
+            ? !journalDecided(journal, draft.journals[journal.id])
+            : filter === 'cut'
+              ? journalDeflated(journal, draft.journals[journal.id])
+              : true),
       ),
   )
 
@@ -45,7 +49,10 @@
   }
 
   export function move(by: number) {
-    focused = Math.min(Math.max(focused + by, 0), page.journals.length - 1)
+    const at = shown.findIndex(({ index }) => index === focused)
+    const next = shown[Math.min(Math.max(at + by, 0), shown.length - 1)]
+    if (!next) return
+    focused = next.index
     cards[focused]?.scrollIntoView()
   }
 </script>

@@ -3,7 +3,7 @@
   import { openLightbox } from '@/components/review/lightbox.svelte'
   import Key from '@/components/review/Key.svelte'
   import CollapsibleCard from '@/components/review/CollapsibleCard.svelte'
-  import PersonChip from '@/components/review/PersonChip.svelte'
+  import PersonLink from '@/components/review/PersonLink.svelte'
   import CheckDetail from '@/components/submission/CheckDetail.svelte'
   import StatusBadge from '@/components/review/StatusBadge.svelte'
   import { formatDate, formatDateTime, formatMinutes, timeAgo } from '@/lib/format'
@@ -33,13 +33,13 @@
       {/if}
       <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
         {#each page.project.team as person (person.id)}
-          <PersonChip {person} class="text-foreground" />
+          <PersonLink {person} avatar class="text-foreground" />
         {/each}
         <span>|</span>
         <span>Started {formatDate(page.project.created_at)}</span>
         <span>|</span>
         <span title={formatDateTime(s.created_at)}
-          >Submitted {timeAgo(s.created_at)} by {s.submitter.name}</span
+          >Submitted {timeAgo(s.created_at)} by <PersonLink person={s.submitter} /></span
         >
         {#if s.made_with.length}
           <span>|</span>
@@ -92,7 +92,9 @@
 
   {#if s.note}
     <section class="rounded-md border border-sky-200 bg-sky-50 p-3 dark:border-sky-900 dark:bg-sky-950/40">
-      <p class="mb-1 text-xs font-medium text-sky-700 dark:text-sky-300">Note from {s.submitter.name}</p>
+      <p class="mb-1 text-xs font-medium text-sky-700 dark:text-sky-300">
+        Note from <PersonLink person={s.submitter} />
+      </p>
       <p class="text-sm whitespace-pre-wrap">{s.note}</p>
     </section>
   {/if}
@@ -149,7 +151,8 @@
                 >
               </span>
               <span class="text-xs text-muted-foreground"
-                >{h.reviewer ? `${h.reviewer.name} · ` : ''}{formatDate(h.decided_at ?? h.created_at)}</span
+                >{#if h.reviewer}<PersonLink person={h.reviewer} /> ·
+                {/if}{formatDate(h.decided_at ?? h.created_at)}</span
               >
             </div>
             {#if h.feedback}

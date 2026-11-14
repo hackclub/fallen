@@ -13,6 +13,7 @@
   import { Textarea } from '@/components/admin/ui/textarea'
   import { adminDark, toggleAdminDark } from '@/lib/adminDark.svelte'
   import type { ReviewPage } from '@/lib/review.svelte'
+  import PersonLink from '@/components/review/PersonLink.svelte'
   import {
     flagReviewSubmission,
     project,
@@ -66,7 +67,7 @@
     class="max-w-64 truncate font-semibold hover:underline">{page.project.title}</a
   >
   <span class="hidden truncate text-sm text-muted-foreground md:inline">
-    by {page.project.team.map((p) => p.name).join(', ')}
+    by {#each page.project.team as person, i (person.id)}{i ? ', ' : ''}<PersonLink {person} />{/each}
   </span>
 
   <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">

@@ -2,7 +2,7 @@
   import { tick } from 'svelte'
   import NumberInput from '@/components/NumberInput.svelte'
   import JournalEvidence from '@/components/review/JournalEvidence.svelte'
-  import PersonChip from '@/components/review/PersonChip.svelte'
+  import PersonLink from '@/components/review/PersonLink.svelte'
   import Segmented from '@/components/review/Segmented.svelte'
   import ReasonChips from '@/components/review/ReasonChips.svelte'
   import Morph from '@/components/admin/Morph.svelte'
@@ -131,7 +131,7 @@
       ]}
       title={decided ? 'Decided' : 'Not decided yet'}>{index + 1}</span
     >
-    <PersonChip person={journal.author} class="text-foreground" />
+    <PersonLink person={journal.author} avatar class="text-foreground" />
     <span title={formatDateTime(journal.created_at)}
       >{new Date(journal.created_at).toLocaleDateString(undefined, {
         month: 'short',

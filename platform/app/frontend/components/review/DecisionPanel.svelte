@@ -26,6 +26,7 @@
     type Verdict,
   } from '@/lib/review.svelte'
   import { money } from '@/lib/submission'
+  import PersonLink from '@/components/review/PersonLink.svelte'
 
   let {
     page,
@@ -128,7 +129,7 @@
       <h3 class="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Review Complete</h3>
       <StatusBadge status={s.status} class="text-xs" />
       {#if s.reviewer}<p class="text-xs text-muted-foreground">
-          by {s.reviewer.name}, {formatDateTime(s.decided_at)}
+          by <PersonLink person={s.reviewer} />, {formatDateTime(s.decided_at)}
         </p>{/if}
     </div>
   {:else}
@@ -154,7 +155,7 @@
               class="size-7 shrink-0 rounded-full bg-muted object-cover"
             />
             <div class="min-w-0">
-              <p class="font-medium">{holder.name} has this open</p>
+              <p class="font-medium"><PersonLink person={holder} /> has this open</p>
               <p class="text-xs text-muted-foreground">
                 Their hold ends {timeAgo(s.claim_expires_at!)} unless they keep working.
               </p>
