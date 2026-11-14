@@ -6,7 +6,7 @@ class AdminTransferLapseSerializer < ApplicationSerializer
   typelize_from ProjectTransfer
   typelize id: :string, title: :string, slack_id: [ :string, nullable: true ], snapshot_minutes: [ :number, nullable: true ],
            lapse_fetched_at: [ :string, nullable: true ], fetching: :boolean,
-           entries: "Array<{ ref: string; at: string | null; minutes: number; body: string }>",
+           entries: "Array<{ ref: string; at: string | null; minutes: number; body: string; images: string[] }>",
            recordings: "Array<{ key: string; kind: 'lapse' | 'lookout'; name: string | null; missing: boolean; seconds: number; " \
                        "started_at?: string | null; playback_url?: string | null; thumbnail_url?: string | null; url?: string | null; " \
                        "project: string; heartbeats: number; first_heartbeat_at: string; last_heartbeat_at: string; visibility?: string; " \
@@ -20,7 +20,9 @@ class AdminTransferLapseSerializer < ApplicationSerializer
   attribute(:slack_id) { |transfer| transfer.user&.slack_id }
   attribute(:snapshot_minutes, &:snapshot_minutes)
   attribute(:fetching, &:lapse_fetching?)
-  attribute(:entries) { |transfer| Array(transfer.snapshot&.dig("entries")).map { it.slice("ref", "at", "minutes", "body") } }
+  attribute(:entries) do |transfer|
+    Array(transfer.snapshot&.dig("entries")).map { it.slice("ref", "at", "minutes", "body").merge("images" => Array(it["images"])) }
+  end
   attribute(:recordings) do |transfer|
     transfer.lapse_recordings&.map { it.merge("counted" => params.fetch(:counted, {}).fetch(it["key"], [])) }
   end

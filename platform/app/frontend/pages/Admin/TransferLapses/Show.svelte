@@ -238,6 +238,15 @@
               >
             </div>
             <Markdown source={entry.body} photos={[]} glass={adminDark.on} class="mt-2 text-sm" />
+            {#if entry.images.length}
+              <div class="mt-3 flex flex-wrap gap-2">
+                {#each entry.images as image (image)}
+                  <a href={image} target="_blank" rel="noreferrer">
+                    <img src={image} alt="" loading="lazy" class="h-28 rounded-md border object-cover" />
+                  </a>
+                {/each}
+              </div>
+            {/if}
           </div>
           {#if items.length}
             {@render list(items)}
