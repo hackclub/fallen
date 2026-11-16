@@ -9,25 +9,18 @@ export interface CommunityEvent {
 }
 
 export const events: CommunityEvent[] = [
-  { start: '2026-11-09T09:00-05:00', end: '2026-11-09T10:30-05:00', title: 'Roblox', host: 'Emanuel M' },
-  { start: '2026-11-10T12:00-05:00', end: '2026-11-10T13:30-05:00', title: 'Game sesh', host: 'Ayush' },
-  { start: '2026-11-11T12:00-05:00', end: '2026-11-11T13:30-05:00', title: 'Yap time', host: 'Rehan' },
+  { start: '2026-11-16T12:00-05:00', end: '2026-11-16T13:30-05:00', title: 'Hardware help', host: 'DS010' },
+  { start: '2026-11-17T12:00-05:00', end: '2026-11-17T13:30-05:00', title: 'Game sesh', host: 'Ayush' },
+  { start: '2026-11-18T12:00-05:00', end: '2026-11-18T13:30-05:00', title: 'Yap time', host: 'Rehan' },
   {
-    start: '2026-11-11T19:00-05:00',
-    end: '2026-11-11T21:00-05:00',
-    title: 'Hardware review',
-    host: 'migrantor main',
-  },
-  {
-    start: '2026-11-12T17:00-05:00',
-    end: '2026-11-12T22:00-05:00',
+    start: '2026-11-19T18:00-05:00',
+    end: '2026-11-19T22:00-05:00',
     title: 'Hardware help',
     host: 'santiagocuenta112az',
-    note: '+ surprise',
   },
-  { start: '2026-11-13T09:00-05:00', end: '2026-11-13T10:30-05:00', title: 'Show & tell', host: 'Ayush' },
-  { start: '2026-11-14T12:00-05:00', end: '2026-11-14T13:30-05:00', title: 'Hardware help', host: 'DS010' },
-  { start: '2026-11-14T19:00-05:00', end: '2026-11-14T20:00-05:00', title: 'Game sesh', host: 'Qweezi' },
-  { start: '2026-11-15T12:00-05:00', end: '2026-11-15T13:30-05:00', title: 'Yap time', host: 'Vynu' },
-  { start: '2026-11-15T19:00-05:00', end: '2026-11-15T20:00-05:00', title: 'Game sesh' },
+  { start: '2026-11-20T20:00-05:00', end: '2026-11-20T22:30-05:00', title: 'Yap time' },
+  { start: '2026-11-21T12:00-05:00', end: '2026-11-21T13:30-05:00', title: 'Hardware help', host: 'Ayush' },
+  { start: '2026-11-21T19:00-05:00', end: '2026-11-21T20:00-05:00', title: 'Game sesh', host: 'Qweezi' },
+  { start: '2026-11-22T12:00-05:00', end: '2026-11-22T13:30-05:00', title: 'Yap time', host: 'Rehan' },
+  { start: '2026-11-22T19:00-05:00', end: '2026-11-22T20:00-05:00', title: 'Game sesh' },
 ]
