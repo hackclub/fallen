@@ -28,11 +28,20 @@
 
 <div class="pt-1">
   {#if likelyApproved}
-    <button type="button" class="game-btn game-btn-blue" onclick={() => (confirming = true)}>
+    <button
+      type="button"
+      class="pill-cream h-11 cursor-pointer text-base"
+      onclick={() => (confirming = true)}
+    >
       Request an invitation letter
     </button>
   {:else}
-    <a href={INVITATION_FORM} target="_blank" rel="noreferrer" class="game-btn game-btn-blue no-underline!">
+    <a
+      href={INVITATION_FORM}
+      target="_blank"
+      rel="noreferrer"
+      class="pill-cream h-11 text-base text-slate-ink! no-underline!"
+    >
       Request an invitation letter
     </a>
   {/if}
