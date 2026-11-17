@@ -58,7 +58,7 @@
     <div class="px-5 pt-2 pb-6 font-outfit text-ink md:px-9 md:pb-8">
       <p>
         China approves most visa applications from your country without an invitation letter, so you probably
-        don't need one.
+        don't need one. It also takes over {INVITATION_WAIT} to process and might cause delays on your side too.
       </p>
       <div class="mt-6 flex flex-wrap justify-end gap-3">
         <ModalButton kind="cancel" onclick={() => (confirming = false)}>Never mind</ModalButton>
