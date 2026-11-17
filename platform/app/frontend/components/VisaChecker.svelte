@@ -121,8 +121,8 @@
           <p>You'll need a tourist (L) visa, unless your flights qualify for visa-free transit.</p>
           <p>
             Visa-free transit lets you stay up to 10 days if you fly in from one country and leave for a
-            different one. Hong Kong and Macao count as different. Flying into Shenzhen and out of Hong Kong
-            works. Going in and out through Hong Kong doesn't.
+            different one, for example, Hong Kong and Macao. Flying into Shenzhen and out of Hong Kong works,
+            but going in and out through Hong Kong doesn't.
           </p>
           <p>If you're not sure your route fits, get the visa.</p>
         {:else if picked.status === 'visa'}
