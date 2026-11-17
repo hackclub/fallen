@@ -1,7 +1,6 @@
 <script lang="ts">
   import { fly } from 'svelte/transition'
-  import { CHECKED, VISA_FREE_UNTIL, countries, search, type Country, type VisaStatus } from '@/lib/chinaVisa'
-  import { tripDates } from '@/lib/program'
+  import { CHECKED, countries, search, type Country, type VisaStatus } from '@/lib/chinaVisa'
   import * as sfx from '@/lib/sfx'
 
   // The Visas doc's picker: type or tap a passport and see whether it needs a visa for Shenzhen. The pick is kept in
@@ -80,7 +79,7 @@
   const verdict: Record<VisaStatus, string> = {
     free: 'No visa needed',
     citizen: 'No visa needed',
-    permit: 'No visa, but bring your permit',
+    permit: 'No visa needed',
     transit: 'You probably need a visa',
     visa: 'You need a visa',
   }
@@ -117,57 +116,31 @@
         </p>
 
         {#if picked.status === 'free'}
-          {#if picked.mutual}
-            <p>
-              China and {picked.name} have a visa exemption deal, so you can visit for up to 30 days without a visa.
-              That covers the whole trip ({tripDates}).
-            </p>
-          {:else}
-            <p>
-              {picked.name} is on China's visa free list: up to 30 days, no visa. The list runs until {VISA_FREE_UNTIL},
-              after the trip ({tripDates}).
-            </p>
-          {/if}
-          <p>
-            At the border, have your passport (valid for 6 months after you arrive), your return ticket and
-            where you're staying.
-          </p>
+          <p>You can stay up to 30 days without a visa.</p>
         {:else if picked.status === 'transit'}
+          <p>You'll need a tourist (L) visa, unless your flights qualify for visa-free transit.</p>
           <p>
-            Passports from {picked.name} aren't on China's visa free list, so the simplest route is a tourist (L)
-            visa.
+            Visa-free transit lets you stay up to 10 days if you fly in from one country and leave for a
+            different one. Hong Kong and Macao count as different. Flying into Shenzhen and out of Hong Kong
+            works. Going in and out through Hong Kong doesn't.
           </p>
-          <p>
-            The one way around it is <strong>visa free transit</strong>: up to 10 days with no visa, if you
-            fly in from one country and leave to a different one. Hong Kong and Macao count as different.
-            Flying from home to Shenzhen, then from Hong Kong back home, works. Going in and out through Hong
-            Kong doesn't.
-          </p>
-          <p>Border officers decide on the day. If your route doesn't clearly fit, get the visa.</p>
+          <p>If you're not sure your route fits, get the visa.</p>
         {:else if picked.status === 'visa'}
           <p>
-            Apply for a tourist (L) visa through the <a
+            Apply for a tourist (L) visa at the <a
               href="https://www.visaforchina.cn"
               target="_blank"
               rel="noreferrer">Chinese visa center</a
-            >
-            or the Chinese embassy in your country. It usually takes a few working days, but appointments fill up,
-            so <strong>start now</strong>.
+            > or embassy in your country. Do it soon.
           </p>
-          <p>Your passport needs to be valid for 6 months after you arrive, with a blank page.</p>
+          <p>Your passport needs to be valid for at least 6 months after you arrive.</p>
         {:else if picked.status === 'permit'}
-          {#if picked.code === 'TW'}
-            <p>
-              Taiwan residents enter with a Mainland Travel Permit for Taiwan Residents instead of a visa.
-            </p>
-          {:else}
-            <p>
-              {picked.name} residents who are Chinese citizens enter with a Home Return Permit instead of a visa.
-            </p>
-          {/if}
-          <p>If you're travelling on another country's passport, pick that one instead.</p>
-        {:else}
-          <p>You're all set, no visa needed.</p>
+          <p>
+            Use your {picked.code === 'TW'
+              ? 'Mainland Travel Permit for Taiwan Residents'
+              : 'Home Return Permit'}.
+          </p>
+          <p>Travelling on another passport? Pick that country instead.</p>
         {/if}
       </div>
     {/key}

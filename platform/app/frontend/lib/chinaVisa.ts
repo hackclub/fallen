@@ -6,7 +6,6 @@
 // Transit: the 240-hour visa-free transit list (National Immigration Administration) minus the countries above.
 // Sources: https://en.nia.gov.cn and https://www.china-briefing.com/news/china-visa-free-travel-policies-complete-guide/
 export const CHECKED = 'November 17, 2026'
-export const VISA_FREE_UNTIL = 'December 31, 2026'
 
 export type VisaStatus = 'free' | 'transit' | 'visa' | 'permit' | 'citizen'
 
@@ -56,7 +55,6 @@ const NAMES: Record<string, string> = {
 const set = (codes: string) => new Set(codes.split(' '))
 const free = new Set([...set(UNILATERAL), ...set(MUTUAL)])
 const transit = set(TRANSIT_ONLY)
-const unilateral = set(UNILATERAL)
 
 export type Country = {
   code: string
@@ -64,13 +62,12 @@ export type Country = {
   flag: string
   search: string
   status: VisaStatus
-  mutual: boolean
 }
 
 const flag = (code: string) =>
   String.fromCodePoint(...[...code].map((letter) => 0x1f1e6 + letter.charCodeAt(0) - 65))
 
-const fold = (text: string) => text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+const fold = (text: string) => text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
 
 function status(code: string): VisaStatus {
   if (code === 'CN') return 'citizen'
@@ -90,7 +87,6 @@ export function countries(): Country[] {
       flag: flag(code),
       search: fold(`${name} ${code} ${ALIASES[code] ?? ''}`),
       status: status(code),
-      mutual: free.has(code) && !unilateral.has(code),
     }
   }).sort((a, b) => a.name.localeCompare(b.name))
 }

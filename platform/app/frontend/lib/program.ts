@@ -2,4 +2,3 @@
 // once rather than in the copy.
 export const buildTime = 'month and a half' // how long fallers build before Shenzhen
 export const travellers = '30+' // how many teens go to Shenzhen
-export const tripDates = 'December 11 to 14' // when fallers are in Shenzhen
