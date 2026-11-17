@@ -1,5 +1,6 @@
 <script lang="ts">
   import { fly } from 'svelte/transition'
+  import InvitationLetter from '@/components/InvitationLetter.svelte'
   import { CHECKED, countries, search, type Country, type VisaStatus } from '@/lib/chinaVisa'
   import * as sfx from '@/lib/sfx'
 
@@ -125,11 +126,7 @@
             but going in and out through Hong Kong doesn't.
           </p>
           <p>If you're not sure your route fits, get the visa.</p>
-          <p>
-            Need an invitation letter for your application? Email <a href="mailto:fallen@hackclub.com"
-              >fallen@hackclub.com</a
-            > and we'll send you one.
-          </p>
+          <InvitationLetter likelyApproved />
         {:else if picked.status === 'visa'}
           <p>
             Apply for a tourist (L) visa at the <a
@@ -139,11 +136,7 @@
             > or embassy in your country. Do it soon.
           </p>
           <p>Your passport needs to be valid for at least 6 months after you arrive.</p>
-          <p>
-            Need an invitation letter for your application? Email <a href="mailto:fallen@hackclub.com"
-              >fallen@hackclub.com</a
-            > and we'll send you one.
-          </p>
+          <InvitationLetter likelyApproved={false} />
         {:else if picked.status === 'permit'}
           <p>
             Use your {picked.code === 'TW'

@@ -100,3 +100,7 @@ export function search(list: Country[], query: string): Country[] {
     .filter((c) => c.search.includes(q))
     .sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name))
 }
+
+// Invitation letters for visa applications, requested through this form.
+export const INVITATION_FORM = 'https://forms.hackclub.com/fallen-visa'
+export const INVITATION_WAIT = '1 week'
