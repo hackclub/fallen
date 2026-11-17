@@ -17,7 +17,8 @@
   <p>
     Our Chinese partner at Maker Faire Shenzhen can issue invitation letters to help with your visa
     application. Since China approves most visa applications from your country, the Fallen team recommends
-    applying without one. If your circumstances still require one, fill out the form:
+    applying without one, as it takes over {INVITATION_WAIT} to process and it might cause delays on your side too.
+    If your circumstances still require one, fill out the form:
   </p>
 {:else}
   <p>
