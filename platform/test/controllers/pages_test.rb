@@ -28,6 +28,14 @@ class PagesTest < ActionDispatch::IntegrationTest
     assert_redirected_to docs_path
   end
 
+  test "visa renders for guests, and the old docs tab sends people there" do
+    get visa_path
+    assert_response :success
+    assert_includes response.body, "Visas/Show"
+    get "/docs/visas"
+    assert_redirected_to visa_path
+  end
+
   test "shop renders for members" do
     sign_in_as users(:member)
     get shop_path

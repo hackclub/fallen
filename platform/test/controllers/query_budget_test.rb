@@ -39,6 +39,7 @@ class QueryBudgetTest < ActionDispatch::IntegrationTest
     assert_query_budget(4) { get edit_project_path(projects(:station)) }
     assert_query_budget(2) { get docs_path }
     assert_query_budget(2) { get shop_path }
+    assert_query_budget(2) { get visa_path }
     assert_query_budget(2) { get transfers_path }
     # The pet switch: how many journals and the first one's day, in one query.
     assert_query_budget(3) { get settings_path }

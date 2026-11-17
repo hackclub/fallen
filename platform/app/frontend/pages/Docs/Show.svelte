@@ -10,7 +10,6 @@
   import SolarChat from '@/components/icons/SolarChat.svelte'
   import SolarDocument from '@/components/icons/SolarDocument.svelte'
   import SolarQuestion from '@/components/icons/SolarQuestion.svelte'
-  import SolarPassport from '@/components/icons/SolarPassport.svelte'
   import SolarPlane from '@/components/icons/SolarPlane.svelte'
   import SolarNotebook from '@/components/icons/SolarNotebook.svelte'
   import SolarRocket from '@/components/icons/SolarRocket.svelte'
@@ -26,7 +25,6 @@
     submit: submitIcon,
     funding: fundingIcon,
     travel: travelIcon,
-    visa: visaIcon,
     faq: faqIcon,
     guide: guideIcon,
   }
@@ -53,7 +51,6 @@
 {#snippet submitIcon()}<SolarRocket size={24} />{/snippet}
 {#snippet fundingIcon()}<SolarCard size={24} />{/snippet}
 {#snippet travelIcon()}<SolarPlane size={24} />{/snippet}
-{#snippet visaIcon()}<SolarPassport size={24} />{/snippet}
 {#snippet faqIcon()}<SolarQuestion size={24} />{/snippet}
 {#snippet guideIcon()}<SolarSledgehammer size={24} />{/snippet}
 

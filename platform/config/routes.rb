@@ -15,8 +15,10 @@ Rails.application.routes.draw do
   post "welcome" => "fallout_links#create", as: :welcome # The landing page, once a person is on it
   root "landing#index"
   get "home" => "home#index", as: :home
+  get "docs/visas", as: nil, to: redirect("/visa") # the Visa page was a docs tab for a day
   get "docs(/:page)" => "docs#show", as: :docs, constraints: { page: /[a-z0-9-]+/ }
   get "shop" => "shop#show", as: :shop
+  get "visa" => "visas#show", as: :visa
   get "stats" => "stats#show", as: :stats
   get "transfers" => "transfers#show", as: :transfers
   get "settings" => "settings#show", as: :settings

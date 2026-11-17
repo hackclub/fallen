@@ -86,15 +86,17 @@
   }
 </script>
 
-<div class="rounded-[4px] bg-white/10 px-5 py-5">
+<div
+  class="rounded-[4px] bg-white/10 px-5 py-5 [&_a]:text-cream [&_a]:underline [&_a]:decoration-cream/40 [&_a]:underline-offset-3 [&_a:hover]:decoration-cream [&_strong]:font-semibold [&_strong]:text-cream"
+>
   <p class="sr-only" aria-live="polite">
-    {picked ? `${picked.name} passport: ${verdict[picked.status]}` : ''}
+    {picked ? `${picked.name}: ${verdict[picked.status]}` : ''}
   </p>
   {#if picked}
     <div class="flex flex-wrap items-center justify-between gap-3">
       <p class="flex items-center gap-3 font-montserrat text-lg font-semibold text-white">
         <span class="text-2xl leading-none" aria-hidden="true">{picked.flag}</span>
-        {picked.name} passport
+        <span><span class="sr-only">Passport: </span>{picked.name}</span>
       </p>
       <button
         type="button"
@@ -132,7 +134,8 @@
           </p>
         {:else if picked.status === 'transit'}
           <p>
-            {picked.name} passports aren't on China's visa free list, so the simplest route is a tourist (L) visa.
+            Passports from {picked.name} aren't on China's visa free list, so the simplest route is a tourist (L)
+            visa.
           </p>
           <p>
             The one way around it is <strong>visa free transit</strong>: up to 10 days with no visa, if you

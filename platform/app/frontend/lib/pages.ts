@@ -6,6 +6,7 @@ export const pages = {
   project: 'Projects/Show',
   shop: 'Shop/Show',
   docs: 'Docs/Show',
+  visa: 'Visas/Show',
   transfers: 'Transfers/Show',
   settings: 'Settings/Show',
 } as const
@@ -21,6 +22,7 @@ export function warmPages() {
       import('@/pages/Projects/Show.svelte'),
       import('@/pages/Shop/Show.svelte'),
       import('@/pages/Docs/Show.svelte'),
+      import('@/pages/Visas/Show.svelte'),
       import('@/pages/Transfers/Show.svelte'),
       import('@/pages/Settings/Show.svelte'),
     ])
