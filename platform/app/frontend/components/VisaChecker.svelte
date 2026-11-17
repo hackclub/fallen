@@ -247,7 +247,6 @@
   {/if}
 
   <p class="mt-5 text-sm text-pale-blue/70">
-    Checked {CHECKED}. China changes these rules often, so confirm with the Chinese embassy in your country
-    before you book anything.
+    Last checked {CHECKED}
   </p>
 </div>
