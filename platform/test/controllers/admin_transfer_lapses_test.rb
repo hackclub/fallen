@@ -33,6 +33,7 @@ class AdminTransferLapsesTest < ActionDispatch::IntegrationTest
     counted = props["transfer"]["recordings"].to_h { [ it["key"], it["counted"] ] }
     assert_equal [ "a journal on #{journals(:first).project.title}" ], counted["lapse:LAPSE1"]
     assert_equal [ "transfer #{project_transfers(:stranger).public_id}" ], counted["lapse:ELSEWHERE"]
+    assert_equal [ "https://stardance.hackclub.com/rails/active_storage/leg.webp" ], props["transfer"]["entries"].first["images"]
     assert props["can"]["review"]
   end
 
