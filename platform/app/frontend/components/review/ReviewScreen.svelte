@@ -23,9 +23,7 @@
     initialDraft,
     itemFunded,
     countedMinutes as countedFor,
-    itemDecided,
     itemVerdict,
-    journalDecided,
     saveReviewDraft,
     serverDraft,
     type ReviewPage,
@@ -115,21 +113,15 @@
 
   const countedMinutes = $derived(
     (props.journals ?? []).reduce(
-      (sum, j) => sum + (countedFor(j, draft.journals[j.id]) ?? j.duration_minutes ?? 0),
+      (sum, j) => sum + (draft.ai ? 0 : (countedFor(j, draft.journals[j.id]) ?? j.duration_minutes ?? 0)),
       0,
     ),
   )
   const fundedCents = $derived(
     (props.submission?.bom_items ?? []).reduce(
-      (sum, item) => sum + (itemFunded(item, draft.bom[item.id]) ?? 0),
+      (sum, item) => sum + (draft.ai ? 0 : (itemFunded(item, draft.bom[item.id]) ?? 0)),
       0,
     ),
-  )
-  const journalsLeft = $derived(
-    (props.journals ?? []).filter((j) => !journalDecided(j, draft.journals[j.id])).length,
-  )
-  const itemsLeft = $derived(
-    (props.submission?.bom_items ?? []).filter((i) => !itemDecided(i, draft.bom[i.id])).length,
   )
 
   // Keeps the claim while the page is open. Losing it (left open past the claim, someone else took it) stops the
@@ -158,7 +150,12 @@
 
   function decide(verdict: Verdict) {
     const blockers = decision?.blockers()
-    const blocker = verdict === 'approved' ? blockers?.approve : blockers?.return
+    const blocker =
+      verdict === 'approved'
+        ? blockers?.approve
+        : verdict === 'rejected'
+          ? blockers?.reject
+          : blockers?.return
     if (blocker) return toast.error(blocker)
     submitting = true
     pending = verdict
@@ -184,6 +181,8 @@
               },
             ]),
           ),
+          ai: draft.ai || undefined,
+          cut: draft.ai ? undefined : (draft.cut ?? undefined),
           bom: Object.fromEntries(
             props.submission.bom_items.map((item) => {
               const call = draft.bom[item.id]

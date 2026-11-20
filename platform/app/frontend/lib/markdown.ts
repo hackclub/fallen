@@ -23,9 +23,50 @@ export function renderMarkdown(markdown: string, photos: string[]): string {
     // The proxy URL is the same photo, cached by Cloudflare; the redirect one asks the app every time.
     else img.setAttribute('src', img.getAttribute('src')!.replace('/blobs/redirect/', '/blobs/proxy/'))
   }
+  rowPhotos(fragment)
   const container = document.createElement('div')
   container.append(fragment)
   return container.innerHTML
+}
+
+const isGap = (node: Node) =>
+  node.nodeName === 'BR' || (node.nodeType === Node.TEXT_NODE && !node.textContent?.trim())
+const onlyPhotos = (node: Element | null): node is Element =>
+  node?.nodeName === 'P' &&
+  !!node.querySelector('img') &&
+  [...node.childNodes].every((child) => child.nodeName === 'IMG' || isGap(child))
+
+// Pictures one after another (on the next line, or in the next paragraph) sit side by side in a `photo-row` instead
+// of stacking. A span, since the HTML is parsed again and a div would end the paragraph around it.
+function rowPhotos(fragment: DocumentFragment) {
+  for (const p of fragment.querySelectorAll('p')) {
+    const before = p.previousElementSibling
+    if (onlyPhotos(before) && onlyPhotos(p)) {
+      before.append(...p.childNodes)
+      p.remove()
+    }
+  }
+  for (const parent of fragment.querySelectorAll('p, li')) {
+    let run: Node[] = []
+    const flush = () => {
+      while (run.length && run[run.length - 1].nodeName !== 'IMG') run.pop()
+      if (run.filter((node) => node.nodeName === 'IMG').length > 1) {
+        const row = document.createElement('span')
+        row.className = 'photo-row'
+        parent.insertBefore(row, run[0])
+        for (const node of run) {
+          if (node.nodeName === 'IMG') row.append(node)
+          else node.parentNode?.removeChild(node)
+        }
+      }
+      run = []
+    }
+    for (const node of [...parent.childNodes]) {
+      if (node.nodeName === 'IMG' || (run.length && isGap(node))) run.push(node)
+      else flush()
+    }
+    flush()
+  }
 }
 
 // Characters of writing, leaving out embedded photos, as Journal.written_length counts them on the server.

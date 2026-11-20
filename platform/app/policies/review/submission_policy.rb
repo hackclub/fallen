@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-# /review: design reviewers and admins work the queue. Nobody reviews a project they're on; only admins reject or
-# clear a fraud flag.
+# /review: design reviewers and admins work the queue. Nobody reviews a project they're on; only admins reject (except
+# for AI-generated journals, which any design reviewer can, Review::SubmissionsController#update) or clear a fraud flag.
 class Review::SubmissionPolicy < ApplicationPolicy
   def index? = reviewer?
   def show? = reviewer?

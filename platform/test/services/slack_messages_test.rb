@@ -56,4 +56,13 @@ class SlackMessagesTest < ActiveSupport::TestCase
     assert_no_match MENTION, text
     assert_includes text, "@devs"
   end
+
+  test "a rejection for AI-generated journals is DMed as the feedback alone" do
+    submission = Submission.new(project: projects(:station), user: users(:admin), status: "rejected", ai_generated: true,
+      feedback: "AI-generated journals are not allowed.")
+    assert_equal "AI-generated journals are not allowed.", SlackMessages.submission_decided(submission)[:text]
+
+    submission.ai_generated = false
+    assert_match "can't be submitted again", SlackMessages.submission_decided(submission)[:text]
+  end
 end

@@ -72,7 +72,14 @@ export interface ItemCall {
   verdict: ItemVerdict | null
   reason: string | null
   cents: number | null
+  // The call the review that returned it made on the same part, for the reviewer to keep or change.
+  carried?: boolean
 }
+
+// What ticking "AI-generated journals" fills in (SubmissionReview's `ai`), for the reviewer to finish or send as is.
+export const AI_INTERNAL = 'AI-generated journals: '
+export const AI_FEEDBACK =
+  "AI-generated journals are not allowed. We want to see your thoughts and progress, not AI's, so this project can't be funded."
 
 export interface ReviewDraft {
   rubric: Record<string, Answer>
@@ -80,6 +87,10 @@ export interface ReviewDraft {
   bom: Record<string, ItemCall>
   feedback: string
   internal: string
+  // Marked as AI-generated journals: it can only be rejected for good, and nothing else is needed.
+  ai: boolean
+  // Minutes off the whole project for staff only (SubmissionReview's `cut`): the person never sees it.
+  cut: number | null
 }
 
 const key = (id: string) => `fallen:review:${id}`
@@ -108,11 +119,17 @@ export function initialDraft(page: ReviewPage): ReviewDraft {
     bom: Object.fromEntries(
       submission.bom_items.map((item) => [
         item.id,
-        { verdict: item.verdict, reason: item.reason, cents: item.approved_cents },
+        (!decided && !item.verdict && earlierItemCall(page, item)) || {
+          verdict: item.verdict,
+          reason: item.reason,
+          cents: item.approved_cents,
+        },
       ]),
     ),
     feedback: submission.feedback ?? '',
     internal: submission.internal_reason ?? '',
+    ai: submission.ai_generated,
+    cut: submission.internal_deflated_minutes,
   }
   if (decided) return fresh
   const saved = newestSaved(page)
@@ -134,6 +151,8 @@ export function initialDraft(page: ReviewPage): ReviewDraft {
       bom: Object.fromEntries(Object.entries(fresh.bom).map(([id, call]) => [id, saved.bom?.[id] ?? call])),
       feedback: saved.feedback ?? '',
       internal: saved.internal ?? '',
+      ai: saved.ai === true,
+      cut: saved.cut ?? fresh.cut,
     }
   } catch {
     return fresh
@@ -228,6 +247,23 @@ export function countedMinutes(journal: ReviewJournal, call: JournalCall | undef
   return call.minutes != null && call.minutes > 0 && call.minutes < logged ? call.minutes : null
 }
 
+// Ticking fills the reasons in where they're empty (a reason already written gets a button to add it, aiTemplate);
+// unticking takes back what it filled in and wasn't changed.
+export function markAi(draft: ReviewDraft, on: boolean) {
+  draft.ai = on
+  if (on) {
+    if (!draft.internal.trim()) draft.internal = AI_INTERNAL
+    if (!draft.feedback.trim()) draft.feedback = AI_FEEDBACK
+  } else {
+    if (draft.internal === AI_INTERNAL) draft.internal = ''
+    if (draft.feedback === AI_FEEDBACK) draft.feedback = ''
+  }
+}
+
+// Puts the template above what's already written.
+export const aiTemplate = (text: string, template: string) =>
+  text.includes(template.trim()) ? text : `${template.trim()}\n\n${text.trim()}`
+
 export const journalDecided = (journal: ReviewJournal, call: JournalCall | undefined) =>
   countedMinutes(journal, call) != null && !call?.carried
 export const journalDeflated = (journal: ReviewJournal, call: JournalCall | undefined) => {
@@ -236,6 +272,23 @@ export const journalDeflated = (journal: ReviewJournal, call: JournalCall | unde
 }
 export const journalNeedsReason = (call: JournalCall | undefined) =>
   (call?.mode === 'part' || call?.mode === 'none') && !call.reason
+
+// The call the last returned review made on a part of the same kind and name, if it made one.
+function earlierItemCall(page: ReviewPage, item: Line & { kind: string; name: string }): ItemCall | null {
+  if (item.owned) return null
+  const key = (line: { kind: string; name: string }) => `${line.kind}:${line.name.trim().toLowerCase()}`
+  const earlier = page.history
+    .find((h) => h.status === 'returned')
+    ?.bom_items.find((line) => line.verdict && key(line) === key(item))
+  if (!earlier?.verdict) return null
+  const cents =
+    earlier.verdict === 'adjusted' &&
+    earlier.approved_cents != null &&
+    earlier.approved_cents < itemRequested(item)
+      ? earlier.approved_cents
+      : null
+  return { verdict: earlier.verdict, reason: earlier.reason, cents, carried: true }
+}
 
 export function itemRequested(item: { owned: boolean; total_cents: number }) {
   return item.owned ? 0 : item.total_cents
@@ -247,7 +300,7 @@ type Line = { owned: boolean; total_cents: number }
 // amount between nothing and all of it.
 export function itemDecided(item: Line, call: ItemCall | undefined) {
   if (item.owned) return true
-  if (!call?.verdict) return false
+  if (!call?.verdict || call.carried) return false
   if (call.verdict !== 'adjusted') return true
   return call.cents != null && call.cents > 0 && call.cents < itemRequested(item)
 }

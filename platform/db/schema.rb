@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_11_210000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_19_192932) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -870,6 +870,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_11_210000) do
     t.jsonb "review_draft"
     t.datetime "review_draft_at"
     t.bigint "review_draft_by_id"
+    t.boolean "ai_generated", default: false, null: false
+    t.integer "internal_deflated_minutes"
+    t.string "ysws_airtable_id"
     t.index ["claimed_by_id"], name: "index_submissions_on_claimed_by_id"
     t.index ["project_id"], name: "index_submissions_on_project_id"
     t.index ["project_id"], name: "index_submissions_one_pending_per_project", unique: true, where: "((status)::text = 'pending'::text)"

@@ -35,6 +35,7 @@
   const funded = $derived(items.reduce((sum, item) => sum + (itemFunded(item, draft.bom[item.id]) ?? 0), 0))
   const decidable = $derived(items.filter((item) => !item.owned))
   const open = $derived(decidable.filter((item) => !itemDecided(item, draft.bom[item.id])).length)
+  const carried = $derived(decidable.filter((item) => draft.bom[item.id]?.carried).length)
   const counts = $derived({
     approved: decidable.filter((i) => draft.bom[i.id]?.verdict === 'approved').length,
     adjusted: decidable.filter((i) => draft.bom[i.id]?.verdict === 'adjusted').length,
@@ -56,6 +57,13 @@
     for (const item of decidable) {
       if (!draft.bom[item.id]?.verdict)
         draft.bom[item.id] = { verdict: 'approved', reason: null, cents: null }
+    }
+  }
+
+  function confirmCarried() {
+    for (const item of decidable) {
+      const call = draft.bom[item.id]
+      if (call?.carried) draft.bom[item.id] = { ...call, carried: false }
     }
   }
 
@@ -108,8 +116,15 @@
             {showCsv ? 'Hide' : 'Show'} repo’s {page.repo.bom_path}
           </Button>
         {/if}
-        {#if !readonly && open}
-          <Button size="sm" class={RAISED.success} onclick={approveRest}>Approve the other {open}</Button>
+        {#if !readonly && carried}
+          <Button size="sm" variant="outline" onclick={confirmCarried}
+            >Keep last review’s calls ({carried})</Button
+          >
+        {/if}
+        {#if !readonly && open > carried}
+          <Button size="sm" class={RAISED.success} onclick={approveRest}
+            >Approve the other {open - carried}</Button
+          >
         {/if}
       </div>
     </div>
@@ -124,6 +139,13 @@
   {/if}
 
   <div class="space-y-3 p-4">
+    {#if draft.ai && !readonly}
+      <div
+        class="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300"
+      >
+        Marked as AI-generated journals: it will be rejected for good, so no part needs a call.
+      </div>
+    {/if}
     <div class="flex flex-wrap items-center justify-between gap-2">
       <p class="text-xs text-muted-foreground">
         <span class="font-medium text-foreground">Approve</span> funds a line as asked,

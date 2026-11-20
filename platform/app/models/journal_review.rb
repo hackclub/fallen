@@ -31,6 +31,8 @@
 class JournalReview < ApplicationRecord
   has_paper_trail
 
+  # Recorded on every journal of a project rejected for AI-generated journals (SubmissionReview), never picked by hand.
+  AI_GENERATED = "AI-generated"
   REASONS = [ "Idle or AFK time", "Not work on this project", "Tutorials or research only", "More time than the journal shows",
     "Padded or repeated", "Other" ].freeze
 
@@ -39,7 +41,7 @@ class JournalReview < ApplicationRecord
   belongs_to :reviewer, class_name: "User", optional: true
 
   validates :approved_minutes, numericality: { only_integer: true, greater_than_or_equal_to: 0 }
-  validates :reason, inclusion: { in: REASONS }, allow_nil: true
+  validates :reason, inclusion: { in: [ *REASONS, AI_GENERATED ] }, allow_nil: true
   validates :note, length: { maximum: 1_000 }
   validate :reason_when_deflated
 

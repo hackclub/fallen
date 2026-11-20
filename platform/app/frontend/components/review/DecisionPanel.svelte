@@ -4,6 +4,8 @@
   import Loader from '@lucide/svelte/icons/loader'
   import * as AlertDialog from '@/components/admin/ui/alert-dialog'
   import { Button } from '@/components/admin/ui/button'
+  import { Checkbox } from '@/components/admin/ui/checkbox'
+  import { Input } from '@/components/admin/ui/input'
   import { Separator } from '@/components/admin/ui/separator'
   import Segmented from '@/components/review/Segmented.svelte'
   import Morph from '@/components/admin/Morph.svelte'
@@ -17,9 +19,13 @@
   import {
     RAISED,
     RAISED_KEY,
+    AI_FEEDBACK,
+    AI_INTERNAL,
+    aiTemplate,
     itemDecided,
     journalDecided,
     journalNeedsReason,
+    markAi,
     type Answer,
     type ReviewDraft,
     type ReviewPage,
@@ -57,41 +63,74 @@
   const decided = $derived(s.status !== 'pending')
   const questions = $derived(Object.entries(page.options.rubric))
   const answered = $derived(questions.every(([key]) => draft.rubric[key]))
-  const journalsLeft = $derived(page.journals.filter((j) => !journalDecided(j, draft.journals[j.id])).length)
-  const journalReasonsMissing = $derived(page.journals.some((j) => journalNeedsReason(draft.journals[j.id])))
-  const itemsLeft = $derived(s.bom_items.filter((i) => !itemDecided(i, draft.bom[i.id])).length)
+  const ai = $derived(draft.ai)
+  const journalsLeft = $derived(
+    ai ? 0 : page.journals.filter((j) => !journalDecided(j, draft.journals[j.id])).length,
+  )
+  const journalReasonsMissing = $derived(
+    !ai && page.journals.some((j) => journalNeedsReason(draft.journals[j.id])),
+  )
+  const itemsLeft = $derived(ai ? 0 : s.bom_items.filter((i) => !itemDecided(i, draft.bom[i.id])).length)
   const itemReasonsMissing = $derived(
-    s.bom_items.some((i) => {
-      const call = draft.bom[i.id]
-      return !i.owned && (call?.verdict === 'cut' || call?.verdict === 'adjusted') && !call.reason
-    }),
+    !ai &&
+      s.bom_items.some((i) => {
+        const call = draft.bom[i.id]
+        return !i.owned && (call?.verdict === 'cut' || call?.verdict === 'adjusted') && !call.reason
+      }),
   )
 
+  // What's typed, kept apart from draft.cut so a 0 on the way to 0.5 isn't wiped out.
+  let cutHours = $state(draft.cut == null ? '' : String(+(draft.cut / 60).toFixed(2)))
+  const cutBlocker = $derived(
+    draft.cut != null && (draft.cut < 1 || draft.cut > countedMinutes)
+      ? `The internal cut can be at most the ${formatMinutes(countedMinutes)} that count`
+      : null,
+  )
+
+  const AI_ONLY = 'AI-generated journals can only be rejected for good'
+  const reasonBlocker = $derived(!draft.internal.trim() ? 'Write the internal reason' : null)
+  const feedbackBlocker = $derived(
+    !draft.feedback.trim() ? 'Write feedback so they know what to change' : null,
+  )
+  // Returning needs only the rubric and the reasons: it settles no time and no funding.
+  const basics = $derived(!answered ? 'Answer every question' : reasonBlocker)
   const common = $derived(
-    !answered
-      ? 'Answer every question'
-      : journalsLeft
+    basics ??
+      (journalsLeft
         ? `Decide the ${journalsLeft} journal${journalsLeft === 1 ? '' : 's'} left`
         : journalReasonsMissing
           ? 'Give a reason for every journal you deflate'
-          : !draft.internal.trim()
-            ? 'Write the internal reason'
-            : null,
+          : null) ??
+      cutBlocker,
   )
   const approveBlocker = $derived(
-    common ??
-      (itemsLeft
-        ? `Decide the ${itemsLeft} part${itemsLeft === 1 ? '' : 's'} left`
-        : itemReasonsMissing
-          ? 'Give a reason for every part you cut or lower'
-          : null),
+    ai
+      ? AI_ONLY
+      : (common ??
+          (itemsLeft
+            ? `Decide the ${itemsLeft} part${itemsLeft === 1 ? '' : 's'} left`
+            : itemReasonsMissing
+              ? 'Give a reason for every part you cut or lower'
+              : null)),
   )
-  const returnBlocker = $derived(
-    common ?? (!draft.feedback.trim() ? 'Write feedback so they know what to change' : null),
-  )
+  const returnBlocker = $derived(ai ? AI_ONLY : (basics ?? feedbackBlocker))
+  // Marked AI-generated, it's rejected with just the reasons: no rubric, journals, parts or cut.
+  const rejectBlocker = $derived(ai ? (reasonBlocker ?? feedbackBlocker) : (common ?? feedbackBlocker))
+  // Any design reviewer can reject for AI-generated journals; anything else only admins.
+  const canReject = $derived(page.can.reject || (ai && page.can.decide))
 
-  export const blockers = () => ({ approve: approveBlocker, return: returnBlocker })
+  export const blockers = () => ({ approve: approveBlocker, return: returnBlocker, reject: rejectBlocker })
 </script>
+
+{#snippet useTemplate(field: 'internal' | 'feedback', template: string)}
+  {#if ai && !decided && page.can.decide && !draft[field].includes(template.trim())}
+    <button
+      type="button"
+      class="ml-auto text-xs text-red-700 underline-offset-2 hover:underline dark:text-red-400"
+      onclick={() => (draft[field] = aiTemplate(draft[field], template))}>Use AI template</button
+    >
+  {/if}
+{/snippet}
 
 {#snippet label(text: string, hint: string, key?: string, forId?: string)}
   <label for={forId} class="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -183,13 +222,41 @@
     {/if}
   {/if}
 
+  {#if !decided || ai}
+    <div
+      class={[
+        'space-y-2.5 rounded-lg border-2 px-3 py-2.5 transition-colors',
+        ai ? 'border-red-300 bg-red-50 dark:border-red-800 dark:bg-red-950/30' : 'border-border',
+      ]}
+    >
+      <label class="flex cursor-pointer items-center gap-2.5">
+        <Checkbox
+          checked={ai}
+          disabled={decided || !page.can.decide}
+          onCheckedChange={(value) => markAi(draft, value === true)}
+        />
+        <span class="min-w-0">
+          <span class="block text-sm font-medium">AI-generated journals</span>
+          <span class="block text-xs text-muted-foreground"
+            >{decided
+              ? 'Rejected for AI-generated journals.'
+              : 'Overrides everything else: it can only be rejected for good, and every journal counts no time.'}</span
+          >
+        </span>
+      </label>
+    </div>
+  {/if}
+
   <div class="space-y-2">
-    {@render label(
-      'Internal Reason',
-      'not shown to user',
-      decided ? undefined : `${mod}J`,
-      'internal-reason',
-    )}
+    <div class="flex items-center gap-2">
+      {@render label(
+        'Internal Reason',
+        'not shown to user',
+        decided ? undefined : `${mod}J`,
+        'internal-reason',
+      )}
+      {@render useTemplate('internal', AI_INTERNAL)}
+    </div>
     {#if decided}
       <p class="text-sm whitespace-pre-wrap">{draft.internal}</p>
     {:else}
@@ -206,7 +273,10 @@
   </div>
 
   <div class="space-y-2">
-    {@render label('Feedback', 'shown to user', decided ? undefined : `${mod}F`, 'feedback')}
+    <div class="flex items-center gap-2">
+      {@render label('Feedback', 'shown to user', decided ? undefined : `${mod}F`, 'feedback')}
+      {@render useTemplate('feedback', AI_FEEDBACK)}
+    </div>
     {#if decided}
       <p class="text-sm whitespace-pre-wrap">{draft.feedback || 'None'}</p>
     {:else}
@@ -233,11 +303,53 @@
       'journals',
     )}
     {@render stat('Funding', money(fundedCents), money(s.requested_cents), itemsLeft, 'parts')}
+
+    {#if !ai && (!decided || draft.cut)}
+      <div class="space-y-1.5">
+        <p class="text-xs text-muted-foreground">
+          Internal Cut <span class="text-muted-foreground/60">(not shown to user)</span>
+        </p>
+        <div class="flex items-center gap-2 text-xs text-muted-foreground">
+          {#if decided}
+            <span class="font-mono text-sm">−{formatMinutes(draft.cut ?? 0)}</span>
+          {:else}
+            <label for="internal-cut">Take off</label>
+            <Input
+              id="internal-cut"
+              type="number"
+              min="0"
+              step="0.25"
+              bind:value={cutHours}
+              oninput={() => {
+                const hours = parseFloat(String(cutHours))
+                draft.cut = Number.isNaN(hours) || hours <= 0 ? null : Math.round(hours * 60)
+              }}
+              readonly={!page.can.decide}
+              class="h-7 w-20 font-mono text-sm"
+            />
+            <span>hours</span>
+          {/if}
+          <span class="ml-auto font-mono whitespace-nowrap">
+            → <span class={draft.cut ? 'font-semibold text-foreground' : ''}
+              ><Morph text={formatMinutes(Math.max(countedMinutes - (draft.cut ?? 0), 0))} /></span
+            > for YSWS
+          </span>
+        </div>
+        {#if !decided}
+          <p class="text-xs text-muted-foreground">
+            Only lowers the hours reported to YSWS. Their journals, XP and funding stay as above.
+          </p>
+        {/if}
+        {#if errors.cut}<p class="text-xs text-red-600">{errors.cut}</p>{/if}
+      </div>
+    {/if}
   </div>
 
   <div class="space-y-2.5">
     <p class="text-xs text-muted-foreground">
-      Rubric <span class="text-muted-foreground/60">(not shown to user)</span>
+      Rubric <span class="text-muted-foreground/60"
+        >({ai && !decided ? 'not needed' : 'not shown to user'})</span
+      >
     </p>
     {#each questions as [key, question] (key)}
       <div class="flex items-center justify-between gap-3">
@@ -259,7 +371,9 @@
   </div>
 
   {#if !decided && page.can.decide}
-    {@const shown = Object.entries(errors).filter(([k]) => !['feedback', 'internal_reason'].includes(k))}
+    {@const shown = Object.entries(errors).filter(
+      ([k]) => !['feedback', 'internal_reason', 'cut'].includes(k),
+    )}
     {#if shown.length}
       <ul
         transition:reveal
@@ -299,19 +413,27 @@
         </Button>
       </div>
       <p class="text-center text-xs text-muted-foreground">
-        {approveBlocker ?? `Approving sends ${money(fundedCents)}.`}
+        {ai
+          ? 'Marked as AI-generated journals: reject it for good below.'
+          : (approveBlocker ?? `Approving sends ${money(fundedCents)}.`)}
       </p>
+      {#if !ai && draft.cut}
+        <p class="text-center text-xs text-muted-foreground">
+          Returning keeps your journal and part calls for the next review, but not the internal cut.
+        </p>
+      {/if}
 
-      {#if page.can.reject}
+      {#if canReject}
         <AlertDialog.Root>
           <AlertDialog.Trigger>
             {#snippet child({ props })}
               <Button
                 {...props}
-                variant="ghost"
+                variant={ai ? 'destructive' : 'ghost'}
                 size="sm"
-                class="w-full justify-between text-muted-foreground"
-                disabled={submitting || !!returnBlocker}
+                class={['w-full', !ai && 'justify-between text-muted-foreground']}
+                disabled={submitting || !!rejectBlocker}
+                title={rejectBlocker ?? undefined}
               >
                 Reject for good
               </Button>
@@ -321,8 +443,13 @@
             <AlertDialog.Header>
               <AlertDialog.Title>Reject {page.project.title} for good?</AlertDialog.Title>
               <AlertDialog.Description>
-                They can’t submit it again. Use this for fraud or plagiarism only; anything fixable should be
-                returned.
+                {#if ai}
+                  They can’t submit it again, and every journal it covers counts no time or XP. They get your
+                  feedback as a DM.
+                {:else}
+                  They can’t submit it again. Use this for fraud or plagiarism only; anything fixable should
+                  be returned.
+                {/if}
               </AlertDialog.Description>
             </AlertDialog.Header>
             <AlertDialog.Footer>

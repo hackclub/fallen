@@ -97,6 +97,14 @@
   </div>
 
   <div class="space-y-3 p-4">
+    {#if draft.ai && !readonly}
+      <div
+        class="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300"
+      >
+        Marked as AI-generated journals: rejecting it makes every journal count no time, whatever is chosen
+        below.
+      </div>
+    {/if}
     {#if page.journals.length === 0}
       <p class="text-sm text-muted-foreground">No journals with hours before it was submitted.</p>
     {/if}

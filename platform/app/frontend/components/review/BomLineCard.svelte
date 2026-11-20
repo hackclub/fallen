@@ -222,6 +222,18 @@
     </div>
   </div>
 
+  {#if call.carried && !readonly}
+    <p transition:reveal class="px-3 pb-2 text-xs text-sky-700 dark:text-sky-300">
+      The last review {call.verdict === 'approved'
+        ? 'approved this'
+        : call.verdict === 'cut'
+          ? 'cut this'
+          : `lowered this${call.cents != null ? ` to ${money(call.cents)}` : ''}`}{call.reason
+        ? ` (${call.reason.toLowerCase()})`
+        : ''}. Pick it again to keep it, or change it.
+    </p>
+  {/if}
+
   {#if call.verdict === 'adjusted' || call.verdict === 'cut'}
     <div transition:reveal>
       <div class="space-y-3 border-t border-border bg-muted/30 px-3 py-3 pl-11">

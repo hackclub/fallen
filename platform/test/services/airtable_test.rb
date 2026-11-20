@@ -71,6 +71,30 @@ class AirtableTest < ActiveSupport::TestCase
     end
   end
 
+  test "a new record that times out isn't sent again, since it may have been made, but an update is" do
+    posts = 0
+    stubs = Faraday::Adapter::Test::Stubs.new
+    stubs.post("/v0/app2/YSWS") do
+      posts += 1
+      raise Faraday::TimeoutError, "timed out"
+    end
+    assert_raises(Faraday::TimeoutError) { with_airtable(stubs) { Airtable.upsert("app2", "YSWS", nil, { "Email" => "a@b.c" }) } }
+    assert_equal 1, posts
+
+    patches = 0
+    stubs = Faraday::Adapter::Test::Stubs.new
+    stubs.patch("/v0/app2/YSWS/rec1") do
+      patches += 1
+      raise Faraday::TimeoutError, "timed out" if patches == 1
+
+      [ 200, {}, { id: "rec1" }.to_json ]
+    end
+    stub_method(Airtable, :sleep, nil) do
+      assert_equal "rec1", with_airtable(stubs) { Airtable.upsert("app2", "YSWS", "rec1", { "Email" => "a@b.c" }) }
+    end
+    assert_equal 2, patches
+  end
+
   private
 
   def with_airtable(stubs, &block)

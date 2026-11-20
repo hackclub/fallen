@@ -47,6 +47,29 @@ class ReviewTest < ActionDispatch::IntegrationTest
     assert_equal @reviewer, @submission.reviewer
   end
 
+  test "a reviewer's internal cut is saved with the decision" do
+    sign_in_as @reviewer
+    get review_next_path
+    params = decision
+    params[:review][:cut] = "30"
+    patch review_submission_path(@submission), params: params
+    assert_redirected_to review_next_path
+    assert_equal 30, @submission.reload.internal_deflated_minutes
+  end
+
+  test "a design reviewer can reject for AI-generated journals, and nothing else" do
+    sign_in_as @reviewer
+    get review_next_path
+    patch review_submission_path(@submission), params: decision(verdict: "rejected", feedback: "Copied")
+    assert_redirected_to root_path
+    assert @submission.reload.pending?
+
+    patch review_submission_path(@submission), params: { review: { verdict: "rejected", ai: true, internal_reason: "AI-generated journals: all", feedback: "Not allowed" } }
+    assert_redirected_to review_next_path
+    assert @submission.reload.rejected?
+    assert @submission.ai_generated
+  end
+
   test "a review missing something comes back with errors, and only admins reject" do
     sign_in_as @reviewer
     get review_submission_path(@submission)

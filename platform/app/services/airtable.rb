@@ -50,6 +50,20 @@ module Airtable
     pages.flatten(1)
   end
 
+  # Makes a record, or updates it when `id` (an Airtable record id from an earlier call) is given, and answers its id.
+  # `typecast` lets Airtable turn text into select options and linked records. Only an update is sent again after a
+  # timeout: a create that timed out may have made the row, and sending it again would make a second (as Fallout's
+  # AirtableSync.upload_or_create! doesn't retry either).
+  def upsert(base, table, id, fields)
+    path = "v0/#{base}/#{ERB::Util.url_encode(table)}#{"/#{id}" if id}"
+    body = { fields:, typecast: true }.to_json
+    request = -> { connection.run_request(id ? :patch : :post, path, body, "Content-Type" => "application/json") }
+    response = id ? with_retries(&request) : request.call
+    raise Error, "Airtable write to #{table} failed: #{response.status} #{response.body.to_s.truncate(300)}" unless response.success?
+
+    JSON.parse(response.body).fetch("id")
+  end
+
   def with_retries(attempts: 3)
     attempt = 0
     begin

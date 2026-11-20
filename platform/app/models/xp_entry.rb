@@ -83,10 +83,11 @@ class XpEntry < ApplicationRecord
   # Every journal with hours is worth at least 1 XP, so the first one always hatches the egg.
   def self.journal_xp(minutes, multiplier) = [ (minutes * PER_HOUR / 60.0 * multiplier).round, 1 ].max
 
-  # Makes, updates, discards or brings back the journal's entry to match its hours.
+  # Makes, updates, discards or brings back the journal's entry to match its hours. A journal a design review counted
+  # no time for (SubmissionReview) is worth nothing.
   def self.sync(journal)
     entry = journal.xp_entry || journal.build_xp_entry(user: journal.user, kind: "journal", multiplier: journal.user.xp_multiplier, day: journal.user.local_date(journal.created_at))
-    if journal.discarded? || !journal.hours_logged?
+    if journal.discarded? || !journal.hours_logged? || journal.counted_minutes.zero?
       entry.discard if entry.persisted? && !entry.discarded?
     else
       entry.update!(amount: journal_xp(journal.counted_minutes, entry.multiplier), discarded_at: nil)

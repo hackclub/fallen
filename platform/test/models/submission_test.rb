@@ -4,35 +4,38 @@ require "test_helper"
 #
 # Table name: submissions
 #
-#  id                 :bigint           not null, primary key
-#  approved_cents     :integer
-#  bom_csv            :text
-#  checks             :jsonb            not null
-#  claim_expires_at   :datetime
-#  commit_sha         :string
-#  decided_at         :datetime
-#  feedback           :text
-#  flag_reason        :text
-#  flagged_at         :datetime
-#  internal_reason    :text
-#  kind               :string           default("design"), not null
-#  lock_version       :integer          default(0), not null
-#  made_with          :string           default([]), not null, is an Array
-#  note               :text
-#  repo_url           :string           not null
-#  requested_cents    :integer          default(0), not null
-#  review_draft       :jsonb
-#  review_draft_at    :datetime
-#  rubric             :jsonb            not null
-#  status             :string           default("pending"), not null
-#  created_at         :datetime         not null
-#  updated_at         :datetime         not null
-#  claimed_by_id      :bigint
-#  project_id         :bigint           not null
-#  repo_snapshot_id   :bigint
-#  review_draft_by_id :bigint
-#  reviewer_id        :bigint
-#  user_id            :bigint           not null
+#  id                        :bigint           not null, primary key
+#  ai_generated              :boolean          default(FALSE), not null
+#  approved_cents            :integer
+#  bom_csv                   :text
+#  checks                    :jsonb            not null
+#  claim_expires_at          :datetime
+#  commit_sha                :string
+#  decided_at                :datetime
+#  feedback                  :text
+#  flag_reason               :text
+#  flagged_at                :datetime
+#  internal_deflated_minutes :integer
+#  internal_reason           :text
+#  kind                      :string           default("design"), not null
+#  lock_version              :integer          default(0), not null
+#  made_with                 :string           default([]), not null, is an Array
+#  note                      :text
+#  repo_url                  :string           not null
+#  requested_cents           :integer          default(0), not null
+#  review_draft              :jsonb
+#  review_draft_at           :datetime
+#  rubric                    :jsonb            not null
+#  status                    :string           default("pending"), not null
+#  created_at                :datetime         not null
+#  updated_at                :datetime         not null
+#  claimed_by_id             :bigint
+#  project_id                :bigint           not null
+#  repo_snapshot_id          :bigint
+#  review_draft_by_id        :bigint
+#  reviewer_id               :bigint
+#  user_id                   :bigint           not null
+#  ysws_airtable_id          :string
 #
 # Indexes
 #
@@ -159,5 +162,16 @@ class SubmissionTest < ActiveSupport::TestCase
 
     refute journal.move_to(projects(:unlinked))
     assert_match "waiting for review", journal.errors[:base].join
+  end
+
+  test "journals stay put once a design review has been decided, even a return that kept no call on them" do
+    project = projects(:station)
+    submission = submit_design(project)
+    submission.update_columns(status: "returned", decided_at: Time.current)
+    project.memberships.create!(user: users(:admin))
+    journal = journals(:first)
+
+    refute journal.move_to(projects(:unlinked))
+    assert_match "design review has looked", journal.errors[:base].join
   end
 end

@@ -190,7 +190,7 @@ class Journal < ApplicationRecord
     errors.add(:project, "is already this one") if target == project
     errors.add(:project, "must be one you're on the team of") unless target.on_team?(user)
     errors.add(:base, "Journals can't move into or out of an approved project") if project.approved? || target.approved?
-    errors.add(:base, "Journals can't move once a design review has looked at them") if reviewed_minutes || JournalReview.exists?(journal_id: id)
+    errors.add(:base, "Journals can't move once a design review has looked at them") if reviewed_minutes || JournalReview.exists?(journal_id: id) || reviewed_in_design?
     errors.add(:base, "Journals can't move into or out of a project waiting for review") if Submission.pending.where(project_id: [ project_id, target.id ]).exists?
     return false if errors.any?
 
@@ -218,6 +218,9 @@ class Journal < ApplicationRecord
   end
 
   private
+
+  # A decided design review covered it (SubmissionReview.journals_for), even a return that kept no call on it.
+  def reviewed_in_design? = Submission.decided.where(project_id:).where(created_at: created_at..).exists?
 
   def body_long_enough
     length = Journal.written_length(body)

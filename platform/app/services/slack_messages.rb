@@ -149,8 +149,10 @@ module SlackMessages
   end
 
   # DMed to everyone on the team when a design review is in (SubmissionDecidedJob), with the reviewer's feedback.
+  # A rejection for AI-generated journals is the feedback alone.
   def submission_decided(submission)
     project = escape(submission.project.title)
+    feedback = escape(submission.feedback.to_s.truncate(2500))
     lines =
       case submission.status
       when "approved"
@@ -160,8 +162,8 @@ module SlackMessages
       when "returned" then [ ":hammer_and_wrench: The design of *#{project}* needs a few changes before it can be approved. Please fix them and resubmit it." ]
       else [ "The design of *#{project}* wasn't approved, and can't be submitted again." ]
       end
-    lines << "\nFrom the reviewer:\n#{escape(submission.feedback.truncate(2500)).gsub(/^/, '> ')}" if submission.feedback.present?
-    text = lines.compact.join("\n")
+    lines << "\nFrom the reviewer:\n#{feedback.gsub(/^/, '> ')}" if feedback.present?
+    text = submission.rejected? && submission.ai_generated? ? feedback : lines.compact.join("\n")
     { text: text, blocks: [ SlackBot::Blocks.section(text),
       SlackBot::Blocks.actions(SlackBot::Blocks.button("See the review", "open_fallen", url: project_url(submission.project), style: "primary")) ] }
   end

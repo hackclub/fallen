@@ -416,6 +416,12 @@
   & img {
     @apply my-3 max-h-96 rounded-lg;
   }
+  & .photo-row {
+    @apply my-3 flex flex-wrap gap-2;
+  }
+  & .photo-row img {
+    @apply my-0 h-40 max-h-none min-w-32 flex-1 basis-0 object-cover;
+  }
   & blockquote {
     @apply my-2 border-l-2 border-ink/30 pl-3 text-ink-soft;
   }
@@ -747,6 +753,12 @@
   & img {
     @apply my-3 max-h-80 cursor-zoom-in rounded-md;
   }
+  & .photo-row {
+    @apply my-3 flex flex-wrap gap-2;
+  }
+  & .photo-row img {
+    @apply my-0 h-40 max-h-none min-w-32 flex-1 basis-0 object-cover;
+  }
   & blockquote {
     @apply my-2 border-l-2 border-border pl-3 text-muted-foreground;
   }
@@ -798,6 +810,12 @@
   }
   & img {
     @apply my-3 max-h-96 rounded-[4px];
+  }
+  & .photo-row {
+    @apply my-3 flex flex-wrap gap-2;
+  }
+  & .photo-row img {
+    @apply my-0 h-40 max-h-none min-w-32 flex-1 basis-0 object-cover;
   }
   & blockquote {
     @apply my-2 border-l-2 border-cream/40 pl-3 italic;

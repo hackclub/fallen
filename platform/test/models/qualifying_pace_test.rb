@@ -74,6 +74,8 @@ class QualifyingPaceTest < ActiveSupport::TestCase
     XpEntry.delete_all
     User.update_all(xp: 0)
     member = users(:member)
+    # Fixtures are written now; the member's journals go inside the window so the test doesn't rot with the date.
+    Journal.where(user: member).update_all(created_at: Time.zone.local(2026, 11, 2, 12))
     member.xp_entries.create!(kind: "grant", amount: QualifyingPace.on_track_xp(member.pet, Date.new(2026, 11, 1)), day: Date.new(2026, 11, 1))
 
     history = QualifyingPace.history(User.on_a_team, day)[:all][:days].index_by { it[:date] }
