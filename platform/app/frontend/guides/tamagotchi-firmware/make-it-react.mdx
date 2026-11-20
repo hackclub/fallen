@@ -1,0 +1,139 @@
+---
+title: '4. Make it react'
+order: 5
+---
+
+## Game Update Logic
+
+Stats decay over time using [`millis()`](https://docs.arduino.cc/language-reference/en/functions/time/millis/) instead of [`delay()`](https://docs.arduino.cc/language-reference/en/functions/time/delay/). `delay()` blocks the entire program; `millis()` lets input and rendering continue.
+
+```cpp
+unsigned long lastUpdate = 0;
+
+void updatePet() {
+  if (millis() - lastUpdate > 5000) {  // every 5 seconds
+    pet.hunger--;
+    pet.happiness--;
+    pet.energy--;
+
+    if (pet.hunger < 0) pet.hunger = 0;
+    if (pet.happiness < 0) pet.happiness = 0;
+    if (pet.energy < 0) pet.energy = 0;
+
+    pet.age += 5;
+    lastUpdate = millis();
+  }
+}
+```
+
+**Notes:**
+
+- `unsigned long lastUpdate = 0;` remembers the last time we updated the pet. Starts at 0 (boot time).
+- `millis() - lastUpdate > 5000` checks if more than 5000ms (5 seconds) have passed. `millis()` returns the number of milliseconds since the board powered on.
+- `pet.hunger--` uses the [`--` operator](https://cplusplus.com/doc/tutorial/operators/) to decrement by 1. Every 5 seconds, the pet gets slightly hungrier, sadder, and more tired.
+- `if (pet.hunger < 0) pet.hunger = 0;` is **clamping**: we prevent stats from going below zero. Without this, hunger could hit -50, which makes no sense.
+- `lastUpdate = millis();` resets the timer so the next update happens 5 seconds from _now_.
+
+<details>
+<summary>What is non-blocking timing?</summary>
+
+This `millis()` pattern is fundamental to embedded programming. It's how you schedule periodic tasks without blocking the CPU. You'll see this exact pattern in [Arduino's BlinkWithoutDelay example](https://docs.arduino.cc/built-in-examples/digital/BlinkWithoutDelay/).
+
+</details>
+
+## Reading Button Input
+
+The buttons are wired active-low. Read them with [`digitalRead()`](https://docs.arduino.cc/language-reference/en/functions/digital-io/digitalRead/) and debounce to prevent repeated triggers.
+
+```cpp
+unsigned long lastButtonPress = 0;
+
+void checkButtons() {
+  if (millis() - lastButtonPress < 200) return;  // debounce: ignore presses within 200ms
+
+  if (digitalRead(BTN_LEFT) == LOW) {
+    currentScreen = SCREEN_FEED;
+    lastButtonPress = millis();
+  }
+  else if (digitalRead(BTN_MIDDLE) == LOW) {
+    currentScreen = SCREEN_PLAY;
+    lastButtonPress = millis();
+  }
+  else if (digitalRead(BTN_RIGHT) == LOW) {
+    currentScreen = SCREEN_SLEEP;
+    lastButtonPress = millis();
+  }
+}
+```
+
+**Notes:**
+
+- `unsigned long lastButtonPress = 0;` tracks the last time any button was pressed, used for debouncing.
+- `if (millis() - lastButtonPress < 200) return;` is **debouncing**. Physical buttons "bounce" (make and break contact rapidly) when pressed, which can register as multiple presses. By ignoring any press within 200ms of the last one, we ensure one press = one action.
+- `digitalRead(BTN_LEFT) == LOW` reads the pin state. Because the buttons are active-low, `LOW` means the button is currently being pressed.
+- `currentScreen = SCREEN_FEED;` sets the state but doesn't act on it. The actual logic runs below, in **Screen Logic**, keeping input detection and action execution separate.
+
+<details>
+<summary>What is debouncing?</summary>
+
+When you press a button, the contacts bounce for a few milliseconds, creating rapid on/off signals. The 200ms cooldown timer filters these out so one press registers once.
+
+</details>
+
+**Button mapping:**
+
+| Button | Action           | State Transition |
+| ------ | ---------------- | ---------------- |
+| Left   | Feed the pet     | → `SCREEN_FEED`  |
+| Middle | Play with pet    | → `SCREEN_PLAY`  |
+| Right  | Put pet to sleep | → `SCREEN_SLEEP` |
+
+## Screen Logic
+
+Each screen modifies the pet's stats and returns to the main screen. Actions are one-shot: press feed, hunger goes up, done.
+
+```cpp
+void handleScreenLogic() {
+  switch(currentScreen) {
+
+    case SCREEN_FEED:
+      pet.hunger += 10;
+      if (pet.hunger > 100) pet.hunger = 100;
+      currentScreen = SCREEN_MAIN;
+      break;
+
+    case SCREEN_PLAY:
+      pet.happiness += 10;
+      pet.energy -= 5;
+      if (pet.happiness > 100) pet.happiness = 100;
+      if (pet.energy < 0) pet.energy = 0;
+      currentScreen = SCREEN_MAIN;
+      break;
+
+    case SCREEN_SLEEP:
+      pet.energy += 15;
+      if (pet.energy > 100) pet.energy = 100;
+      currentScreen = SCREEN_MAIN;
+      break;
+
+    case SCREEN_MAIN:
+      break;  // do nothing, just display stats
+  }
+}
+```
+
+**Notes:**
+
+- [`switch(currentScreen)`](https://docs.arduino.cc/language-reference/en/structure/control-structure/switchCase/) selects behavior based on the current UI state.
+- `pet.hunger += 10;` uses the [`+=` operator](https://cplusplus.com/doc/tutorial/operators/) to add 10 to the current value. Feeding restores 10 hunger points.
+- `if (pet.hunger > 100) pet.hunger = 100;` is **upper clamping**: stats can't exceed 100. This is the mirror of the lower clamping in `updatePet()`.
+- `pet.energy -= 5;`: playing increases happiness but costs energy.
+- `currentScreen = SCREEN_MAIN;` returns to main after the action completes. This makes each action a one-shot: the player must actively choose to do something again.
+- Each `case` ends with [`break`](https://docs.arduino.cc/language-reference/en/structure/control-structure/break/) to prevent fall-through.
+
+<details>
+<summary>Why does SCREEN_MAIN do nothing?</summary>
+
+`SCREEN_MAIN` only renders stats; actions happen in the other states.
+
+</details>

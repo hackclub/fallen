@@ -1,0 +1,147 @@
+---
+title: '3. Set up the pet'
+order: 4
+---
+
+## Includes and Hardware Configuration
+
+Add the required includes and configure the display and pin constants.
+
+```cpp
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+#define OLED_RESET -1
+
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+
+#define BTN_LEFT   D1
+#define BTN_MIDDLE D2
+#define BTN_RIGHT  D3
+```
+
+**Notes:**
+
+- `#include <Wire.h>` includes the [I2C library](https://docs.arduino.cc/language-reference/en/functions/communication/wire/), which handles communication with the OLED over the SDA/SCL pins.
+- `#include <Adafruit_GFX.h>` and `#include <Adafruit_SSD1306.h>` bring in the display driver and graphics functions.
+- `SCREEN_WIDTH` / `SCREEN_HEIGHT` match the 0.96" OLED resolution (128x64 pixels).
+- `OLED_RESET` is set to `-1` because our OLED does not have a dedicated reset pin.
+- `Adafruit_SSD1306 display(...)` creates the display object we'll use to draw everything.
+- `BTN_LEFT`, `BTN_MIDDLE`, `BTN_RIGHT` are the GPIO pins connected to the buttons. Set these to match your schematic.
+
+<details>
+<summary>What if my buttons are on different pins?</summary>
+
+Check your KiCad schematic to see which GPIO pins your buttons are wired to. Then change `D1, D2`, and `D3` to match. For example, if your left button is on pin D5, change the line to `#define BTN_LEFT D5`.
+
+</details>
+
+## Define the Pet Model
+
+Define a [`struct`](https://cplusplus.com/doc/tutorial/structures/) to store the pet's stats.
+
+```cpp
+struct Pet {
+  int hunger;       // 0 to 100 (0 = starving, 100 = full)
+  int happiness;    // 0 to 100 (0 = miserable, 100 = ecstatic)
+  int energy;       // 0 to 100 (0 = exhausted, 100 = fully rested)
+  unsigned long age; // total seconds the pet has been alive
+};
+```
+
+**Notes:**
+
+- `struct Pet { ... };` defines a `Pet` type with fields for the pet's stats.
+- `int hunger;` is an integer from 0 to 100. We chose `int` because the values are small whole numbers.
+- `unsigned long age;` uses [`unsigned long`](https://docs.arduino.cc/language-reference/en/variables/data-types/unsignedLong/) (0 to 4,294,967,295) because time values from `millis()` can get very large and are never negative.
+
+Create one global instance:
+
+```cpp
+Pet pet;
+```
+
+<details>
+<summary>Why global?</summary>
+
+A [global variable](https://docs.arduino.cc/language-reference/en/variables/variable-scope-qualifiers/scope/) lets `setup()`, `loop()`, and helpers share the same state.
+
+</details>
+
+## Define UI States (State Machine)
+
+Define named states for the UI using a finite state machine. The program is always in exactly one state.
+
+```cpp
+enum Screen {
+  SCREEN_MAIN,
+  SCREEN_FEED,
+  SCREEN_PLAY,
+  SCREEN_SLEEP
+};
+
+Screen currentScreen = SCREEN_MAIN;
+```
+
+**Notes:**
+
+- `enum Screen { ... };` is an [`enum`](https://cplusplus.com/doc/tutorial/other_data_types/) (enumeration) that assigns human-readable names to integer constants. Under the hood, `SCREEN_MAIN` = 0, `SCREEN_FEED` = 1, etc., but we never need to know that.
+- `Screen currentScreen = SCREEN_MAIN;` tracks which screen we're on right now. The program starts on the main screen.
+
+<details>
+<summary>Why use a state machine?</summary>
+
+Without it, you end up with deeply nested `if` statements that are hard to read and debug. A state machine makes the logic predictable: _"When I'm in state X and event Y happens, go to state Z."_ This is the same pattern used in [real embedded systems](https://en.wikipedia.org/wiki/UML_state_machine), game engines, and protocol parsers.
+
+</details>
+
+## Setup Function
+
+[`setup()`](https://docs.arduino.cc/language-reference/en/structure/sketch/setup/) runs **once** when the board powers on or resets. Use it to initialize the display, buttons, and starting values.
+
+```cpp
+void setup() {
+  pinMode(BTN_LEFT, INPUT_PULLUP);
+  pinMode(BTN_MIDDLE, INPUT_PULLUP);
+  pinMode(BTN_RIGHT, INPUT_PULLUP);
+
+  display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(0, 0);
+  display.println("Tamagotchi Init...");
+  display.display();
+  delay(1000);
+
+  pet.hunger = 80;
+  pet.happiness = 80;
+  pet.energy = 80;
+  pet.age = 0;
+}
+```
+
+**Notes:**
+
+- `pinMode(BTN_LEFT, INPUT_PULLUP);` configures each button pin as an input with the [internal pull-up resistor](https://docs.arduino.cc/language-reference/en/functions/digital-io/pinMode/) enabled. This means the pin reads `HIGH` normally and `LOW` when the button is pressed (active-low).
+- `display.begin(SSD1306_SWITCHCAPVCC, 0x3C);` initializes the OLED. `0x3C` is the [I2C address](https://learn.adafruit.com/adafruit-gfx-graphics-library) of the display (the most common address for these OLEDs).
+- `display.clearDisplay();` clears any leftover data in the display buffer.
+- `display.setTextSize(1);` sets text to the smallest size (6x8 pixels per character).
+- `display.setTextColor(SSD1306_WHITE);` sets the drawing color to white (lit pixels).
+- `display.println(...)` writes text to the **buffer** (not the screen yet).
+- `display.display();` pushes the buffer to the actual OLED screen. **You must call this for anything to appear!**
+- Stats start at 80/100, leaving room for improvement or decay.
+
+<details>
+<summary>What if my OLED doesn't turn on?</summary>
+
+The most common issues are:
+
+- **Wrong I2C address**: Some OLEDs use `0x3D` instead of `0x3C`. Try changing the address in `display.begin()`.
+- **Wiring**: Double-check that SDA, SCL, VCC (3V3), and GND are connected correctly.
+- **Library not installed**: Make sure you installed both Adafruit SSD1306 and Adafruit GFX.
+
+</details>

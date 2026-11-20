@@ -1,0 +1,89 @@
+---
+title: '1. Set up the Arduino IDE'
+order: 2
+---
+
+First, install the [Arduino IDE](https://www.arduino.cc/en/software/).
+
+<details>
+<summary>What is Arduino IDE?</summary>
+
+Arduino IDE is used to edit sketches and upload them to boards like the [ESP32-C3](https://www.espressif.com/en/products/socs/esp32-c3) over USB.
+
+</details>
+
+## Install the ESP32 Board Package
+
+ESP32 support isn't included by default, so you need to add Espressif's board package URL.
+
+1. Open the Arduino IDE.
+2. Go to **File > Preferences** (or **Arduino IDE > Settings** on macOS).
+3. In the **"Additional Boards Manager URLs"** field, add the following URL: `https://espressif.github.io/arduino-esp32/package_esp32_index.json`
+
+   > **Note:** If you already have URLs here, separate entries with commas.
+
+4. Click **OK** to save the preferences.
+5. Wait for the board index to download.
+
+<details>
+<summary>Why this step?</summary>
+
+This URL provides Arduino with Espressif's board definitions and the tools needed to compile and upload.
+
+</details>
+
+## Install the Board in Boards Manager
+
+1. Open the **Boards Manager** by navigating to **Tools > Board > Boards Manager**.
+2. In the search bar, type `esp32`.
+3. Locate the entry for **"esp32 by Espressif Systems"**.
+4. Click the **Install** button.
+
+   > **Important:** Ensure you are using version **3.0.0 or later**.
+
+5. Wait for the installation to finish.
+
+<details>
+<summary>What gets installed?</summary>
+
+It installs the [RISC-V](https://en.wikipedia.org/wiki/RISC-V) cross-compiler toolchain, ESP-IDF libraries, and upload tools.
+
+</details>
+
+## Select the Board and Port
+
+1. After installation, go to **Tools > Board > esp32**.
+2. Select your board model: `XIAO_ESP32C3`.
+
+<details>
+<summary>Why does the board selection matter?</summary>
+
+The selected board controls default pin mappings and build settings (flash size, bootloader, clock speed).
+
+</details>
+
+## Install Required Libraries
+
+In **Sketch > Include Library > Manage Libraries**, install:
+
+1. **Adafruit SSD1306** (by Adafruit)
+2. **Adafruit GFX Library** (by Adafruit), which will be prompted as a dependency.
+
+<details>
+<summary>What are these libraries for?</summary>
+
+- **Adafruit SSD1306**: SSD1306 OLED driver (I2C).
+- **Adafruit GFX**: drawing primitives used by the driver.
+
+</details>
+
+## Create the Project
+
+Create a new Arduino sketch: **File > New Sketch**, then save it as `Tamagotchi.ino`.
+
+<details>
+<summary>What is a .ino file?</summary>
+
+Arduino treats `.ino` as C++. The IDE adds `Arduino.h` and generates `main()`, so sketches only need to implement [`setup()`](https://docs.arduino.cc/language-reference/en/structure/sketch/setup/) and [`loop()`](https://docs.arduino.cc/language-reference/en/structure/sketch/loop/).
+
+</details>

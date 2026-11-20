@@ -1,0 +1,207 @@
+---
+title: '5. Draw it and run it'
+order: 6
+---
+
+## Pet Sprites
+
+Create 1-bit sprites for the pet using [draw-to-bit](https://draw-to-bit.vercel.app/), which exports pixel art as C byte arrays.
+
+You need at least a few expressions so the sprite reflects the pet's stats. Example 16x16 sprites:
+
+```cpp
+// Example: Happy face (all stats above 50)
+const unsigned char PROGMEM petHappy[] = {
+  0b00000000, 0b00000000,
+  0b00011111, 0b11111000,
+  0b00100000, 0b00000100,
+  0b01000000, 0b00000010,
+  0b01001100, 0b00110010,
+  0b01001100, 0b00110010,
+  0b01000000, 0b00000010,
+  0b01000000, 0b00000010,
+  0b01000100, 0b00100010,
+  0b01000011, 0b11000010,
+  0b01000000, 0b00000010,
+  0b00100000, 0b00000100,
+  0b00011111, 0b11111000,
+  0b00000000, 0b00000000,
+  0b00000000, 0b00000000,
+  0b00000000, 0b00000000
+};
+
+// Example: Sad face (any stat below 30)
+const unsigned char PROGMEM petSad[] = {
+  0b00000000, 0b00000000,
+  0b00011111, 0b11111000,
+  0b00100000, 0b00000100,
+  0b01000000, 0b00000010,
+  0b01001100, 0b00110010,
+  0b01001100, 0b00110010,
+  0b01000000, 0b00000010,
+  0b01000000, 0b00000010,
+  0b01000000, 0b00000010,
+  0b01000011, 0b11000010,
+  0b01000100, 0b00100010,
+  0b00100000, 0b00000100,
+  0b00011111, 0b11111000,
+  0b00000000, 0b00000000,
+  0b00000000, 0b00000000,
+  0b00000000, 0b00000000
+};
+
+// Example: Neutral face (everything else)
+const unsigned char PROGMEM petNeutral[] = {
+  0b00000000, 0b00000000,
+  0b00011111, 0b11111000,
+  0b00100000, 0b00000100,
+  0b01000000, 0b00000010,
+  0b01001100, 0b00110010,
+  0b01001100, 0b00110010,
+  0b01000000, 0b00000010,
+  0b01000000, 0b00000010,
+  0b01000111, 0b11100010,
+  0b01000000, 0b00000010,
+  0b01000000, 0b00000010,
+  0b00100000, 0b00000100,
+  0b00011111, 0b11111000,
+  0b00000000, 0b00000000,
+  0b00000000, 0b00000000,
+  0b00000000, 0b00000000
+};
+
+// Example: Sleeping face (closed eyes)
+const unsigned char PROGMEM petSleep[] = {
+  0b00000000, 0b00000000,
+  0b00011111, 0b11111000,
+  0b00100000, 0b00000100,
+  0b01000000, 0b00000010,
+  0b01001111, 0b01110010,
+  0b01000000, 0b00000010,
+  0b01000000, 0b00000010,
+  0b01000000, 0b00000010,
+  0b01000011, 0b11000010,
+  0b01000000, 0b00000010,
+  0b01000000, 0b00000010,
+  0b00100000, 0b00000100,
+  0b00011111, 0b11111000,
+  0b00000000, 0b00000000,
+  0b00000000, 0b00000000,
+  0b00000000, 0b00000000
+};
+```
+
+**Notes:**
+
+- `const unsigned char PROGMEM` stores the bitmap in flash instead of RAM. See [`PROGMEM`](https://docs.arduino.cc/language-reference/en/variables/utilities/PROGMEM/).
+- Each row is two bytes (16 bits = 16 pixels wide). A `1` bit lights up that pixel; a `0` bit leaves it dark.
+- Four example expressions are defined above. Replace them with your own sprites from [draw-to-bit](https://draw-to-bit.vercel.app/).
+
+<details>
+<summary>Can I make the pet sprite bigger?</summary>
+
+Yes. Use a larger bitmap (e.g., 32x32) and update the `drawBitmap()` dimensions to match. Larger sprites use more flash and screen space.
+
+</details>
+
+## Display Function (OLED Rendering)
+
+Draws the sprite and stat bars. Sprite selection is based on current stats.
+
+```cpp
+void render() {
+  display.clearDisplay();
+
+  // Choose the right sprite based on pet stats
+  const unsigned char* sprite;
+  if (pet.hunger < 30 || pet.happiness < 30 || pet.energy < 30) {
+    sprite = petSad;
+  } else if (pet.hunger > 50 && pet.happiness > 50 && pet.energy > 50) {
+    sprite = petHappy;
+  } else {
+    sprite = petNeutral;
+  }
+
+  // Draw the pet sprite (centered horizontally, near the top)
+  display.drawBitmap(56, 2, sprite, 16, 16, SSD1306_WHITE);
+
+  // Draw stat bars below the pet
+  display.setTextSize(1);
+
+  display.setCursor(0, 24);
+  display.print("HUN ");
+  drawBar(24, 24, pet.hunger);
+
+  display.setCursor(0, 34);
+  display.print("HAP ");
+  drawBar(24, 34, pet.happiness);
+
+  display.setCursor(0, 44);
+  display.print("ENG ");
+  drawBar(24, 44, pet.energy);
+
+  // Button labels at the bottom
+  display.setCursor(0, 56);
+  display.println("[Feed] [Play] [Sleep]");
+
+  display.display();
+}
+
+// Draws a stat bar: empty rectangle with a filled portion based on value (0 to 100)
+void drawBar(int x, int y, int value) {
+  int barWidth = 100;
+  int barHeight = 6;
+  int fillWidth = map(value, 0, 100, 0, barWidth);
+
+  display.drawRect(x, y, barWidth, barHeight, SSD1306_WHITE);       // outline
+  display.fillRect(x, y, fillWidth, barHeight, SSD1306_WHITE);      // filled portion
+}
+```
+
+**Notes:**
+
+- The sprite is chosen by `if/else`: any stat below 30 = sad, all above 50 = happy, otherwise neutral.
+- [`display.drawBitmap()`](https://learn.adafruit.com/adafruit-gfx-graphics-library/graphics-primitives) draws a 1-bit bitmap. `56, 2` centers the 16px sprite on the 128px-wide screen.
+- `drawBar()` draws an outline with [`drawRect()`](https://learn.adafruit.com/adafruit-gfx-graphics-library/graphics-primitives) and fills it proportionally with `fillRect()`.
+- [`map()`](https://docs.arduino.cc/language-reference/en/functions/math/map/) scales the stat value to the bar's pixel width.
+- `display.display()` pushes the buffer to the OLED.
+
+<details>
+<summary>Why do we clear and redraw every frame?</summary>
+
+The SSD1306 uses a framebuffer. Without clearing first, old pixels remain and overlap new content. The clear → draw → display pattern is standard for frame-based rendering.
+
+</details>
+
+## Main Loop
+
+[`loop()`](https://docs.arduino.cc/language-reference/en/structure/sketch/loop/) runs repeatedly after `setup()` finishes. It reads input, updates state, and redraws the display.
+
+```cpp
+void loop() {
+  checkButtons();       // 1. Read input
+  updatePet();          // 2. Update state over time
+  handleScreenLogic();  // 3. Process actions
+  render();             // 4. Display results
+  delay(100);           // 5. Short pause
+}
+```
+
+**Loop order:**
+
+![Loop](https://cdn.hackclub.com/019d7810-8bbf-7712-9a8b-22c9e8d7c17f/image_1.png)
+
+1. **Input**: Read buttons, set `currentScreen`.
+2. **Update**: Decay stats based on elapsed time.
+3. **Logic**: Execute the selected action (feed/play/sleep), return to main.
+4. **Render**: Draw the frame.
+5. **Pause**: `delay(100)` limits refresh rate while keeping input responsive.
+
+<details>
+<summary>What is a game loop?</summary>
+
+This is a standard [game loop](https://gameprogrammingpatterns.com/game-loop.html) pattern (input → update → render), common in interactive programs.
+
+</details>
+
+> Flashing not working? Try a different USB-C cable (some only charge), a different port or a different upload method. And if something is eating hours with no end in sight, it's often faster to try a totally different approach. You've got this!

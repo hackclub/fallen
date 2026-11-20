@@ -9,7 +9,7 @@ class QueryBudgetTest < ActionDispatch::IntegrationTest
     assert_query_budget(1) { get dev_path }
     assert_query_budget(0) { get workshop_rsvp_path }
     assert_query_budget(0) { get workshop_guide_path }
-    assert_query_budget(0) { get tamagotchi_guide_path }
+    assert_query_budget(0) { get workshop_guide_path(page: "firmware") }
     # The same panels as /admin/stats, uncached here (the test cache is a null store).
     assert_query_budget(14) { load_deferred(stats_path, "Stats/Show", "active", "daily", "funnel", "sources", "writing") }
   end

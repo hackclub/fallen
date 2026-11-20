@@ -1,12 +1,12 @@
 ---
-title: 1. Draw the circuit
+title: 1. Draw the schematic
 order: 3
 group: Workshop
 ---
 
-A **schematic** is like a wiring diagram: it describes which components should be connected to each other. It doesn't say where they'll be placed on the board, and it doesn't physically connect them. The real connections get drawn later in the **PCB Editor**.
+A **schematic** is like a wiring diagram: it describes which components should be connected to each other. It doesn't say where they'll be placed on the board, and it doesn't physically connect them. We'll electrically connect up our components later in the **PCB Editor**!
 
-**The brain:** the **XIAO ESP32-C3** is a tiny computer called a microcontroller (MCU). It runs your code and controls everything else. It also has WiFi, Bluetooth and a built-in battery charger!
+The **XIAO ESP32-C3** is a tiny computer called a microcontroller (MCU). It runs your code and controls everything else. It also has WiFi, Bluetooth and a built-in battery charger!
 
 ## Add the XIAO
 
@@ -31,9 +31,9 @@ Next, connect the rest of the power pins the same way:
 
 **What is Ground?**
 
-> Ground is the **common** reference point of a circuit. We call it 0 V, and the voltage of other circuit nodes is normally described relative to it. Ground is one large net, connected to any component that requires a return path.
+> Ground is our reference point for all our voltages! We call it 0 V, and everything else is measured from there. It's one big net that every part connects to, so the current always has a way back!
 >
-> GND is a net name, meaning anything connected to the GND symbol will be connected to the ground net.
+> **GND** is just the name of that net. Anything you connect to a `GND` symbol joins it.
 
 When you're done, it should look like this:
 
@@ -56,19 +56,19 @@ Pin 5 on the microcontroller is SDA and pin 6 is SCL. These are the XIAO's I2C p
 
 **What are SDA, SCL, and GND?**
 
-> - **GND** = Ground, the common reference point for all electrical signals.
+> - **GND** = Ground, our voltage reference point!
 > - **SDA** = Serial Data, the line that carries data back and forth over I2C.
 > - **SCL** = Serial Clock, the line that provides the timing signal for I2C communication.
 >
 > I2C is a protocol that lets multiple devices talk over just two wires (SDA + SCL).
 
-## Add three buttons
+## Adding peripherals
 
-Press **A** and search for `SW_Push` in the symbol library. Click it, then place it to the left of the XIAO. Do this two more times so you have three buttons (SW1, SW2 and SW3), since a Tamagotchi has three!
+Search for `SW_Push` in the symbol library. Click it, then place it to the left of the XIAO. Do this two more times so you have three buttons (SW1, SW2 and SW3), since a Tamagotchi has three!
 
 Press **W** to start drawing wires:
 
-- Connect one side of each button to a `GND` symbol. Press **P** and type "GND". All three buttons can share the same one.
+- Connect one side of each button to a `GND` symbol.
 - Connect the other side of **SW1** to **D1** (pin 2), **SW2** to **D2** (pin 3), and **SW3** to **D3** (pin 4) on the XIAO.
 
 ![Three SW_Push buttons wired to GND and to pins D1, D2 and D3 of the XIAO.](/guides/tamagotchi/schematic-buttons.png)

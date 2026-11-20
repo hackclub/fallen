@@ -1,0 +1,44 @@
+---
+title: '2. Match the pins to your schematic'
+order: 3
+---
+
+Before writing any code, open your `.kicad_sch` and confirm each component's connections to the MCU. Your pin mappings in firmware must match the schematic.
+
+Trace each component to the MCU and record the GPIO number. KiCad shortcut: click a wire and press the backtick key (`` ` ``) to highlight the net.
+
+## My Results
+
+Example pin mapping from my schematic (yours will differ):
+
+**Buttons** (active-low: one side to GND, other side to MCU → reads `LOW` when pressed):
+
+| Button | MCU Pin | GPIO  |
+| ------ | ------- | ----- |
+| SW1    | Pin 2   | GPIO3 |
+| SW2    | Pin 3   | GPIO4 |
+| SW3    | Pin 4   | GPIO5 |
+
+**OLED Display** (I2C address is usually `0x3C`; check your datasheet):
+
+| OLED Pin | MCU Pin | GPIO  |
+| -------- | ------- | ----- |
+| SDA      | Pin 5   | GPIO6 |
+| SCL      | Pin 6   | GPIO7 |
+
+## Turn Your Results into Code
+
+Define the GPIOs at the top of your sketch:
+
+```cpp
+// Buttons (traced from schematic)
+#define BTN1 3   // SW1 → MCU Pin 2 → GPIO3
+#define BTN2 4   // SW2 → MCU Pin 3 → GPIO4
+#define BTN3 5   // SW3 → MCU Pin 4 → GPIO5
+
+// I2C OLED (traced from schematic)
+#define SDA_PIN 6   // OLED SDA → MCU Pin 5 → GPIO6
+#define SCL_PIN 7   // OLED SCL → MCU Pin 6 → GPIO7
+```
+
+Use the GPIO numbers from your schematic. If these `#define`s don't match your wiring, the firmware will compile but the hardware won't behave correctly.
