@@ -7,7 +7,8 @@ on:
 
 jobs:
   ci:
-    runs-on: ubuntu-latest
+    # ubuntu-latest is 26.04 now, which has no prebuilt Ruby for setup-ruby yet.
+    runs-on: ubuntu-24.04
     services:
       postgres:
         image: postgres:16
