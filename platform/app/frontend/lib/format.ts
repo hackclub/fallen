@@ -16,7 +16,7 @@ export function formatMinutes(minutes: number | null | undefined): string {
   return [hours > 0 && `${hours}h`, (mins > 0 || hours === 0) && `${mins}m`].filter(Boolean).join(' ')
 }
 
-const relativeFormatter = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' })
+const relativeFormatter = new Intl.RelativeTimeFormat('en', { numeric: 'auto' })
 
 export function timeAgo(iso: string): string {
   const seconds = Math.round((new Date(iso).getTime() - Date.now()) / 1000)

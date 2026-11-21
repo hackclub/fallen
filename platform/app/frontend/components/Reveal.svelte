@@ -17,22 +17,31 @@
 
   // Content that came in over a skeleton has had its entrance, so a stagger-in inside it stays still (application.css)
   let swept = $state(untrack(() => loading))
+  // A reload (the next page of a table) starts a fresh <Skeleton>. Within one, content that comes back while its
+  // old pane is still fading out gets that pane back from Svelte, which skullet has already set absolute, inert and
+  // invisible for good, so the content would vanish until a refresh.
+  let reloads = $state(0)
+  let wasLoading = untrack(() => loading)
   $effect.pre(() => {
     if (loading) swept = true
+    if (loading && !wasLoading) reloads++
+    wasLoading = loading
   })
 </script>
 
 <!-- `data` drives it, so the pane on its way out keeps the skeleton it was measured from -->
-<SkulletProvider reveal="sweep">
-  <Skeleton
-    data={loading ? null : ('content' as const)}
-    sample="skeleton"
-    class={[className, swept && 'reveal-swept'].filter(Boolean).join(' ')}
-  >
-    {#snippet children(pane)}
-      {#if pane === 'skeleton'}{@render skeleton?.()}{:else}{@render content()}{/if}
-    {/snippet}
-  </Skeleton>
-</SkulletProvider>
+{#key reloads}
+  <SkulletProvider reveal="sweep">
+    <Skeleton
+      data={loading ? null : ('content' as const)}
+      sample="skeleton"
+      class={[className, swept && 'reveal-swept'].filter(Boolean).join(' ')}
+    >
+      {#snippet children(pane)}
+        {#if pane === 'skeleton'}{@render skeleton?.()}{:else}{@render content()}{/if}
+      {/snippet}
+    </Skeleton>
+  </SkulletProvider>
+{/key}
 
 {#snippet content()}{@render children()}{/snippet}
