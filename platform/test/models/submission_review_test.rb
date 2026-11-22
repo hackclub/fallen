@@ -17,30 +17,30 @@ class SubmissionReviewTest < ActiveSupport::TestCase
     end
   end
 
-  def review(verdict: "approved", feedback: "", journals: calls, bom: nil, reviewer: @reviewer, ai: nil, cut: nil)
-    bom ||= @submission.bom_items.to_h { [ it.public_id, { "verdict" => "approved" } ] }
-    SubmissionReview.new(@submission, reviewer:, verdict:, feedback:, internal_reason: "Looks right", rubric: Submission::RUBRIC.keys.index_with { "yes" }, journals:, bom:, ai:, cut:)
+  def review(verdict: "approved", feedback: "", journals: calls, reviewer: @reviewer, ai: nil, cut: nil)
+    SubmissionReview.new(@submission, reviewer:, verdict:, feedback:, internal_reason: "Looks right", rubric: Submission::RUBRIC.keys.index_with { "yes" }, journals:, ai:, cut:)
   end
 
-  test "approving funds the approved lines and takes XP off a deflated journal" do
+  test "approving funds the parts list as asked and takes XP off a deflated journal" do
     journal = journals(:first)
     xp_before = journal.xp_entry.amount
-    rp, shipping = @submission.bom_items
-    bom = { rp.public_id => { "verdict" => "approved" }, shipping.public_id => { "verdict" => "adjusted", "approved_cents" => "300", "reason" => "Shipping or tax was off" } }
+    asked = @submission.bom_items.sum(&:requested_cents)
 
-    assert review(journals: calls(deflate: journal), bom:).save
+    assert review(journals: calls(deflate: journal)).save
     @submission.reload
 
     assert @submission.approved?
-    assert_equal 500, @submission.approved_cents
-    assert_equal 500, @submission.grant_payout.amount_cents
+    assert_operator asked, :>, 0
+    assert_equal asked, @submission.approved_cents
+    assert_equal asked, @submission.grant_payout.amount_cents
+    assert @submission.bom_items.all? { it.verdict == "approved" }
     assert_equal 30, journal.reload.reviewed_minutes
     assert_operator journal.xp_entry.reload.amount, :<, xp_before
     assert_equal "Idle or AFK time", @submission.journal_reviews.find_by(journal:).reason
     assert_enqueued_jobs 1, only: SubmissionDecidedJob
   end
 
-  test "every journal and every part needs a call, and a reason when it's cut" do
+  test "every journal needs a call, and a reason when it's cut" do
     partial = review(journals: calls.except(@journals.first.public_id))
     refute partial.save
     assert partial.errors[:journals].any?
@@ -51,16 +51,12 @@ class SubmissionReviewTest < ActiveSupport::TestCase
 
     too_much = review(journals: calls.merge(@journals.first.public_id => { "approved_minutes" => 10_000 }))
     refute too_much.save
-
-    undecided_bom = review(bom: {})
-    refute undecided_bom.save
-    assert undecided_bom.errors[:bom].any?
     assert @submission.reload.pending?
   end
 
-  test "returning needs feedback but no call on journals or parts; rejecting needs an admin" do
+  test "returning needs feedback but no call on journals; rejecting needs an admin" do
     refute review(verdict: "returned").save
-    assert review(verdict: "returned", feedback: "Add the gerbers", journals: {}, bom: {}).save
+    assert review(verdict: "returned", feedback: "Add the gerbers", journals: {}).save
     assert @submission.reload.returned?
     assert_nil @submission.grant_payout
 
@@ -73,18 +69,16 @@ class SubmissionReviewTest < ActiveSupport::TestCase
   test "returning keeps the calls for the next review but applies none of them" do
     journal = journals(:first)
     xp_before = journal.xp_entry.amount
-    rp, shipping = @submission.bom_items
-    bom = { rp.public_id => { "verdict" => "cut", "reason" => "Other" }, shipping.public_id => { "verdict" => "cut" } }
     half = calls(deflate: journal).merge(@journals.last.public_id => { "approved_minutes" => 1 })
 
-    assert review(verdict: "returned", feedback: "Add the gerbers", journals: half, bom:).save
+    assert review(verdict: "returned", feedback: "Add the gerbers", journals: half).save
 
     call = @submission.journal_reviews.find_by(journal:)
     assert_equal [ journal.duration_minutes / 3, "Idle or AFK time" ], [ call.approved_minutes, call.reason ]
     refute @submission.journal_reviews.exists?(journal: @journals.last), "a call without a reason isn't kept"
     assert_nil journal.reload.reviewed_minutes
     assert_equal xp_before, journal.xp_entry.reload.amount
-    assert_equal [ "cut", nil ], [ rp.reload.verdict, shipping.reload.verdict ]
+    assert @submission.bom_items.reload.all? { it.verdict.nil? }, "returning funds and records no part"
     assert_nil @submission.reload.approved_cents
 
     again = submit_design(projects(:station))
@@ -200,7 +194,7 @@ class SubmissionReviewTest < ActiveSupport::TestCase
     deflated = review(journals: calls(deflate: journals(:first)), cut: (counted - 1).to_s)
     refute deflated.save, "the cut is checked against the time left after journal cuts"
 
-    assert review(verdict: "returned", feedback: "Add the gerbers", journals: {}, bom: {}, cut: "30").save
+    assert review(verdict: "returned", feedback: "Add the gerbers", journals: {}, cut: "30").save
     assert_nil @submission.reload.internal_deflated_minutes
   end
 

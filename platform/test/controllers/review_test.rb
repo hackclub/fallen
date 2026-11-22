@@ -11,8 +11,7 @@ class ReviewTest < ActionDispatch::IntegrationTest
 
   def decision(verdict: "approved", feedback: "")
     journals = SubmissionReview.journals_for(@submission).to_h { [ it.public_id, { approved_minutes: it.duration_minutes } ] }
-    bom = @submission.bom_items.to_h { [ it.public_id, { verdict: "approved" } ] }
-    { review: { verdict:, feedback:, internal_reason: "Fine", rubric: Submission::RUBRIC.keys.index_with { "yes" }, journals:, bom: } }
+    { review: { verdict:, feedback:, internal_reason: "Fine", rubric: Submission::RUBRIC.keys.index_with { "yes" }, journals: } }
   end
 
   test "people without the role don't see the queue" do
@@ -105,6 +104,7 @@ class ReviewTest < ActionDispatch::IntegrationTest
     assert response.parsed_body["saved"]
     assert_equal({ "complete" => "yes" }, @submission.reload.review_draft["rubric"])
     assert_not @submission.review_draft.key?("extra")
+    assert_not @submission.review_draft.key?("bom"), "parts take no calls any more"
     assert_equal @reviewer, @submission.review_draft_by
 
     other = users(:admin)

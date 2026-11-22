@@ -136,7 +136,7 @@ class Submission < ApplicationRecord
 
   # The most an unfinished review can take, written out as JSON.
   MAX_DRAFT_BYTES = 200.kilobytes
-  DRAFT_KEYS = %w[rubric journals bom feedback internal ai cut].freeze
+  DRAFT_KEYS = %w[rubric journals feedback internal ai cut].freeze
 
   # Saves an unfinished review (SubmissionReview's fields as the review page holds them) for whoever holds the
   # submission, so leaving the page loses nothing and the next reviewer starts from it. False when they don't hold it

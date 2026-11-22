@@ -39,9 +39,6 @@ class BomItem < ApplicationRecord
 
   KINDS = %w[part shipping tax].freeze
   VERDICTS = %w[approved adjusted cut].freeze
-  CUT_REASONS = [ "Extra or spare parts", "A devboard or module you should design yourself", "A pricier option than needed",
-    "A tool you don't need", "Not needed for this project", "Already owned", "Other" ].freeze
-  ADJUST_REASONS = [ "Fewer needed", "A cheaper option exists", "The price was wrong", "Shipping or tax was off", "Other" ].freeze
   MAX_NAME = 200
   MAX_PURPOSE = 300
   MAX_LINK = 1_000

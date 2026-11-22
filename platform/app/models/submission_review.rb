@@ -1,9 +1,10 @@
 # One reviewer's decision on a Submission. There is a single review per submission, so it has to be complete:
 # every rubric question answered, every journal given the time that counts (cut journal by journal, with a reason),
-# every line of the bill of materials approved, adjusted or cut, an internal reason, and feedback for the person
-# unless it is a clean approval. Rejecting is for good and only admins do it. Returning for changes needs none of the
-# journal or parts calls and applies none: the calls it was given are kept (JournalReview, BomItem#verdict) for the next
-# reviewer to start from, and the time and the funding are settled by the review that approves it.
+# an internal reason, and feedback for the person unless it is a clean approval. Approving funds the bill of materials
+# as asked: every line is recorded as approved, and the reviewer returns the project to get a parts list changed.
+# Rejecting is for good and only admins do it. Returning for changes needs none of the journal calls and applies none:
+# the calls it was given are kept (JournalReview) for the next reviewer to start from, and the time and the funding are
+# settled by the review that approves it.
 #
 # A project whose journals were written by AI is marked as such (`ai`) and can only be rejected for good, by any
 # design reviewer: every journal it covers counts no time from then on, and the review needs nothing else but the
@@ -21,7 +22,7 @@ class SubmissionReview
   VERDICTS = %w[approved returned rejected].freeze
   AI_CALL = { "approved_minutes" => 0, "reason" => JournalReview::AI_GENERATED }.freeze
 
-  attr_reader :submission, :reviewer, :verdict, :feedback, :internal_reason, :rubric, :journals, :bom, :cut
+  attr_reader :submission, :reviewer, :verdict, :feedback, :internal_reason, :rubric, :journals, :cut
 
   # The journals a review covers: every one with hours logged on the project before it was submitted.
   def self.journals_for(submission) = submission.project.journals.kept.where.not(duration_minutes: nil).where(created_at: ..submission.created_at)
@@ -89,7 +90,7 @@ class SubmissionReview
     submission
   end
 
-  def initialize(submission, reviewer:, verdict:, feedback: nil, internal_reason: nil, rubric: {}, journals: {}, bom: {}, ai: nil, cut: nil)
+  def initialize(submission, reviewer:, verdict:, feedback: nil, internal_reason: nil, rubric: {}, journals: {}, ai: nil, cut: nil)
     @submission = submission
     @reviewer = reviewer
     @verdict = verdict.to_s
@@ -97,7 +98,6 @@ class SubmissionReview
     @internal_reason = internal_reason.to_s.strip.presence
     @rubric = rubric.to_h.stringify_keys.slice(*Submission::RUBRIC.keys)
     @journals = journals.to_h.stringify_keys
-    @bom = bom.to_h.stringify_keys
     @ai = ActiveModel::Type::Boolean.new.cast(ai) || false
     @cut = cut.presence && Integer(cut.to_s, exception: false)
     @cut_given = cut.present?
@@ -112,7 +112,7 @@ class SubmissionReview
   def save
     covered = self.class.journals_for(submission).to_a
     items = submission.bom_items.to_a
-    validate_decision(covered, items)
+    validate_decision(covered)
     return false if errors.any?
 
     submission.with_lock do
@@ -126,10 +126,9 @@ class SubmissionReview
         self.class.sync_xp(covered)
       elsif returned?
         covered.each { |journal| record_journal(journal, journals[journal.public_id], apply: false) if usable_call?(journal) }
-        items.each { |item| record_item(item) unless item_problem(item, bom[item.public_id]) }
       else
         self.class.sync_xp(covered.select { |journal| record_journal(journal, journals.fetch(journal.public_id)) })
-        items.each { |item| record_item(item) }
+        items.each { it.update!(verdict: "approved", reason: nil, approved_cents: nil) } if verdict == "approved"
       end
       submission.update!(status: verdict, reviewer:, rubric:, feedback:, internal_reason:, decided_at: Time.current,
         ai_generated: ai?, internal_deflated_minutes: ai? || returned? ? nil : cut,
@@ -152,7 +151,7 @@ class SubmissionReview
 
   private
 
-  def validate_decision(covered, items)
+  def validate_decision(covered)
     errors.add(:verdict, "must be approve, return or reject") unless verdict.in?(VERDICTS)
     errors.add(:base, "You can't review a project you're on") if submission.project.on_team?(reviewer)
     errors.add(:internal_reason, "is needed: say why, for the next reviewer") if internal_reason.blank?
@@ -171,12 +170,6 @@ class SubmissionReview
       errors.add(:journals, problem) if problem
     end
     validate_cut(covered) if errors[:journals].empty?
-    return unless verdict == "approved"
-
-    items.each do |item|
-      problem = item_problem(item, bom[item.public_id])
-      errors.add(:bom, problem) if problem
-    end
   end
 
   def validate_cut(covered)
@@ -198,19 +191,6 @@ class SubmissionReview
 
   def usable_call?(journal) = journal_problem(journal, journals[journal.public_id]).nil?
 
-  # Why a line's call isn't a whole one, or nil when it is.
-  def item_problem(item, call)
-    return "each line needs a decision before approving" unless call&.dig("verdict").in?(BomItem::VERDICTS)
-    return if call["verdict"] == "approved"
-
-    if call["verdict"] == "adjusted"
-      cents = Integer(call["approved_cents"].to_s, exception: false)
-      return "adjusted lines need an amount below what was asked" unless cents && cents >= 0 && cents < item.requested_cents
-    end
-    reasons = call["verdict"] == "cut" ? BomItem::CUT_REASONS : BomItem::ADJUST_REASONS
-    "lines that are cut or adjusted need a reason" unless call["reason"].in?(reasons)
-  end
-
   def held_by_someone_else? = submission.claimed_by_id && submission.claimed_by_id != reviewer.id && submission.claim_expires_at&.future?
 
   # Keeps the call, and with `apply` makes it the time that counts. True when that time changed, so its XP has to follow.
@@ -223,13 +203,5 @@ class SubmissionReview
 
     journal.update_column(:reviewed_minutes, reviewed)
     true
-  end
-
-  def record_item(item)
-    call = bom[item.public_id] or return
-
-    verdict = call["verdict"].presence_in(BomItem::VERDICTS)
-    approved = verdict == "adjusted" ? Integer(call["approved_cents"].to_s, exception: false) : nil
-    item.update!(verdict:, reason: verdict == "approved" ? nil : call["reason"], approved_cents: approved)
   end
 end

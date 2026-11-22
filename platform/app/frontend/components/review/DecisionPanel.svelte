@@ -22,7 +22,6 @@
     AI_FEEDBACK,
     AI_INTERNAL,
     aiTemplate,
-    itemDecided,
     journalDecided,
     journalNeedsReason,
     markAi,
@@ -70,14 +69,6 @@
   const journalReasonsMissing = $derived(
     !ai && page.journals.some((j) => journalNeedsReason(draft.journals[j.id])),
   )
-  const itemsLeft = $derived(ai ? 0 : s.bom_items.filter((i) => !itemDecided(i, draft.bom[i.id])).length)
-  const itemReasonsMissing = $derived(
-    !ai &&
-      s.bom_items.some((i) => {
-        const call = draft.bom[i.id]
-        return !i.owned && (call?.verdict === 'cut' || call?.verdict === 'adjusted') && !call.reason
-      }),
-  )
 
   // What's typed, kept apart from draft.cut so a 0 on the way to 0.5 isn't wiped out.
   let cutHours = $state(draft.cut == null ? '' : String(+(draft.cut / 60).toFixed(2)))
@@ -97,22 +88,13 @@
   const common = $derived(
     basics ??
       (journalsLeft
-        ? `Decide the ${journalsLeft} journal${journalsLeft === 1 ? '' : 's'} left`
+        ? `Finish the ${journalsLeft} deflated journal${journalsLeft === 1 ? '' : 's'}`
         : journalReasonsMissing
           ? 'Give a reason for every journal you deflate'
           : null) ??
       cutBlocker,
   )
-  const approveBlocker = $derived(
-    ai
-      ? AI_ONLY
-      : (common ??
-          (itemsLeft
-            ? `Decide the ${itemsLeft} part${itemsLeft === 1 ? '' : 's'} left`
-            : itemReasonsMissing
-              ? 'Give a reason for every part you cut or lower'
-              : null)),
-  )
+  const approveBlocker = $derived(ai ? AI_ONLY : common)
   const returnBlocker = $derived(ai ? AI_ONLY : (basics ?? feedbackBlocker))
   // Marked AI-generated, it's rejected with just the reasons: no rubric, journals, parts or cut.
   const rejectBlocker = $derived(ai ? (reasonBlocker ?? feedbackBlocker) : (common ?? feedbackBlocker))
@@ -302,7 +284,7 @@
       journalsLeft,
       'journals',
     )}
-    {@render stat('Funding', money(fundedCents), money(s.requested_cents), itemsLeft, 'parts')}
+    {@render stat('Funding', money(fundedCents), money(s.requested_cents), 0, 'parts')}
 
     {#if !ai && (!decided || draft.cut)}
       <div class="space-y-1.5">

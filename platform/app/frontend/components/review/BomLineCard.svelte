@@ -1,41 +1,19 @@
 <script lang="ts">
-  import Morph from '@/components/admin/Morph.svelte'
-  import NumberInput from '@/components/NumberInput.svelte'
-  import ReasonChips from '@/components/review/ReasonChips.svelte'
-  import Segmented from '@/components/review/Segmented.svelte'
-  import { animate } from 'motion'
-  import { prefersReducedMotion } from '@/components/dialog/motion'
-  import { reveal } from '@/components/review/motion'
-  import {
-    itemDecided,
-    itemFunded,
-    itemRequested,
-    type ItemCall,
-    type ItemVerdict,
-  } from '@/lib/review.svelte'
-  import { fromCents, money, toCents } from '@/lib/submission'
+  import { itemRequested } from '@/lib/review.svelte'
+  import { money } from '@/lib/submission'
   import type { BomItem } from '@/types'
 
-  // One line of the parts list and the call on it. Everything about the part is on the left and the call on the
-  // right, both at fixed widths, so choosing never moves anything; lowering or cutting opens a row underneath for
-  // how much and why.
+  // One line of the parts list, to read: the part, where it's from, and what it asks for. Flags point at lines worth
+  // a closer look. A line an older review lowered or cut shows what it funded instead.
   let {
     item,
-    call = $bindable(),
     index,
     focused,
-    readonly,
-    cutReasons,
-    lowerReasons,
     onFocus,
   }: {
     item: BomItem
-    call: ItemCall
     index: number
     focused: boolean
-    readonly: boolean
-    cutReasons: string[]
-    lowerReasons: string[]
     onFocus: () => void
   } = $props()
 
@@ -44,8 +22,7 @@
     /\b(?:dev\s*(?:board|kit)|development\s*board|arduino|esp32[-\s]?(?:devkit|wroom[-\s]?devkit|c3[-\s]?super\s*mini)|nodemcu|wemos|d1\s*mini|raspberry\s*pi\s*pico|pico\s*w?\b|feather|xiao|breakout|module)\b/i
 
   const asked = $derived(itemRequested(item))
-  const funded = $derived(itemFunded(item, call))
-  const decided = $derived(itemDecided(item, call))
+  const lowered = $derived(item.funded_cents != null && item.funded_cents < asked)
   const link = $derived(item.link && /^https?:\/\//i.test(item.link) ? item.link : null)
   const host = $derived.by(() => {
     try {
@@ -60,56 +37,8 @@
       item.kind === 'part' && READY_MADE.test(item.name) && 'Looks ready-made',
     ].filter((flag): flag is string => !!flag),
   )
-  const lowerProblem = $derived(
-    call.verdict !== 'adjusted' || call.cents == null
-      ? null
-      : call.cents >= asked
-        ? `That’s all of it. Pick “Approve” instead.`
-        : call.cents <= 0
-          ? 'That’s nothing. Pick “Cut” instead.'
-          : null,
-  )
-  // Quick amounts for lowering: fewer of the part, or half.
-  const picks = $derived.by(() => {
-    const out: { label: string; cents: number }[] = []
-    if (item.kind === 'part' && item.quantity > 1 && item.unit_cents) {
-      for (const n of [item.quantity - 1, Math.ceil(item.quantity / 2), 1]) {
-        if (n > 0 && n < item.quantity && !out.some((p) => p.label === `${n} of ${item.quantity}`))
-          out.push({ label: `${n} of ${item.quantity}`, cents: n * item.unit_cents })
-      }
-    }
-    if (out.length < 2 && asked > 1) out.push({ label: '½', cents: Math.round(asked / 2) })
-    return out.filter((p) => p.cents > 0 && p.cents < asked).slice(0, 3)
-  })
-
-  // The asked amount, struck through under the funding while a line funds less than it asks. Its space is always
-  // kept, so it fades in and out on a spring without the card changing height.
-  // The amount is centred in the card; while the struck price shows under it, both rise by half its height so the
-  // pair stays centred.
-  const lowered = $derived(funded != null && funded < asked)
-  let was: HTMLElement
-  let fundsBox: HTMLElement
-  $effect(() => {
-    const on = lowered
-    const spring = prefersReducedMotion()
-      ? { duration: 0 }
-      : ({ type: 'spring', stiffness: 520, damping: 34 } as const)
-    animate(was, { opacity: on ? 1 : 0, y: on ? 0 : -4 }, spring)
-    animate(fundsBox, { y: on ? -was.offsetHeight / 2 : 0 }, spring)
-  })
 
   let root: HTMLElement
-  let amount: HTMLInputElement | undefined = $state()
-
-  export function choose(verdict: ItemVerdict) {
-    if (readonly || item.owned) return
-    call = {
-      verdict,
-      reason: verdict === 'approved' ? null : call.verdict === verdict ? call.reason : null,
-      cents: verdict === 'adjusted' ? (call.verdict === 'adjusted' ? call.cents : null) : null,
-    }
-    if (verdict === 'adjusted') requestAnimationFrame(() => amount?.focus())
-  }
 
   export function scrollIntoView() {
     root?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
@@ -118,9 +47,10 @@
 
 <article
   bind:this={root}
+  tabindex="-1"
   onfocusin={onFocus}
   class={[
-    'scroll-mt-28 overflow-hidden rounded-lg border bg-card transition-[box-shadow,border-color] duration-200',
+    'scroll-mt-28 overflow-hidden rounded-lg border bg-card transition-[box-shadow,border-color] duration-200 outline-none',
     focused
       ? 'border-ring shadow-[0_0_0_3px_color-mix(in_oklch,var(--ring)_25%,transparent)]'
       : 'border-border',
@@ -128,17 +58,8 @@
 >
   <div class="flex items-start gap-3 px-3 py-3">
     <span
-      class={[
-        'mt-0.5 grid size-5 shrink-0 place-items-center rounded-full font-mono text-[10px] font-semibold transition-colors duration-300',
-        (!decided || item.owned) && 'bg-muted text-muted-foreground',
-        decided &&
-          call.verdict === 'approved' &&
-          'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400',
-        decided &&
-          call.verdict === 'adjusted' &&
-          'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400',
-        decided && call.verdict === 'cut' && 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400',
-      ]}>{index + 1}</span
+      class="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-muted font-mono text-[10px] font-semibold text-muted-foreground"
+      >{index + 1}</span
     >
 
     <div class="min-w-0 flex-1">
@@ -182,115 +103,21 @@
       </p>
     </div>
 
-    <div class="flex shrink-0 items-center gap-4 self-center">
+    <div class="w-24 shrink-0 self-center text-right">
       {#if item.owned}
-        <span class="w-[13.5rem] text-right text-xs text-muted-foreground">Asks for nothing</span>
+        <p class="text-xs text-muted-foreground">Asks for nothing</p>
+      {:else if lowered}
+        <p class="font-mono text-sm font-semibold">{money(item.funded_cents ?? 0)}</p>
+        <p class="font-mono text-[11px] text-muted-foreground line-through">{money(asked)}</p>
       {:else}
-        <div class="flex w-[13.5rem] justify-end">
-          <Segmented
-            label="Decision on {item.name}"
-            value={call.verdict}
-            disabled={readonly}
-            onChange={choose}
-            options={[
-              { value: 'approved', label: 'Approve', tint: 'green', title: 'Fund it as asked (A)' },
-              { value: 'adjusted', label: 'Lower', tint: 'amber', title: 'Fund less (L)' },
-              { value: 'cut', label: 'Cut', tint: 'red', title: 'Fund none of it (X)' },
-            ]}
-          />
-        </div>
+        <p class="font-mono text-sm font-semibold">{money(asked)}</p>
       {/if}
-      <div bind:this={fundsBox} class="relative w-24 text-right">
-        <p class="text-[10px] tracking-wide text-muted-foreground uppercase">Funds</p>
-        <p class={['font-mono text-sm', funded == null ? 'text-muted-foreground' : 'font-semibold']}>
-          {#if funded == null}
-            {money(asked)}?
-          {:else}
-            <Morph text={money(funded)} />
-          {/if}
-        </p>
-        <!-- Under the amount but out of the layout, so the card never changes height. -->
-        <p
-          bind:this={was}
-          aria-hidden={!lowered}
-          class="absolute top-full right-0 font-mono text-[11px] text-muted-foreground line-through"
-          style:opacity={0}
-        >
-          {money(asked)}
-        </p>
-      </div>
     </div>
   </div>
 
-  {#if call.carried && !readonly}
-    <p transition:reveal class="px-3 pb-2 text-xs text-sky-700 dark:text-sky-300">
-      The last review {call.verdict === 'approved'
-        ? 'approved this'
-        : call.verdict === 'cut'
-          ? 'cut this'
-          : `lowered this${call.cents != null ? ` to ${money(call.cents)}` : ''}`}{call.reason
-        ? ` (${call.reason.toLowerCase()})`
-        : ''}. Pick it again to keep it, or change it.
+  {#if lowered && item.reason}
+    <p class="px-3 pb-2 pl-11 text-xs text-muted-foreground">
+      {item.verdict === 'cut' ? 'Cut' : 'Lowered'}: {item.reason}
     </p>
-  {/if}
-
-  {#if call.verdict === 'adjusted' || call.verdict === 'cut'}
-    <div transition:reveal>
-      <div class="space-y-3 border-t border-border bg-muted/30 px-3 py-3 pl-11">
-        {#if call.verdict === 'adjusted'}
-          <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
-            <span class="w-14 shrink-0 text-xs text-muted-foreground">Fund</span>
-            <div
-              class="flex h-8 items-center rounded-md border border-input bg-background pl-2.5 font-mono text-sm transition-[border-color,box-shadow] duration-200 focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50"
-            >
-              <span class="text-muted-foreground">$</span>
-              <NumberInput
-                bind:ref={amount}
-                value={fromCents(call.cents)}
-                onchange={(value) => (call = { ...call, cents: toCents(value) })}
-                max={asked / 100}
-                separators
-                disabled={readonly}
-                label="Amount to fund"
-                placeholder="0.00"
-                class="h-full w-20 pr-2.5 pl-1"
-              />
-            </div>
-            <span class="text-xs text-muted-foreground">of {money(asked)}</span>
-            {#if !readonly}
-              <div class="flex gap-1">
-                {#each picks as pick (pick.label)}
-                  <button
-                    type="button"
-                    onclick={() => (call = { ...call, cents: pick.cents })}
-                    class={[
-                      'rounded-full px-2 py-0.5 text-xs transition-all duration-200',
-                      call.cents === pick.cents
-                        ? 'bg-card font-semibold text-foreground shadow-[var(--rc-shadow-raise)]'
-                        : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-                    ]}>{pick.label} · {money(pick.cents)}</button
-                  >
-                {/each}
-              </div>
-            {/if}
-          </div>
-          {#if lowerProblem}
-            <p transition:reveal class="pl-[68px] text-xs text-amber-700 dark:text-amber-400">
-              {lowerProblem}
-            </p>
-          {/if}
-        {/if}
-        <div class="flex flex-wrap items-start gap-x-3 gap-y-2">
-          <span class="w-14 shrink-0 pt-0.5 text-xs text-muted-foreground">Why</span>
-          <ReasonChips
-            reasons={call.verdict === 'cut' ? cutReasons : lowerReasons}
-            value={call.reason}
-            label="Why"
-            disabled={readonly}
-            onChange={(reason) => (call = { ...call, reason })}
-          />
-        </div>
-      </div>
-    </div>
   {/if}
 </article>

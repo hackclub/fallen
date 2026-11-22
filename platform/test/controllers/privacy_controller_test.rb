@@ -58,8 +58,7 @@ class PrivacyControllerTest < ActionDispatch::IntegrationTest
     reviewer = users(:admin)
     reviewer.update!(roles: %w[user admin])
     journals = SubmissionReview.journals_for(submission).to_h { [ it.public_id, { "approved_minutes" => it.duration_minutes } ] }
-    bom = submission.bom_items.to_h { [ it.public_id, { "verdict" => "approved" } ] }
-    assert SubmissionReview.new(submission, reviewer:, verdict: "approved", internal_reason: "ok", rubric: Submission::RUBRIC.keys.index_with { "yes" }, journals:, bom:).save
+    assert SubmissionReview.new(submission, reviewer:, verdict: "approved", internal_reason: "ok", rubric: Submission::RUBRIC.keys.index_with { "yes" }, journals:).save
     projects(:station).reviewer_notes.create!(user: reviewer, body: "Seen before")
 
     call_hub :delete, dry_run: false, subject: { emails: [ "member@example.com" ] }

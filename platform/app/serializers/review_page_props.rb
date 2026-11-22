@@ -37,8 +37,7 @@ class ReviewPageProps
       history: ReviewSubmissionSerializer.render(history),
       notes: ReviewerNoteSerializer.render(project.reviewer_notes.includes(:user).order(:created_at, :id)),
       options: {
-        rubric: Submission::RUBRIC, answers: Submission::ANSWERS, journal_reasons: JournalReview::REASONS,
-        cut_reasons: BomItem::CUT_REASONS, adjust_reasons: BomItem::ADJUST_REASONS
+        rubric: Submission::RUBRIC, answers: Submission::ANSWERS, journal_reasons: JournalReview::REASONS
       },
       # An unfinished review someone left, to carry on from.
       draft: @submission.pending? && @submission.review_draft ? {

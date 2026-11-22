@@ -52,9 +52,9 @@ class Review::SubmissionsController < Review::ApplicationController
     ai = ActiveModel::Type::Boolean.new.cast(params.dig(:review, :ai))
     raise Pundit::NotAuthorizedError if params.dig(:review, :verdict) == "rejected" && !ai && !policy([ :review, submission ]).reject?
 
-    fields = params.expect(review: [ :verdict, :feedback, :internal_reason, :cut, :ai, rubric: {}, journals: {}, bom: {} ])
+    fields = params.expect(review: [ :verdict, :feedback, :internal_reason, :cut, :ai, rubric: {}, journals: {} ])
     review = SubmissionReview.new(submission, reviewer: true_user, verdict: fields[:verdict], feedback: fields[:feedback], internal_reason: fields[:internal_reason],
-      rubric: fields[:rubric]&.to_unsafe_h, journals: fields[:journals]&.to_unsafe_h, bom: fields[:bom]&.to_unsafe_h, ai: fields[:ai], cut: fields[:cut])
+      rubric: fields[:rubric]&.to_unsafe_h, journals: fields[:journals]&.to_unsafe_h, ai: fields[:ai], cut: fields[:cut])
     if review.save
       redirect_to review_next_path(skip: skipped.join(",").presence), notice: "#{submission.project.title}: #{submission.status}."
     else

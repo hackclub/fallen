@@ -21,9 +21,7 @@
   import {
     clearReviewDraft,
     initialDraft,
-    itemFunded,
     countedMinutes as countedFor,
-    itemVerdict,
     saveReviewDraft,
     serverDraft,
     type ReviewPage,
@@ -117,11 +115,9 @@
       0,
     ),
   )
+  // Approving funds the parts list as asked; a decided one shows what it was given.
   const fundedCents = $derived(
-    (props.submission?.bom_items ?? []).reduce(
-      (sum, item) => sum + (draft.ai ? 0 : (itemFunded(item, draft.bom[item.id]) ?? 0)),
-      0,
-    ),
+    draft.ai ? 0 : decided ? (props.submission.approved_cents ?? 0) : props.submission.requested_cents,
   )
 
   // Keeps the claim while the page is open. Losing it (left open past the claim, someone else took it) stops the
@@ -183,15 +179,6 @@
           ),
           ai: draft.ai || undefined,
           cut: draft.ai ? undefined : (draft.cut ?? undefined),
-          bom: Object.fromEntries(
-            props.submission.bom_items.map((item) => {
-              const call = draft.bom[item.id]
-              return [
-                item.id,
-                { verdict: itemVerdict(item, call), reason: call?.reason, approved_cents: call?.cents },
-              ]
-            }),
-          ),
         },
       },
       {
@@ -245,24 +232,18 @@
     if (tab === 'journals') {
       if (key === 'j') return (event.preventDefault(), journalsPanel?.move(1))
       if (key === 'k') return (event.preventDefault(), journalsPanel?.move(-1))
-      if (key === 'a') return journalsPanel?.act('full')
-      if (key === 'r') return (event.preventDefault(), journalsPanel?.act('part'))
-      if (key === 'x') return journalsPanel?.act('none')
+      if (key === 'r') return (event.preventDefault(), journalsPanel?.deflate())
     }
     if (tab === 'bom') {
       if (key === 'j') return (event.preventDefault(), bomPanel?.move(1))
       if (key === 'k') return (event.preventDefault(), bomPanel?.move(-1))
-      if (key === 'a') return bomPanel?.act('approved')
-      if (key === 'l') return (event.preventDefault(), bomPanel?.act('adjusted'))
-      if (key === 'x') return bomPanel?.act('cut')
     }
   }
 
   const SHORTCUTS = [
     ['1 to 4', 'Switch tabs'],
     ['J / K', 'Next or previous journal or part'],
-    ['A / R / X', 'Journal counts all, is deflated, or counts none'],
-    ['A / L / X', 'Part approved, lowered, or cut'],
+    ['R', 'Deflate the journal'],
     ['P', 'Pinned repo files only'],
     ['N', 'Notes'],
     ['G', 'Open the repo'],
@@ -321,7 +302,7 @@
               bind:focused={focusedJournal}
             />
           {:else if tab === 'bom'}
-            <BomPanel bind:this={bomPanel} page={props} bind:draft {readonly} bind:focused={focusedPart} />
+            <BomPanel bind:this={bomPanel} page={props} ai={draft.ai} bind:focused={focusedPart} />
           {/if}
         </div>
       {/key}

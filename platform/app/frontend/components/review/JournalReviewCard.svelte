@@ -11,8 +11,8 @@
   import { countedMinutes, journalDecided, type JournalCall } from '@/lib/review.svelte'
   import type { ReviewJournal } from '@/types'
 
-  // One journal and the call on how much of its time counts: all of it, some of it (with a reason from the fixed
-  // list, so reviews stay comparable), or none.
+  // One journal and the call on how much of its time counts: all of it unless it's deflated, to a time (0 for none)
+  // with a reason from the fixed list, so reviews stay comparable.
   let {
     journal,
     call = $bindable(),
@@ -35,7 +35,7 @@
   const mode = $derived(call.mode)
   const decided = $derived(journalDecided(journal, call))
   const counted = $derived(countedMinutes(journal, call))
-  // What's typed in the two boxes for "part of it", kept as typed so an empty box stays empty while editing.
+  // What's typed in the two boxes for a deflation, kept as typed so an empty box stays empty while editing.
   // svelte-ignore state_referenced_locally
   let hours = $state(
     call.mode === 'part' && call.minutes != null ? String(Math.floor(call.minutes / 60)) : '',
@@ -54,12 +54,10 @@
     mode !== 'part' || typedMinutes == null
       ? null
       : typedMinutes >= logged
-        ? `That’s all of it. Pick “All ${journal.duration_text}” instead.`
-        : typedMinutes <= 0
-          ? 'That’s none of it. Pick “None” instead.'
-          : null,
+        ? `That’s all ${journal.duration_text} of it. Turn Deflate off instead.`
+        : null,
   )
-  // Quick picks for "part of it", rounded to 5 minutes, only the ones that are really part.
+  // Quick picks for a deflation, rounded to 5 minutes, only the ones that are really part.
   const presets = $derived(
     [
       ['¾', 0.75],
@@ -79,21 +77,19 @@
     call = { ...call, mode: 'part', minutes, carried: false }
   }
 
-  export async function choose(next: 'full' | 'part' | 'none') {
+  // Turns Deflate on and puts the cursor in the time.
+  export async function deflate() {
     if (readonly) return
-    if (next === 'part') {
-      if (mode !== 'part') setPart(null)
-      await tick()
-      hoursInput?.focus()
-      return
-    }
-    call = {
-      ...call,
-      mode: next,
-      minutes: next === 'full' ? logged : 0,
-      reason: next === 'full' ? null : call.reason,
-      carried: false,
-    }
+    if (mode !== 'part') setPart(null)
+    await tick()
+    hoursInput?.focus()
+  }
+
+  function countAll() {
+    if (readonly) return
+    hours = ''
+    mins = ''
+    call = { ...call, mode: 'full', minutes: logged, reason: null, carried: false }
   }
 
   export function scrollIntoView() {
@@ -127,7 +123,6 @@
           mode === 'full' &&
           'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400',
         decided && mode === 'part' && 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400',
-        decided && mode === 'none' && 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400',
       ]}
       title={decided ? 'Decided' : 'Not decided yet'}>{index + 1}</span
     >
@@ -186,24 +181,24 @@
       <p transition:reveal class="pb-3 text-xs text-sky-700 dark:text-sky-300">
         The last review counted {formatMinutes(counted ?? 0)}{call.reason
           ? ` (${call.reason.toLowerCase()})`
-          : ''}. Pick it again to keep it, or change it.
+          : ''}.
+        {#if !readonly}<button
+            type="button"
+            class="font-semibold underline-offset-2 hover:underline"
+            onclick={() => (call = { ...call, carried: false })}>Keep it</button
+          >, change it, or turn Deflate off to count it all.{/if}
       </p>
     {/if}
 
     <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
-      <span class="w-24 shrink-0 text-xs text-muted-foreground">Counts</span>
       <Segmented
-        label="How much of this journal counts"
-        value={mode}
+        label="Deflate this journal"
+        value={mode === 'part' ? 'part' : null}
         disabled={readonly}
-        onChange={(value) => choose(value)}
-        options={[
-          { value: 'full', label: `All ${journal.duration_text}`, tint: 'green', title: 'All of it (A)' },
-          { value: 'part', label: 'Deflate', tint: 'amber', title: 'Deflate (R)' },
-          { value: 'none', label: 'None', tint: 'red', title: 'None (X)' },
-        ]}
+        onChange={() => (mode === 'part' ? countAll() : deflate())}
+        options={[{ value: 'part', label: 'Deflate', tint: 'amber', title: 'Deflate (R)' }]}
       />
-      {#if decided && mode !== 'full'}
+      {#if mode === 'part' && decided}
         <span transition:pop class="text-xs text-muted-foreground">
           takes off <span class="font-mono text-foreground"
             ><Morph text={formatMinutes(logged - (counted ?? 0))} /></span
@@ -275,7 +270,7 @@
       </div>
     {/if}
 
-    {#if mode === 'part' || mode === 'none'}
+    {#if mode === 'part'}
       <div transition:reveal>
         <div class="flex flex-wrap items-start gap-x-3 gap-y-2 pt-3">
           <span class="w-24 shrink-0 pt-0.5 text-xs text-muted-foreground">Why</span>

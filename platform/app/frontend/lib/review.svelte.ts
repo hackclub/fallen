@@ -20,8 +20,6 @@ export interface ReviewOptions {
   rubric: Record<string, string>
   answers: Answer[]
   journal_reasons: string[]
-  cut_reasons: string[]
-  adjust_reasons: string[]
 }
 
 export interface ReviewProject {
@@ -52,11 +50,10 @@ export interface ReviewPage {
 
 export type Answer = 'yes' | 'partly' | 'no'
 export type Verdict = 'approved' | 'returned' | 'rejected'
-export type ItemVerdict = 'approved' | 'adjusted' | 'cut'
 
-// How much of a journal's time counts. The choice is kept apart from the minutes, so typing a number for "part of
-// it" never flips it to all or none.
-export type JournalMode = 'full' | 'part' | 'none'
+// How much of a journal's time counts: all of it, or deflated to what's typed (0 for none). The choice is kept apart
+// from the minutes, so typing a number never flips it back to all.
+export type JournalMode = 'full' | 'part'
 
 export interface JournalCall {
   mode: JournalMode | null
@@ -68,14 +65,6 @@ export interface JournalCall {
   carried: boolean
 }
 
-export interface ItemCall {
-  verdict: ItemVerdict | null
-  reason: string | null
-  cents: number | null
-  // The call the review that returned it made on the same part, for the reviewer to keep or change.
-  carried?: boolean
-}
-
 // What ticking "AI-generated journals" fills in (SubmissionReview's `ai`), for the reviewer to finish or send as is.
 export const AI_INTERNAL = 'AI-generated journals: '
 export const AI_FEEDBACK =
@@ -84,7 +73,6 @@ export const AI_FEEDBACK =
 export interface ReviewDraft {
   rubric: Record<string, Answer>
   journals: Record<string, JournalCall>
-  bom: Record<string, ItemCall>
   feedback: string
   internal: string
   // Marked as AI-generated journals: it can only be rejected for good, and nothing else is needed.
@@ -96,7 +84,7 @@ export interface ReviewDraft {
 const key = (id: string) => `fallen:review:${id}`
 
 // The review's starting point: what was decided (a finished review), what the last review of each journal decided,
-// or nothing yet. A half-done review comes back from the browser.
+// or counted in full. A half-done review comes back from the browser.
 export function initialDraft(page: ReviewPage): ReviewDraft {
   const { submission, journals } = page
   const decided = submission.status !== 'pending'
@@ -111,19 +99,10 @@ export function initialDraft(page: ReviewPage): ReviewDraft {
               minutes: j.earlier.approved_minutes,
               reason: j.earlier.reason,
               note: j.earlier.note ?? '',
-              carried: !decided,
+              // Counting it in full is the default anyway, so only a deflation needs confirming.
+              carried: !decided && j.earlier.approved_minutes < (j.duration_minutes ?? 0),
             }
-          : { mode: null, minutes: null, reason: null, note: '', carried: false },
-      ]),
-    ),
-    bom: Object.fromEntries(
-      submission.bom_items.map((item) => [
-        item.id,
-        (!decided && !item.verdict && earlierItemCall(page, item)) || {
-          verdict: item.verdict,
-          reason: item.reason,
-          cents: item.approved_cents,
-        },
+          : { mode: decided ? null : 'full', minutes: null, reason: null, note: '', carried: false },
       ]),
     ),
     feedback: submission.feedback ?? '',
@@ -140,15 +119,16 @@ export function initialDraft(page: ReviewPage): ReviewDraft {
       journals: Object.fromEntries(
         Object.entries(fresh.journals).map(([id, call]) => {
           const kept = saved.journals?.[id]
-          if (!kept) return [id, call]
+          // A draft saved before journals counted in full by default left them undecided.
+          if (!kept || (kept.mode == null && kept.minutes == null)) return [id, call]
           const logged = journals.find((j) => j.id === id)?.duration_minutes ?? 0
-          return [
-            id,
-            { ...kept, mode: kept.mode ?? (kept.minutes == null ? null : modeFor(kept.minutes, logged)) },
-          ]
+          // Older drafts had a "none" choice, which is now a deflation to 0.
+          const minutes = (kept.mode as string) === 'none' ? 0 : kept.minutes
+          const mode =
+            kept.mode === 'full' || kept.mode === 'part' ? kept.mode : modeFor(minutes ?? 0, logged)
+          return [id, { ...kept, mode, minutes, carried: kept.carried && mode === 'part' }]
         }),
       ),
-      bom: Object.fromEntries(Object.entries(fresh.bom).map(([id, call]) => [id, saved.bom?.[id] ?? call])),
       feedback: saved.feedback ?? '',
       internal: saved.internal ?? '',
       ai: saved.ai === true,
@@ -234,17 +214,15 @@ export function serverDraft(url: string) {
   }
 }
 
-export const modeFor = (minutes: number, logged: number): JournalMode =>
-  minutes >= logged ? 'full' : minutes <= 0 ? 'none' : 'part'
+export const modeFor = (minutes: number, logged: number): JournalMode => (minutes >= logged ? 'full' : 'part')
 
-// The minutes a call counts, or null while it isn't a whole answer: no choice yet, or "part of it" with a time that
-// isn't between none and all.
+// The minutes a call counts, or null while it isn't a whole answer: no choice yet, or a deflation with no time typed
+// or one that isn't less than what was logged.
 export function countedMinutes(journal: ReviewJournal, call: JournalCall | undefined): number | null {
   const logged = journal.duration_minutes ?? 0
   if (!call?.mode) return null
   if (call.mode === 'full') return logged
-  if (call.mode === 'none') return 0
-  return call.minutes != null && call.minutes > 0 && call.minutes < logged ? call.minutes : null
+  return call.minutes != null && call.minutes >= 0 && call.minutes < logged ? call.minutes : null
 }
 
 // Ticking fills the reasons in where they're empty (a reason already written gets a button to add it, aiTemplate);
@@ -270,51 +248,10 @@ export const journalDeflated = (journal: ReviewJournal, call: JournalCall | unde
   const counted = countedMinutes(journal, call)
   return counted != null && counted < (journal.duration_minutes ?? 0)
 }
-export const journalNeedsReason = (call: JournalCall | undefined) =>
-  (call?.mode === 'part' || call?.mode === 'none') && !call.reason
-
-// The call the last returned review made on a part of the same kind and name, if it made one.
-function earlierItemCall(page: ReviewPage, item: Line & { kind: string; name: string }): ItemCall | null {
-  if (item.owned) return null
-  const key = (line: { kind: string; name: string }) => `${line.kind}:${line.name.trim().toLowerCase()}`
-  const earlier = page.history
-    .find((h) => h.status === 'returned')
-    ?.bom_items.find((line) => line.verdict && key(line) === key(item))
-  if (!earlier?.verdict) return null
-  const cents =
-    earlier.verdict === 'adjusted' &&
-    earlier.approved_cents != null &&
-    earlier.approved_cents < itemRequested(item)
-      ? earlier.approved_cents
-      : null
-  return { verdict: earlier.verdict, reason: earlier.reason, cents, carried: true }
-}
+export const journalNeedsReason = (call: JournalCall | undefined) => call?.mode === 'part' && !call.reason
 
 export function itemRequested(item: { owned: boolean; total_cents: number }) {
   return item.owned ? 0 : item.total_cents
-}
-
-type Line = { owned: boolean; total_cents: number }
-
-// Whether a line has a whole call: a part they already own asks for nothing, so it needs none; a lowered one needs an
-// amount between nothing and all of it.
-export function itemDecided(item: Line, call: ItemCall | undefined) {
-  if (item.owned) return true
-  if (!call?.verdict || call.carried) return false
-  if (call.verdict !== 'adjusted') return true
-  return call.cents != null && call.cents > 0 && call.cents < itemRequested(item)
-}
-
-// The call the server gets for a line: owned parts go through as approved, for nothing.
-export const itemVerdict = (item: Line, call: ItemCall | undefined) =>
-  call?.verdict ?? (item.owned ? 'approved' : null)
-
-export function itemFunded(item: Line, call: ItemCall | undefined) {
-  if (item.owned) return 0
-  if (!itemDecided(item, call)) return null
-  if (call!.verdict === 'approved') return itemRequested(item)
-  if (call!.verdict === 'cut') return 0
-  return call!.cents!
 }
 
 // Fallout's raised buttons, over the admin Button's classes: a soft top-down gradient, a drop shadow and a 1px
