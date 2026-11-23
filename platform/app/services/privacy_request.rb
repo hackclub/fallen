@@ -152,6 +152,8 @@ class PrivacyRequest
     Submission.where(reviewer_id: ids).update_all(reviewer_id: nil)
     Submission.where(claimed_by_id: ids).update_all(claimed_by_id: nil, claim_expires_at: nil)
     Submission.where(review_draft_by_id: ids).update_all(review_draft_by_id: nil)
+    # A decision they left waiting for sign-off goes with them; the project goes back in the queue.
+    Submission.where(proposed_by_id: ids).update_all(proposed_by_id: nil, proposed_review: nil, proposed_at: nil)
     JournalReview.where(reviewer_id: ids).update_all(reviewer_id: nil)
     ReviewerNote.where(user_id: ids).update_all(user_id: nil)
     GrantPayout.where(sent_by_id: ids).update_all(sent_by_id: nil)

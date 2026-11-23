@@ -21,6 +21,8 @@ require "test_helper"
 #  lock_version              :integer          default(0), not null
 #  made_with                 :string           default([]), not null, is an Array
 #  note                      :text
+#  proposed_at               :datetime
+#  proposed_review           :jsonb
 #  repo_url                  :string           not null
 #  requested_cents           :integer          default(0), not null
 #  review_draft              :jsonb
@@ -31,6 +33,7 @@ require "test_helper"
 #  updated_at                :datetime         not null
 #  claimed_by_id             :bigint
 #  project_id                :bigint           not null
+#  proposed_by_id            :bigint
 #  repo_snapshot_id          :bigint
 #  review_draft_by_id        :bigint
 #  reviewer_id               :bigint
@@ -41,6 +44,8 @@ require "test_helper"
 #
 #  index_submissions_on_claimed_by_id          (claimed_by_id)
 #  index_submissions_on_project_id             (project_id)
+#  index_submissions_on_proposed_at            (proposed_at)
+#  index_submissions_on_proposed_by_id         (proposed_by_id)
 #  index_submissions_on_repo_snapshot_id       (repo_snapshot_id)
 #  index_submissions_on_review_draft_by_id     (review_draft_by_id)
 #  index_submissions_on_reviewer_id            (reviewer_id)
@@ -52,6 +57,7 @@ require "test_helper"
 #
 #  fk_rails_...  (claimed_by_id => users.id)
 #  fk_rails_...  (project_id => projects.id)
+#  fk_rails_...  (proposed_by_id => users.id)
 #  fk_rails_...  (repo_snapshot_id => repo_snapshots.id)
 #  fk_rails_...  (review_draft_by_id => users.id)
 #  fk_rails_...  (reviewer_id => users.id)

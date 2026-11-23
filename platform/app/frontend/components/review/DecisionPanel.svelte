@@ -15,7 +15,8 @@
   import StatusBadge from '@/components/review/StatusBadge.svelte'
   import { router } from '@inertiajs/svelte'
   import { formatDateTime, formatMinutes, timeAgo } from '@/lib/format'
-  import { takeOverReviewSubmission } from '@/routes'
+  import { adminSignOffs, takeOverReviewSubmission } from '@/routes'
+  import { shared } from '@/lib/shared.svelte'
   import {
     RAISED,
     RAISED_KEY,
@@ -145,6 +146,16 @@
 {/snippet}
 
 <div class="space-y-4 p-4">
+  {#if s.awaiting_sign_off}
+    <div
+      class="rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-800 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-300"
+    >
+      A decision on this is waiting for an admin to sign it off.
+      {#if shared().auth.user?.is_admin}<a href={adminSignOffs.index().url} class="font-semibold underline"
+          >Open sign-offs</a
+        >{/if}
+    </div>
+  {/if}
   {#if decided}
     <div class="space-y-2">
       <h3 class="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Review Complete</h3>
@@ -284,9 +295,8 @@
       journalsLeft,
       'journals',
     )}
-    {@render stat('Funding', money(fundedCents), money(s.requested_cents), 0, 'parts')}
 
-    {#if !ai && (!decided || draft.cut)}
+    {#if !ai && page.can.cut && (!decided || draft.cut)}
       <div class="space-y-1.5">
         <p class="text-xs text-muted-foreground">
           Internal Cut <span class="text-muted-foreground/60">(not shown to user)</span>
@@ -399,9 +409,9 @@
           ? 'Marked as AI-generated journals: reject it for good below.'
           : (approveBlocker ?? `Approving sends ${money(fundedCents)}.`)}
       </p>
-      {#if !ai && draft.cut}
+      {#if !ai && page.can.cut && draft.cut}
         <p class="text-center text-xs text-muted-foreground">
-          Returning keeps your journal and part calls for the next review, but not the internal cut.
+          Returning keeps your journal calls for the next review, but not the internal cut.
         </p>
       {/if}
 

@@ -34,6 +34,7 @@ class ReviewTest < ActionDispatch::IntegrationTest
     assert props["claimed"]
     assert props["can"]["decide"]
     refute props["can"]["reject"]
+    refute props["can"]["cut"]
     assert_equal SubmissionReview.journals_for(@submission).count, props["journals"].size
     assert_equal "board.kicad_pcb", props["repo"]["paths"].second
 
@@ -42,15 +43,21 @@ class ReviewTest < ActionDispatch::IntegrationTest
 
     patch review_submission_path(@submission), params: decision
     assert_redirected_to review_next_path
-    assert @submission.reload.approved?
-    assert_equal @reviewer, @submission.reviewer
+    assert @submission.reload.awaiting_sign_off?, "a design reviewer's decision waits for an admin"
+    assert_equal @reviewer, @submission.proposed_by
   end
 
-  test "a reviewer's internal cut is saved with the decision" do
-    sign_in_as @reviewer
-    get review_next_path
+  test "only an admin's internal cut is taken; a design reviewer's is refused" do
     params = decision
     params[:review][:cut] = "30"
+
+    sign_in_as @reviewer
+    get review_next_path
+    patch review_submission_path(@submission), params: params
+    assert_redirected_to root_path
+    assert @submission.reload.pending?
+
+    @reviewer.update!(roles: %w[user admin])
     patch review_submission_path(@submission), params: params
     assert_redirected_to review_next_path
     assert_equal 30, @submission.reload.internal_deflated_minutes
@@ -65,8 +72,86 @@ class ReviewTest < ActionDispatch::IntegrationTest
 
     patch review_submission_path(@submission), params: { review: { verdict: "rejected", ai: true, internal_reason: "AI-generated journals: all", feedback: "Not allowed" } }
     assert_redirected_to review_next_path
-    assert @submission.reload.rejected?
-    assert @submission.ai_generated
+    assert @submission.reload.awaiting_sign_off?, "held for an admin to sign off"
+    refute inertia_props(review_submission_path(@submission), "Review/Submissions/Show")["can"]["decide"]
+  end
+
+  test "an admin signs off a design reviewer's decision from /admin/sign-offs, or sends it back" do
+    sign_in_as @reviewer
+    get review_next_path
+    patch review_submission_path(@submission), params: decision
+    assert_redirected_to review_next_path
+    assert_match "sign off", flash[:notice]
+    assert @submission.reload.awaiting_sign_off?
+
+    get admin_sign_offs_path
+    assert_response :not_found
+    patch admin_sign_off_path(@submission)
+    assert_response :not_found
+
+    admin = users(:admin)
+    admin.update!(roles: %w[user admin])
+    sign_in_as admin
+    rows = load_deferred(admin_sign_offs_path, "Admin/SignOffs/Index", "submissions", "pagy")
+    assert_equal [ @submission.public_id ], rows["submissions"].pluck("id")
+    assert_equal "approved", rows["submissions"].first["verdict"]
+    assert_equal @reviewer.public_id, rows["submissions"].first.dig("proposed_by", "id")
+
+    patch admin_sign_off_path(@submission), params: { proposed_at: rows["submissions"].first["proposed_at"] }
+    assert_redirected_to admin_sign_offs_path
+    assert @submission.reload.approved?
+    assert_equal @reviewer, @submission.reviewer
+    assert @submission.grant_payout
+
+    other = submit_design(projects(:unlinked))
+    SubmissionReview.new(other, reviewer: @reviewer, verdict: "returned", feedback: "More photos", internal_reason: "Thin",
+      rubric: Submission::RUBRIC.keys.index_with { "yes" }).save
+    sign_in_as @reviewer
+    rows = load_deferred(review_submissions_path(tab: "sign_off"), "Review/Submissions/Index", "submissions", "pagy", "counts")
+    assert_equal [ other.public_id ], rows["submissions"].pluck("id"), "reviewers can find what's waiting on an admin"
+    assert_equal @reviewer.public_id, rows["submissions"].first.dig("proposed_by", "id")
+    assert_equal 1, rows["counts"]["sign_off"]
+
+    sign_in_as admin
+    delete admin_sign_off_path(other)
+    assert_redirected_to admin_sign_offs_path
+    assert_match "back in the queue", flash[:notice]
+    assert other.reload.pending?
+    refute other.awaiting_sign_off?
+
+    SubmissionReview.new(other, reviewer: @reviewer, verdict: "returned", feedback: "More photos", internal_reason: "Thin",
+      rubric: Submission::RUBRIC.keys.index_with { "yes" }).save
+    assert SubmissionReview.sign_off(other.reload, admin, proposed_at: other.proposed_at).save
+    delete admin_sign_off_path(other)
+    assert other.reload.returned?, "nothing left to send back: the decision stands"
+    assert_nil other.proposed_at
+  end
+
+  test "signing off from a page loaded before the decision was sent back and proposed again applies nothing" do
+    sign_in_as @reviewer
+    get review_next_path
+    patch review_submission_path(@submission), params: decision(verdict: "returned", feedback: "More photos")
+    admin = users(:admin).tap { it.update!(roles: %w[user admin]) }
+    sign_in_as admin
+    read = load_deferred(admin_sign_offs_path, "Admin/SignOffs/Index", "submissions", "pagy")["submissions"].first
+    assert_equal "returned", read["verdict"]
+
+    assert SubmissionReview.send_back(@submission.reload, admin)
+    sign_in_as @reviewer
+    get review_next_path
+    patch review_submission_path(@submission), params: decision
+    assert @submission.reload.awaiting_sign_off?
+
+    sign_in_as admin
+    patch admin_sign_off_path(@submission), params: { proposed_at: read["proposed_at"] }
+    assert_redirected_to admin_sign_offs_path
+    assert_match "sent back or changed", flash[:alert]
+    assert @submission.reload.awaiting_sign_off?, "the approval the admin never saw stays waiting"
+    assert_nil @submission.grant_payout
+
+    patch admin_sign_off_path(@submission)
+    assert_match "sent back or changed", flash[:alert], "no proposal named: nothing applies"
+    assert @submission.reload.awaiting_sign_off?
   end
 
   test "a review missing something comes back with errors, and only admins reject" do

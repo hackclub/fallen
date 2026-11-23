@@ -208,6 +208,8 @@ Rails.application.routes.draw do
           post :sync, as: :hcb_sync
         end
       end
+      # Design reviewers' decisions waiting for an admin to sign them off (SubmissionReview#propose).
+      resources :sign_offs, only: %i[index update destroy], path: "sign-offs"
       # Fallen's copy of the card grants in the HCB org (HcbOrgGrant): leave one out of the ledger, or count it again.
       resources :hcb_grants, only: :update
       resources :streak_adjustments, only: %i[create destroy]

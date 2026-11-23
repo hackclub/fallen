@@ -22,6 +22,8 @@ class Review::SubmissionPolicyTest < ActiveSupport::TestCase
     refute policy(users(:member)).decide?
     refute policy(@reviewer).reject?
     assert policy(users(:admin)).reject?
+    refute policy(@reviewer).cut?, "only admins take an internal cut"
+    assert policy(users(:admin)).cut?
 
     @submission.update!(flagged_at: Time.current, flag_reason: "x")
     refute policy(@reviewer).decide?

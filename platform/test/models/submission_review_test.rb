@@ -5,8 +5,9 @@ class SubmissionReviewTest < ActiveSupport::TestCase
 
   setup do
     @submission = submit_design(projects(:station))
+    # An admin's decision applies straight away; a design reviewer's waits for sign-off (tests below).
     @reviewer = users(:admin)
-    @reviewer.update!(roles: %w[user design_reviewer])
+    @reviewer.update!(roles: %w[user design_reviewer admin])
     @journals = SubmissionReview.journals_for(@submission).to_a
   end
 
@@ -61,9 +62,93 @@ class SubmissionReviewTest < ActiveSupport::TestCase
     assert_nil @submission.grant_payout
 
     @submission = submit_design(projects(:station))
+    @reviewer.update!(roles: %w[user design_reviewer])
     refute review(verdict: "rejected", feedback: "Copied").save
     @reviewer.update!(roles: %w[user admin])
     assert review(verdict: "rejected", feedback: "Copied").save
+  end
+
+  test "a design reviewer's decision is held for an admin: nothing applies until it's signed off" do
+    @reviewer.update!(roles: %w[user design_reviewer])
+    journal = journals(:first)
+    xp_before = journal.xp_entry.amount
+
+    held = review(journals: calls(deflate: journal))
+    assert held.save
+    assert held.proposed?
+    @submission.reload
+    assert @submission.pending?
+    assert @submission.awaiting_sign_off?
+    assert_equal @reviewer, @submission.proposed_by
+    assert_nil @submission.grant_payout
+    assert_nil journal.reload.reviewed_minutes
+    assert_equal xp_before, journal.xp_entry.reload.amount
+    assert_not_includes Submission.queued, @submission
+    assert_no_enqueued_jobs only: SubmissionDecidedJob
+    refute review.save, "a second decision can't replace one waiting for sign-off"
+
+    admin = users(:newcomer)
+    admin.update!(roles: %w[user admin])
+    assert SubmissionReview.sign_off(@submission, admin, proposed_at: @submission.proposed_at).save
+    @submission.reload
+    assert @submission.approved?
+    assert_equal @reviewer, @submission.reviewer
+    assert_nil @submission.proposed_review
+    assert_equal @submission.bom_items.sum(&:requested_cents), @submission.grant_payout.amount_cents
+    assert_equal 30, journal.reload.reviewed_minutes
+    assert_operator journal.xp_entry.reload.amount, :<, xp_before
+    assert_enqueued_jobs 1, only: SubmissionDecidedJob
+    assert_equal "Checked and signed off #{@reviewer.display_name}'s decision (approved).", @submission.project.reviewer_notes.last.body
+    assert_equal admin, @submission.project.reviewer_notes.last.user
+  end
+
+  test "an admin on the team can't sign off, and a proposer who lost the role can't be signed off" do
+    @reviewer.update!(roles: %w[user design_reviewer])
+    assert review.save
+    teammate = users(:member).tap { it.update!(roles: %w[user admin]) }
+    refute (signing = SubmissionReview.sign_off(@submission, teammate, proposed_at: @submission.proposed_at)).save
+    assert_includes signing.errors[:base], "You can't sign off a project you're on"
+
+    admin = users(:newcomer).tap { it.update!(roles: %w[user admin]) }
+    @reviewer.update!(roles: %w[user])
+    refute (signing = SubmissionReview.sign_off(@submission.reload, admin, proposed_at: @submission.proposed_at)).save
+    assert_match "no longer a design reviewer", signing.errors[:base].to_sentence
+    assert @submission.reload.awaiting_sign_off?
+    assert_nil @submission.grant_payout
+  end
+
+  test "a sign-off loaded before someone sent the decision back, or before a new one, applies nothing" do
+    @reviewer.update!(roles: %w[user design_reviewer])
+    assert review.save
+    admin = users(:newcomer).tap { it.update!(roles: %w[user admin]) }
+
+    stale = SubmissionReview.sign_off(@submission, admin, proposed_at: @submission.proposed_at)
+    assert SubmissionReview.send_back(Submission.find(@submission.id), admin)
+    refute stale.save
+    assert_includes stale.errors[:base], "It was sent back or changed since you opened it"
+    assert @submission.reload.pending?
+    assert_nil @submission.grant_payout
+
+    assert review(verdict: "returned", feedback: "Add the gerbers").save
+    stale = SubmissionReview.sign_off(@submission, admin, proposed_at: @submission.proposed_at)
+    Submission.find(@submission.id).update!(proposed_at: 1.minute.from_now)
+    refute stale.save, "a newer proposal is not the one the admin read"
+    assert @submission.reload.awaiting_sign_off?
+  end
+
+  test "an admin can send a held decision back to the queue without applying it" do
+    @reviewer.update!(roles: %w[user design_reviewer])
+    assert review(verdict: "returned", feedback: "Add the gerbers").save
+
+    admin = users(:newcomer)
+    admin.update!(roles: %w[user admin])
+    assert SubmissionReview.send_back(@submission, admin)
+    @submission.reload
+    assert @submission.pending?
+    refute @submission.awaiting_sign_off?
+    assert_includes Submission.queued, @submission
+    assert_match "Sent back", @submission.project.reviewer_notes.last.body
+    refute SubmissionReview.send_back(@submission, admin), "nothing left to send back"
   end
 
   test "returning keeps the calls for the next review but applies none of them" do

@@ -29,12 +29,20 @@
   }: {
     submissions?: ReviewQueueRow[]
     pagy?: Pagy
-    counts?: { queue: number; flagged: number; mine: number; decided: number; oldest: string | null }
+    counts?: {
+      queue: number
+      sign_off: number
+      flagged: number
+      mine: number
+      decided: number
+      oldest: string | null
+    }
     tab: string
   } = $props()
 
   const tabs = [
     { value: 'queue', label: 'Queue' },
+    { value: 'sign_off', label: 'Awaiting sign-off' },
     { value: 'mine', label: 'My reviews' },
     { value: 'decided', label: 'All decided' },
     { value: 'flagged', label: 'Flagged' },
@@ -55,8 +63,13 @@
       cell: ({ row }) => renderComponent(PersonChip, { person: row.original.submitter }),
     },
     { id: 'asked', header: 'Asked for', cell: ({ row }) => money(row.original.requested_cents) },
-    tab === 'queue' || tab === 'flagged'
-      ? { id: 'waiting', header: 'Waiting', cell: ({ row }) => timeAgo(row.original.created_at) }
+    tab === 'queue' || tab === 'flagged' || tab === 'sign_off'
+      ? {
+          id: 'waiting',
+          header: 'Waiting',
+          cell: ({ row }) =>
+            timeAgo(tab === 'sign_off' ? row.original.proposed_at! : row.original.created_at),
+        }
       : {
           id: 'funded',
           header: 'Funded',
@@ -73,17 +86,28 @@
               ? renderComponent(PersonChip, { person: row.original.claimed_by })
               : '',
         }
-      : {
-          id: 'reviewer',
-          header: 'Reviewer',
-          cell: ({ row }) =>
-            row.original.reviewer ? renderComponent(PersonChip, { person: row.original.reviewer }) : '',
-        },
+      : tab === 'sign_off'
+        ? {
+            id: 'proposed_by',
+            header: 'Proposed by',
+            cell: ({ row }) =>
+              row.original.proposed_by
+                ? renderComponent(PersonChip, { person: row.original.proposed_by })
+                : '',
+          }
+        : {
+            id: 'reviewer',
+            header: 'Reviewer',
+            cell: ({ row }) =>
+              row.original.reviewer ? renderComponent(PersonChip, { person: row.original.reviewer }) : '',
+          },
     {
       id: 'status',
-      header: tab === 'queue' ? '' : 'Decision',
+      header: tab === 'queue' || tab === 'sign_off' ? '' : 'Decision',
       cell: ({ row }) =>
-        tab === 'queue' ? '' : renderComponent(StatusBadge, { status: row.original.status }),
+        tab === 'queue' || tab === 'sign_off'
+          ? ''
+          : renderComponent(StatusBadge, { status: row.original.status }),
     },
   ])
 </script>
@@ -112,7 +136,7 @@
 
   <LinkTabs {tabs} active={tab} class="mb-4">
     {#snippet badge(value)}
-      {@const count = counts?.[value as 'queue' | 'flagged' | 'mine']}
+      {@const count = counts?.[value as 'queue' | 'sign_off' | 'flagged' | 'mine']}
       {#if count && value !== 'decided'}
         <span
           class={[
@@ -121,7 +145,9 @@
               ? 'bg-primary text-primary-foreground'
               : value === 'flagged'
                 ? 'bg-red-500 text-white'
-                : 'bg-muted text-muted-foreground',
+                : value === 'sign_off'
+                  ? 'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300'
+                  : 'bg-muted text-muted-foreground',
           ]}><Morph text={count} /></span
         >
       {/if}

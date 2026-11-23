@@ -178,7 +178,7 @@
             ]),
           ),
           ai: draft.ai || undefined,
-          cut: draft.ai ? undefined : (draft.cut ?? undefined),
+          cut: draft.ai || !props.can.cut ? undefined : (draft.cut ?? undefined),
         },
       },
       {

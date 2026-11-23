@@ -13,6 +13,12 @@
 # Separately, the reviewer can take time off the project as a whole for staff only (`cut`, in minutes, as Fallout's
 # hours_adjustment): it lowers Submission#internal_minutes, the hours reported to YSWS, and nothing the person sees.
 #
+# A design reviewer who isn't an admin doesn't send their decision: it is checked the same way, then held on the
+# submission (`proposed_review`) for an admin to sign off (Admin::SignOffsController). Until then nothing applies, the
+# person still sees it waiting, and it is out of the queue. Signing off saves it as the reviewer's decision, with a staff-only note naming
+# the admin; neither can sign off a project they're on, and a proposer who has since lost the role can't be. Sending it
+# back drops it and puts the submission back in the queue, with the reviewer's last draft to carry on from.
+#
 # Reviewers claim a submission while they work on it (claim), so two never review one at once; the page keeps the
 # claim alive (heartbeat) and it lapses on its own after CLAIM_FOR.
 class SubmissionReview
@@ -50,6 +56,27 @@ class SubmissionReview
   def self.take_over(submission, reviewer)
     Submission.queued.where(id: submission.id)
       .update_all(claimed_by_id: reviewer.id, claim_expires_at: CLAIM_FOR.from_now, updated_at: Time.current) == 1
+  end
+
+  # The held decision as an admin signs it off: the same review, made by the reviewer who proposed it. `proposed_at` is
+  # the proposal the admin read (from the page, AdminSignOffSerializer): it applies only if that exact proposal is still
+  # waiting when the lock is taken (`save`), so a send-back or a new proposal since the page loaded wins.
+  def self.sign_off(submission, admin, proposed_at:)
+    data = submission.proposed_review.to_h.symbolize_keys.slice(:verdict, :feedback, :internal_reason, :rubric, :journals, :ai, :cut)
+    new(submission, reviewer: submission.proposed_by, signed_off_by: admin, signing_off: proposed_at, **data)
+  end
+
+  # Drops a held decision without applying it; the submission goes back in the queue.
+  def self.send_back(submission, admin)
+    submission.with_lock do
+      return false unless submission.awaiting_sign_off?
+
+      proposer = submission.proposed_by
+      submission.update!(proposed_review: nil, proposed_at: nil, proposed_by: nil)
+      submission.project.reviewer_notes.create!(submission:, user: admin,
+        body: "Sent back to the queue instead of signing off #{proposer&.display_name || "a reviewer"}'s decision.")
+    end
+    true
   end
 
   # XP follows each journal's time that counts, preloaded so a big project is a few queries.
@@ -90,9 +117,11 @@ class SubmissionReview
     submission
   end
 
-  def initialize(submission, reviewer:, verdict:, feedback: nil, internal_reason: nil, rubric: {}, journals: {}, ai: nil, cut: nil)
+  def initialize(submission, reviewer:, verdict:, feedback: nil, internal_reason: nil, rubric: {}, journals: {}, ai: nil, cut: nil, signed_off_by: nil, signing_off: nil)
     @submission = submission
     @reviewer = reviewer
+    @signed_off_by = signed_off_by
+    @signing_off = signing_off
     @verdict = verdict.to_s
     @feedback = feedback.to_s.strip.presence
     @internal_reason = internal_reason.to_s.strip.presence
@@ -104,6 +133,9 @@ class SubmissionReview
   end
 
   def ai? = @ai
+  # Held for an admin instead of applied (`propose`).
+  def proposed? = @proposed || false
+  def needs_sign_off? = !reviewer.admin? && @signed_off_by.nil?
   def returned? = verdict == "returned"
   def self.human_attribute_name(attribute, options = {})
     { "cut" => "Internal cut" }.fetch(attribute.to_s) { super }
@@ -114,9 +146,12 @@ class SubmissionReview
     items = submission.bom_items.to_a
     validate_decision(covered)
     return false if errors.any?
+    return propose if needs_sign_off?
 
     submission.with_lock do
       next errors.add(:base, "Someone else already decided this") unless submission.pending?
+      next errors.add(:base, "It's waiting for an admin to sign off") if submission.awaiting_sign_off? && @signed_off_by.nil?
+      next errors.add(:base, "It was sent back or changed since you opened it") if @signed_off_by && !still_waiting?
       next errors.add(:base, "Someone else is reviewing this") if held_by_someone_else?
 
       @reviews = submission.journal_reviews.index_by(&:journal_id)
@@ -133,8 +168,12 @@ class SubmissionReview
       submission.update!(status: verdict, reviewer:, rubric:, feedback:, internal_reason:, decided_at: Time.current,
         ai_generated: ai?, internal_deflated_minutes: ai? || returned? ? nil : cut,
         approved_cents: verdict == "approved" ? items.sum(&:funded_cents) : nil, claimed_by: nil, claim_expires_at: nil,
-        review_draft: nil, review_draft_at: nil, review_draft_by: nil)
+        review_draft: nil, review_draft_at: nil, review_draft_by: nil, proposed_review: nil, proposed_at: nil, proposed_by: nil)
       GrantPayout.create!(submission:, user: submission.user, amount_cents: submission.approved_cents) if submission.approved? && submission.approved_cents.positive?
+      if @signed_off_by
+        submission.project.reviewer_notes.create!(submission:, user: @signed_off_by,
+          body: "Checked and signed off #{reviewer.display_name}'s decision (#{verdict}).")
+      end
     end
     return false if errors.any?
 
@@ -152,6 +191,9 @@ class SubmissionReview
   private
 
   def validate_decision(covered)
+    validate_sign_off if @signed_off_by
+    return if errors.any?
+
     errors.add(:verdict, "must be approve, return or reject") unless verdict.in?(VERDICTS)
     errors.add(:base, "You can't review a project you're on") if submission.project.on_team?(reviewer)
     errors.add(:internal_reason, "is needed: say why, for the next reviewer") if internal_reason.blank?
@@ -172,6 +214,17 @@ class SubmissionReview
     validate_cut(covered) if errors[:journals].empty?
   end
 
+  # The admin is vouching for a decision made by someone else, so both of them have to still be able to make it.
+  def validate_sign_off
+    if reviewer.nil? || reviewer.is_banned? || reviewer.discarded? || !reviewer.reviews_designs?
+      errors.add(:base, "#{reviewer&.display_name || "Whoever proposed it"} is no longer a design reviewer: send it back")
+    end
+    errors.add(:base, "You can't sign off a project you're on") if submission.project.on_team?(@signed_off_by)
+  end
+
+  # The same proposal as when the admin opened it, still unapplied. `with_lock` has just reloaded the submission.
+  def still_waiting? = @signing_off.present? && submission.awaiting_sign_off? && submission.proposed_at == @signing_off
+
   def validate_cut(covered)
     return unless @cut_given
 
@@ -190,6 +243,21 @@ class SubmissionReview
   end
 
   def usable_call?(journal) = journal_problem(journal, journals[journal.public_id]).nil?
+
+  # Holds the decision for an admin. The reviewer's draft stays, so a decision sent back can be picked up again.
+  def propose
+    submission.with_lock do
+      next errors.add(:base, "Someone else already decided this") unless submission.pending? && !submission.awaiting_sign_off?
+      next errors.add(:base, "Someone else is reviewing this") if held_by_someone_else?
+
+      submission.update!(proposed_by: reviewer, proposed_at: Time.current, claimed_by: nil, claim_expires_at: nil, proposed_review: {
+        "verdict" => verdict, "feedback" => feedback, "internal_reason" => internal_reason, "rubric" => rubric,
+        "journals" => journals, "ai" => ai?, "cut" => @cut_given ? cut : nil
+      })
+      @proposed = true
+    end
+    errors.none?
+  end
 
   def held_by_someone_else? = submission.claimed_by_id && submission.claimed_by_id != reviewer.id && submission.claim_expires_at&.future?
 

@@ -23,6 +23,8 @@
 #  lock_version              :integer          default(0), not null
 #  made_with                 :string           default([]), not null, is an Array
 #  note                      :text
+#  proposed_at               :datetime
+#  proposed_review           :jsonb
 #  repo_url                  :string           not null
 #  requested_cents           :integer          default(0), not null
 #  review_draft              :jsonb
@@ -33,6 +35,7 @@
 #  updated_at                :datetime         not null
 #  claimed_by_id             :bigint
 #  project_id                :bigint           not null
+#  proposed_by_id            :bigint
 #  repo_snapshot_id          :bigint
 #  review_draft_by_id        :bigint
 #  reviewer_id               :bigint
@@ -43,6 +46,8 @@
 #
 #  index_submissions_on_claimed_by_id          (claimed_by_id)
 #  index_submissions_on_project_id             (project_id)
+#  index_submissions_on_proposed_at            (proposed_at)
+#  index_submissions_on_proposed_by_id         (proposed_by_id)
 #  index_submissions_on_repo_snapshot_id       (repo_snapshot_id)
 #  index_submissions_on_review_draft_by_id     (review_draft_by_id)
 #  index_submissions_on_reviewer_id            (reviewer_id)
@@ -54,6 +59,7 @@
 #
 #  fk_rails_...  (claimed_by_id => users.id)
 #  fk_rails_...  (project_id => projects.id)
+#  fk_rails_...  (proposed_by_id => users.id)
 #  fk_rails_...  (repo_snapshot_id => repo_snapshots.id)
 #  fk_rails_...  (review_draft_by_id => users.id)
 #  fk_rails_...  (reviewer_id => users.id)
@@ -86,6 +92,8 @@ class Submission < ApplicationRecord
   belongs_to :reviewer, class_name: "User", optional: true
   belongs_to :claimed_by, class_name: "User", optional: true
   belongs_to :review_draft_by, class_name: "User", optional: true
+  # A design reviewer's decision waiting for an admin to sign it off (SubmissionReview#propose).
+  belongs_to :proposed_by, class_name: "User", optional: true
   has_many :bom_items, -> { ordered }, dependent: :delete_all, inverse_of: :submission
   has_many :journal_reviews, dependent: :delete_all
   has_one :grant_payout, dependent: :restrict_with_error
@@ -104,11 +112,13 @@ class Submission < ApplicationRecord
   scope :pending, -> { where(status: "pending") }
   scope :decided, -> { where(status: DECIDED) }
   scope :approved, -> { where(status: "approved") }
-  scope :queued, -> { pending.where(flagged_at: nil) }
+  scope :queued, -> { pending.where(flagged_at: nil, proposed_at: nil) }
+  scope :awaiting_sign_off, -> { pending.where.not(proposed_at: nil) }
   scope :newest_first, -> { order(created_at: :desc, id: :desc) }
 
   STATUSES.each { |status| define_method(:"#{status}?") { self.status == status } }
   def decided? = status.in?(DECIDED)
+  def awaiting_sign_off? = pending? && proposed_at.present?
   def requested_text = Money.format(requested_cents)
   def includes_part?(kind) = made_with.include?(kind)
 

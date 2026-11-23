@@ -138,6 +138,14 @@ class QueryBudgetTest < ActionDispatch::IntegrationTest
     HcbOrgGrant.create!(hcb_id: "cdg_b", email: "nobody@example.com", amount_cents: 200, status: "active", synced_at: Time.current)
     assert_query_budget(11) { load_deferred(admin_grants_path, "Admin/Grants/Index", "payouts", "pagy", "totals", "ledger") }
     assert_query_budget(10) { load_deferred(admin_grants_path(tab: "hcb"), "Admin/Grants/Index", "grants", "pagy", "ledger") }
+    assert_query_budget(3) { get admin_sign_offs_path }
+    # Two held decisions, so the count is shown not to grow with the rows.
+    designer = users(:newcomer).tap { it.update!(roles: %w[user design_reviewer]) }
+    [ projects(:station), projects(:unlinked) ].each do |project|
+      SubmissionReview.new(submit_design(project), reviewer: designer, verdict: "returned", feedback: "More photos", internal_reason: "Thin",
+        rubric: Submission::RUBRIC.keys.index_with { "yes" }).save or flunk("not held")
+    end
+    assert_query_budget(8) { load_deferred(admin_sign_offs_path, "Admin/SignOffs/Index", "submissions", "pagy") }
     assert_query_budget(3) { get admin_streaks_path }
     assert_query_budget(3) { get admin_workshop_rsvps_path }
     assert_query_budget(5) { load_deferred(admin_workshop_rsvps_path, "Admin/WorkshopRsvps/Index", "rsvps", "pagy", "counts") }

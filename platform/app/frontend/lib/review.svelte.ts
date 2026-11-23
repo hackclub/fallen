@@ -44,7 +44,15 @@ export interface ReviewPage {
   notes: ReviewerNote[]
   options: ReviewOptions
   claimed: boolean
-  can: { decide: boolean; take_over: boolean; reject: boolean; flag: boolean; unflag: boolean; note: boolean }
+  can: {
+    decide: boolean
+    take_over: boolean
+    reject: boolean
+    cut: boolean
+    flag: boolean
+    unflag: boolean
+    note: boolean
+  }
   skip: string
 }
 
@@ -77,7 +85,7 @@ export interface ReviewDraft {
   internal: string
   // Marked as AI-generated journals: it can only be rejected for good, and nothing else is needed.
   ai: boolean
-  // Minutes off the whole project for staff only (SubmissionReview's `cut`): the person never sees it.
+  // Minutes off the whole project for staff only (SubmissionReview's `cut`): the person never sees it. Admins only.
   cut: number | null
 }
 
@@ -132,7 +140,7 @@ export function initialDraft(page: ReviewPage): ReviewDraft {
       feedback: saved.feedback ?? '',
       internal: saved.internal ?? '',
       ai: saved.ai === true,
-      cut: saved.cut ?? fresh.cut,
+      cut: page.can.cut ? (saved.cut ?? fresh.cut) : fresh.cut,
     }
   } catch {
     return fresh
