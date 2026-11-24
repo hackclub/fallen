@@ -8,6 +8,7 @@ export const TEXT_EFFECTS: Record<string, string> = {
   wobble: 'dlg-fx-wobble',
   shake: 'dlg-fx-shake',
   count: 'dlg-fx-count',
+  arrow: 'dlg-fx-arrow',
 }
 
 export const COUNT_EFFECT = 'count'

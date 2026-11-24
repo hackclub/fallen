@@ -5,6 +5,8 @@
 <script lang="ts">
   import ActivityGrid from '@/components/ActivityGrid.svelte'
   import DailyGoal, { type Goal } from '@/components/DailyGoal.svelte'
+  import FlashBoostBanner from '@/components/flash-boost/FlashBoostBanner.svelte'
+  import FlashBoostOverlay, { type Boost } from '@/components/flash-boost/FlashBoostOverlay.svelte'
   import PageTitle from '@/components/PageTitle.svelte'
   import ProjectCard from '@/components/ProjectCard.svelte'
   import Reveal from '@/components/Reveal.svelte'
@@ -38,6 +40,7 @@
     goal,
     reminder,
     huddle,
+    boost,
   }: {
     projects?: Project[]
     invites?: ProjectInvite[]
@@ -47,6 +50,7 @@
     goal?: Goal | null
     reminder?: Reminder
     huddle?: Huddle
+    boost?: Boost | null
   } = $props()
 
   const firstName = $derived(shared().auth.user?.display_name.split(' ')[0] ?? '')
@@ -62,9 +66,12 @@
 
 <svelte:head><title>Home · Fallen</title></svelte:head>
 
-<PageTitle title="Home" subtitle={firstName ? `Welcome back, ${firstName}!` : undefined} />
+<PageTitle title="Home" subtitle={firstName ? `Welcome back, ${firstName}!` : undefined}>
+  <FlashBoostBanner {boost} />
+</PageTitle>
 
 <WelcomeBackOverlay reminderOn={reminder?.on ?? false} />
+<FlashBoostOverlay {boost} multiplier={xp?.multiplier} />
 
 <Reveal loading={!projects || !stats || !activity}>
   {#snippet skeleton()}

@@ -1,5 +1,5 @@
 # One line in the XP ledger; users.xp is the sum of the kept ones. A journal's entry follows its hours, less any a
-# design reviewer took off (Journal#counted_minutes, Journal#sync_xp), and keeps the multiplier the person had when it was first saved. Deleting its source discards the
+# design reviewer took off (Journal#counted_minutes, Journal#sync_xp), and keeps the multiplier the person had when it was first saved (with any FlashBoost). Deleting its source discards the
 # entry rather than removing it, so the ledger still shows what was earned and taken back. Everything else is granted once: by its source, or by kind
 # and day, so a week can be closed again without paying twice. `day` is the person's own calendar day. A transfer's
 # XP is the amount its reviewer set (ProjectTransfer#approve); its journals earn none of their own. `pet` is the team
@@ -86,12 +86,17 @@ class XpEntry < ApplicationRecord
   # Makes, updates, discards or brings back the journal's entry to match its hours. A journal a design review counted
   # no time for (SubmissionReview) is worth nothing.
   def self.sync(journal)
-    entry = journal.xp_entry || journal.build_xp_entry(user: journal.user, kind: "journal", multiplier: journal.user.xp_multiplier, day: journal.user.local_date(journal.created_at))
+    entry = journal.xp_entry || journal.build_xp_entry(user: journal.user, kind: "journal", multiplier: multiplier_for(journal), day: journal.user.local_date(journal.created_at))
     if journal.discarded? || !journal.hours_logged? || journal.counted_minutes.zero?
       entry.discard if entry.persisted? && !entry.discarded?
     else
       entry.update!(amount: journal_xp(journal.counted_minutes, entry.multiplier), discarded_at: nil)
     end
+  end
+
+  # The person's multiplier now, as the entry is first made, with any flash event the journal was written in (FlashBoost).
+  def self.multiplier_for(journal)
+    FlashBoost.multiplier(journal.user, written_at: journal.created_at || Time.current)
   end
 
   def self.grant_stupendous(journal)

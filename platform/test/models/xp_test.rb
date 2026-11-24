@@ -55,6 +55,39 @@ class XpTest < ActiveSupport::TestCase
     assert_equal 1.5, journal.xp_entry.multiplier
   end
 
+  test "journals saved during a flash event earn the boost: lulu's xp times a factor, sami's multiplier plus a step" do
+    lulu = users(:member)
+    sami = users(:admin)
+    travel_to FlashBoost::STARTS_AT do
+      assert_equal 1.0, projects(:station).journals.create!(user: lulu, body: journal_text("x"), duration: "1h", images: [ photo ]).xp_entry.multiplier, "only with the flag on"
+      assert_nil FlashBoost.props(lulu)
+    end
+    Flipper.enable(FlashBoost::FLAG)
+    sami.update!(xp_multiplier: 1.15)
+    write = ->(user, project) { projects(project).journals.create!(user: user, body: journal_text("x"), duration: "1h", images: [ photo ]).xp_entry }
+
+    travel_to FlashBoost::STARTS_AT - 1.minute do
+      assert_equal [ 1.0, 8 ], write.(lulu, :station).then { [ it.multiplier, it.amount ] }
+    end
+    travel_to FlashBoost::STARTS_AT do
+      assert_equal [ 1.25, 10 ], write.(lulu, :station).then { [ it.multiplier, it.amount ] }
+      assert_equal [ 1.4, 11 ], write.(sami, :admins).then { [ it.multiplier, it.amount ] }
+      assert FlashBoost.props(lulu)
+    end
+    travel_to FlashBoost::ENDS_AT do
+      assert_equal 1.0, write.(lulu, :station).multiplier
+      assert_nil FlashBoost.props(lulu)
+    end
+
+    # Written during it, hours logged after (a Slack journal posted without a time): no boost.
+    journal = travel_to(FlashBoost::ENDS_AT - 1.minute) { write.(lulu, :station).source }
+    journal.xp_entry.delete
+    journal.update_column(:duration_minutes, nil)
+    journal.reload
+    travel_to(FlashBoost::ENDS_AT + 1.minute) { journal.update!(duration: "1h") }
+    assert_equal [ 1.0, 8 ], journal.reload.xp_entry.then { [ it.multiplier, it.amount ] }
+  end
+
   test "the entry's day is the person's own calendar day" do
     user = users(:member)
     user.update!(timezone: "Pacific/Auckland")

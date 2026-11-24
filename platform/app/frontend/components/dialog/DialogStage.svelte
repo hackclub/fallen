@@ -23,6 +23,8 @@
     bottom?: number
     // Horizontal nudge of the scene from centre, in design units.
     offsetX?: number
+    // The name tag and text move right to clear a character wider than the design's, rather than sit behind it.
+    clearAvatar?: boolean
     class?: string
     children?: Snippet
   }
@@ -36,6 +38,7 @@
     fit = { width: 0.94, height: 0.5 },
     bottom = 40,
     offsetX = 0,
+    clearAvatar = false,
     class: className = '',
     children,
   }: Props = $props()
@@ -123,6 +126,14 @@
       ? `${COMPACT.stage}px`
       : `min(calc(${fit.width * 100}cqw / ${SCENE.width}), calc(${fit.height * 100}cqh / ${SCENE.height}))`,
   )
+
+  // How far into the bubble the character reaches, for `clearAvatar`.
+  const inset = $derived.by(() => {
+    const character = dialog.character
+    if (!clearAvatar || !character) return 0
+    const spec = character.avatars[poseKey(character, dialog.emotion)]
+    return spec ? Math.max(0, spec.width + (spec.offsetX ?? 0) - BUBBLE.left) : 0
+  })
 
   // In the phone layout the name tag starts just past the character standing on the bubble.
   const tagLeft = $derived.by(() => {
@@ -247,6 +258,7 @@
         skipped={dialog.skipped}
         {showArrow}
         onRevealComplete={dialog.finishReveal}
+        {inset}
       />
       <!-- After the bubble so the character stands in front of it, as in the design. -->
       {#if dialog.character}

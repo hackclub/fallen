@@ -10,7 +10,7 @@ class HomeController < ApplicationController
   # Nothing deferred: these are a dozen indexed queries over one person's own rows, about 15ms together, and a
   # deferred prop costs the browser another round trip to the server, 100-300ms for most people.
   def index
-    render inertia: "Home/Index", props: { projects: projects, invites: pending_invites, stats: stats, xp: xp, goal: goal, activity: activity, reminder: reminder, huddle: huddle }
+    render inertia: "Home/Index", props: { projects: projects, invites: pending_invites, stats: stats, xp: xp, goal: goal, activity: activity, reminder: reminder, huddle: huddle, boost: FlashBoost.props(current_user) }
   end
 
   private

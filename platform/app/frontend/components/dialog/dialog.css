@@ -52,6 +52,24 @@
   animation-delay: calc(var(--i, 0) * -0.04s);
 }
 
+/* [arrow]→[/arrow]: a chunky rounded arrow drawn in place of the font's (Jua's is thin and fonts disagree on it),
+   nudging towards what follows. The character stays underneath, transparent, for its width and for screen readers. */
+.dlg-fx-arrow {
+  display: inline-block;
+  margin: 0 0.12em;
+  color: transparent;
+  background: #f9af3f;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 12h15M12.5 5.5 19 12l-6.5 6.5'/%3E%3C/svg%3E")
+    center / 1em no-repeat;
+  animation: dlg-arrow 1s ease-in-out infinite;
+}
+
+@keyframes dlg-arrow {
+  50% {
+    transform: translateX(0.14em);
+  }
+}
+
 /* [count] digits: fixed-width figures so the number does not jitter as it rolls. */
 .dlg-fx-count {
   font-variant-numeric: tabular-nums;
@@ -59,7 +77,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .dlg-fx-wobble,
-  .dlg-fx-shake {
+  .dlg-fx-shake,
+  .dlg-fx-arrow {
     animation: none;
   }
 }

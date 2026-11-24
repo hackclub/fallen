@@ -38,6 +38,12 @@
     return lines
   }
 
+  // A character wider than the design's (DialogStage `clearAvatar`) pushes the name tag and text right, to start this
+  // far past it, and the text narrows to keep clear of the arrow on the right.
+  const CLEAR_GAP = 16
+  const CLEAR_RIGHT = 80
+  const TEXT_LEFT = (BUBBLE.width - BODY_TEXT.width) / 2
+
   const ARROW_PATH =
     'M4.66215 0C-1.44709 0.403369 -0.266408 5.88222 1.08759 8.57122C3.74143 11.5964 9.79652 18.2853 12.7861 20.8399C15.7758 23.3945 18.7979 21.9043 19.9353 20.8399C22.4266 17.9828 28.0593 11.5292 30.6589 8.57122C34.0385 1.84864 29.9007 0.0560002 27.4093 0C19.2853 1.84868 11.1614 1.84868 4.66215 0Z'
 </script>
@@ -60,6 +66,8 @@
     // clears the character standing on the bubble.
     compact?: boolean
     tagLeft?: number
+    // Design units of the bubble, from its left edge, a character stands in front of (DialogStage `clearAvatar`).
+    inset?: number
   }
 
   let {
@@ -71,7 +79,12 @@
     onRevealComplete,
     compact = false,
     tagLeft = 0,
+    inset = 0,
   }: Props = $props()
+
+  const clearTag = $derived(Math.max(NAME_TAG.left, inset + CLEAR_GAP))
+  // Only once the character reaches where the text would start; until then the text sits as designed.
+  const clearText = $derived(inset + CLEAR_GAP > TEXT_LEFT ? inset + CLEAR_GAP : null)
 
   // A compact bubble takes its shape from its copy, so the outline is drawn for the box it ends up as.
   let boxWidth = $state(0)
@@ -197,7 +210,7 @@
         <div
           class="absolute flex justify-center font-dialog font-medium whitespace-nowrap text-white"
           style:--dlg-u={compact ? `${COMPACT.nameTag}px` : undefined}
-          style:left={compact ? `${tagLeft}px` : u(NAME_TAG.left)}
+          style:left={compact ? `${tagLeft}px` : u(clearTag)}
           style:top={u(NAME_TAG.top)}
           style:min-width={u(NAME_TAG.minWidth)}
           style:height={u(NAME_TAG.height)}
@@ -221,6 +234,8 @@
 
     <div
       class={['flex flex-col items-center justify-center', compact ? 'relative' : 'absolute inset-0']}
+      style:padding-left={!compact && clearText !== null ? u(clearText) : undefined}
+      style:padding-right={!compact && clearText !== null ? u(CLEAR_RIGHT) : undefined}
       style:min-height={compact ? `${COMPACT.bubbleMinHeight}px` : undefined}
       style:padding={compact ? `${COMPACT.bubblePadding.y}px ${COMPACT.bubblePadding.x}px` : undefined}
     >
@@ -228,7 +243,7 @@
         bind:this={textBox}
         class="text-center font-dialog font-semibold [word-break:break-word] text-white [text-wrap:balance]"
         style:--dlg-u={compact ? `${COMPACT.text}px` : undefined}
-        style:width={compact ? '100%' : u(BODY_TEXT.width)}
+        style:width={compact || clearText !== null ? '100%' : u(BODY_TEXT.width)}
         style:font-size={u(textSize)}
         style:line-height={BODY_TEXT.lineHeight}
       >

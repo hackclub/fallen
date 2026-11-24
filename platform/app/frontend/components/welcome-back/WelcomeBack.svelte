@@ -4,7 +4,7 @@
 
   // Each form's drawing size (assets/pets), fitted into the dialog at the first forms' height in design units
   // (dialog/geometry.ts), no wider than MAX_WIDTH.
-  const DRAWINGS: Record<string, [number, number][]> = {
+  export const DRAWINGS: Record<string, [number, number][]> = {
     lulu: [
       [306, 354],
       [385, 416],
@@ -22,7 +22,7 @@
   // The speech bubble's text starts 268 units in (dialog/geometry.ts); wider and the final forms, which are drawn
   // much wider than tall, stand in front of it. The onboarding's egg is 287 at its widest.
   const MAX_WIDTH = 300
-  const COLORS: Record<string, string> = { lulu: '#F9AF3F', sami: '#353b7d' }
+  export const COLORS: Record<string, string> = { lulu: '#F9AF3F', sami: '#353b7d' }
 
   function pose(pet: string, form: number): AvatarSpec {
     if (form === 0) return { src: PET_FORMS[pet][0], ...DIALOG_EGG }
