@@ -9,7 +9,15 @@
   import ChecksStep from '@/components/submission/ChecksStep.svelte'
   import SendStep from '@/components/submission/SendStep.svelte'
   import { projectSubmissions } from '@/routes'
-  import { clearDraft, itemPayload, itemProblem, loadDraft, saveDraft, type Check } from '@/lib/submission'
+  import {
+    checkRepository,
+    clearDraft,
+    itemPayload,
+    itemProblem,
+    loadDraft,
+    saveDraft,
+    type Check,
+  } from '@/lib/submission'
   import type { Project, RepoSnapshot } from '@/types'
 
   // Sending a project's design for review, one step at a time: what it has, its repository, screenshots, its bill
@@ -46,6 +54,19 @@
   // different repository, or the list came from a bom.csv that has since changed, offer to start the list over so it
   // fills from the new one. Rows may have been typed or fixed here, so it asks first, the way loading a CSV does. A
   // list made by hand stays on a re-check of the same repository.
+  async function refreshRepo() {
+    if (!draft.snapshot) return false
+    try {
+      const snapshot = await checkRepository(project.id, draft.snapshot.url)
+      if (snapshot.status !== 'done') return false
+      draft.snapshot = snapshot
+      repoChecked(snapshot)
+      return true
+    } catch {
+      return false
+    }
+  }
+
   function repoChecked(snapshot: RepoSnapshot) {
     const before = draft.bomRepo
     const csv = snapshot.bom_csv ?? ''
@@ -185,7 +206,7 @@
       {:else if current.key === 'bom'}
         <BomStep bind:items={draft.items} bind:bomCsv={draft.bomCsv} snapshot={draft.snapshot} />
       {:else if current.key === 'checks'}
-        <ChecksStep projectId={project.id} {draft} bind:checks onFix={go} />
+        <ChecksStep projectId={project.id} {draft} bind:checks onFix={go} {refreshRepo} />
       {:else}
         <SendStep bind:note={draft.note} {draft} {checks} {resubmission} {errors} />
       {/if}

@@ -12,11 +12,14 @@
     draft,
     checks = $bindable(),
     onFix,
+    refreshRepo,
   }: {
     projectId: string
     draft: SubmissionDraft
     checks: Check[] | null
     onFix: (step: Fixable) => void
+    // Reads the same repository again; false when that didn't work.
+    refreshRepo: () => Promise<boolean>
   } = $props()
 
   let running = $state(false)
@@ -45,13 +48,20 @@
     running = true
     error = null
     try {
-      checks = await runChecks(projectId, draft)
+      let result = await runChecks(projectId, draft)
+      // A read that went stale while the popup sat open (SubmissionChecks wants one under two hours old) is ours to
+      // redo, not something to send the person back for. If reading again fails, the check shows as usual.
+      if (stale(result) && (await refreshRepo())) result = await runChecks(projectId, draft)
+      checks = result
     } catch (e) {
       error = e instanceof Error ? e.message : 'Couldn’t run the checks'
     } finally {
       running = false
     }
   }
+
+  const stale = (result: Check[]) =>
+    draft.snapshot?.status === 'done' && result.some((c) => c.key === 'repo' && c.status === 'fail')
 
   onMount(() => {
     checks = null
