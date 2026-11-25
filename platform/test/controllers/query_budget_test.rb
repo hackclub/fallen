@@ -159,6 +159,9 @@ class QueryBudgetTest < ActionDispatch::IntegrationTest
     # Recent journals and the huddle, pauses and timer sessions for active builders; the days from signups, visits, journals and the huddle, pauses and timer sessions;
     # the funnel in one; the sources in one; the AI-writing checks in one.
     assert_query_budget(14) { load_deferred(admin_stats_path, "Admin/Stats/Show", "active", "daily", "funnel", "sources", "writing") }
+    assert_query_budget(3) { get admin_review_leaderboard_path }
+    # Design reviews and journal reviews grouped by reviewer, then the reviewers.
+    assert_query_budget(5) { load_deferred(admin_review_leaderboard_path, "Admin/ReviewLeaderboard/Show", "rows") }
     assert_query_budget(3) { get admin_qualifying_path }
     # Everyone's statuses and the extra tabs' counts in two, the history from everyone's first approval and XP by day,
     # the spread and the hours funnel in one each.
