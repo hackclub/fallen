@@ -99,6 +99,17 @@
     </section>
   {/if}
 
+  {#if s.used_ai}
+    <section
+      class="rounded-md border border-amber-200 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950/40"
+    >
+      <p class="mb-1 text-xs font-medium text-amber-800 dark:text-amber-300">
+        <PersonLink person={s.submitter} /> says they used AI for
+      </p>
+      <p class="text-sm whitespace-pre-wrap">{s.ai_usage}</p>
+    </section>
+  {/if}
+
   {#if s.screenshots.length}
     <section class="grid grid-cols-2 gap-2 md:grid-cols-3">
       {#each s.screenshots as shot, i (shot.id)}

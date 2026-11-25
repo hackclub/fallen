@@ -104,6 +104,7 @@
         if (!checks) return 'Running the checks'
         return checks.some((check) => check.status === 'fail') ? 'Fix what failed to continue' : null
       case 'send':
+        if (draft.usedAi && !draft.aiUsage.trim()) return 'Say what you used AI for'
         return resubmission && !draft.note.trim() ? 'Say what you changed since the last review' : null
     }
   })
@@ -133,6 +134,8 @@
           snapshot_id: draft.snapshot?.id,
           made_with: draft.madeWith,
           note: draft.note,
+          used_ai: draft.usedAi,
+          ai_usage: draft.usedAi ? draft.aiUsage : '',
           bom_csv: draft.bomCsv,
           screenshots: draft.screenshots.map((s) => s.id),
           items: draft.items.map(itemPayload),
@@ -208,7 +211,15 @@
       {:else if current.key === 'checks'}
         <ChecksStep projectId={project.id} {draft} bind:checks onFix={go} {refreshRepo} />
       {:else}
-        <SendStep bind:note={draft.note} {draft} {checks} {resubmission} {errors} />
+        <SendStep
+          bind:note={draft.note}
+          bind:usedAi={draft.usedAi}
+          bind:aiUsage={draft.aiUsage}
+          {draft}
+          {checks}
+          {resubmission}
+          {errors}
+        />
       {/if}
     </div>
 

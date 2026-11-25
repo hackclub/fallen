@@ -8,6 +8,7 @@
 #
 #  id                        :bigint           not null, primary key
 #  ai_generated              :boolean          default(FALSE), not null
+#  ai_usage                  :text
 #  approved_cents            :integer
 #  bom_csv                   :text
 #  checks                    :jsonb            not null
@@ -31,6 +32,7 @@
 #  review_draft_at           :datetime
 #  rubric                    :jsonb            not null
 #  status                    :string           default("pending"), not null
+#  used_ai                   :boolean          default(FALSE), not null
 #  created_at                :datetime         not null
 #  updated_at                :datetime         not null
 #  claimed_by_id             :bigint
@@ -70,7 +72,7 @@ class SubmissionSerializer < ApplicationSerializer
   typelize id: :string, status: "'pending' | 'approved' | 'returned' | 'rejected' | 'withdrawn'",
            checks: "Array<{ key: string; label: string; status: 'pass' | 'warn' | 'fail'; detail: string | null; doc?: string | null }>",
            screenshots: "Array<{ id: string; url: string }>", payout_status: [ :string, nullable: true ]
-  attributes :status, :repo_url, :commit_sha, :made_with, :note, :requested_cents, :approved_cents, :feedback, :checks, :created_at, :decided_at
+  attributes :status, :repo_url, :commit_sha, :made_with, :note, :used_ai, :ai_usage, :requested_cents, :approved_cents, :feedback, :checks, :created_at, :decided_at
   attribute(:id) { |submission| submission.public_id }
   attribute(:screenshots) do |submission|
     submission.screenshots.map { |image| { id: image.signed_id, url: Rails.application.routes.url_helpers.rails_blob_path(image, only_path: true) } }

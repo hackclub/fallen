@@ -12,9 +12,10 @@ class SubmissionsController < ApplicationController
     authorize Submission.new(project:)
     raise Pundit::NotAuthorizedError unless Flipper.enabled?(FLAG, current_user)
 
-    fields = params.expect(submission: [ :snapshot_id, :note, :bom_csv, made_with: [], screenshots: [], items: [ BomItem::FIELDS ] ])
+    fields = params.expect(submission: [ :snapshot_id, :note, :bom_csv, :used_ai, :ai_usage, made_with: [], screenshots: [], items: [ BomItem::FIELDS ] ])
     submission = Submission.submit(project:, user: current_user, snapshot: project.repo_snapshots.find_by_public_id(fields[:snapshot_id]),
-      made_with: fields[:made_with], note: fields[:note], items: fields[:items]&.map(&:to_h), screenshots: fields[:screenshots], bom_csv: fields[:bom_csv])
+      made_with: fields[:made_with], note: fields[:note], items: fields[:items]&.map(&:to_h), screenshots: fields[:screenshots], bom_csv: fields[:bom_csv],
+      used_ai: fields[:used_ai], ai_usage: fields[:ai_usage])
 
     if submission.persisted?
       redirect_to project_path(project), notice: "Submitted! A reviewer will look at it soon."

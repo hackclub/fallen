@@ -8,6 +8,7 @@
 #
 #  id                        :bigint           not null, primary key
 #  ai_generated              :boolean          default(FALSE), not null
+#  ai_usage                  :text
 #  approved_cents            :integer
 #  bom_csv                   :text
 #  checks                    :jsonb            not null
@@ -31,6 +32,7 @@
 #  review_draft_at           :datetime
 #  rubric                    :jsonb            not null
 #  status                    :string           default("pending"), not null
+#  used_ai                   :boolean          default(FALSE), not null
 #  created_at                :datetime         not null
 #  updated_at                :datetime         not null
 #  claimed_by_id             :bigint
@@ -103,6 +105,9 @@ class Submission < ApplicationRecord
   validates :status, inclusion: { in: STATUSES }
   validates :repo_url, presence: true
   validates :note, length: { maximum: MAX_NOTE }
+  # What the person says they used AI for, when they tick that they did. Only their team and reviewers see it.
+  validates :ai_usage, presence: { message: "needs a few words on what you used AI for" }, if: :used_ai?
+  validates :ai_usage, length: { maximum: MAX_NOTE }
   validates :feedback, :internal_reason, length: { maximum: 5_000 }
   validates :internal_deflated_minutes, numericality: { only_integer: true, greater_than: 0 }, allow_nil: true
   validate :screenshots_are_images, if: -> { attachment_changes.key?("screenshots") }
@@ -124,9 +129,11 @@ class Submission < ApplicationRecord
 
   # Sends the project in, or returns an unsaved Submission whose errors say why not. `items` are BomItem attribute
   # hashes, `screenshots` signed blob ids.
-  def self.submit(project:, user:, snapshot:, made_with:, note:, items:, screenshots:, bom_csv: nil)
+  def self.submit(project:, user:, snapshot:, made_with:, note:, items:, screenshots:, bom_csv: nil, used_ai: false, ai_usage: nil)
+    used_ai = ActiveModel::Type::Boolean.new.cast(used_ai) || false
     submission = new(project:, user:, repo_snapshot: snapshot, repo_url: snapshot&.url.to_s, commit_sha: snapshot&.commit_sha,
       made_with: Array(made_with).map(&:to_s) & SubmissionChecks::MADE_WITH, note: note.to_s.strip.presence,
+      used_ai:, ai_usage: (ai_usage.to_s.strip.presence if used_ai),
       bom_csv: bom_csv.to_s.byteslice(0, BomImport::MAX_BYTES).presence)
     Array(items).first(BomItem::MAX_ITEMS).each_with_index do |attrs, i|
       submission.bom_items.build(attrs.to_h.symbolize_keys.slice(*BomItem::FIELDS).merge(position: i))

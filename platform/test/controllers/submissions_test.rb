@@ -30,6 +30,16 @@ class SubmissionsTest < ActionDispatch::IntegrationTest
     refute props["submission"].key?("internal_reason"), "reviewers' notes stay on the review side"
   end
 
+  test "an AI declaration needs a description and reaches the team's view of the submission" do
+    params = params_for(read_snapshot(projects(:station)), upload)
+    post project_submissions_path(projects(:station)), params: params.deep_merge(submission: { used_ai: "1", ai_usage: "" }), headers: { "HTTP_REFERER" => project_path(projects(:station)) }
+    assert_nil Submission.pending.find_by(project: projects(:station))
+
+    post project_submissions_path(projects(:station)), params: params.deep_merge(submission: { used_ai: "1", ai_usage: "Explained decoupling caps" })
+    props = inertia_props(project_path(projects(:station)), "Projects/Show")
+    assert_equal [ true, "Explained decoupling caps" ], props["submission"].values_at("used_ai", "ai_usage")
+  end
+
   test "failed checks come back as errors" do
     snapshot = read_snapshot(projects(:station))
     post project_submissions_path(projects(:station)), params: { submission: { snapshot_id: snapshot.public_id, items: bom_rows } }, headers: { "HTTP_REFERER" => project_path(projects(:station)) }

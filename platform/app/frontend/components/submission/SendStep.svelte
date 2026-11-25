@@ -4,12 +4,16 @@
 
   let {
     note = $bindable(),
+    usedAi = $bindable(),
+    aiUsage = $bindable(),
     draft,
     checks,
     resubmission,
     errors,
   }: {
     note: string
+    usedAi: boolean
+    aiUsage: string
     draft: SubmissionDraft
     checks: Check[] | null
     resubmission: boolean
@@ -94,6 +98,29 @@
     bind:value={note}
     placeholder={resubmission ? 'Added the gerbers and cut the spare ESP32s from the BOM.' : 'Optional'}
     class="paper-input"></textarea>
+</div>
+
+<div class="mt-5 rounded-xl border-2 border-paper-rim px-4 py-3">
+  <label class="flex cursor-pointer items-start gap-2.5 text-sm text-ink">
+    <input type="checkbox" bind:checked={usedAi} class="mt-0.5 size-4 shrink-0 accent-[#1cb0f6]" />
+    <span class="font-semibold">I used AI on this project</span>
+  </label>
+  <p class="mt-1.5 text-xs leading-relaxed text-ink-soft">
+    That's okay! Using AI to debug, look things up or learn a new tool is fine. What we can't accept is a
+    design that AI made for you, or journals that AI wrote, even a bit of one. Your journals should always be
+    in your own words.
+  </p>
+  {#if usedAi}
+    <label for="submission-ai-usage" class="mt-3 mb-1 block text-sm text-ink">What did you use it for?</label>
+    <textarea
+      id="submission-ai-usage"
+      rows="3"
+      maxlength="2000"
+      bind:value={aiUsage}
+      placeholder="Asked ChatGPT why my I2C bus wasn't working, and had it explain how to pick decoupling caps. I drew the schematic and routed the board myself."
+      class="paper-input"></textarea>
+    <p class="mt-1 text-xs text-ink-soft">Only your team and the reviewers see this.</p>
+  {/if}
 </div>
 
 <p class="mt-4 text-center text-xs text-ink-soft">

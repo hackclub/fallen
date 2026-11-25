@@ -113,10 +113,10 @@ module SubmissionHelper
                    { kind: "shipping", name: "Shipping", quantity: 1, total_cents: 500 } ]
 
   # A submission waiting for review, sent the way the popup sends it.
-  def submit_design(project, user: project.user)
+  def submit_design(project, user: project.user, **declaration)
     project.journals.kept.needing_hours.update_all(duration_minutes: 30)
     blob = ActiveStorage::Blob.create_and_upload!(io: StringIO.new("png"), filename: "render.png", content_type: "image/png", metadata: { Journal::UPLOADER_KEY => user.id })
-    Submission.submit(project:, user:, snapshot: read_snapshot(project, user), made_with: %w[pcb], note: nil, items: bom_rows, screenshots: [ blob.signed_id ])
+    Submission.submit(project:, user:, snapshot: read_snapshot(project, user), made_with: %w[pcb], note: nil, items: bom_rows, screenshots: [ blob.signed_id ], **declaration)
   end
 end
 

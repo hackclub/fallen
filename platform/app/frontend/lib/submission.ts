@@ -40,6 +40,8 @@ export interface SubmissionDraft {
   // can tell whether the parts list belongs to a different repository or an older bom.csv.
   bomRepo: { url: string; csv: string } | null
   note: string
+  usedAi: boolean
+  aiUsage: string
 }
 
 export interface Check {
@@ -64,6 +66,8 @@ export const emptyDraft = (repoUrl = ''): SubmissionDraft => ({
   bomCsv: '',
   bomRepo: null,
   note: '',
+  usedAi: false,
+  aiUsage: '',
 })
 
 const storageKey = (projectId: string) => `fallen:submission:${projectId}`

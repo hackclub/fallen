@@ -6,6 +6,7 @@ require "test_helper"
 #
 #  id                        :bigint           not null, primary key
 #  ai_generated              :boolean          default(FALSE), not null
+#  ai_usage                  :text
 #  approved_cents            :integer
 #  bom_csv                   :text
 #  checks                    :jsonb            not null
@@ -29,6 +30,7 @@ require "test_helper"
 #  review_draft_at           :datetime
 #  rubric                    :jsonb            not null
 #  status                    :string           default("pending"), not null
+#  used_ai                   :boolean          default(FALSE), not null
 #  created_at                :datetime         not null
 #  updated_at                :datetime         not null
 #  claimed_by_id             :bigint
@@ -77,6 +79,18 @@ class SubmissionTest < ActiveSupport::TestCase
     assert_equal 1, submission.screenshots.count
     assert_includes submission.checks.map { it["key"] }, "pcb_source"
     refute SubmissionChecks.blocking?(submission.checks)
+  end
+
+  test "someone who used AI says what for, and someone who didn't keeps no description" do
+    refute submit_design(projects(:station), used_ai: "1", ai_usage: "  ").persisted?
+
+    submission = submit_design(projects(:station), used_ai: "1", ai_usage: " Debugging the I2C bus ")
+    assert submission.persisted?, submission.errors.full_messages.to_sentence
+    assert_equal [ true, "Debugging the I2C bus" ], [ submission.used_ai, submission.ai_usage ]
+
+    submission.withdraw!
+    submission = submit_design(projects(:station), used_ai: "0", ai_usage: "left over in the box")
+    assert_equal [ false, nil ], [ submission.used_ai, submission.ai_usage ]
   end
 
   test "a failed check, a stale repository check, or a second submission is refused" do
