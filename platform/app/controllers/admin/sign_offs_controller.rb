@@ -78,7 +78,7 @@ class Admin::SignOffsController < Admin::ApplicationController
       associations: [ :user, :proposed_by, *(:copy_check_cleared_by if submission.copy_check_cleared_by_id), :bom_items, :project, { screenshots_attachments: :blob } ]).call
     Project.preload_teams([ submission.project ])
     returns = Submission.where(project_id: submission.project_id, status: "returned").count
-    SignOffCaseSerializer.render(submission, journals: journals_for([ submission ]), returns: { submission.id => returns })
+    SignOffCaseSerializer.render(submission, journals: journals_for([ submission ], photos: true), returns: { submission.id => returns })
   end
 
   # How many wait and what approving them all would send, in one query.
@@ -92,8 +92,11 @@ class Admin::SignOffsController < Admin::ApplicationController
   def next_case = params[:next].to_s[/\Asub_\w+\z/]
 
   # The journals each review covers (SubmissionReview.journals_for), in one query for the page.
-  def journals_for(records)
-    journals = Journal.kept.where(project_id: records.map(&:project_id)).where.not(duration_minutes: nil).order(:created_at, :id).group_by(&:project_id)
+  # `photos` also loads their uploads, for the desk, which shows each journal in full.
+  def journals_for(records, photos: false)
+    journals = Journal.kept.where(project_id: records.map(&:project_id)).where.not(duration_minutes: nil).order(:created_at, :id)
+    journals = journals.includes(images_attachments: :blob) if photos
+    journals = journals.group_by(&:project_id)
     records.to_h { |submission| [ submission.id, (journals[submission.project_id] || []).select { it.created_at <= submission.created_at } ] }
   end
 

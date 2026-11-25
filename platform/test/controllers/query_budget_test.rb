@@ -150,7 +150,8 @@ class QueryBudgetTest < ActionDispatch::IntegrationTest
     SignOffDesk.available = true
     assert_query_budget(3) { get admin_sign_offs_path }
     assert_query_budget(8) { load_deferred(admin_sign_offs_path, "Admin/SignOffs/Desk", "queue", "pagy", "totals") }
-    assert_query_budget(9) { load_deferred(admin_sign_offs_path, "Admin/SignOffs/Desk", "case") }
+    # The case includes every journal's photos, loaded in one query however many journals there are.
+    assert_query_budget(10) { load_deferred(admin_sign_offs_path, "Admin/SignOffs/Desk", "case") }
     SignOffDesk.available = false
     assert_query_budget(3) { get admin_streaks_path }
     assert_query_budget(3) { get admin_workshop_rsvps_path }

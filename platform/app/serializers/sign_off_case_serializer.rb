@@ -8,7 +8,8 @@ class SignOffCaseSerializer < AdminSignOffSerializer
     made_with: "string[]", repo_url: :string, used_ai: :boolean, returns: :number, copy_check_holds: :boolean,
     project: "{ id: string; title: string; description: string | null; slack_url: string | null; team: { id: string; name: string; avatar: string }[] }",
     screenshots: "string[]",
-    parts: "{ name: string; quantity: number; total_cents: number; owned: boolean; vendor: string | null; link: string | null }[]",
+    parts: "{ name: string; kind: string; purpose: string | null; quantity: number; unit_cents: number | null; total_cents: number; owned: boolean; vendor: string | null; link: string | null }[]",
+    journals: "{ id: string; created_at: string; excerpt: string; body: string; photos: string[]; images: string[]; logged_minutes: number; counted_minutes: number; reason: string | null; note: string | null }[]",
     copy_check_cleared: "{ by: { id: string; name: string; avatar: string } | null; at: string } | null",
     copy_check: "{ status: 'pending' | 'match' | 'clear' | 'unscreenable' | 'failed'; reason: 'same_repo' | 'not_github' | 'repo_not_found' | 'no_design_files' | 'too_large' | 'cad_not_checked' | null; mode?: 'pcb' | 'cad' | null; checked_at?: string; attempts?: number; error?: string; modes?: { mode: 'pcb' | 'cad'; verdict: string; files: number; corpus: number; match_count: number }[]; matches?: #{CopyMatch}[]; shared?: { repo: string; url: string; containment: number }[]; same_repo?: { project: string; title: string }[]; compared?: { copied: boolean; by: string; at: string } } | null"
 
@@ -28,6 +29,19 @@ class SignOffCaseSerializer < AdminSignOffSerializer
     submission.screenshots.first(3).map { Rails.application.routes.url_helpers.rails_blob_path(it, only_path: true) }
   end
   attribute(:parts) do |submission|
-    submission.bom_items.map { { name: it.name, quantity: it.quantity, total_cents: it.total_cents, owned: it.owned, vendor: it.vendor, link: it.link } }
+    submission.bom_items.map do
+      { name: it.name, kind: it.kind, purpose: it.purpose, quantity: it.quantity, unit_cents: it.unit_cents, total_cents: it.total_cents,
+        owned: it.owned, vendor: it.vendor, link: it.link }
+    end
+  end
+
+  # Each journal in full for the desk: its Markdown, and its uploads (signed ids, the only pictures it may show).
+  def calls(submission)
+    by_id = (params[:journals]&.[](submission.id) || []).index_by(&:public_id)
+    super.map do |call|
+      journal = by_id.fetch(call[:id])
+      call.merge(body: journal.body.to_s, photos: journal.images.map(&:signed_id),
+        images: journal.images.map { Rails.application.routes.url_helpers.rails_blob_path(it, only_path: true) })
+    end
   end
 end
