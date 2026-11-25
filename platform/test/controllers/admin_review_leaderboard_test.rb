@@ -13,9 +13,9 @@ class AdminReviewLeaderboardTest < ActionDispatch::IntegrationTest
 
   test "a range leaves out older reviews" do
     sign_in_as users(:admin)
+    assert_equal "7d", inertia_props(admin_review_leaderboard_path(range: "7d"), "Admin/ReviewLeaderboard/Show")["range"]
     props = load_deferred(admin_review_leaderboard_path(range: "7d"), "Admin/ReviewLeaderboard/Show", "rows")
 
-    assert_equal "7d", props["range"]
     assert_equal Submission.decided.where(decided_at: 7.days.ago..).where.not(reviewer_id: nil).count, props["rows"].sum { it["design"] }
   end
 
