@@ -60,9 +60,9 @@ module ActiveSupport
       fakes = {
         writes_allowed?: -> { true },
         org_card_grants: -> { hcb[:grants].map(&:dup) },
-        create_card_grant: lambda { |amount_cents:, email:, purpose:, instructions:|
+        create_card_grant: lambda { |amount_cents:, email:, purpose:, instructions:, invite_message:|
           grant = { id: "cdg_#{hcb[:grants].size + 1}", email:, amount_cents:, balance_cents: amount_cents, status: "active",
-                    expires_on: (Date.current + 1.month).iso8601, purpose:, instructions: }
+                    expires_on: (Date.current + 1.month).iso8601, purpose:, instructions:, invite_message: }
           hcb[:grants] << grant
           reply.(grant)
         },

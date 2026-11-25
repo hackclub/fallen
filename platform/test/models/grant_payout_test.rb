@@ -47,21 +47,38 @@ class GrantPayoutTest < ActiveSupport::TestCase
       assert @payout.reload.sent?
       assert_equal "cdg_1", @payout.hcb_reference
       assert_equal "Fallen: #{@submission.project.title}", hcb[:grants].first[:purpose]
-      assert_equal HcbGrantCard::INSTRUCTIONS, hcb[:grants].first[:instructions]
+      assert_equal HcbGrantCard.instructions_for([ @submission ]), hcb[:grants].first[:instructions]
+      assert_equal hcb[:grants].first[:instructions], hcb[:grants].first[:invite_message]
 
       second = GrantPayout.create!(submission: submit_design(projects(:unlinked)), user: @submission.user, amount_cents: 300)
+      second.submission.bom_items.update_all(verdict: "approved")
       second.send!
       assert second.reload.sent?
       assert_equal [ 1000 ], hcb[:grants].pluck(:amount_cents), "topped up, not a second card"
       assert_equal 1000, @payout.hcb_grant_card.reload.amount_cents
-      assert_equal HcbGrantCard.purpose_for([ projects(:unlinked).title, @submission.project.title ]), hcb[:grants].first[:purpose],
+      assert_equal HcbGrantCard.purpose_for([ second.submission, @submission ]), hcb[:grants].first[:purpose],
         "the top-up's project joins the purpose"
+      assert_includes hcb[:grants].first[:instructions], "**#{projects(:unlinked).title}**", "and its parts join the list"
     end
   end
 
   test "the purpose fits HCB's 30 characters" do
-    assert_equal "Fallen: Weather station", HcbGrantCard.purpose_for([ "Weather station", "Weather station" ])
-    assert_equal HcbGrantCard::PURPOSE_MAX_LENGTH, HcbGrantCard.purpose_for([ "A very long project title indeed", "Clock" ]).length
+    long = Struct.new(:project).new(Struct.new(:title).new("A very long project title indeed"))
+    assert_equal "Fallen: Weather station", HcbGrantCard.purpose_for([ @submission, @submission ])
+    assert_equal HcbGrantCard::PURPOSE_MAX_LENGTH, HcbGrantCard.purpose_for([ long, @submission ]).length
+  end
+
+  test "the instructions list only what the reviewer funded, with participant text escaped" do
+    items = @submission.bom_items.to_a
+    items[0].update!(name: "ESP32 [click](http://evil)", quantity: 2, link: "https://example.com/esp(32)", verdict: "approved")
+    items[1..].each { it.update!(verdict: "cut") }
+    instructions = HcbGrantCard.instructions_for([ @submission ])
+
+    assert instructions.start_with?(HcbGrantCard::INSTRUCTIONS.rstrip)
+    assert_includes instructions, "- 2 × [ESP32 \\[click\\](http://evil)](https://example.com/esp%2832%29): #{Money.format(items[0].funded_cents)}"
+    items[1..].each { refute_includes instructions, it.name }
+    @submission.bom_items.each { it.update!(verdict: "cut") }
+    assert_equal HcbGrantCard::INSTRUCTIONS, HcbGrantCard.instructions_for([ @submission.reload ]), "no list when nothing was funded"
   end
 
   test "not connected leaves it waiting" do

@@ -74,8 +74,8 @@ class GrantPayout < ApplicationRecord
       Hcb.topup_card_grant(card.hcb_id, amount_cents:)
       card.update!(amount_cents: card.amount_cents + amount_cents, last_synced_at: Time.current)
     else
-      data = Hcb.create_card_grant(amount_cents:, email: user.email, purpose: HcbGrantCard.purpose_for([ submission.project.title ]),
-        instructions: HcbGrantCard::INSTRUCTIONS)
+      instructions = HcbGrantCard.instructions_for([ submission ])
+      data = Hcb.create_card_grant(amount_cents:, email: user.email, purpose: HcbGrantCard.purpose_for([ submission ]), instructions:, invite_message: instructions)
       card = HcbGrantCard.create!(user:, hcb_id: data[:id], email: data[:email] || user.email, amount_cents:, last_synced_at: Time.current)
     end
     update!(status: "sent", via: "auto", hcb_grant_card: card, hcb_reference: card.hcb_id, sent_at: Time.current)
@@ -121,10 +121,11 @@ class GrantPayout < ApplicationRecord
 
   private
 
-  # A top-up adds this project to the card's purpose on HCB. The money has already moved, so a failure here is only
+  # A top-up adds this project to the card's purpose and parts list on HCB. The money has already moved, so a failure here is only
   # reported, never turned into a failed payout.
   def relabel_card(card)
-    Hcb.update_card_grant(card.hcb_id, purpose: HcbGrantCard.purpose_for(card.project_titles), instructions: HcbGrantCard::INSTRUCTIONS)
+    submissions = card.funded_submissions
+    Hcb.update_card_grant(card.hcb_id, purpose: HcbGrantCard.purpose_for(submissions), instructions: HcbGrantCard.instructions_for(submissions))
   rescue StandardError => e
     Sentry.capture_exception(e, extra: { card: card.hcb_id })
   end
