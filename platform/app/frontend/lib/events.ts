@@ -17,7 +17,9 @@ export const events: CommunityEvent[] = [
     end: '2026-11-25T13:30-05:00',
     title: 'Yap time',
     host: 'Rehan',
-  },
+    },
+    { start: '2026-11-25T16:00-05:00', end: '2026-11-25T17:00-05:00', title: 'Review lock in', host: 'sophia' },
+
   {
     start: '2026-11-26T19:00-05:00',
     end: '2026-11-26T22:00-05:00',
