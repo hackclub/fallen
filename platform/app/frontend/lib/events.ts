@@ -23,8 +23,8 @@ export const events: CommunityEvent[] = [
     end: '2026-11-26T22:00-05:00',
     title: 'Hardware help',
     host: 'santiagocuenta112az',
-    },
-    { start: '2026-11-27T21:00-05:00', end: '2026-11-27T22:30-05:00', title: 'Yap time', host: 'Qweezi' },
+  },
+  { start: '2026-11-27T21:00-05:00', end: '2026-11-27T22:30-05:00', title: 'Yap time', host: 'Qweezi' },
 
   { start: '2026-11-28T12:00-05:00', end: '2026-11-28T13:30-05:00', title: 'Hardware help', host: 'Ayush' },
   { start: '2026-11-28T23:00-05:00', end: '2026-11-28T00:00-05:00', title: 'Game sesh', host: 'Qweezi' },
