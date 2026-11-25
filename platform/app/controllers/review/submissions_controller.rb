@@ -35,6 +35,17 @@ class Review::SubmissionsController < Review::ApplicationController
     redirect_to review_submission_path(submission, skip: skip.join(",").presence)
   end
 
+  # The same, over design reviewers' decisions waiting for an admin to sign them off.
+  def next_sign_off
+    authorize [ :review, Submission ]
+    skip = skipped
+    submission = SubmissionReview.next_for(true_user, signing_off: true, skip: Submission.where(id: skip.filter_map { |id| Submission.find_by_public_id(id)&.id }))
+    return redirect_to(admin_sign_offs_path, notice: "Nothing left to sign off. Nice work!") unless submission
+
+    SubmissionReview.claim(submission, true_user)
+    redirect_to review_submission_path(submission, skip: skip.join(",").presence)
+  end
+
   def show
     submission = find_submission
     authorize [ :review, submission ]
@@ -42,7 +53,10 @@ class Review::SubmissionsController < Review::ApplicationController
     submission.reload if claimed
 
     policy = policy([ :review, submission ])
-    can = { decide: policy.decide? && claimed, take_over: policy.decide? && !claimed, reject: policy.reject?, cut: policy.cut?, flag: policy.flag?, unflag: policy.unflag?, note: policy.note? }
+    # An admin signing off a held decision works it like any review and sends it to Admin::SignOffsController.
+    sign_off = policy.sign_off?
+    can = { decide: policy.claim? && claimed, sign_off:, take_over: policy.claim? && !claimed, reject: policy.reject? || sign_off,
+            cut: policy.cut?, flag: policy.flag?, unflag: policy.unflag?, note: policy.note? }
     render inertia: "Review/Submissions/Show", props: ReviewPageProps.new(submission, reviewer: true_user, claimed:, can:).props.merge(skip: skipped.join(","))
   end
 
@@ -68,13 +82,17 @@ class Review::SubmissionsController < Review::ApplicationController
   def heartbeat
     submission = find_submission
     authorize [ :review, submission ], :claim?
-    render json: { held: SubmissionReview.claim(submission, true_user) }
+    # A page opened to sign off doesn't quietly pick up the submission as a fresh review once it's sent back.
+    signing_off = ActiveModel::Type::Boolean.new.cast(params[:sign_off]) || false
+    render json: { held: submission.awaiting_sign_off? == signing_off && SubmissionReview.claim(submission, true_user) }
   end
 
   # The review so far, saved as the reviewer works and when they leave the page (lib/review.svelte.ts).
   def draft
     submission = find_submission
-    authorize [ :review, submission ], :claim?
+    # Only a review being written: an admin's changes to a held decision stay in their browser, so the reviewer's
+    # own draft is still there if it's sent back.
+    authorize [ :review, submission ], :decide?
     data = params.expect(draft: {})&.to_unsafe_h
     if submission.save_review_draft(true_user, data)
       render json: { saved: true }
@@ -85,7 +103,7 @@ class Review::SubmissionsController < Review::ApplicationController
 
   def take_over
     submission = find_submission
-    authorize [ :review, submission ], :decide?
+    authorize [ :review, submission ], :claim?
     SubmissionReview.take_over(submission, true_user)
     redirect_to review_submission_path(submission, skip: skipped.join(",").presence), notice: "It's yours now."
   end
@@ -95,7 +113,8 @@ class Review::SubmissionsController < Review::ApplicationController
     submission = find_submission
     authorize [ :review, submission ], :show?
     SubmissionReview.release(submission, true_user)
-    redirect_to review_next_path(skip: [ *skipped, submission.public_id ].uniq.join(","))
+    skip = [ *skipped, submission.public_id ].uniq.join(",")
+    redirect_to submission.awaiting_sign_off? ? review_next_sign_off_path(skip:) : review_next_path(skip:)
   end
 
   def flag

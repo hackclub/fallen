@@ -18,7 +18,8 @@
   import StatusBadge from '@/components/review/StatusBadge.svelte'
   import { timeAgo } from '@/lib/format'
   import { money } from '@/lib/submission'
-  import { reviewNext, reviewSubmissions } from '@/routes'
+  import { adminSignOffs, reviewNext, reviewSubmissions } from '@/routes'
+  import { shared } from '@/lib/shared.svelte'
   import type { Pagy, ReviewQueueRow } from '@/types'
 
   let {
@@ -129,9 +130,15 @@
         {/if}
       </p>
     </div>
-    <Button size="lg" href={reviewNext().url} class="px-4">
-      <Play data-icon="inline-start" /> Start reviewing
-    </Button>
+    {#if tab === 'sign_off' && shared().auth.user?.is_admin}
+      <Button size="lg" href={adminSignOffs.index().url} class="px-4">
+        <Play data-icon="inline-start" /> Sign off
+      </Button>
+    {:else}
+      <Button size="lg" href={reviewNext().url} class="px-4">
+        <Play data-icon="inline-start" /> Start reviewing
+      </Button>
+    {/if}
   </div>
 
   <LinkTabs {tabs} active={tab} class="mb-4">

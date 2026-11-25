@@ -154,6 +154,69 @@ class ReviewTest < ActionDispatch::IntegrationTest
     assert @submission.reload.awaiting_sign_off?
   end
 
+  test "an admin signs off like a review session: next claims a held decision, they see and edit it, and it stays the reviewer's" do
+    sign_in_as @reviewer
+    get review_next_path
+    patch review_submission_path(@submission), params: decision
+
+    admin = users(:admin).tap { it.update!(roles: %w[user admin]) }
+    other_admin = User.create!(email: "second@example.com", display_name: "Second Admin", hca_id: "hca_second", roles: %w[user admin], pet: "lulu")
+    sign_in_as admin
+    get review_next_sign_off_path
+    assert_redirected_to review_submission_path(@submission)
+    assert_equal admin, @submission.reload.claimed_by
+
+    props = inertia_props(review_submission_path(@submission), "Review/Submissions/Show")
+    assert props["claimed"]
+    assert props["can"]["sign_off"]
+    assert props["can"]["decide"]
+    assert_equal "approved", props.dig("proposal", "data", "verdict")
+    assert_equal @reviewer.public_id, props.dig("proposal", "by", "id")
+
+    patch draft_review_submission_path(@submission), params: { draft: { feedback: "x" } }, as: :json
+    assert_redirected_to root_path, "an admin's edits don't replace the reviewer's own draft"
+
+    refute SubmissionReview.claim(@submission, other_admin), "one admin at a time"
+
+    post heartbeat_review_submission_path(@submission, sign_off: "1"), as: :json
+    assert response.parsed_body["held"]
+    assert_nil SubmissionReview.next_for(other_admin, signing_off: true)
+
+    page = review_submission_path(@submission)
+    patch admin_sign_off_path(@submission), params: decision(verdict: "returned").merge(proposed_at: props["proposal"]["at"]), headers: { "HTTP_REFERER" => page }
+    assert_redirected_to page
+    assert @submission.reload.awaiting_sign_off?, "a broken edit applies nothing"
+
+    patch admin_sign_off_path(@submission), params: decision(verdict: "returned", feedback: "More photos").merge(proposed_at: props["proposal"]["at"])
+    assert_redirected_to review_next_sign_off_path
+    assert @submission.reload.returned?
+    assert_equal @reviewer, @submission.reviewer
+    assert_equal "More photos", @submission.feedback
+    assert_match "changing the decision (was approved)", @submission.project.reviewer_notes.order(:id).last(2).first.body
+
+    get review_next_sign_off_path
+    assert_redirected_to admin_sign_offs_path, "back to the recap when there's nothing left"
+
+    sign_in_as @reviewer
+    get review_next_sign_off_path
+    assert_redirected_to root_path
+  end
+
+  test "a sign-off page sent back to the queue under it stops holding it on its next heartbeat" do
+    sign_in_as @reviewer
+    get review_next_path
+    patch review_submission_path(@submission), params: decision
+    admin = users(:admin).tap { it.update!(roles: %w[user admin]) }
+    sign_in_as admin
+    get review_next_sign_off_path
+    assert_equal admin, @submission.reload.claimed_by
+
+    assert SubmissionReview.send_back(@submission, users(:newcomer).tap { it.update!(roles: %w[user design_reviewer admin]) })
+    post heartbeat_review_submission_path(@submission, sign_off: "1"), as: :json
+    refute response.parsed_body["held"]
+    assert_nil @submission.reload.claimed_by, "it's back in the queue for anyone"
+  end
+
   test "a review missing something comes back with errors, and only admins reject" do
     sign_in_as @reviewer
     get review_submission_path(@submission)

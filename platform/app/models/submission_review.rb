@@ -16,17 +16,21 @@
 # A design reviewer who isn't an admin doesn't send their decision: it is checked the same way, then held on the
 # submission (`proposed_review`) for an admin to sign off (Admin::SignOffsController). Until then nothing applies, the
 # person still sees it waiting, and it is out of the queue. Signing off saves it as the reviewer's decision, with a staff-only note naming
-# the admin; neither can sign off a project they're on, and a proposer who has since lost the role can't be. Sending it
-# back drops it and puts the submission back in the queue, with the reviewer's last draft to carry on from.
+# the admin; neither can sign off a project they're on, and a proposer who has since lost the role can't be. The admin
+# can change any of it on the review page first (`edits`): it still goes out as the reviewer's review, and the note says
+# what the admin changed and keeps what the reviewer had written. Sending it back drops it and puts the submission back
+# in the queue, with the reviewer's last draft to carry on from.
 #
 # Reviewers claim a submission while they work on it (claim), so two never review one at once; the page keeps the
-# claim alive (heartbeat) and it lapses on its own after CLAIM_FOR.
+# claim alive (heartbeat) and it lapses on its own after CLAIM_FOR. Admins sign off the same way: a session over the
+# held decisions (`next_for` with `signing_off`), each claimed while it's open, on the same review page.
 class SubmissionReview
   include ActiveModel::Model
 
   CLAIM_FOR = 15.minutes
   VERDICTS = %w[approved returned rejected].freeze
   AI_CALL = { "approved_minutes" => 0, "reason" => JournalReview::AI_GENERATED }.freeze
+  FIELDS = %i[verdict feedback internal_reason rubric journals ai cut].freeze
 
   attr_reader :submission, :reviewer, :verdict, :feedback, :internal_reason, :rubric, :journals, :cut
 
@@ -34,19 +38,20 @@ class SubmissionReview
   def self.journals_for(submission) = submission.project.journals.kept.where.not(duration_minutes: nil).where(created_at: ..submission.created_at)
 
   # The submission the reviewer should look at next: the one they hold, else the one waiting longest that isn't
-  # their own team's, held by someone else, or skipped.
-  def self.next_for(reviewer, skip: [])
-    held = Submission.queued.find_by(claimed_by: reviewer, claim_expires_at: Time.current..)
+  # their own team's, held by someone else, or skipped. `signing_off` is an admin's session over the held decisions.
+  def self.next_for(reviewer, skip: [], signing_off: false)
+    pool = signing_off ? Submission.awaiting_sign_off.order(:proposed_at, :id) : Submission.queued.order(:created_at, :id)
+    held = pool.find_by(claimed_by: reviewer, claim_expires_at: Time.current..)
     return held if held
 
-    Submission.queued.where("claimed_by_id IS NULL OR claim_expires_at < ?", Time.current)
+    pool.where("claimed_by_id IS NULL OR claim_expires_at < ?", Time.current)
       .where.not(project_id: Project.teamed_with(reviewer).select(:id))
-      .where.not(id: skip).order(:created_at, :id).first
+      .where.not(id: skip).first
   end
 
   # True if the reviewer now holds it. One UPDATE, so two reviewers opening it at once can't both win.
   def self.claim(submission, reviewer)
-    Submission.queued.where(id: submission.id)
+    claimable(submission)
       .where("claimed_by_id IS NULL OR claimed_by_id = :id OR claim_expires_at < :now", id: reviewer.id, now: Time.current)
       .update_all(claimed_by_id: reviewer.id, claim_expires_at: CLAIM_FOR.from_now, updated_at: Time.current) == 1
   end
@@ -54,16 +59,18 @@ class SubmissionReview
   # Takes a submission over from whoever holds it, for when they've walked away from an open tab. Their page finds out
   # on its next heartbeat and stops; what they had typed stays in their browser and its last save on the server.
   def self.take_over(submission, reviewer)
-    Submission.queued.where(id: submission.id)
+    claimable(submission)
       .update_all(claimed_by_id: reviewer.id, claim_expires_at: CLAIM_FOR.from_now, updated_at: Time.current) == 1
   end
 
-  # The held decision as an admin signs it off: the same review, made by the reviewer who proposed it. `proposed_at` is
+  # The held decision as an admin signs it off: the same review, made by the reviewer who proposed it, or the whole
+  # review as the admin changed it (`edits`, the review page's fields), still credited to that reviewer. `proposed_at` is
   # the proposal the admin read (from the page, AdminSignOffSerializer): it applies only if that exact proposal is still
   # waiting when the lock is taken (`save`), so a send-back or a new proposal since the page loaded wins.
-  def self.sign_off(submission, admin, proposed_at:)
-    data = submission.proposed_review.to_h.symbolize_keys.slice(:verdict, :feedback, :internal_reason, :rubric, :journals, :ai, :cut)
-    new(submission, reviewer: submission.proposed_by, signed_off_by: admin, signing_off: proposed_at, **data)
+  def self.sign_off(submission, admin, proposed_at:, edits: nil)
+    proposal = submission.proposed_review.to_h.symbolize_keys.slice(*FIELDS)
+    data = edits ? edits.to_h.symbolize_keys.slice(*FIELDS) : proposal
+    new(submission, reviewer: submission.proposed_by, signed_off_by: admin, signing_off: proposed_at, proposal:, **data)
   end
 
   # Drops a held decision without applying it; the submission goes back in the queue.
@@ -72,11 +79,16 @@ class SubmissionReview
       return false unless submission.awaiting_sign_off?
 
       proposer = submission.proposed_by
-      submission.update!(proposed_review: nil, proposed_at: nil, proposed_by: nil)
+      submission.update!(proposed_review: nil, proposed_at: nil, proposed_by: nil, claimed_by: nil, claim_expires_at: nil)
       submission.project.reviewer_notes.create!(submission:, user: admin,
         body: "Sent back to the queue instead of signing off #{proposer&.display_name || "a reviewer"}'s decision.")
     end
     true
+  end
+
+  # Waiting for a reviewer, or for an admin to sign it off: either way, one person at a time.
+  def self.claimable(submission)
+    Submission.where(id: submission.id).merge(submission.awaiting_sign_off? ? Submission.awaiting_sign_off : Submission.queued)
   end
 
   # XP follows each journal's time that counts, preloaded so a big project is a few queries.
@@ -117,8 +129,9 @@ class SubmissionReview
     submission
   end
 
-  def initialize(submission, reviewer:, verdict:, feedback: nil, internal_reason: nil, rubric: {}, journals: {}, ai: nil, cut: nil, signed_off_by: nil, signing_off: nil)
+  def initialize(submission, reviewer:, verdict:, feedback: nil, internal_reason: nil, rubric: {}, journals: {}, ai: nil, cut: nil, signed_off_by: nil, signing_off: nil, proposal: nil)
     @submission = submission
+    @proposal = proposal
     @reviewer = reviewer
     @signed_off_by = signed_off_by
     @signing_off = signing_off
@@ -171,8 +184,7 @@ class SubmissionReview
         review_draft: nil, review_draft_at: nil, review_draft_by: nil, proposed_review: nil, proposed_at: nil, proposed_by: nil)
       GrantPayout.create!(submission:, user: submission.user, amount_cents: submission.approved_cents) if submission.approved? && submission.approved_cents.positive?
       if @signed_off_by
-        submission.project.reviewer_notes.create!(submission:, user: @signed_off_by,
-          body: "Checked and signed off #{reviewer.display_name}'s decision (#{verdict}).")
+        sign_off_notes(covered).each { submission.project.reviewer_notes.create!(submission:, user: @signed_off_by, body: it) }
       end
     end
     return false if errors.any?
@@ -203,7 +215,7 @@ class SubmissionReview
       return
     end
 
-    errors.add(:base, "Only admins can reject") if verdict == "rejected" && !reviewer.admin?
+    errors.add(:base, "Only admins can reject") if verdict == "rejected" && !reviewer.admin? && !@signed_off_by&.admin?
     errors.add(:rubric, "needs every question answered") unless Submission::RUBRIC.keys.all? { |key| rubric[key].in?(Submission::ANSWERS) }
     return if returned?
 
@@ -259,7 +271,48 @@ class SubmissionReview
     errors.none?
   end
 
-  def held_by_someone_else? = submission.claimed_by_id && submission.claimed_by_id != reviewer.id && submission.claim_expires_at&.future?
+  # What the admin signed off and what they changed from the reviewer's proposal, then the reviewer's own words for
+  # anything written differently, in notes of their own so none of it is cut short. The review page counts changes the same way
+  # (signOffChanges in lib/review.svelte.ts).
+  def sign_off_notes(covered)
+    head = "Checked and signed off #{reviewer.display_name}'s decision (#{verdict})"
+    was = self.class.new(submission, reviewer:, **@proposal.to_h)
+    changed = []
+    kept = []
+    changed << "the decision (was #{was.verdict})" if was.verdict != verdict
+    changed << "the AI-generated mark" if was.ai? != ai?
+    { "internal reason" => :internal_reason, "feedback" => :feedback }.each do |name, field|
+      next if was.public_send(field) == public_send(field)
+
+      changed << "the #{name}"
+      kept << "#{reviewer.display_name}'s #{name}, before the sign-off: #{was.public_send(field) || "none"}"
+    end
+    questions = Submission::RUBRIC.keys.count { was.rubric[it] != rubric[it] }
+    changed << "#{questions} rubric #{"answer".pluralize(questions)}" if questions.positive?
+    calls = covered.count { call_for(it, was) != call_for(it, self) }
+    changed << (calls == 1 ? "1 journal's time" : "#{calls} journals' time") if calls.positive?
+    changed << "the internal cut (was #{was.cut ? "#{was.cut} minutes" : "none"})" if was.cut != cut
+    return [ "#{head}." ] if changed.empty?
+
+    # Feedback can run past a note's 2,000 characters: split it rather than lose the end.
+    [ "#{head}, changing #{changed.to_sentence}.", *kept ].flat_map { it.chars.each_slice(2_000).map(&:join) }
+  end
+
+  # A journal's call as it counts: the time (all of it when none was given, none when AI-generated), the reason only
+  # when time is taken off, and the note.
+  def call_for(journal, review)
+    return [ 0 ] if review.ai?
+
+    call = review.journals[journal.public_id].to_h.stringify_keys
+    minutes = Integer(call["approved_minutes"].to_s, exception: false) || journal.duration_minutes
+    [ minutes, (call["reason"].presence if minutes < journal.duration_minutes), call["note"].to_s.strip.presence ]
+  end
+
+  # Whoever is sending it: the admin, when signing off.
+  def held_by_someone_else?
+    actor = @signed_off_by || reviewer
+    submission.claimed_by_id && submission.claimed_by_id != actor.id && submission.claim_expires_at&.future?
+  end
 
   # Keeps the call, and with `apply` makes it the time that counts. True when that time changed, so its XP has to follow.
   def record_journal(journal, call, apply: true)

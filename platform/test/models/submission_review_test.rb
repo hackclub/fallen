@@ -102,6 +102,64 @@ class SubmissionReviewTest < ActiveSupport::TestCase
     assert_equal admin, @submission.project.reviewer_notes.last.user
   end
 
+  test "an admin can change a held decision as they sign it off: it stays the reviewer's, and the note keeps what they wrote" do
+    @reviewer.update!(roles: %w[user design_reviewer])
+    journal = journals(:first)
+    assert review(feedback: "Nice board").save
+    admin = users(:newcomer).tap { it.update!(roles: %w[user admin]) }
+
+    edits = { verdict: "returned", feedback: "Add the gerbers", internal_reason: "Looks right", rubric: Submission::RUBRIC.keys.index_with { "yes" },
+              journals: calls(deflate: journal) }
+    assert SubmissionReview.sign_off(@submission.reload, admin, proposed_at: @submission.proposed_at, edits:).save
+    @submission.reload
+    assert @submission.returned?
+    assert_equal @reviewer, @submission.reviewer
+    assert_equal "Add the gerbers", @submission.feedback
+    assert_equal @reviewer, @submission.journal_reviews.find_by!(journal:).reviewer
+    notes = @submission.project.reviewer_notes.order(:id).last(2)
+    assert_equal [ admin ], notes.map(&:user).uniq
+    assert_equal [ "Checked and signed off #{@reviewer.display_name}'s decision (returned), changing the decision (was approved), the feedback, and 1 journal's time.",
+                   "#{@reviewer.display_name}'s feedback, before the sign-off: Nice board" ], notes.map(&:body)
+  end
+
+  test "signing off a returned decision unchanged notes no changes, and long wording the admin replaced is kept whole" do
+    @reviewer.update!(roles: %w[user design_reviewer])
+    long = "Add the gerbers. " * 200
+    assert review(verdict: "returned", feedback: long, journals: {}).save
+    admin = users(:newcomer).tap { it.update!(roles: %w[user admin]) }
+
+    same = { verdict: "returned", feedback: long, internal_reason: "Looks right", rubric: Submission::RUBRIC.keys.index_with { "yes" },
+             journals: @journals.to_h { [ it.public_id, { "approved_minutes" => it.duration_minutes, "reason" => "Other" } ] } }
+    signing = SubmissionReview.sign_off(@submission.reload, admin, proposed_at: @submission.proposed_at, edits: same)
+    assert_equal [ "Checked and signed off #{@reviewer.display_name}'s decision (returned)." ], signing.send(:sign_off_notes, @journals),
+      "journals the reviewer left at full time, and a reason on one that isn't cut, are no change"
+
+    signing = SubmissionReview.sign_off(@submission, admin, proposed_at: @submission.proposed_at, edits: same.merge(feedback: "Short"))
+    assert signing.save
+    notes = @submission.project.reviewer_notes.order(:id).last(3).map(&:body)
+    assert_match "changing the feedback", notes.first
+    assert_equal "#{@reviewer.display_name}'s feedback, before the sign-off: #{long.strip}", notes.drop(1).join
+  end
+
+  test "an admin signing off can reject or take an internal cut that the reviewer couldn't" do
+    @reviewer.update!(roles: %w[user design_reviewer])
+    assert review.save
+    admin = users(:newcomer).tap { it.update!(roles: %w[user admin]) }
+
+    edits = { verdict: "approved", feedback: "", internal_reason: "Looks right", rubric: Submission::RUBRIC.keys.index_with { "yes" }, journals: calls, cut: 10 }
+    assert SubmissionReview.sign_off(@submission.reload, admin, proposed_at: @submission.proposed_at, edits:).save
+    assert_equal 10, @submission.reload.internal_deflated_minutes
+    assert_match "the internal cut (was none)", @submission.project.reviewer_notes.last.body
+
+    @submission = submit_design(projects(:unlinked))
+    @journals = SubmissionReview.journals_for(@submission).to_a
+    assert review(journals: calls).save
+    edits = edits.merge(journals: calls, verdict: "rejected", feedback: "Copied", cut: nil)
+    assert SubmissionReview.sign_off(@submission.reload, admin, proposed_at: @submission.proposed_at, edits:).save
+    assert @submission.reload.rejected?
+    assert_equal @reviewer, @submission.reviewer
+  end
+
   test "an admin on the team can't sign off, and a proposer who lost the role can't be signed off" do
     @reviewer.update!(roles: %w[user design_reviewer])
     assert review.save

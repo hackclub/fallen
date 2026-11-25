@@ -37,6 +37,8 @@ export interface ReviewPage {
   submission: ReviewSubmission
   // An unfinished review saved on the server (Submission#save_review_draft), to carry on from.
   draft: { data: Partial<ReviewDraft>; at: string; by: Person | null } | null
+  // A design reviewer's decision held for an admin (SubmissionReview#propose), as it was sent. `at` names it exactly.
+  proposal: { data: ProposedReview; at: string; by: Person | null } | null
   project: ReviewProject
   journals: ReviewJournal[]
   repo: ReviewRepo | null
@@ -46,6 +48,8 @@ export interface ReviewPage {
   claimed: boolean
   can: {
     decide: boolean
+    // An admin signing off the held decision: they edit it here, and it's sent as the reviewer's review.
+    sign_off: boolean
     take_over: boolean
     reject: boolean
     cut: boolean
@@ -89,6 +93,17 @@ export interface ReviewDraft {
   cut: number | null
 }
 
+// A held decision as the server keeps it (SubmissionReview#propose).
+export interface ProposedReview {
+  verdict: Verdict
+  feedback: string | null
+  internal_reason: string | null
+  rubric: Record<string, Answer>
+  journals: Record<string, { approved_minutes: number | null; reason: string | null; note: string | null }>
+  ai: boolean
+  cut: number | null
+}
+
 const key = (id: string) => `fallen:review:${id}`
 
 // The review's starting point: what was decided (a finished review), what the last review of each journal decided,
@@ -119,7 +134,7 @@ export function initialDraft(page: ReviewPage): ReviewDraft {
     cut: submission.internal_deflated_minutes,
   }
   if (decided) return fresh
-  const saved = newestSaved(page)
+  const saved = newestSaved(page, fromProposal(page))
   if (!saved) return fresh
   try {
     return {
@@ -147,10 +162,42 @@ export function initialDraft(page: ReviewPage): ReviewDraft {
   }
 }
 
-type Saved = Partial<ReviewDraft> & { savedAt?: number }
+// `proposalAt` names the held decision an admin's changes were made to (ReviewPage's proposal).
+type Saved = Partial<ReviewDraft> & { savedAt?: number; proposalAt?: string }
 
-// The newer of what this browser kept and what the server has, so a review carries on from wherever it was left.
-function newestSaved(page: ReviewPage): Saved | null {
+// A held decision in the page's terms, so it opens as the reviewer sent it.
+function fromProposal(page: ReviewPage): Saved | null {
+  if (!page.proposal) return null
+  const { data, at } = page.proposal
+  return {
+    rubric: data.rubric ?? {},
+    journals: Object.fromEntries(
+      page.journals.map((j) => {
+        const call = data.journals?.[j.id]
+        const minutes = call?.approved_minutes ?? null
+        return [
+          j.id,
+          {
+            mode: data.ai || minutes == null ? 'full' : modeFor(minutes, j.duration_minutes ?? 0),
+            minutes,
+            reason: call?.reason ?? null,
+            note: call?.note ?? '',
+            carried: false,
+          },
+        ]
+      }),
+    ),
+    feedback: data.feedback ?? '',
+    internal: data.internal_reason ?? '',
+    ai: data.ai === true,
+    cut: data.cut ?? null,
+    savedAt: Date.parse(at),
+  }
+}
+
+// The newer of what this browser kept and what the server has, so a review carries on from wherever it was left. A
+// held decision is what the server has: only changes made in this browser since it was sent come before it.
+function newestSaved(page: ReviewPage, proposal: Saved | null): Saved | null {
   let local: Saved | null = null
   try {
     local =
@@ -160,15 +207,18 @@ function newestSaved(page: ReviewPage): Saved | null {
   } catch {
     local = null
   }
-  const server = page.draft ? { ...page.draft.data, savedAt: Date.parse(page.draft.at) } : null
+  const server = proposal ?? (page.draft ? { ...page.draft.data, savedAt: Date.parse(page.draft.at) } : null)
+  // Changes kept in this browser count only against the very decision they were made to, whatever the clocks say.
+  if (page.proposal) return local?.proposalAt === page.proposal.at ? local : server
+  if (local?.proposalAt) local = null
   if (!local) return server
   if (!server) return local
   return (local.savedAt ?? 0) >= (server.savedAt ?? 0) ? local : server
 }
 
-export function saveReviewDraft(id: string, draft: ReviewDraft) {
+export function saveReviewDraft(id: string, draft: ReviewDraft, proposalAt?: string) {
   try {
-    localStorage.setItem(key(id), JSON.stringify({ ...draft, savedAt: Date.now() }))
+    localStorage.setItem(key(id), JSON.stringify({ ...draft, savedAt: Date.now(), proposalAt }))
   } catch {
     // Storage full or off: the review still works, it just isn't kept.
   }
@@ -219,6 +269,38 @@ export function serverDraft(url: string) {
       clearTimeout(timer)
       pending = null
     },
+  }
+}
+
+// The reviewer's decision as the review page holds it, to compare an admin's edits against.
+export const proposedDraft = (page: ReviewPage): ReviewDraft | null =>
+  fromProposal(page) as ReviewDraft | null
+
+export const VERDICT_LABEL: Record<Verdict, string> = {
+  approved: 'Approve',
+  returned: 'Return',
+  rejected: 'Reject for good',
+}
+
+// What an admin signing off has changed from the reviewer's decision, in the words SubmissionReview's note uses.
+// `verdict` is the one they're about to send, when there is one.
+export function signOffChanges(page: ReviewPage, draft: ReviewDraft) {
+  const theirs = proposedDraft(page)
+  if (!theirs) return { internal: false, feedback: false, rubric: 0, journals: 0, ai: false, cut: false }
+  const minutes = (j: ReviewJournal, d: ReviewDraft) => (d.ai ? 0 : countedMinutes(j, d.journals[j.id]))
+  const call = (j: ReviewJournal, d: ReviewDraft) => {
+    const counted = minutes(j, d)
+    const deflated = counted != null && counted < (j.duration_minutes ?? 0)
+    const c = d.journals[j.id]
+    return JSON.stringify(d.ai ? [0] : [counted, deflated ? c?.reason : null, (c?.note ?? '').trim()])
+  }
+  return {
+    internal: theirs.internal.trim() !== draft.internal.trim(),
+    feedback: theirs.feedback.trim() !== draft.feedback.trim(),
+    rubric: Object.keys(page.options.rubric).filter((k) => theirs.rubric[k] !== draft.rubric[k]).length,
+    journals: page.journals.filter((j) => call(j, theirs) !== call(j, draft)).length,
+    ai: theirs.ai !== draft.ai,
+    cut: (theirs.cut ?? null) !== (draft.cut ?? null),
   }
 }
 

@@ -26,6 +26,9 @@
     journalDecided,
     journalNeedsReason,
     markAi,
+    proposedDraft,
+    signOffChanges,
+    VERDICT_LABEL,
     type Answer,
     type ReviewDraft,
     type ReviewPage,
@@ -79,6 +82,25 @@
       : null,
   )
 
+  // Checking a design reviewer's held decision (Admin::SignOffsController) rather than writing a review.
+  const signingOff = $derived(page.can.sign_off && page.can.decide && !decided)
+  const proposer = $derived(page.proposal?.by ?? null)
+  const proposerName = $derived(proposer?.name ?? 'the reviewer')
+  const mine = $derived(!!proposer && proposer.id === shared().auth.user?.id)
+  // svelte-ignore state_referenced_locally
+  const theirs = proposedDraft(page)
+  const changes = $derived(signOffChanges(page, draft))
+  const changed = $derived(
+    [
+      changes.ai && 'the AI-generated mark',
+      changes.internal && 'the internal reason',
+      changes.feedback && 'the feedback',
+      changes.rubric && `${changes.rubric} rubric answer${changes.rubric === 1 ? '' : 's'}`,
+      changes.journals && `${changes.journals} journal${changes.journals === 1 ? '’s' : 's’'} time`,
+      changes.cut && 'the internal cut',
+    ].filter((c): c is string => !!c),
+  )
+
   const AI_ONLY = 'AI-generated journals can only be rejected for good'
   const reasonBlocker = $derived(!draft.internal.trim() ? 'Write the internal reason' : null)
   const feedbackBlocker = $derived(
@@ -115,6 +137,22 @@
   {/if}
 {/snippet}
 
+{#snippet edited(field: 'internal' | 'feedback')}
+  {#if signingOff && theirs && changes[field]}
+    <span class="ml-auto flex items-center gap-1.5 text-xs">
+      <span
+        class="rounded bg-amber-100 px-1.5 py-px font-medium text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+        >Edited</span
+      >
+      <button
+        type="button"
+        class="text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+        onclick={() => (draft[field] = theirs[field])}>Use theirs</button
+      >
+    </span>
+  {/if}
+{/snippet}
+
 {#snippet label(text: string, hint: string, key?: string, forId?: string)}
   <label for={forId} class="flex items-center gap-1.5 text-xs text-muted-foreground">
     {text} <span class="text-muted-foreground/60">({hint})</span>
@@ -148,12 +186,55 @@
 <div class="space-y-4 p-4">
   {#if s.awaiting_sign_off}
     <div
-      class="rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-800 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-300"
+      class="space-y-2 rounded-lg border-2 border-sky-300 bg-sky-50 px-3 py-2.5 dark:border-sky-800 dark:bg-sky-950/40"
     >
-      A decision on this is waiting for an admin to sign it off.
-      {#if shared().auth.user?.is_admin}<a href={adminSignOffs.index().url} class="font-semibold underline"
-          >Open sign-offs</a
-        >{/if}
+      <p class="text-[11px] font-semibold tracking-wide text-sky-700 uppercase dark:text-sky-400">
+        {signingOff ? 'Sign-off' : 'Waiting for sign-off'}
+      </p>
+      {#if proposer && page.proposal}
+        <div class="flex items-center gap-2.5">
+          <img
+            src={proposer.avatar}
+            alt=""
+            width="32"
+            height="32"
+            class="size-8 shrink-0 rounded-full bg-muted object-cover"
+          />
+          <div class="min-w-0 flex-1">
+            <p class="truncate text-sm font-medium">
+              {#if mine}You{:else}<PersonLink person={proposer} />{/if}
+            </p>
+            <p class="text-xs text-muted-foreground">Reviewed {timeAgo(page.proposal.at)}</p>
+          </div>
+          <span
+            class={[
+              'shrink-0 rounded px-2 py-0.5 text-xs font-semibold',
+              page.proposal.data.verdict === 'approved'
+                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                : page.proposal.data.verdict === 'returned'
+                  ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                  : 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300',
+            ]}>{VERDICT_LABEL[page.proposal.data.verdict]}</span
+          >
+        </div>
+      {/if}
+      <p class="text-xs text-sky-900 dark:text-sky-200">
+        {#if signingOff}
+          You’re checking {proposerName}’s review, not writing your own. What you send goes out as theirs;
+          anything you change is noted on the project, with what they had written.
+        {:else if mine}
+          Your review is with an admin. They may change something before it goes out; if they do, the
+          project’s notes say what.
+        {:else}
+          An admin checks this before it goes out.
+        {/if}
+      </p>
+      {#if shared().auth.user?.is_admin && !signingOff}
+        <a
+          href={adminSignOffs.index().url}
+          class="text-xs font-semibold text-sky-800 underline dark:text-sky-300">Open sign-offs</a
+        >
+      {/if}
     </div>
   {/if}
   {#if decided}
@@ -165,7 +246,9 @@
         </p>{/if}
     </div>
   {:else}
-    <h3 class="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Submit Review</h3>
+    <h3 class="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+      {signingOff ? 'Their Review' : 'Submit Review'}
+    </h3>
     {#if s.flagged_at}
       <div
         class="rounded-md border border-red-200 bg-red-50 px-2.5 py-2 text-sm dark:border-red-900 dark:bg-red-950/40"
@@ -249,6 +332,7 @@
         'internal-reason',
       )}
       {@render useTemplate('internal', AI_INTERNAL)}
+      {@render edited('internal')}
     </div>
     {#if decided}
       <p class="text-sm whitespace-pre-wrap">{draft.internal}</p>
@@ -269,6 +353,7 @@
     <div class="flex items-center gap-2">
       {@render label('Feedback', 'shown to user', decided ? undefined : `${mod}F`, 'feedback')}
       {@render useTemplate('feedback', AI_FEEDBACK)}
+      {@render edited('feedback')}
     </div>
     {#if decided}
       <p class="text-sm whitespace-pre-wrap">{draft.feedback || 'None'}</p>
@@ -375,7 +460,29 @@
       </ul>
     {/if}
 
+    {#if signingOff}
+      <div class="rounded-md border border-border bg-muted/40 px-2.5 py-2 text-xs">
+        {#if changed.length}
+          <p class="font-medium">You changed {changed.join(', ')}.</p>
+          <p class="mt-0.5 text-muted-foreground">
+            It still goes out as {proposerName}’s review. Their wording is kept in the notes.
+          </p>
+        {:else}
+          <p class="text-muted-foreground">
+            No changes: signing off sends {proposerName}’s review as it is.
+          </p>
+        {/if}
+      </div>
+    {/if}
+
     <div class="space-y-2 pt-2">
+      {#if signingOff && page.proposal}
+        <p class="text-center text-xs text-muted-foreground">
+          {proposerName} chose
+          <span class="font-semibold text-foreground">{VERDICT_LABEL[page.proposal.data.verdict]}</span>. Sign
+          off with:
+        </p>
+      {/if}
       <div class="grid grid-cols-2 gap-2">
         <Button
           class={RAISED.success}

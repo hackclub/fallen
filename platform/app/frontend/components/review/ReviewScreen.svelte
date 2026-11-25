@@ -29,6 +29,7 @@
   } from '@/lib/review.svelte'
   import { toast } from '@/lib/toasts'
   import {
+    adminSignOffs,
     draftReviewSubmission,
     heartbeatReviewSubmission,
     reviewSubmission,
@@ -82,20 +83,21 @@
   // in this browser at once and on the server a moment later (and as the page is left), but only by whoever holds
   // the submission, and not for what it opened with.
   // svelte-ignore state_referenced_locally
-  const saving = !decided && props.claimed
+  const saving = !decided && props.claimed && !props.can.sign_off
   const server = serverDraft(draftReviewSubmission(submissionId).url)
   let opened = false
   $effect(() => {
     const snapshot = $state.snapshot(draft)
     if (decided) return
-    saveReviewDraft(submissionId, snapshot)
+    saveReviewDraft(submissionId, snapshot, props.proposal?.at)
     if (opened && saving) server.schedule(snapshot)
     opened = true
   })
 
   onMount(() => {
     const by = props.draft?.by
-    if (!decided && by && by.id !== shared().auth.user?.id)
+    // Signing off says so in the strip under the top bar; the server draft there is the reviewer's own.
+    if (!props.can.sign_off && !decided && by && by.id !== shared().auth.user?.id)
       toast.info(`Carrying on from ${by.name}’s unfinished review`)
     if (!saving) return
     const leaving = () => server.flush()
@@ -126,7 +128,8 @@
     if (!props.claimed || decided) return
     const beat = async () => {
       try {
-        const response = await fetch(heartbeatReviewSubmission(props.submission.id).url, {
+        const query = props.submission.awaiting_sign_off ? { sign_off: '1' } : {}
+        const response = await fetch(heartbeatReviewSubmission(props.submission.id, { query }).url, {
           method: 'POST',
           headers: { 'X-CSRF-Token': csrfToken(), Accept: 'application/json' },
           credentials: 'same-origin',
@@ -157,8 +160,12 @@
     pending = verdict
     errors = {}
     router.patch(
-      reviewSubmission(props.submission.id, { query: props.skip ? { skip: props.skip } : {} }).url,
+      props.can.sign_off
+        ? adminSignOffs.update(props.submission.id, { query: props.skip ? { skip: props.skip } : {} }).url
+        : reviewSubmission(props.submission.id, { query: props.skip ? { skip: props.skip } : {} }).url,
       {
+        // The held decision this edits: if it was sent back or replaced since the page opened, nothing applies.
+        proposed_at: props.can.sign_off ? props.proposal?.at : undefined,
         review: {
           verdict,
           feedback: draft.feedback,
@@ -225,7 +232,10 @@
     if (key >= '1' && key <= '4') return (tab = TABS[Number(key) - 1].id)
     if (key === 'n') return (notesOpen = !notesOpen)
     if (key === '?') return (helpOpen = !helpOpen)
-    if (key === 'e') return router.visit(reviewSubmissions.reviewRoot().url)
+    if (key === 'e')
+      return router.visit(
+        props.submission.awaiting_sign_off ? adminSignOffs.index().url : reviewSubmissions.reviewRoot().url,
+      )
     if (key === 's' && props.submission.status === 'pending') return topBar?.skip()
     if (key === 'g') return void window.open(props.submission.repo_url, '_blank', 'noopener')
     if (tab === 'repo' && key === 'p') return repoPanel?.togglePinned()
@@ -257,7 +267,13 @@
 </script>
 
 <svelte:window onkeydown={onKeydown} />
-<svelte:head><title>{props.project.title} · Review</title></svelte:head>
+<svelte:head
+  ><title
+    >{props.project.title} · {props.can.sign_off && props.can.decide && !decided
+      ? 'Sign-off'
+      : 'Review'}</title
+  ></svelte:head
+>
 
 {#snippet tabBar()}
   <ReviewTabBar tabs={TABS} value={tab} onChange={(id) => (tab = id as Tab)} />
@@ -279,6 +295,25 @@
       canWrite={props.can.note}
       onClose={() => (notesOpen = false)}
     />
+  {/if}
+
+  {#if props.can.sign_off && props.can.decide && !decided}
+    <div
+      class="flex items-center justify-center gap-2 bg-sky-600 px-4 py-1.5 text-center text-sm text-white dark:bg-sky-800"
+    >
+      {#if props.proposal?.by}<img
+          src={props.proposal.by.avatar}
+          alt=""
+          width="20"
+          height="20"
+          class="size-5 rounded-full bg-sky-400 object-cover"
+        />{/if}
+      <span
+        ><span class="font-semibold">Signing off</span>
+        {props.proposal?.by?.name ?? 'a reviewer'}’s review. It goes out under their name, with any changes
+        you make.</span
+      >
+    </div>
   {/if}
 
   {#if lost}

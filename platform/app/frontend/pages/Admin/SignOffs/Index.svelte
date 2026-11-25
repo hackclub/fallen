@@ -13,7 +13,8 @@
   import { formatDate, formatMinutes, timeAgo } from '@/lib/format'
   import { money } from '@/lib/submission'
   import { router } from '@inertiajs/svelte'
-  import { adminSignOffs, reviewSubmission } from '@/routes'
+  import Play from '@lucide/svelte/icons/play'
+  import { adminSignOffs, reviewNextSignOff, reviewSubmission } from '@/routes'
   import type { AdminSignOff, Pagy } from '@/types'
 
   // Design reviewers' decisions, held until an admin signs them off (SubmissionReview#propose).
@@ -66,12 +67,17 @@
 
 <svelte:head><title>Sign-offs · Fallen Admin</title></svelte:head>
 
-<div class="mb-5">
-  <h1 class="text-2xl font-semibold tracking-tight">Sign-offs</h1>
-  <p class="text-sm text-muted-foreground">
-    Design reviewers’ decisions wait here. Nothing reaches the person, and no hours, XP or funding change,
-    until you sign one off. Sending one back puts the project back in the queue.
-  </p>
+<div class="mb-5 flex flex-wrap items-start justify-between gap-3">
+  <div>
+    <h1 class="text-2xl font-semibold tracking-tight">Sign-offs</h1>
+    <p class="text-sm text-muted-foreground">
+      Design reviewers’ decisions wait here. Nothing reaches the person, and no hours, XP or funding change,
+      until you sign one off. Sign one off as it is here, or start signing off to go through them on the
+      review page, changing what needs it: it still goes out as the reviewer’s review, with a note of what you
+      changed. Sending one back puts the project back in the queue.
+    </p>
+  </div>
+  <Button href={reviewNextSignOff().url}><Play data-icon="inline-start" /> Start signing off</Button>
 </div>
 
 <Deferred data={['submissions', 'pagy']}>
@@ -187,7 +193,9 @@
               <Button size="sm" variant="outline" disabled={busy === s.id} onclick={() => sendBack(s)}
                 >Send back to the queue</Button
               >
-              <Button size="sm" variant="ghost" href={reviewSubmission(s.id).url}>Open the project</Button>
+              <Button size="sm" variant="outline" href={reviewSubmission(s.id).url}
+                >Edit, then sign off</Button
+              >
             </div>
           </Card.Content>
         </Card.Root>

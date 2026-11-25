@@ -15,6 +15,7 @@
   import type { ReviewPage } from '@/lib/review.svelte'
   import PersonLink from '@/components/review/PersonLink.svelte'
   import {
+    adminSignOffs,
     flagReviewSubmission,
     project,
     releaseReviewSubmission,
@@ -51,7 +52,10 @@
 <div
   class="relative z-40 flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-muted/40 px-4 py-3"
 >
-  <Button variant="outline" href={reviewSubmissions.reviewRoot().url}>
+  <Button
+    variant="outline"
+    href={page.submission.awaiting_sign_off ? adminSignOffs.index().url : reviewSubmissions.reviewRoot().url}
+  >
     End session <Key class="ml-1">E</Key>
   </Button>
   {#if page.submission.status === 'pending'}

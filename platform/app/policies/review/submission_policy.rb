@@ -8,7 +8,10 @@ class Review::SubmissionPolicy < ApplicationPolicy
   def show? = reviewer?
   def next? = reviewer?
   def decide? = reviewer? && record.pending? && record.flagged_at.nil? && !record.awaiting_sign_off? && !record.project.on_team?(user)
-  def claim? = decide?
+  # An admin signing off a design reviewer's held decision works it on the same page (Admin::SignOffsController#update).
+  def sign_off? = admin? && Admin::SubmissionPolicy.new(user, record).update?
+  def claim? = decide? || sign_off?
+  def next_sign_off? = admin?
   def reject? = decide? && admin?
   def cut? = admin?
   def flag? = reviewer? && record.pending? && record.flagged_at.nil? && !record.awaiting_sign_off?

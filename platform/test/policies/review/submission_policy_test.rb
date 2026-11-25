@@ -33,4 +33,20 @@ class Review::SubmissionPolicyTest < ActiveSupport::TestCase
     @submission.update!(flagged_at: nil, status: "approved")
     refute policy(@reviewer).decide?
   end
+
+  test "only an admin off the team signs off a held decision, and only they claim it" do
+    assert SubmissionReview.new(@submission, reviewer: @reviewer, verdict: "returned", feedback: "More photos", internal_reason: "Thin",
+      rubric: Submission::RUBRIC.keys.index_with { "yes" }).save
+    @submission.reload
+    users(:admin).update!(roles: %w[user admin])
+    refute policy(@reviewer).claim?, "the reviewer waits for an admin"
+    refute policy(@reviewer).sign_off?
+    assert policy(users(:admin)).sign_off?
+    assert policy(users(:admin)).claim?
+    refute policy(users(:admin)).decide?, "signing off isn't a fresh review"
+    users(:member).update!(roles: %w[user admin])
+    refute policy(users(:member)).sign_off?, "not their own team's"
+    @reviewer.update!(roles: %w[user admin])
+    refute policy(@reviewer).sign_off?, "not their own decision, once they're an admin"
+  end
 end

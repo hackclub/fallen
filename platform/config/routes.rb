@@ -121,6 +121,7 @@ Rails.application.routes.draw do
     namespace :review, path: "admin/reviews" do
       root "submissions#index"
       get "next" => "submissions#next", as: :next
+      get "sign-off/next" => "submissions#next_sign_off", as: :next_sign_off
       resources :submissions, only: %i[index show update] do
         member do
           post :heartbeat
