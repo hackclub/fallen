@@ -29,11 +29,20 @@ module Hcb
 
   def card_grant(id) = authed.get("/api/v4/card_grants/#{id}", { expand: "balance_cents" }).body
 
-  def create_card_grant(amount_cents:, email:, purpose:)
+  def create_card_grant(amount_cents:, email:, purpose:, instructions:)
     client = authed
     return stub(:create_card_grant, id: "cdg_stub#{SecureRandom.hex(4)}", email:, status: "active") unless writes_allowed?
 
-    client.post("/api/v4/organizations/#{organization_id}/card_grants", { amount_cents:, email:, purpose:, expiration_at: GRANT_LIFETIME.from_now.to_date.iso8601 }.to_json, "Content-Type" => "application/json").body
+    client.post("/api/v4/organizations/#{organization_id}/card_grants",
+      { amount_cents:, email:, purpose:, instructions:, expiration_at: GRANT_LIFETIME.from_now.to_date.iso8601 }.to_json, "Content-Type" => "application/json").body
+  end
+
+  # Changes a grant's purpose or instructions (HCB also takes the locks and expiry here, which we leave alone).
+  def update_card_grant(id, purpose:, instructions:)
+    client = authed
+    return stub(:update_card_grant, id:) unless writes_allowed?
+
+    client.patch("/api/v4/card_grants/#{id}", { purpose:, instructions: }.to_json, "Content-Type" => "application/json").body
   end
 
   def topup_card_grant(id, amount_cents:)

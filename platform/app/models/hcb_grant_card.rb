@@ -27,7 +27,12 @@
 class HcbGrantCard < ApplicationRecord
   has_paper_trail
 
-  PURPOSE = "Fallen project funding"
+  # Shown on the grant on HCB. Set when it's made and again on every top-up, so older cards get it too.
+  INSTRUCTIONS = Rails.root.join("config/hcb/grant_instructions.md").read.freeze
+  PURPOSE_MAX_LENGTH = 30 # HCB's limit
+
+  # "Fallen: Clock, Synth", the projects this card has funded, newest first, cut to HCB's limit.
+  def self.purpose_for(titles) = "Fallen: #{titles.uniq.join(", ")}".truncate(PURPOSE_MAX_LENGTH)
 
   belongs_to :user
   has_many :grant_payouts, dependent: :restrict_with_error
@@ -36,4 +41,6 @@ class HcbGrantCard < ApplicationRecord
   validates :amount_cents, numericality: { only_integer: true, greater_than: 0 }
 
   scope :active, -> { where(status: "active") }
+
+  def project_titles = grant_payouts.where(status: "sent").includes(submission: :project).order(sent_at: :desc).map { it.submission.project.title }
 end

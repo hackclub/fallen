@@ -46,13 +46,22 @@ class GrantPayoutTest < ActiveSupport::TestCase
       @payout.send!
       assert @payout.reload.sent?
       assert_equal "cdg_1", @payout.hcb_reference
+      assert_equal "Fallen: #{@submission.project.title}", hcb[:grants].first[:purpose]
+      assert_equal HcbGrantCard::INSTRUCTIONS, hcb[:grants].first[:instructions]
 
       second = GrantPayout.create!(submission: submit_design(projects(:unlinked)), user: @submission.user, amount_cents: 300)
       second.send!
       assert second.reload.sent?
       assert_equal [ 1000 ], hcb[:grants].pluck(:amount_cents), "topped up, not a second card"
       assert_equal 1000, @payout.hcb_grant_card.reload.amount_cents
+      assert_equal HcbGrantCard.purpose_for([ projects(:unlinked).title, @submission.project.title ]), hcb[:grants].first[:purpose],
+        "the top-up's project joins the purpose"
     end
+  end
+
+  test "the purpose fits HCB's 30 characters" do
+    assert_equal "Fallen: Weather station", HcbGrantCard.purpose_for([ "Weather station", "Weather station" ])
+    assert_equal HcbGrantCard::PURPOSE_MAX_LENGTH, HcbGrantCard.purpose_for([ "A very long project title indeed", "Clock" ]).length
   end
 
   test "not connected leaves it waiting" do
