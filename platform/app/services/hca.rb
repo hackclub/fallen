@@ -11,19 +11,25 @@ module HCA
     ENV.fetch("HCA_HOST") { Rails.env.production? ? "https://auth.hackclub.com" : "https://hca.dinosaurbbq.org" }
   end
 
-  def scopes
-    ENV.fetch("HCA_SCOPES") { "openid profile email name slack_id verification_status birthdate" }
+  # Asked for only when someone sends a design (User#needs_hca_address?), so signing up doesn't ask for it.
+  ADDRESS = "address"
+
+  def scopes(address: false)
+    base = ENV.fetch("HCA_SCOPES") { "openid profile email name slack_id verification_status birthdate" }
+    address ? "#{base} #{ADDRESS}" : base
   end
+
+  def address_in?(scopes) = scopes.to_s.split.include?(ADDRESS)
 
   def configured? = ENV["HCA_CLIENT_ID"].present? && ENV["HCA_CLIENT_SECRET"].present?
 
   # `login_hint` fills in the email on HCA's sign-in page.
-  def authorize_url(redirect_uri, state, login_hint: nil)
+  def authorize_url(redirect_uri, state, login_hint: nil, address: false)
     params = {
       client_id: ENV.fetch("HCA_CLIENT_ID", nil),
       redirect_uri: redirect_uri,
       response_type: "code",
-      scope: scopes,
+      scope: scopes(address:),
       state: state,
       login_hint: login_hint.presence
     }.compact
@@ -67,6 +73,9 @@ module HCA
   end
 
   def identity(access_token) = me(access_token)&.dig("identity") || {}
+
+  # Where someone adds an address to their Hack Club Auth account; it sends them back to `return_to`.
+  def address_portal_url(return_to:) = "#{host}/portal/address?#{{ return_to: }.to_query}"
 
   def adult?(identity)
     birthday = identity["birthday"].presence or return false

@@ -42,6 +42,7 @@
     lapse,
     writing_check,
     submission,
+    submit_needs_address,
     journal_review,
     can,
   }: {
@@ -62,6 +63,7 @@
     writing_check?: WritingCheckMode | null
     // The latest design submission, if there is one.
     submission?: Submission | null
+    submit_needs_address?: boolean
     // What journal reviewers said, newest first.
     // Deferred: what journal reviewers said, what's left to fix, XP held back, and asking for a review.
     journal_review?: JournalReviewProps
@@ -95,6 +97,15 @@
     wantsComposer = false
     history.replaceState(history.state, '', location.pathname + location.search)
     if (can.journal) write()
+  })
+
+  // Back from sharing an address with Hack Club Auth (SubmitDesignModal): open the popup again.
+  let wantsSubmit = $state(typeof location !== 'undefined' && location.hash === '#submit')
+  $effect(() => {
+    if (!wantsSubmit || !can || !direct_upload_url) return
+    wantsSubmit = false
+    history.replaceState(history.state, '', location.pathname + location.search)
+    if (can.submit) submitting = true
   })
 
   const links = $derived(
@@ -283,6 +294,7 @@
     {project}
     directUploadUrl={direct_upload_url}
     resubmission={submission?.status === 'returned'}
+    needsAddress={!!submit_needs_address}
     onClose={() => (submitting = false)}
   />
 {/if}

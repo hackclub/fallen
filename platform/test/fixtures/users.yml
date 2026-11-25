@@ -9,6 +9,7 @@
 #  display_name            :string           not null
 #  email                   :string           not null
 #  hatch_seen_at           :datetime
+#  hca_scopes              :string
 #  hca_token               :text
 #  is_adult                :boolean          default(FALSE), not null
 #  is_banned               :boolean          default(FALSE), not null

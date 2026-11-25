@@ -11,6 +11,7 @@ require "test_helper"
 #  display_name            :string           not null
 #  email                   :string           not null
 #  hatch_seen_at           :datetime
+#  hca_scopes              :string
 #  hca_token               :text
 #  is_adult                :boolean          default(FALSE), not null
 #  is_banned               :boolean          default(FALSE), not null
@@ -111,6 +112,21 @@ class UserTest < ActiveSupport::TestCase
     assert user.is_adult
     assert_equal [ "user" ], user.roles
     assert_equal "tok", user.hca_token
+  end
+
+  test "a sign-in without the address keeps the token that can read it" do
+    user = User.new(hca_id: "x")
+    user.assign_from_hca({ "addresses" => [ { "line_1" => "1 Main St" } ] }, "with-address", scope: "openid name address")
+    assert user.hca_address_shared?
+    refute user.hca_address_missing
+
+    user.assign_from_hca({}, "without-address", scope: "openid name")
+    assert_equal "with-address", user.hca_token
+    assert user.hca_address_shared?
+
+    user.assign_from_hca({ "addresses" => [] }, "no-scope-in-response")
+    assert_equal "no-scope-in-response", user.hca_token, "the identity's addresses key stands in for a missing scope"
+    assert user.hca_address_missing
   end
 
   test "a new account starts with the welcome back seen, since it greets people from before it" do

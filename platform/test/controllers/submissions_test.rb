@@ -30,6 +30,19 @@ class SubmissionsTest < ActionDispatch::IntegrationTest
     refute props["submission"].key?("internal_reason"), "reviewers' notes stay on the review side"
   end
 
+  test "with Hack Club Auth on, the popup asks for the address first and sending waits for it" do
+    with_env("HCA_CLIENT_ID" => "id", "HCA_CLIENT_SECRET" => "secret") do
+      assert inertia_props(project_path(projects(:station)), "Projects/Show")["submit_needs_address"]
+      assert_no_difference("Submission.count") do
+        post project_submissions_path(projects(:station)), params: params_for(read_snapshot(projects(:station)), upload)
+      end
+      assert_redirected_to project_path(projects(:station))
+
+      users(:member).update!(hca_scopes: "openid address")
+      refute inertia_props(project_path(projects(:station)), "Projects/Show")["submit_needs_address"]
+    end
+  end
+
   test "an AI declaration needs a description and reaches the team's view of the submission" do
     params = params_for(read_snapshot(projects(:station)), upload)
     post project_submissions_path(projects(:station)), params: params.deep_merge(submission: { used_ai: "1", ai_usage: "" }), headers: { "HTTP_REFERER" => project_path(projects(:station)) }

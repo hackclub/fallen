@@ -12,6 +12,7 @@ class PrivacyRequest
     pet_switched_at: nil,
     slack_id: nil,
     hca_token: nil,
+    hca_scopes: nil,
     slack_user_token: nil,
     slack_user_token_scopes: nil,
     slack_skipped_at: nil,

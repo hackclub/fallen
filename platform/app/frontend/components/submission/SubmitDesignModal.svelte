@@ -8,7 +8,7 @@
   import BomStep from '@/components/submission/BomStep.svelte'
   import ChecksStep from '@/components/submission/ChecksStep.svelte'
   import SendStep from '@/components/submission/SendStep.svelte'
-  import { projectSubmissions } from '@/routes'
+  import { project as projectRoute, projectSubmissions, signIn } from '@/routes'
   import {
     checkRepository,
     clearDraft,
@@ -27,8 +27,21 @@
     project,
     directUploadUrl,
     resubmission,
+    needsAddress,
     onClose,
-  }: { project: Project; directUploadUrl: string; resubmission: boolean; onClose: () => void } = $props()
+  }: {
+    project: Project
+    directUploadUrl: string
+    resubmission: boolean
+    // Hack Club Auth hasn't shared their address yet (User#needs_hca_address?). Signing in again asks for it, then
+    // comes back here with the popup open; the draft below waits in the browser.
+    needsAddress: boolean
+    onClose: () => void
+  } = $props()
+
+  const shareAddressUrl = $derived(
+    signIn({ query: { address: 1, return_to: `${projectRoute(project.id).url}#submit` } }).url,
+  )
 
   const STEPS = [
     { key: 'ready', title: 'Ready to submit?' },
@@ -162,81 +175,96 @@
 
 <svelte:window onkeydown={escape} />
 
-<Modal
-  titleId="submit-design-title"
-  title={current.title}
-  eyebrow="{step + 1}/{STEPS.length}"
-  {onClose}
-  class={current.key === 'bom' ? 'max-w-4xl' : 'max-w-2xl'}
->
-  <div class="flex max-h-[calc(90vh-130px)] flex-col font-outfit">
-    <!-- Only the step scrolls; the Back/Next buttons below stay in view however short the window is. -->
-    <div class="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-5 pt-2 md:px-9">
-      <ol class="mb-5 flex items-center justify-center gap-1.5" aria-label="Steps">
-        {#each STEPS as s, i (s.key)}
-          <li>
-            <button
-              type="button"
-              aria-label="{i + 1}. {s.title}"
-              aria-current={i === step ? 'step' : undefined}
-              disabled={i > step}
-              onclick={() => (step = i)}
-              class={[
-                'block h-2 rounded-full transition-all duration-300',
-                i === step
-                  ? 'w-8 bg-[#1cb0f6]'
-                  : i < step
-                    ? 'w-2 cursor-pointer bg-ink/50 hover:bg-ink'
-                    : 'w-2 bg-ink/15',
-              ]}
-            ></button>
-          </li>
-        {/each}
-      </ol>
-
-      {#if current.key === 'ready'}
-        <ReadyStep bind:ready={draft.ready} {resubmission} />
-      {:else if current.key === 'repo'}
-        <RepoStep
-          projectId={project.id}
-          bind:url={draft.repoUrl}
-          bind:snapshot={draft.snapshot}
-          bind:checkedUrl={draft.checkedUrl}
-          onChecked={repoChecked}
-        />
-      {:else if current.key === 'screenshots'}
-        <ScreenshotsStep bind:screenshots={draft.screenshots} bind:uploading {directUploadUrl} />
-      {:else if current.key === 'bom'}
-        <BomStep bind:items={draft.items} bind:bomCsv={draft.bomCsv} snapshot={draft.snapshot} />
-      {:else if current.key === 'checks'}
-        <ChecksStep projectId={project.id} {draft} bind:checks onFix={go} {refreshRepo} />
-      {:else}
-        <SendStep
-          bind:note={draft.note}
-          bind:usedAi={draft.usedAi}
-          bind:aiUsage={draft.aiUsage}
-          {draft}
-          {checks}
-          {resubmission}
-          {errors}
-        />
-      {/if}
-    </div>
-
-    <div class="shrink-0 px-5 pt-5 pb-6 md:px-9 md:pb-8">
-      <div class="flex flex-col-reverse items-center justify-center gap-3 sm:flex-row">
-        <ModalButton kind="cancel" onclick={back}>{step === 0 ? 'Not yet' : 'Back'}</ModalButton>
-        <ModalButton kind="confirm" onclick={next} disabled={!!blocker || sending}>
-          {#if current.key === 'send'}
-            {sending ? 'Sending...' : 'Submit for review'}
-          {:else}
-            Next
-          {/if}
-        </ModalButton>
+{#if needsAddress}
+  <Modal titleId="submit-design-title" title="Your address" {onClose} class="max-w-lg">
+    <div class="px-5 pt-2 pb-6 font-outfit md:px-9 md:pb-8">
+      <p class="text-center text-sm text-ink-soft">
+        If your design is approved, Hack Club needs your address on file. Hack Club Auth will ask you to share
+        it, then bring you back here.
+      </p>
+      <div class="mt-6 flex flex-col-reverse items-center justify-center gap-3 sm:flex-row">
+        <ModalButton kind="cancel" onclick={onClose}>Not yet</ModalButton>
+        <ModalButton kind="confirm" href={shareAddressUrl}>Share address</ModalButton>
       </div>
-      {#if blocker}
-        <p class="mt-2 text-center text-sm text-ink-soft" aria-live="polite">{blocker}</p>
-      {/if}
     </div>
-  </div>
-</Modal>
+  </Modal>
+{:else}
+  <Modal
+    titleId="submit-design-title"
+    title={current.title}
+    eyebrow="{step + 1}/{STEPS.length}"
+    {onClose}
+    class={current.key === 'bom' ? 'max-w-4xl' : 'max-w-2xl'}
+  >
+    <div class="flex max-h-[calc(90vh-130px)] flex-col font-outfit">
+      <!-- Only the step scrolls; the Back/Next buttons below stay in view however short the window is. -->
+      <div class="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-5 pt-2 md:px-9">
+        <ol class="mb-5 flex items-center justify-center gap-1.5" aria-label="Steps">
+          {#each STEPS as s, i (s.key)}
+            <li>
+              <button
+                type="button"
+                aria-label="{i + 1}. {s.title}"
+                aria-current={i === step ? 'step' : undefined}
+                disabled={i > step}
+                onclick={() => (step = i)}
+                class={[
+                  'block h-2 rounded-full transition-all duration-300',
+                  i === step
+                    ? 'w-8 bg-[#1cb0f6]'
+                    : i < step
+                      ? 'w-2 cursor-pointer bg-ink/50 hover:bg-ink'
+                      : 'w-2 bg-ink/15',
+                ]}
+              ></button>
+            </li>
+          {/each}
+        </ol>
+
+        {#if current.key === 'ready'}
+          <ReadyStep bind:ready={draft.ready} {resubmission} />
+        {:else if current.key === 'repo'}
+          <RepoStep
+            projectId={project.id}
+            bind:url={draft.repoUrl}
+            bind:snapshot={draft.snapshot}
+            bind:checkedUrl={draft.checkedUrl}
+            onChecked={repoChecked}
+          />
+        {:else if current.key === 'screenshots'}
+          <ScreenshotsStep bind:screenshots={draft.screenshots} bind:uploading {directUploadUrl} />
+        {:else if current.key === 'bom'}
+          <BomStep bind:items={draft.items} bind:bomCsv={draft.bomCsv} snapshot={draft.snapshot} />
+        {:else if current.key === 'checks'}
+          <ChecksStep projectId={project.id} {draft} bind:checks onFix={go} {refreshRepo} />
+        {:else}
+          <SendStep
+            bind:note={draft.note}
+            bind:usedAi={draft.usedAi}
+            bind:aiUsage={draft.aiUsage}
+            {draft}
+            {checks}
+            {resubmission}
+            {errors}
+          />
+        {/if}
+      </div>
+
+      <div class="shrink-0 px-5 pt-5 pb-6 md:px-9 md:pb-8">
+        <div class="flex flex-col-reverse items-center justify-center gap-3 sm:flex-row">
+          <ModalButton kind="cancel" onclick={back}>{step === 0 ? 'Not yet' : 'Back'}</ModalButton>
+          <ModalButton kind="confirm" onclick={next} disabled={!!blocker || sending}>
+            {#if current.key === 'send'}
+              {sending ? 'Sending...' : 'Submit for review'}
+            {:else}
+              Next
+            {/if}
+          </ModalButton>
+        </div>
+        {#if blocker}
+          <p class="mt-2 text-center text-sm text-ink-soft" aria-live="polite">{blocker}</p>
+        {/if}
+      </div>
+    </div>
+  </Modal>
+{/if}

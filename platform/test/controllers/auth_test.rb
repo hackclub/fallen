@@ -24,6 +24,22 @@ class AuthTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "sharing an address asks HCA for it and comes back to the submit popup; with none on file, HCA's page to add one" do
+    with_env("HCA_CLIENT_ID" => "id", "HCA_CLIENT_SECRET" => "secret") do
+      sign_in_as users(:member)
+      get sign_in_path(address: 1, return_to: "/projects/prj_x#submit")
+      query = Rack::Utils.parse_query(URI(response.location).query)
+      assert_includes query["scope"].split, "address"
+
+      identity = { "id" => users(:member).hca_id, "primary_email" => users(:member).email, "addresses" => [] }
+      stub_method(HCA, :exchange_code_for_token, { "access_token" => "tok", "scope" => query["scope"] }) do
+        stub_method(HCA, :identity, identity) { get hca_callback_path(code: "abc", state: query["state"]) }
+      end
+      assert_equal "https://hca.dinosaurbbq.org/portal/address?#{{ return_to: "http://www.example.com/projects/prj_x#submit" }.to_query}", response.location
+      assert users(:member).reload.hca_address_shared?
+    end
+  end
+
   test "callback rejects a state mismatch" do
     get hca_callback_path(code: "abc", state: "nope")
     assert_redirected_to root_path

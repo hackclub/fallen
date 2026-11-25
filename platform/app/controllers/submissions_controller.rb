@@ -11,6 +11,7 @@ class SubmissionsController < ApplicationController
     project = Project.kept.find_by_public_id!(params[:project_id])
     authorize Submission.new(project:)
     raise Pundit::NotAuthorizedError unless Flipper.enabled?(FLAG, current_user)
+    return redirect_to project_path(project), alert: "Share your address with Hack Club Auth first." if current_user.needs_hca_address?
 
     fields = params.expect(submission: [ :snapshot_id, :note, :bom_csv, :used_ai, :ai_usage, made_with: [], screenshots: [], items: [ BomItem::FIELDS ] ])
     submission = Submission.submit(project:, user: current_user, snapshot: project.repo_snapshots.find_by_public_id(fields[:snapshot_id]),

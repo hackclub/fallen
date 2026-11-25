@@ -34,6 +34,7 @@ class ProjectsController < ApplicationController
     ActiveRecord::Associations::Preloader.new(records: journals.to_a, associations: :user, available_records: @project.teammates).call
     submission = Submission.latest_for(@project) if insider
     ActiveRecord::Associations::Preloader.new(records: [ submission ], associations: [ :bom_items, :grant_payout, { screenshots_attachments: :blob } ]).call if submission
+    can_submit = can_submit?(submission)
 
     render inertia: "Projects/Show", props: {
       project: ProjectSerializer.render(@project, covers: Project.journal_covers([ @project ]), **totals),
@@ -48,10 +49,12 @@ class ProjectsController < ApplicationController
       lapse: InertiaRails.defer { lapse_props(timelapses: true) if @project.on_team?(current_user) },
       writing_check: WritingCheck.mode_for(current_user),
       submission: submission && SubmissionSerializer.render(submission),
+      # The submit popup first asks for their address through Hack Club Auth (User#needs_hca_address?).
+      submit_needs_address: can_submit && current_user.needs_hca_address?,
       # Journal review (ProgressReview): what reviewers said, what's left to fix, XP held back, and asking for one.
       journal_review: InertiaRails.defer { journal_review_props(@project) if insider },
       can: {
-        submit: can_submit?(submission), withdraw: submission.present? && policy(submission).destroy?,
+        submit: can_submit, withdraw: submission.present? && policy(submission).destroy?,
         update: policy.update?, destroy: policy.destroy?, journal: policy(@project.journals.build(user: current_user)).create?,
         invite: policy.invite?, leave: policy.leave?, remove_teammate: policy.remove_teammate?
       }

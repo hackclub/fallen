@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_25_100002) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_25_233701) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -965,6 +965,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_25_100002) do
     t.string "pronouns"
     t.datetime "welcome_back_seen_at"
     t.integer "daily_goal_minutes"
+    t.string "hca_scopes"
     t.index ["airtable_synced_at"], name: "index_users_on_airtable_synced_at"
     t.index ["created_at"], name: "index_users_on_created_at"
     t.index ["discarded_at"], name: "index_users_on_discarded_at"

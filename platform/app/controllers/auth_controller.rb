@@ -14,7 +14,10 @@ class AuthController < ApplicationController
     return redirect_to dev_path if !HCA.configured? && Rails.env.local?
     return redirect_to root_path, alert: "Hack Club Auth is not configured (HCA_CLIENT_ID / HCA_CLIENT_SECRET)." unless HCA.configured?
 
-    redirect_to HCA.authorize_url(hca_callback_url, issue_oauth_state, login_hint: params[:login_hint]), allow_other_host: true
+    # `address` comes from the submit popup (User#needs_hca_address?), which also says where to come back to.
+    remember_return_to(params[:return_to]) if params[:return_to].present?
+    url = HCA.authorize_url(hca_callback_url, issue_oauth_state, login_hint: params[:login_hint], address: params[:address].present?)
+    redirect_to url, allow_other_host: true
   end
 
   def create
@@ -29,6 +32,8 @@ class AuthController < ApplicationController
     forget_trial
     sign_in(user)
     Rails.logger.info({ event: "auth.signed_in", user_id: user.id }.to_json)
+    return redirect_to HCA.address_portal_url(return_to: URI.join(request.base_url, after_sign_in_path).to_s), allow_other_host: true if user.hca_address_missing
+
     redirect_to after_sign_in_path, notice: "Welcome back, #{user.display_name}!"
   rescue HCA::Error, Faraday::Error, ActiveRecord::RecordInvalid => e
     Sentry.capture_exception(e)

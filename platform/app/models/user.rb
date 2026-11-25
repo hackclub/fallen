@@ -9,6 +9,7 @@
 #  display_name            :string           not null
 #  email                   :string           not null
 #  hatch_seen_at           :datetime
+#  hca_scopes              :string
 #  hca_token               :text
 #  is_adult                :boolean          default(FALSE), not null
 #  is_banned               :boolean          default(FALSE), not null
@@ -164,6 +165,14 @@ class User < ApplicationRecord
   # Started with just an email (TrialSessionsController), or made by a soft signup: can do the onboarding and make a
   # project, nothing more, until they sign in with Hack Club Auth.
   def trial? = hca_id.nil?
+
+  # Set at sign-in when the address was shared but Hack Club Auth has none on file (AuthController sends them to add one).
+  attr_accessor :hca_address_missing
+
+  def hca_address_shared? = HCA.address_in?(hca_scopes)
+
+  # Sending a design asks for their address first: the YSWS record of what was funded carries it (YswsSubmission).
+  def needs_hca_address? = HCA.configured? && !hca_address_shared?
 
   def self.start_trial!(email:, signup_source: {})
     create!(email: email, display_name: email.split("@").first, roles: [ "user" ], signup_source: signup_source)
@@ -333,7 +342,7 @@ class User < ApplicationRecord
     begin
       user = find_by(hca_id: identity["id"]) || joined_from_slack(identity["slack_id"]) || joined_from_fallout(identity["primary_email"]) || trial || new
       user.hca_id = identity["id"]
-      user.assign_from_hca(identity, access_token)
+      user.assign_from_hca(identity, access_token, scope: token_data["scope"])
       user.signup_source = signup_source if user.new_record?
       transaction do
         user.save!
@@ -349,8 +358,16 @@ class User < ApplicationRecord
     user
   end
 
-  def assign_from_hca(identity, access_token)
-    self.hca_token = access_token
+  # The token is kept only for the YSWS upload (YswsSubmission), which reads the person's address with it. So a plain
+  # sign-in doesn't swap a token that can read the address for one that can't. Without a `scope` from HCA, the
+  # identity says: it has `addresses` only when the address was shared.
+  def assign_from_hca(identity, access_token, scope: nil)
+    scopes = scope.presence || (HCA::ADDRESS if identity.key?("addresses"))
+    unless hca_address_shared? && !HCA.address_in?(scopes)
+      self.hca_token = access_token
+      self.hca_scopes = scopes
+    end
+    self.hca_address_missing = HCA.address_in?(scopes) && Array(identity["addresses"]).empty?
     self.email = identity["primary_email"].presence || email
     self.display_name = [ identity["first_name"], identity["last_name"] ].compact_blank.join(" ").presence || display_name.presence || "Hack Clubber"
     self.avatar = identity["profile_picture"].presence || avatar
