@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_22_185504) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_24_000000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -877,6 +877,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_22_185504) do
     t.datetime "proposed_at"
     t.bigint "proposed_by_id"
     t.index ["claimed_by_id"], name: "index_submissions_on_claimed_by_id"
+    t.index ["decided_at"], name: "index_submissions_on_decided_at"
     t.index ["project_id"], name: "index_submissions_on_project_id"
     t.index ["project_id"], name: "index_submissions_one_pending_per_project", unique: true, where: "((status)::text = 'pending'::text)"
     t.index ["proposed_at"], name: "index_submissions_on_proposed_at"

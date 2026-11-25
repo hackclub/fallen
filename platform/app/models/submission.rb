@@ -45,6 +45,7 @@
 # Indexes
 #
 #  index_submissions_on_claimed_by_id          (claimed_by_id)
+#  index_submissions_on_decided_at             (decided_at)
 #  index_submissions_on_project_id             (project_id)
 #  index_submissions_on_proposed_at            (proposed_at)
 #  index_submissions_on_proposed_by_id         (proposed_by_id)

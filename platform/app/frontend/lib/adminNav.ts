@@ -16,6 +16,7 @@ import Star from '@lucide/svelte/icons/star'
 import ShieldAlert from '@lucide/svelte/icons/shield-alert'
 import Banknote from '@lucide/svelte/icons/banknote'
 import CalendarCheck from '@lucide/svelte/icons/calendar-check'
+import Medal from '@lucide/svelte/icons/medal'
 import Stamp from '@lucide/svelte/icons/stamp'
 import {
   adminFlags,
@@ -25,6 +26,7 @@ import {
   adminMcp,
   adminProjects,
   adminQualifying,
+  adminReviewLeaderboard,
   adminSignOffs,
   adminRoot,
   adminStats,
@@ -81,6 +83,7 @@ export const adminNav: AdminNavSection[] = [
         icon: ClipboardCheck,
         role: 'design_reviewer',
       },
+      { label: 'Review leaderboard', href: adminReviewLeaderboard.show().url, icon: Medal },
       { label: 'Sign-offs', href: adminSignOffs.index().url, icon: Stamp },
       { label: 'Journal review', href: journalReviewRoot().url, icon: NotebookPen, role: 'reviewer' },
       { label: 'Starred projects', href: starredProjects().url, icon: Star, role: 'reviewer' },
