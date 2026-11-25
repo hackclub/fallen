@@ -150,8 +150,36 @@ module InertiaHelper
   end
 end
 
+# The copy checker lives in the private vendor/desk repo, which CI doesn't have. Tests swap in their own.
+module CopyCheckerHelper
+  # A checker that answers `results` in turn and records the repos it was asked about.
+  def fake_copy_checker(*results)
+    Module.new do
+      define_singleton_method(:configured?) { true }
+      define_singleton_method(:asked) { @asked ||= [] }
+      define_singleton_method(:check) do |url, attempts:|
+        asked << url
+        results.shift.merge("attempts" => attempts + 1)
+      end
+    end
+  end
+
+  def with_copy_checker(checker)
+    previous = Object.const_defined?(:CopyChecker) ? Object.send(:remove_const, :CopyChecker) : nil
+    Object.const_set(:CopyChecker, checker)
+    yield
+  ensure
+    Object.send(:remove_const, :CopyChecker)
+    Object.const_set(:CopyChecker, previous) if previous
+  end
+end
+
 class ActiveSupport::TestCase
   include SubmissionHelper
+  include CopyCheckerHelper
+
+  # The plain sign-off list unless a test asks for the desk, whether or not vendor/desk is mounted.
+  setup { SignOffDesk.available = false }
 end
 
 class ActionDispatch::IntegrationTest

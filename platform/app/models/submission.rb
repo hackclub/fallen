@@ -14,6 +14,8 @@
 #  checks                    :jsonb            not null
 #  claim_expires_at          :datetime
 #  commit_sha                :string
+#  copy_check                :jsonb
+#  copy_check_cleared_at     :datetime
 #  decided_at                :datetime
 #  feedback                  :text
 #  flag_reason               :text
@@ -36,6 +38,7 @@
 #  created_at                :datetime         not null
 #  updated_at                :datetime         not null
 #  claimed_by_id             :bigint
+#  copy_check_cleared_by_id  :bigint
 #  project_id                :bigint           not null
 #  proposed_by_id            :bigint
 #  repo_snapshot_id          :bigint
@@ -46,20 +49,22 @@
 #
 # Indexes
 #
-#  index_submissions_on_claimed_by_id          (claimed_by_id)
-#  index_submissions_on_project_id             (project_id)
-#  index_submissions_on_proposed_at            (proposed_at)
-#  index_submissions_on_proposed_by_id         (proposed_by_id)
-#  index_submissions_on_repo_snapshot_id       (repo_snapshot_id)
-#  index_submissions_on_review_draft_by_id     (review_draft_by_id)
-#  index_submissions_on_reviewer_id            (reviewer_id)
-#  index_submissions_on_status_and_created_at  (status,created_at)
-#  index_submissions_on_user_id                (user_id)
-#  index_submissions_one_pending_per_project   (project_id) UNIQUE WHERE ((status)::text = 'pending'::text)
+#  index_submissions_on_claimed_by_id             (claimed_by_id)
+#  index_submissions_on_copy_check_cleared_by_id  (copy_check_cleared_by_id)
+#  index_submissions_on_project_id                (project_id)
+#  index_submissions_on_proposed_at               (proposed_at)
+#  index_submissions_on_proposed_by_id            (proposed_by_id)
+#  index_submissions_on_repo_snapshot_id          (repo_snapshot_id)
+#  index_submissions_on_review_draft_by_id        (review_draft_by_id)
+#  index_submissions_on_reviewer_id               (reviewer_id)
+#  index_submissions_on_status_and_created_at     (status,created_at)
+#  index_submissions_on_user_id                   (user_id)
+#  index_submissions_one_pending_per_project      (project_id) UNIQUE WHERE ((status)::text = 'pending'::text)
 #
 # Foreign Keys
 #
 #  fk_rails_...  (claimed_by_id => users.id)
+#  fk_rails_...  (copy_check_cleared_by_id => users.id)
 #  fk_rails_...  (project_id => projects.id)
 #  fk_rails_...  (proposed_by_id => users.id)
 #  fk_rails_...  (repo_snapshot_id => repo_snapshots.id)
@@ -71,7 +76,7 @@ class Submission < ApplicationRecord
   include PublicIdentifiable
 
   set_public_id_prefix :sub
-  has_paper_trail skip: %i[bom_csv checks]
+  has_paper_trail skip: %i[bom_csv checks copy_check]
 
   KINDS = %w[design].freeze
   STATUSES = %w[pending approved returned rejected withdrawn].freeze
@@ -96,6 +101,8 @@ class Submission < ApplicationRecord
   belongs_to :review_draft_by, class_name: "User", optional: true
   # A design reviewer's decision waiting for an admin to sign it off (SubmissionReview#propose).
   belongs_to :proposed_by, class_name: "User", optional: true
+  # The admin who compared a copy check's match by hand and found it was not a copy (CopyCheck.compared!).
+  belongs_to :copy_check_cleared_by, class_name: "User", optional: true
   has_many :bom_items, -> { ordered }, dependent: :delete_all, inverse_of: :submission
   has_many :journal_reviews, dependent: :delete_all
   has_one :grant_payout, dependent: :restrict_with_error
@@ -124,6 +131,8 @@ class Submission < ApplicationRecord
   STATUSES.each { |status| define_method(:"#{status}?") { self.status == status } }
   def decided? = status.in?(DECIDED)
   def awaiting_sign_off? = pending? && proposed_at.present?
+  # A copy check match nobody has compared yet: approving waits for an admin to look (CopyCheck).
+  def copy_check_holds_approval? = copy_check&.dig("status") == "match" && copy_check_cleared_at.nil?
   def requested_text = Money.format(requested_cents)
   def includes_part?(kind) = made_with.include?(kind)
 

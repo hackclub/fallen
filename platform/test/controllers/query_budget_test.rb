@@ -146,6 +146,12 @@ class QueryBudgetTest < ActionDispatch::IntegrationTest
         rubric: Submission::RUBRIC.keys.index_with { "yes" }).save or flunk("not held")
     end
     assert_query_budget(8) { load_deferred(admin_sign_offs_path, "Admin/SignOffs/Index", "submissions", "pagy") }
+    # The desk (vendor/desk): the shell, the queue with its totals, and the case in hand with its journals, parts and team.
+    SignOffDesk.available = true
+    assert_query_budget(3) { get admin_sign_offs_path }
+    assert_query_budget(8) { load_deferred(admin_sign_offs_path, "Admin/SignOffs/Desk", "queue", "pagy", "totals") }
+    assert_query_budget(9) { load_deferred(admin_sign_offs_path, "Admin/SignOffs/Desk", "case") }
+    SignOffDesk.available = false
     assert_query_budget(3) { get admin_streaks_path }
     assert_query_budget(3) { get admin_workshop_rsvps_path }
     assert_query_budget(5) { load_deferred(admin_workshop_rsvps_path, "Admin/WorkshopRsvps/Index", "rsvps", "pagy", "counts") }

@@ -28,6 +28,7 @@ Rails.application.configure do
                    "https://stardance.hackclub.com", "https://fabricate.hackclub-assets.com", "https://stasis.hackclub-assets.com", # photos in transferred journals (ProjectTransfer)
                    "https://fallout.hackclub.com", "https://f8d710a55cb9b516d88635f103c2c9f2.r2.cloudflarestorage.com", # ...Fallout's redirect to its R2 bucket,
                    "https://cdn.hackclub.com", "https://user-cdn.hackclub-assets.com", # ...where Hack Club's CDN redirects to its asset host
+                   "https://github.com", "https://avatars.githubusercontent.com", # owners of repos a copy check matched (sign-off desk)
                    "https://i.ytimg.com", *r2_host
     policy.frame_src "https://www.youtube-nocookie.com"
     # The review page's STEP viewer runs OpenCascade in a worker. Built, it is a file of ours; Vite's dev server only

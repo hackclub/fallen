@@ -19,6 +19,9 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./app/frontend', import.meta.url)),
+      // The sign-off desk, from the private hackclub/fallen-desk repo (a git submodule). Absent, the desk page
+      // falls back to the plain list.
+      '@desk': fileURLToPath(new URL('./vendor/desk/frontend', import.meta.url)),
     },
   },
   server: {

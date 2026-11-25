@@ -7,6 +7,8 @@ class Admin::SubmissionPolicy < ApplicationPolicy
   # Not their own decision either (a design reviewer since made an admin): signing off is a second pair of eyes.
   def update? = admin? && record.awaiting_sign_off? && record.proposed_by_id != user.id && !record.project.on_team?(user)
   def destroy? = update?
+  def compare? = update?
+  def rescreen? = update?
 
   class Scope < ApplicationPolicy::Scope
     def resolve = user&.admin? ? scope.where.not(project_id: Project.teamed_with(user).select(:id)) : scope.none

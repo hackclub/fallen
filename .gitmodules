@@ -1,0 +1,3 @@
+[submodule "platform/vendor/desk"]
+	path = platform/vendor/desk
+	url = https://github.com/hackclub/fallen-desk.git

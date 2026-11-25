@@ -12,6 +12,8 @@ require "test_helper"
 #  checks                    :jsonb            not null
 #  claim_expires_at          :datetime
 #  commit_sha                :string
+#  copy_check                :jsonb
+#  copy_check_cleared_at     :datetime
 #  decided_at                :datetime
 #  feedback                  :text
 #  flag_reason               :text
@@ -34,6 +36,7 @@ require "test_helper"
 #  created_at                :datetime         not null
 #  updated_at                :datetime         not null
 #  claimed_by_id             :bigint
+#  copy_check_cleared_by_id  :bigint
 #  project_id                :bigint           not null
 #  proposed_by_id            :bigint
 #  repo_snapshot_id          :bigint
@@ -44,20 +47,22 @@ require "test_helper"
 #
 # Indexes
 #
-#  index_submissions_on_claimed_by_id          (claimed_by_id)
-#  index_submissions_on_project_id             (project_id)
-#  index_submissions_on_proposed_at            (proposed_at)
-#  index_submissions_on_proposed_by_id         (proposed_by_id)
-#  index_submissions_on_repo_snapshot_id       (repo_snapshot_id)
-#  index_submissions_on_review_draft_by_id     (review_draft_by_id)
-#  index_submissions_on_reviewer_id            (reviewer_id)
-#  index_submissions_on_status_and_created_at  (status,created_at)
-#  index_submissions_on_user_id                (user_id)
-#  index_submissions_one_pending_per_project   (project_id) UNIQUE WHERE ((status)::text = 'pending'::text)
+#  index_submissions_on_claimed_by_id             (claimed_by_id)
+#  index_submissions_on_copy_check_cleared_by_id  (copy_check_cleared_by_id)
+#  index_submissions_on_project_id                (project_id)
+#  index_submissions_on_proposed_at               (proposed_at)
+#  index_submissions_on_proposed_by_id            (proposed_by_id)
+#  index_submissions_on_repo_snapshot_id          (repo_snapshot_id)
+#  index_submissions_on_review_draft_by_id        (review_draft_by_id)
+#  index_submissions_on_reviewer_id               (reviewer_id)
+#  index_submissions_on_status_and_created_at     (status,created_at)
+#  index_submissions_on_user_id                   (user_id)
+#  index_submissions_one_pending_per_project      (project_id) UNIQUE WHERE ((status)::text = 'pending'::text)
 #
 # Foreign Keys
 #
 #  fk_rails_...  (claimed_by_id => users.id)
+#  fk_rails_...  (copy_check_cleared_by_id => users.id)
 #  fk_rails_...  (project_id => projects.id)
 #  fk_rails_...  (proposed_by_id => users.id)
 #  fk_rails_...  (repo_snapshot_id => repo_snapshots.id)

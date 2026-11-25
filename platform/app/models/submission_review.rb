@@ -232,6 +232,7 @@ class SubmissionReview
       errors.add(:base, "#{reviewer&.display_name || "Whoever proposed it"} is no longer a design reviewer: send it back")
     end
     errors.add(:base, "You can't sign off a project you're on") if submission.project.on_team?(@signed_off_by)
+    errors.add(:base, "The copy check found a match: compare the designs before you approve it") if verdict == "approved" && submission.copy_check_holds_approval?
   end
 
   # The same proposal as when the admin opened it, still unapplied. `with_lock` has just reloaded the submission.
@@ -268,6 +269,7 @@ class SubmissionReview
       })
       @proposed = true
     end
+    CopyCheck.later(submission) if errors.none?
     errors.none?
   end
 

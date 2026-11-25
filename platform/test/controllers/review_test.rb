@@ -144,7 +144,7 @@ class ReviewTest < ActionDispatch::IntegrationTest
 
     sign_in_as admin
     patch admin_sign_off_path(@submission), params: { proposed_at: read["proposed_at"] }
-    assert_redirected_to admin_sign_offs_path
+    assert_redirected_to admin_sign_offs_path(id: @submission.public_id)
     assert_match "sent back or changed", flash[:alert]
     assert @submission.reload.awaiting_sign_off?, "the approval the admin never saw stays waiting"
     assert_nil @submission.grant_payout

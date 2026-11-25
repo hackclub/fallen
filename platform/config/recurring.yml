@@ -54,6 +54,12 @@ production:
     queue: background
     schedule: every 10 minutes
 
+  # Copy checks for decisions waiting on sign-off, and retries of ones that couldn't finish (CopyCheck).
+  copy_check_sweep:
+    class: CopyCheckSweepJob
+    queue: background
+    schedule: every 10 minutes
+
   sync_huddle:
     class: HuddleSyncJob
     queue: realtime

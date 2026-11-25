@@ -16,9 +16,16 @@
     "types": ["vite/client", "svelte"],
     "baseUrl": ".",
     "paths": {
-      "@/*": ["app/frontend/*"]
+      "@/*": ["app/frontend/*"],
+      "@desk/*": ["vendor/desk/frontend/*"]
     }
   },
-  "exclude": ["node_modules", "vendor", "public", "tmp"],
-  "include": ["app/frontend/**/*.ts", "app/frontend/**/*.svelte", "app/frontend/**/*.js", "vite.config.ts"]
+  "exclude": ["node_modules", "vendor/bundle", "vendor/javascript", "public", "tmp"],
+  "include": [
+    "app/frontend/**/*.ts",
+    "app/frontend/**/*.svelte",
+    "app/frontend/**/*.js",
+    "vite.config.ts",
+    "vendor/desk/frontend/**/*"
+  ]
 }
