@@ -11,6 +11,10 @@
 module YswsSubmission
   module_function
 
+  OVERRIDE = "Optional - Override Hours Spent Justification"
+  MACHINE = "Machine Justification"
+  MANUAL = "Manual Justification"
+
   def configured? = ENV["AIRTABLE_API_KEY"].present? && ENV["AIRTABLE_YSWS_BASE_ID"].present? && ENV["AIRTABLE_YSWS_TABLE"].present?
 
   def upload(submission)
@@ -41,9 +45,31 @@ module YswsSubmission
       "Birthday" => identity["birthday"],
       "Screenshot" => screenshot ? [ { url: url_helpers.rails_storage_proxy_url(screenshot, host:) } ] : [],
       "Optional - Override Hours Spent" => (submission.internal_minutes / 60.0).round(1),
-      "Machine Justification" => YswsJustification.render(submission, first_name: identity["first_name"].presence || submission.user.display_name.split.first)
+      MACHINE => YswsJustification.render(submission, first_name: identity["first_name"].presence || submission.user.display_name.split.first)
     }
   end
+
+  # The field YSWS reads is managed by Hack Club's org and can't be a formula, so this fills it: the machine part, then
+  # what staff wrote by hand. Only rows Fallen wrote, and only those that changed, so running it again does nothing.
+  def join_justifications
+    return 0 unless configured?
+
+    base, table = ENV.fetch("AIRTABLE_YSWS_BASE_ID"), ENV.fetch("AIRTABLE_YSWS_TABLE")
+    rows = Airtable.records(base, table, fields: [ MACHINE, MANUAL, OVERRIDE ], whole: true, by_name: true)
+    rows.count do |row|
+      fields = row["fields"]
+      next false if fields[MACHINE].blank?
+
+      joined = joined_justification(fields[MACHINE], fields[MANUAL])
+      next false if fields[OVERRIDE].to_s.strip == joined
+
+      Airtable.upsert(base, table, row["id"], OVERRIDE => joined)
+      sleep 0.25
+      true
+    end
+  end
+
+  def joined_justification(machine, manual) = [ machine, manual ].map { it.to_s.strip }.compact_blank.join("\n\n")
 
   # As Fallout does: a fetch that fails is reported and the row goes without the person's details, for staff to fill.
   def identity_of(user)

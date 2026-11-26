@@ -33,12 +33,13 @@ module Airtable
   # Every record's fields, keyed by field id so a renamed column keeps working. A page is 100 records, and Airtable
   # allows 5 requests a second per base. A page that can't connect or times out is asked for again a couple of times,
   # since a big table is dozens of pages and one dropped connection would otherwise throw the rest away. With
-  # `whole: true` each record comes as Airtable sends it, with its id and createdTime around the fields.
-  def records(base, table, fields:, whole: false)
+  # `whole: true` each record comes as Airtable sends it, with its id and createdTime around the fields. `by_name: true`
+  # keys the fields by name instead.
+  def records(base, table, fields:, whole: false, by_name: false)
     pages = []
     offset = nil
     loop do
-      response = with_retries { connection.get("v0/#{base}/#{table}", { pageSize: 100, returnFieldsByFieldId: true, fields: fields, offset: offset }.compact) }
+      response = with_retries { connection.get("v0/#{base}/#{table}", { pageSize: 100, returnFieldsByFieldId: !by_name, fields: fields, offset: offset }.compact) }
       raise Error, "Airtable read of #{table} failed: #{response.status} #{response.body.to_s.truncate(300)}" unless response.success?
 
       page = JSON.parse(response.body)

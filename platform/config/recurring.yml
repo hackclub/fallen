@@ -26,6 +26,12 @@ production:
     queue: background
     schedule: every hour at minute 7
 
+  # The YSWS table's justification: Fallen's part, then the one staff write (YswsSubmission.join_justifications).
+  join_ysws_justifications:
+    class: JoinYswsJustificationsJob
+    queue: background
+    schedule: every 5 minutes
+
   sync_users_to_airtable:
     class: SyncUsersToAirtableJob
     queue: background
