@@ -60,7 +60,9 @@ module YswsJustification
   end
 
   def deflation_line(row, call)
-    why = [ call&.reason, call&.note.to_s.strip.presence ].compact.join(": ").presence || "No reason recorded."
+    note = call&.note.to_s.strip.presence
+    reason = call&.reason unless call&.reason == "Other" && note
+    why = [ reason, note ].compact.join(": ").presence || "No reason recorded."
     "- #{day(row.journal.created_at)} \"#{title(row.journal)}\": #{hours(row.journal.duration_minutes)} to #{hours(row.approved)}. #{why}"
   end
 

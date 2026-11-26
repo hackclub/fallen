@@ -45,7 +45,7 @@ module YswsSubmission
       "Birthday" => identity["birthday"],
       "Screenshot" => screenshot ? [ { url: url_helpers.rails_storage_proxy_url(screenshot, host:) } ] : [],
       "Optional - Override Hours Spent" => (submission.internal_minutes / 60.0).round(1),
-      MACHINE => YswsJustification.render(submission, first_name: identity["first_name"].presence || submission.user.display_name.split.first)
+      MACHINE => YswsJustification.render(submission, first_name: identity["first_name"].to_s.strip.presence || submission.user.display_name.split.first)
     }
   end
 
