@@ -304,10 +304,40 @@ class SubmissionReviewTest < ActiveSupport::TestCase
     refute YswsSubmission.configured?
     assert_nil YswsSubmission.upload(@submission.reload)
 
-    fields = YswsSubmission.fields(@submission, identity: { "first_name" => "Ada", "addresses" => [ { "line_1" => "1 Main St", "primary" => true } ] })
+    fields = stub_method(Github, :commit_range, [ Time.utc(2026, 10, 1), Time.utc(2026, 10, 9) ]) do
+      YswsSubmission.fields(@submission, identity: { "first_name" => "Ada", "addresses" => [ { "line_1" => "1 Main St", "primary" => true } ] })
+    end
     assert_equal [ "Ada", "1 Main St", @submission.repo_url ], fields.values_at("First Name", "Address (Line 1)", "Code URL")
     assert_equal (@submission.internal_minutes / 60.0).round(1), fields["Optional - Override Hours Spent"]
-    assert_match "counted by the design review", fields["Optional - Override Hours Spent Justification"]
+    refute fields.key?("Optional - Override Hours Spent Justification"), "the table joins it from the machine and manual parts"
+
+    text = fields["Machine Justification"]
+    assert_match "This is the design submission of \"#{@submission.project.title}\" for Fallen", text
+    assert_match "Ada logged their time in #{@journals.size} journals", text
+    assert_match "commits from Oct 1, 2026 to Oct 9, 2026", text
+    @journals.each { assert_match "#journal-#{it.public_id}", text }
+    assert_match "signed off by Fallen staff member #{@submission.reviewer.display_name.split.first}", text
+    assert text.end_with?("are appropriate for Unified:")
+  end
+
+  test "the YSWS justification names the admin who signed off, and each journal's cut with its reason" do
+    @reviewer.update!(roles: %w[user design_reviewer])
+    admin = users(:newcomer)
+    admin.update!(roles: %w[user admin])
+    journal = @journals.first
+    deflated = calls.merge(journal.public_id => { "approved_minutes" => journal.duration_minutes - 30, "reason" => "Idle or AFK time", "note" => "Long gap mid-session" })
+    assert review(journals: deflated).save
+    assert SubmissionReview.sign_off(@submission.reload, admin, proposed_at: @submission.proposed_at).save
+
+    text = YswsJustification.render(@submission.reload, first_name: "Ada", commits: nil)
+    assert_equal admin, @submission.signed_off_by
+    assert_match "approved on", text
+    assert_match "by #{@reviewer.display_name}", text
+    assert_match "It then went through a second sign-off by #{admin.display_name}.", text
+    assert_match "0.5h was deflated", text
+    assert_match "Idle or AFK time: Long gap mid-session", text
+    assert_match "The repository: #{@submission.repo_url}", text
+    assert_match "staff member #{admin.display_name.split.first},", text
   end
 
   test "an internal cut lowers only the hours staff report, never the journals, XP or funding" do

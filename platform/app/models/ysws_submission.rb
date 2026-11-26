@@ -3,7 +3,8 @@
 # An approved design as a row in the YSWS Project Submission table in Airtable, which Hack Club's YSWS staff use as
 # the official record of what a program funded, as Fallout does (Ship#upload_to_unified_airtable!). The person's
 # name, address and birthday come from Hack Club Auth when it is sent; the hours are Submission#internal_minutes, the
-# time that counts less the reviewer's internal cut.
+# time that counts less the reviewer's internal cut. The justification goes in "Machine Justification" (YswsJustification);
+# staff add their own in "Manual Justification", and the table joins the two into the field YSWS reads.
 #
 # Nothing is sent until AIRTABLE_YSWS_BASE_ID and AIRTABLE_YSWS_TABLE are set. Sending again updates the same row
 # (Submission#ysws_airtable_id).
@@ -40,21 +41,8 @@ module YswsSubmission
       "Birthday" => identity["birthday"],
       "Screenshot" => screenshot ? [ { url: url_helpers.rails_storage_proxy_url(screenshot, host:) } ] : [],
       "Optional - Override Hours Spent" => (submission.internal_minutes / 60.0).round(1),
-      "Optional - Override Hours Spent Justification" => justification(submission)
+      "Machine Justification" => YswsJustification.render(submission, first_name: identity["first_name"].presence || submission.user.display_name.split.first)
     }
-  end
-
-  # The hours in words for whoever checks them: what was logged, what the review counted, the internal cut, and why.
-  def justification(submission)
-    count, logged, counted = SubmissionReview.journals_for(submission)
-      .pick(Arel.sql("COUNT(*)"), Arel.sql("COALESCE(SUM(duration_minutes), 0)"), Arel.sql("COALESCE(SUM(COALESCE(reviewed_minutes, duration_minutes)), 0)"))
-    [
-      "#{Duration.format(logged)} logged across #{count} journals; #{Duration.format(counted)} counted by the design review.",
-      ("Internal cut: #{Duration.format(submission.internal_deflated_minutes)}, so #{Duration.format(submission.internal_minutes)} reported." if submission.internal_deflated_minutes),
-      "Reviewed by #{submission.reviewer&.display_name || 'a reviewer'} on #{submission.decided_at&.to_date&.to_fs(:long)}.",
-      ("Reviewer's reason: #{submission.internal_reason}" if submission.internal_reason.present?),
-      "Review: #{url_helpers.review_submission_url(submission, host:)}"
-    ].compact.join("\n")
   end
 
   # As Fallout does: a fetch that fails is reported and the row goes without the person's details, for staff to fill.

@@ -122,7 +122,7 @@ class SubmissionReview
       reviews.each(&:destroy!)
       journals.each { it.update_column(:reviewed_minutes, nil) }
       submission.bom_items.update_all(verdict: nil, reason: nil, approved_cents: nil, updated_at: Time.current)
-      submission.update!(status: "pending", reviewer: nil, decided_at: nil, rubric: {}, feedback: nil, internal_reason: nil,
+      submission.update!(status: "pending", reviewer: nil, signed_off_by: nil, decided_at: nil, rubric: {}, feedback: nil, internal_reason: nil,
         ai_generated: false, internal_deflated_minutes: nil)
     end
     sync_xp(journals)
@@ -178,7 +178,7 @@ class SubmissionReview
         self.class.sync_xp(covered.select { |journal| record_journal(journal, journals.fetch(journal.public_id)) })
         items.each { it.update!(verdict: "approved", reason: nil, approved_cents: nil) } if verdict == "approved"
       end
-      submission.update!(status: verdict, reviewer:, rubric:, feedback:, internal_reason:, decided_at: Time.current,
+      submission.update!(status: verdict, reviewer:, signed_off_by: @signed_off_by || reviewer, rubric:, feedback:, internal_reason:, decided_at: Time.current,
         ai_generated: ai?, internal_deflated_minutes: ai? || returned? ? nil : cut,
         approved_cents: verdict == "approved" ? items.sum(&:funded_cents) : nil, claimed_by: nil, claim_expires_at: nil,
         review_draft: nil, review_draft_at: nil, review_draft_by: nil, proposed_review: nil, proposed_at: nil, proposed_by: nil)

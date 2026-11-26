@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_25_233701) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_26_010002) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -881,6 +881,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_25_233701) do
     t.jsonb "copy_check"
     t.datetime "copy_check_cleared_at"
     t.bigint "copy_check_cleared_by_id"
+    t.bigint "signed_off_by_id"
     t.index ["claimed_by_id"], name: "index_submissions_on_claimed_by_id"
     t.index ["copy_check_cleared_by_id"], name: "index_submissions_on_copy_check_cleared_by_id"
     t.index ["project_id"], name: "index_submissions_on_project_id"
@@ -890,6 +891,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_25_233701) do
     t.index ["repo_snapshot_id"], name: "index_submissions_on_repo_snapshot_id"
     t.index ["review_draft_by_id"], name: "index_submissions_on_review_draft_by_id"
     t.index ["reviewer_id"], name: "index_submissions_on_reviewer_id"
+    t.index ["signed_off_by_id"], name: "index_submissions_on_signed_off_by_id"
     t.index ["status", "created_at"], name: "index_submissions_on_status_and_created_at"
     t.index ["user_id"], name: "index_submissions_on_user_id"
   end
@@ -1120,6 +1122,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_25_233701) do
   add_foreign_key "submissions", "users", column: "proposed_by_id"
   add_foreign_key "submissions", "users", column: "review_draft_by_id"
   add_foreign_key "submissions", "users", column: "reviewer_id"
+  add_foreign_key "submissions", "users", column: "signed_off_by_id"
   add_foreign_key "time_milestones", "users"
   add_foreign_key "timer_sessions", "users"
   add_foreign_key "timezone_changes", "users"
