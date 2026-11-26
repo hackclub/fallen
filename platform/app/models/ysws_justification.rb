@@ -38,8 +38,8 @@ module YswsJustification
       "Journals:\n#{rows.map { journal_line(project, it) }.join("\n")}",
       [
         "#{hours(claimed)} logged, #{hours(approved)} approved.",
-        ("#{hours(claimed - approved)} was deflated:\n#{cut.map { deflation_line(it, calls[it.journal.id]) }.join("\n")}" if cut.any?),
-        ("On top of that, an internal cut of #{hours(submission.internal_deflated_minutes)} brings the reported total to #{hours(submission.internal_minutes)}." if submission.internal_deflated_minutes.to_i.positive?)
+        ("#{hours(claimed - approved)} was deflated:\n#{cut.map { deflation_line(project, it, calls[it.journal.id]) }.join("\n")}" if cut.any?),
+        ("On top of that, an internal deflation of #{hours(submission.internal_deflated_minutes)} brings the reported total to #{hours(submission.internal_minutes)}." if submission.internal_deflated_minutes.to_i.positive?)
       ].compact.join("\n"),
       ("#{first_name} said they used AI for: #{submission.ai_usage.strip}\nOur reviewers read their declaration and agreed that it is faithful." if submission.used_ai? && submission.ai_usage.present?),
       "The full review, journals and timelapses: #{url_helpers.review_submission_url(submission, host:)}",
@@ -53,25 +53,22 @@ module YswsJustification
 
   def journal_line(project, row)
     journal = row.journal
-    time = row.approved == journal.duration_minutes ? "#{hours(row.approved)} approved in full" : "#{hours(journal.duration_minutes)} claimed, #{hours(row.approved)} approved"
-    link = "#{url_helpers.project_url(project, host:)}#journal-#{journal.public_id}"
+    time = if journal.duration_minutes.to_i.zero? then "no time logged"
+    elsif row.approved == journal.duration_minutes then "#{hours(row.approved)} approved in full"
+    else "#{hours(journal.duration_minutes)} claimed, #{hours(row.approved)} approved"
+    end
     lapse = ", timelapse: #{row.timelapses.join(", ")}" if row.timelapses.any?
-    "- #{link}, #{day(journal.created_at)}: #{title(journal)} (#{time}#{lapse})"
+    "- #{day(journal.created_at)}: #{journal_url(project, journal)} (#{time}#{lapse})"
   end
 
-  def deflation_line(row, call)
+  def deflation_line(project, row, call)
     note = call&.note.to_s.strip.presence
     reason = call&.reason unless call&.reason == "Other" && note
     why = [ reason, note ].compact.join(": ").presence || "No reason recorded."
-    "- #{day(row.journal.created_at)} \"#{title(row.journal)}\": #{hours(row.journal.duration_minutes)} to #{hours(row.approved)}. #{why}"
+    "- #{day(row.journal.created_at)}: #{journal_url(project, row.journal)}, #{hours(row.journal.duration_minutes)} to #{hours(row.approved)}. #{why}"
   end
 
-  # The journal's first sentence, without Markdown's heading and emphasis marks.
-  def title(journal)
-    line = journal.body.to_s.lines.map { it.gsub(/[#*_`>]/, "").strip }.find(&:present?).to_s
-    line.split(/(?<=[.!?])\s/).first.to_s.delete_suffix(".").truncate(80).presence || "Untitled"
-  end
-
+  def journal_url(project, journal) = "#{url_helpers.project_url(project, host:)}#journal-#{journal.public_id}"
   def hours(minutes) = "#{(minutes.to_i / 60.0).round(1).to_s.delete_suffix(".0")}h"
   def day(time) = time.utc.strftime("%b %-d, %Y")
   def moment(time) = time ? time.utc.strftime("%B %-d, %Y at %H:%M UTC") : "an unknown date"
