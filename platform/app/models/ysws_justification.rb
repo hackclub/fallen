@@ -69,7 +69,8 @@ module YswsJustification
   end
 
   def journal_url(project, journal) = "#{url_helpers.project_url(project, host:)}#journal-#{journal.public_id}"
-  def hours(minutes) = "#{(minutes.to_i / 60.0).round(1).to_s.delete_suffix(".0")}h"
+  # Under 6 minutes would round to 0h, so it's given in minutes.
+  def hours(minutes) = minutes.to_i.between?(1, 5) ? "#{minutes} min" : "#{(minutes.to_i / 60.0).round(1).to_s.delete_suffix(".0")}h"
   def day(time) = time.utc.strftime("%b %-d, %Y")
   def moment(time) = time ? time.utc.strftime("%B %-d, %Y at %H:%M UTC") : "an unknown date"
   def commits_url(repo_url) = "#{repo_url.to_s.delete_suffix("/").delete_suffix(".git")}/commits"
