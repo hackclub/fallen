@@ -14,6 +14,7 @@ module YswsSubmission
   OVERRIDE = "Optional - Override Hours Spent Justification"
   MACHINE = "Machine Justification"
   MANUAL = "Manual Justification"
+  SIGN_OFF = "Sign-off Override"
 
   def configured? = ENV["AIRTABLE_API_KEY"].present? && ENV["AIRTABLE_YSWS_BASE_ID"].present? && ENV["AIRTABLE_YSWS_TABLE"].present?
 
@@ -55,12 +56,12 @@ module YswsSubmission
     return 0 unless configured?
 
     base, table = ENV.fetch("AIRTABLE_YSWS_BASE_ID"), ENV.fetch("AIRTABLE_YSWS_TABLE")
-    rows = Airtable.records(base, table, fields: [ MACHINE, MANUAL, OVERRIDE ], whole: true, by_name: true)
+    rows = Airtable.records(base, table, fields: [ MACHINE, MANUAL, OVERRIDE, SIGN_OFF ], whole: true, by_name: true)
     rows.count do |row|
       fields = row["fields"]
       next false if fields[MACHINE].blank?
 
-      joined = joined_justification(fields[MACHINE], fields[MANUAL])
+      joined = joined_justification(fields[MACHINE], fields[MANUAL], sign_off: fields[SIGN_OFF])
       next false if fields[OVERRIDE].to_s.strip == joined
 
       Airtable.upsert(base, table, row["id"], OVERRIDE => joined)
@@ -69,7 +70,16 @@ module YswsSubmission
     end
   end
 
-  def joined_justification(machine, manual) = [ machine, manual ].map { it.to_s.strip }.compact_blank.join("\n\n")
+  # `sign_off` (Sign-off Override) names someone else as the staff member who signed it off, in both places
+  # YswsJustification names them.
+  def joined_justification(machine, manual, sign_off: nil)
+    machine = machine.to_s.strip
+    if (name = sign_off.to_s.strip.presence)
+      machine = machine.sub(/(It then went through a second sign-off by ).+\.$/) { "#{$1}#{name}." }
+        .sub(/^(This is signed off by Fallen staff member ).+?(, and this is why)/) { "#{$1}#{name}#{$2}" }
+    end
+    [ machine, manual.to_s.strip ].compact_blank.join("\n\n")
+  end
 
   # As Fallout does: a fetch that fails is reported and the row goes without the person's details, for staff to fill.
   def identity_of(user)
