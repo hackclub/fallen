@@ -54,7 +54,7 @@ character.
 ## How long do I need to spend on my project?
 
 Your character levels up with the hours you put in, and you qualify once it reaches its final form. Journaling every
-day builds a streak that speeds up its progress, so qualifying takes about 80-120 hours depending on how well you keep
+day builds a streak that speeds up its progress, so qualifying takes about 80-125 hours depending on how well you keep
 your streak & your character's bonus!
 
 ## What if I can't go to Shenzhen?
