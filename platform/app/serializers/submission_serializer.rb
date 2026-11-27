@@ -33,6 +33,7 @@
 #  review_draft              :jsonb
 #  review_draft_at           :datetime
 #  rubric                    :jsonb            not null
+#  sent_back_at              :datetime
 #  status                    :string           default("pending"), not null
 #  used_ai                   :boolean          default(FALSE), not null
 #  created_at                :datetime         not null
@@ -44,6 +45,8 @@
 #  repo_snapshot_id          :bigint
 #  review_draft_by_id        :bigint
 #  reviewer_id               :bigint
+#  sent_back_by_id           :bigint
+#  sent_back_to_id           :bigint
 #  signed_off_by_id          :bigint
 #  user_id                   :bigint           not null
 #  ysws_airtable_id          :string
@@ -58,6 +61,8 @@
 #  index_submissions_on_repo_snapshot_id          (repo_snapshot_id)
 #  index_submissions_on_review_draft_by_id        (review_draft_by_id)
 #  index_submissions_on_reviewer_id               (reviewer_id)
+#  index_submissions_on_sent_back_by_id           (sent_back_by_id)
+#  index_submissions_on_sent_back_to_id           (sent_back_to_id)
 #  index_submissions_on_signed_off_by_id          (signed_off_by_id)
 #  index_submissions_on_status_and_created_at     (status,created_at)
 #  index_submissions_on_user_id                   (user_id)
@@ -72,6 +77,8 @@
 #  fk_rails_...  (repo_snapshot_id => repo_snapshots.id)
 #  fk_rails_...  (review_draft_by_id => users.id)
 #  fk_rails_...  (reviewer_id => users.id)
+#  fk_rails_...  (sent_back_by_id => users.id)
+#  fk_rails_...  (sent_back_to_id => users.id)
 #  fk_rails_...  (signed_off_by_id => users.id)
 #  fk_rails_...  (user_id => users.id)
 #

@@ -202,6 +202,40 @@ class ReviewTest < ActionDispatch::IntegrationTest
     assert_redirected_to root_path
   end
 
+  test "an admin sends a held decision back from the review page, and the next reviewer starts from their changes" do
+    sign_in_as @reviewer
+    get review_next_path
+    patch review_submission_path(@submission), params: decision
+    admin = users(:admin).tap { it.update!(roles: %w[user admin]) }
+    sign_in_as admin
+    get review_next_sign_off_path
+
+    delete admin_sign_off_path(@submission), params: { draft: { feedback: "Add the gerbers", internal: "No fab files", ai: false } }, as: :json
+    assert_redirected_to review_next_sign_off_path
+    assert_match "with your changes", flash[:notice]
+    @submission.reload
+    assert_includes Submission.queued, @submission
+    assert_equal "Add the gerbers", @submission.review_draft["feedback"]
+    assert_equal admin, @submission.review_draft_by
+    assert_match "changes kept for the next review", @submission.project.reviewer_notes.last.body
+
+    rows = load_deferred(review_submissions_path, "Review/Submissions/Index", "submissions", "pagy", "counts")
+    assert_equal [ @submission.public_id ], rows["submissions"].pluck("id"), "admins see the whole queue"
+    sign_in_as User.create!(hca_id: "hca_another_reviewer", email: "another-reviewer@example.com", display_name: "Another reviewer", roles: %w[user design_reviewer])
+    rows = load_deferred(review_submissions_path, "Review/Submissions/Index", "submissions", "pagy", "counts")
+    assert_empty rows["submissions"], "it's out of other reviewers' queue"
+    assert_equal 0, rows["counts"]["queue"]
+
+    sign_in_as @reviewer
+    rows = load_deferred(review_submissions_path, "Review/Submissions/Index", "submissions", "pagy", "counts")
+    assert_equal [ @reviewer.public_id, admin.public_id ], rows["submissions"].first.values_at("sent_back_to", "sent_back_by").pluck("id")
+    get review_next_path
+    props = inertia_props(review_submission_path(@submission), "Review/Submissions/Show")
+    assert_equal "Add the gerbers", props.dig("draft", "data", "feedback")
+    assert_nil props["proposal"]
+    assert_equal [ admin.public_id, @reviewer.public_id ], props["sent_back"].values_at("by", "to").pluck("id")
+  end
+
   test "a sign-off page sent back to the queue under it stops holding it on its next heartbeat" do
     sign_in_as @reviewer
     get review_next_path

@@ -14,7 +14,7 @@ class ReviewPageProps
   def props
     project = @submission.project
     Project.preload_teams([ project ])
-    ActiveRecord::Associations::Preloader.new(records: [ @submission ], associations: [ :user, :reviewer, :claimed_by, *(:review_draft_by if @submission.review_draft_by_id), *(:proposed_by if @submission.awaiting_sign_off?), :bom_items, :grant_payout, :repo_snapshot, { screenshots_attachments: :blob } ]).call
+    ActiveRecord::Associations::Preloader.new(records: [ @submission ], associations: [ :user, :reviewer, :claimed_by, *(:review_draft_by if @submission.review_draft_by_id), *(:proposed_by if @submission.awaiting_sign_off?), *([ :sent_back_by, :sent_back_to ] if @submission.sent_back?), :bom_items, :grant_payout, :repo_snapshot, { screenshots_attachments: :blob } ]).call
     journals = SubmissionReview.journals_for(@submission).order(:created_at, :id).includes(:user, :xp_entry, :lapse_timelapses, images_attachments: :blob).to_a
     ids = journals.map(&:id)
     calls = if @submission.decided?
@@ -49,6 +49,12 @@ class ReviewPageProps
       proposal: @submission.awaiting_sign_off? ? {
         data: @submission.proposed_review, at: @submission.proposed_at.iso8601(6),
         by: @submission.proposed_by && PersonSerializer.render(@submission.proposed_by)
+      } : nil,
+      # A held decision an admin sent back to the queue instead of signing it off: still the reviewer's to finish.
+      sent_back: @submission.sent_back? ? {
+        at: @submission.sent_back_at,
+        by: @submission.sent_back_by && PersonSerializer.render(@submission.sent_back_by),
+        to: @submission.sent_back_to && PersonSerializer.render(@submission.sent_back_to)
       } : nil,
       claimed: @claimed,
       can: @can

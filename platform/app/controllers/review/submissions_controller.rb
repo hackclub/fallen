@@ -8,7 +8,7 @@ class Review::SubmissionsController < Review::ApplicationController
     tab = TABS.include?(params[:tab]) ? params[:tab] : "queue"
     scope = policy_scope([ :review, Submission ]).where.not(status: "withdrawn")
     rows = case tab
-    when "queue" then scope.queued.order(:created_at, :id)
+    when "queue" then queue_list(scope)
     when "sign_off" then scope.awaiting_sign_off.order(:proposed_at, :id)
     when "mine" then scope.decided.where(reviewer: true_user).order(decided_at: :desc)
     when "decided" then scope.decided.order(decided_at: :desc)
@@ -18,7 +18,7 @@ class Review::SubmissionsController < Review::ApplicationController
     render inertia: "Review/Submissions/Index", props: {
       tab:,
       counts: InertiaRails.defer(group: "table") { queue_counts(scope) },
-      **deferred_table(rows.includes(:project, :user, :reviewer, :claimed_by, :proposed_by), ReviewQueueRowSerializer, :submissions) do |records|
+      **deferred_table(rows.includes(:project, :user, :reviewer, :claimed_by, :proposed_by, :sent_back_by, :sent_back_to), ReviewQueueRowSerializer, :submissions) do |records|
         { resubmitted: Submission.where(project_id: records.map(&:project_id), status: "returned").distinct.pluck(:project_id).to_set }
       end
     }
@@ -141,8 +141,13 @@ class Review::SubmissionsController < Review::ApplicationController
   def find_submission = Submission.find_by_public_id!(params[:id])
   def skipped = params[:skip].to_s.split(",").grep(/\Asub_\w+\z/).first(50)
 
+  # The Queue tab: what the reviewer can be given next (Submission.queue_for). Admins see the whole queue, decisions sent
+  # back to someone else included, with theirs still first.
+  def queue_list(scope) = true_user.admin? ? scope.queued.in_queue_order_for(true_user) : scope.queue_for(true_user)
+
   def queue_counts(scope)
-    { queue: scope.queued.count, sign_off: scope.awaiting_sign_off.count, flagged: scope.pending.where.not(flagged_at: nil).count, mine: scope.decided.where(reviewer: true_user).count,
-      decided: scope.decided.count, oldest: scope.queued.minimum(:created_at) }
+    queue = queue_list(scope).reorder(nil)
+    { queue: queue.count, sign_off: scope.awaiting_sign_off.count, flagged: scope.pending.where.not(flagged_at: nil).count, mine: scope.decided.where(reviewer: true_user).count,
+      decided: scope.decided.count, oldest: queue.minimum(:created_at) }
   end
 end

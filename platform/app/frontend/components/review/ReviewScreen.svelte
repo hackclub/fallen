@@ -27,6 +27,7 @@
     type ReviewPage,
     type Verdict,
   } from '@/lib/review.svelte'
+  import { timeAgo } from '@/lib/format'
   import { toast } from '@/lib/toasts'
   import {
     adminSignOffs,
@@ -203,6 +204,21 @@
     )
   }
 
+  // Signing off: sends the held decision back to the queue without applying it, keeping what was changed here as
+  // the draft the next reviewer starts from (Admin::SignOffsController#destroy).
+  function sendBack() {
+    submitting = true
+    router.visit(
+      adminSignOffs.destroy(props.submission.id, { query: props.skip ? { skip: props.skip } : {} }).url,
+      {
+        method: 'delete',
+        data: { draft: $state.snapshot(draft) },
+        onSuccess: () => clearReviewDraft(submissionId),
+        onFinish: () => (submitting = false),
+      },
+    )
+  }
+
   function typing(target: EventTarget | null) {
     return (
       target instanceof HTMLElement &&
@@ -316,6 +332,27 @@
     </div>
   {/if}
 
+  {#if props.sent_back && !props.can.sign_off && !decided}
+    <div
+      class="flex items-center justify-center gap-2 bg-amber-500 px-4 py-1.5 text-center text-sm text-amber-950 dark:bg-amber-700 dark:text-white"
+    >
+      {#if props.sent_back.by}<img
+          src={props.sent_back.by.avatar}
+          alt=""
+          width="20"
+          height="20"
+          class="size-5 rounded-full bg-amber-300 object-cover"
+        />{/if}
+      <span
+        ><span class="font-semibold">Sent back by {props.sent_back.by?.name ?? 'an admin'}</span>
+        {timeAgo(props.sent_back.at)}{#if props.sent_back.to}, for {props.sent_back.to.id ===
+          shared().auth.user?.id
+            ? 'you'
+            : props.sent_back.to.name} to finish{/if}.</span
+      >
+    </div>
+  {/if}
+
   {#if lost}
     <div class="bg-red-600 px-4 py-1.5 text-center text-sm text-white">
       You no longer hold this submission. Reload to see who does before deciding.
@@ -360,6 +397,7 @@
         {pending}
         {errors}
         onDecide={decide}
+        onSendBack={sendBack}
         bind:feedbackRef
         bind:internalRef
       />

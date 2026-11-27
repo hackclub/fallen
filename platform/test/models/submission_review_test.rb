@@ -8,7 +8,7 @@ class SubmissionReviewTest < ActiveSupport::TestCase
     # An admin's decision applies straight away; a design reviewer's waits for sign-off (tests below).
     @reviewer = users(:admin)
     @reviewer.update!(roles: %w[user design_reviewer admin])
-    @journals = SubmissionReview.journals_for(@submission).to_a
+    @journals = SubmissionReview.journals_for(@submission).order(:created_at, :id).to_a
   end
 
   def calls(deflate: nil)
@@ -152,7 +152,7 @@ class SubmissionReviewTest < ActiveSupport::TestCase
     assert_match "the internal cut (was none)", @submission.project.reviewer_notes.last.body
 
     @submission = submit_design(projects(:unlinked))
-    @journals = SubmissionReview.journals_for(@submission).to_a
+    @journals = SubmissionReview.journals_for(@submission).order(:created_at, :id).to_a
     assert review(journals: calls).save
     edits = edits.merge(journals: calls, verdict: "rejected", feedback: "Copied", cut: nil)
     assert SubmissionReview.sign_off(@submission.reload, admin, proposed_at: @submission.proposed_at, edits:).save
@@ -206,19 +206,63 @@ class SubmissionReviewTest < ActiveSupport::TestCase
     refute @submission.awaiting_sign_off?
     assert_includes Submission.queued, @submission
     assert_match "Sent back", @submission.project.reviewer_notes.last.body
+    assert_equal [ @reviewer, admin ], [ @submission.sent_back_to, @submission.sent_back_by ]
+    assert @submission.sent_back?
     refute SubmissionReview.send_back(@submission, admin), "nothing left to send back"
+
+    assert review(verdict: "returned", feedback: "Add the gerbers and a README").save
+    refute @submission.reload.sent_back?, "proposed again, it's no longer waiting on them"
+    assert_nil @submission.sent_back_to
+  end
+
+  test "a decision sent back comes first in its reviewer's queue and is out of everyone else's" do
+    @reviewer.update!(roles: %w[user design_reviewer])
+    project = projects(:admins)
+    older = Submission.create!(project:, user: project.user, repo_url: "https://github.com/example/older", created_at: 1.day.ago)
+    other = users(:member).tap { it.update!(roles: %w[user design_reviewer]) }
+
+    assert review(verdict: "returned", feedback: "Add the gerbers").save
+    assert SubmissionReview.send_back(@submission, users(:newcomer).tap { it.update!(roles: %w[user admin]) })
+
+    assert_equal @submission, SubmissionReview.next_for(@reviewer)
+    assert_equal [ @submission, older ], Submission.queue_for(@reviewer).to_a
+    assert_equal [ older ], Submission.queue_for(other).to_a, "it's out of everyone else's queue"
+    assert_equal older, SubmissionReview.next_for(other)
+    older.update_columns(claimed_by_id: @reviewer.id, claim_expires_at: 10.minutes.from_now)
+    assert_nil SubmissionReview.next_for(other)
+
+    assert SubmissionReview.claim(@submission, other), "opened by its link, anyone can still take it"
+    assert_equal @submission, SubmissionReview.next_for(other), "and it's theirs while they hold it"
+    SubmissionReview.release(@submission, other)
+  end
+
+  test "a decision sent back to someone who can no longer review it goes back in everyone's queue" do
+    @reviewer.update!(roles: %w[user design_reviewer])
+    other = users(:member).tap { it.update!(roles: %w[user design_reviewer]) }
+    assert review(verdict: "returned", feedback: "Add the gerbers").save
+    assert SubmissionReview.send_back(@submission, users(:newcomer).tap { it.update!(roles: %w[user admin]) })
+    assert_empty Submission.queue_for(other)
+
+    @reviewer.update!(roles: %w[user])
+    assert_equal [ @submission ], Submission.queue_for(other).to_a, "lost the role"
+    @reviewer.update!(roles: %w[user design_reviewer], is_banned: true)
+    assert_equal [ @submission ], Submission.queue_for(other).to_a, "banned"
+    @reviewer.update!(is_banned: false)
+    ProjectMember.create!(project: @submission.project, user: @reviewer)
+    assert_equal [ @submission ], Submission.queue_for(other).to_a, "joined the team"
   end
 
   test "returning keeps the calls for the next review but applies none of them" do
     journal = journals(:first)
     xp_before = journal.xp_entry.amount
-    half = calls(deflate: journal).merge(@journals.last.public_id => { "approved_minutes" => 1 })
+    unreasoned = (@journals - [ journal ]).last
+    half = calls(deflate: journal).merge(unreasoned.public_id => { "approved_minutes" => 1 })
 
     assert review(verdict: "returned", feedback: "Add the gerbers", journals: half).save
 
     call = @submission.journal_reviews.find_by(journal:)
     assert_equal [ journal.duration_minutes / 3, "Idle or AFK time" ], [ call.approved_minutes, call.reason ]
-    refute @submission.journal_reviews.exists?(journal: @journals.last), "a call without a reason isn't kept"
+    refute @submission.journal_reviews.exists?(journal: unreasoned), "a call without a reason isn't kept"
     assert_nil journal.reload.reviewed_minutes
     assert_equal xp_before, journal.xp_entry.reload.amount
     assert @submission.bom_items.reload.all? { it.verdict.nil? }, "returning funds and records no part"

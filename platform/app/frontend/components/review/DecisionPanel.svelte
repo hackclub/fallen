@@ -1,6 +1,7 @@
 <script lang="ts">
   import Check from '@lucide/svelte/icons/check'
   import CornerDownLeft from '@lucide/svelte/icons/corner-down-left'
+  import Undo2 from '@lucide/svelte/icons/undo-2'
   import Loader from '@lucide/svelte/icons/loader'
   import * as AlertDialog from '@/components/admin/ui/alert-dialog'
   import { Button } from '@/components/admin/ui/button'
@@ -46,6 +47,7 @@
     pending,
     errors,
     onDecide,
+    onSendBack,
     feedbackRef = $bindable(),
     internalRef = $bindable(),
   }: {
@@ -57,6 +59,7 @@
     pending: Verdict | null
     errors: Record<string, string>
     onDecide: (verdict: Verdict) => void
+    onSendBack?: () => void
     feedbackRef?: HTMLTextAreaElement | null
     internalRef?: HTMLTextAreaElement | null
   } = $props()
@@ -520,6 +523,32 @@
         <p class="text-center text-xs text-muted-foreground">
           Returning keeps your journal calls for the next review, but not the internal cut.
         </p>
+      {/if}
+
+      {#if signingOff && onSendBack}
+        <AlertDialog.Root>
+          <AlertDialog.Trigger>
+            {#snippet child({ props })}
+              <Button {...props} variant="outline" size="sm" class="w-full" disabled={submitting}>
+                <Undo2 data-icon="inline-start" /> Send back to the queue
+              </Button>
+            {/snippet}
+          </AlertDialog.Trigger>
+          <AlertDialog.Content>
+            <AlertDialog.Header>
+              <AlertDialog.Title>Send {page.project.title} back to the queue?</AlertDialog.Title>
+              <AlertDialog.Description>
+                Nothing is signed off or sent to them. It goes back to {proposerName}, first in their queue, {changed.length
+                  ? 'with your changes for them to carry on from.'
+                  : 'to carry on from their review.'}
+              </AlertDialog.Description>
+            </AlertDialog.Header>
+            <AlertDialog.Footer>
+              <AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
+              <AlertDialog.Action onclick={onSendBack}>Send back</AlertDialog.Action>
+            </AlertDialog.Footer>
+          </AlertDialog.Content>
+        </AlertDialog.Root>
       {/if}
 
       {#if canReject}

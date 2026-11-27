@@ -80,12 +80,15 @@
       ? {
           id: 'claimed',
           header: 'Being reviewed by',
+          // Someone working on it now, else the reviewer it was sent back to: it's still theirs.
           cell: ({ row }) =>
             row.original.claimed_by &&
             row.original.claim_expires_at &&
             new Date(row.original.claim_expires_at) > new Date()
               ? renderComponent(PersonChip, { person: row.original.claimed_by })
-              : '',
+              : row.original.sent_back_to
+                ? renderComponent(PersonChip, { person: row.original.sent_back_to })
+                : '',
         }
       : tab === 'sign_off'
         ? {

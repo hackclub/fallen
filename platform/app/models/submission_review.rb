@@ -19,7 +19,9 @@
 # the admin; neither can sign off a project they're on, and a proposer who has since lost the role can't be. The admin
 # can change any of it on the review page first (`edits`): it still goes out as the reviewer's review, and the note says
 # what the admin changed and keeps what the reviewer had written. Sending it back drops it and puts the submission back
-# in the queue, with the reviewer's last draft to carry on from.
+# in the queue, with the reviewer's last draft to carry on from, or the admin's changes when sent back from the review page.
+# It stays the reviewer's (`sent_back_to`, with `sent_back_by` the admin): first in their queue and out of everyone
+# else's until they propose again.
 #
 # Reviewers claim a submission while they work on it (claim), so two never review one at once; the page keeps the
 # claim alive (heartbeat) and it lapses on its own after CLAIM_FOR. Admins sign off the same way: a session over the
@@ -37,11 +39,13 @@ class SubmissionReview
   # The journals a review covers: every one with hours logged on the project before it was submitted.
   def self.journals_for(submission) = submission.project.journals.kept.where.not(duration_minutes: nil).where(created_at: ..submission.created_at)
 
-  # The submission the reviewer should look at next: the one they hold, else the one waiting longest that isn't
-  # their own team's, held by someone else, or skipped. `signing_off` is an admin's session over the held decisions.
+  # The submission the reviewer should look at next: the one they hold, else one sent back to them, else the one waiting
+  # longest that isn't their own team's, held by someone else, sent back to someone else, or skipped. `signing_off` is
+  # an admin's session over the held decisions.
   def self.next_for(reviewer, skip: [], signing_off: false)
-    pool = signing_off ? Submission.awaiting_sign_off.order(:proposed_at, :id) : Submission.queued.order(:created_at, :id)
-    held = pool.find_by(claimed_by: reviewer, claim_expires_at: Time.current..)
+    pool = signing_off ? Submission.awaiting_sign_off.order(:proposed_at, :id) : Submission.queue_for(reviewer)
+    # Held from any page, including one sent back to someone else that they opened by its link.
+    held = (signing_off ? Submission.awaiting_sign_off : Submission.queued).find_by(claimed_by: reviewer, claim_expires_at: Time.current..)
     return held if held
 
     pool.where("claimed_by_id IS NULL OR claim_expires_at < ?", Time.current)
@@ -73,15 +77,19 @@ class SubmissionReview
     new(submission, reviewer: submission.proposed_by, signed_off_by: admin, signing_off: proposed_at, proposal:, **data)
   end
 
-  # Drops a held decision without applying it; the submission goes back in the queue.
-  def self.send_back(submission, admin)
+  # Drops a held decision without applying it; the submission goes back in the queue. `draft` is the review as the
+  # admin left it on the review page (Submission#save_review_draft's fields): the next reviewer carries on from it.
+  def self.send_back(submission, admin, draft: nil)
+    draft = Submission.review_draft_data(draft) if draft
     submission.with_lock do
       return false unless submission.awaiting_sign_off?
 
       proposer = submission.proposed_by
-      submission.update!(proposed_review: nil, proposed_at: nil, proposed_by: nil, claimed_by: nil, claim_expires_at: nil)
+      kept = draft ? { review_draft: draft, review_draft_at: Time.current, review_draft_by: admin } : {}
+      submission.update!(proposed_review: nil, proposed_at: nil, proposed_by: nil, claimed_by: nil, claim_expires_at: nil,
+        sent_back_at: Time.current, sent_back_by: admin, sent_back_to: proposer, **kept)
       submission.project.reviewer_notes.create!(submission:, user: admin,
-        body: "Sent back to the queue instead of signing off #{proposer&.display_name || "a reviewer"}'s decision.")
+        body: "Sent back to the queue instead of signing off #{proposer&.display_name || "a reviewer"}'s decision#{", with #{admin.display_name}'s changes kept for the next review" if draft}.")
     end
     true
   end
@@ -181,7 +189,8 @@ class SubmissionReview
       submission.update!(status: verdict, reviewer:, signed_off_by: @signed_off_by || reviewer, rubric:, feedback:, internal_reason:, decided_at: Time.current,
         ai_generated: ai?, internal_deflated_minutes: ai? || returned? ? nil : cut,
         approved_cents: verdict == "approved" ? items.sum(&:funded_cents) : nil, claimed_by: nil, claim_expires_at: nil,
-        review_draft: nil, review_draft_at: nil, review_draft_by: nil, proposed_review: nil, proposed_at: nil, proposed_by: nil)
+        review_draft: nil, review_draft_at: nil, review_draft_by: nil, proposed_review: nil, proposed_at: nil, proposed_by: nil,
+        sent_back_at: nil, sent_back_by: nil, sent_back_to: nil)
       GrantPayout.create!(submission:, user: submission.user, amount_cents: submission.approved_cents) if submission.approved? && submission.approved_cents.positive?
       if @signed_off_by
         sign_off_notes(covered).each { submission.project.reviewer_notes.create!(submission:, user: @signed_off_by, body: it) }
@@ -263,7 +272,8 @@ class SubmissionReview
       next errors.add(:base, "Someone else already decided this") unless submission.pending? && !submission.awaiting_sign_off?
       next errors.add(:base, "Someone else is reviewing this") if held_by_someone_else?
 
-      submission.update!(proposed_by: reviewer, proposed_at: Time.current, claimed_by: nil, claim_expires_at: nil, proposed_review: {
+      submission.update!(proposed_by: reviewer, proposed_at: Time.current, claimed_by: nil, claim_expires_at: nil,
+        sent_back_at: nil, sent_back_by: nil, sent_back_to: nil, proposed_review: {
         "verdict" => verdict, "feedback" => feedback, "internal_reason" => internal_reason, "rubric" => rubric,
         "journals" => journals, "ai" => ai?, "cut" => @cut_given ? cut : nil
       })

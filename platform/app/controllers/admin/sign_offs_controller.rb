@@ -1,5 +1,5 @@
 # Design reviewers' decisions held for an admin (SubmissionReview#propose): sign one off to apply and send it, as it is or
-# changed on the review page, or send it back to the queue.
+# changed on the review page, or send it back to the queue (from the review page, with the admin's changes kept).
 class Admin::SignOffsController < Admin::ApplicationController
   def index
     authorize [ :admin, Submission ], :index?
@@ -22,7 +22,7 @@ class Admin::SignOffsController < Admin::ApplicationController
       # The desk shows its own confirmation, so only the review page and the plain list get a toast.
       notice = "#{submission.project.title}: #{submission.status} and sent." unless SignOffDesk.available? && !edits
       # From the review page: on to the next one, as in a review session. From the desk: the case it shows next.
-      redirect_to edits ? review_next_sign_off_path(skip: params[:skip].to_s.split(",").grep(/\Asub_\w+\z/).first(50).join(",").presence) : admin_sign_offs_path(id: next_case), notice:
+      redirect_to edits ? review_next_sign_off_path(skip: skipped) : admin_sign_offs_path(id: next_case), notice:
     elsif edits
       redirect_back fallback_location: review_submission_path(submission), inertia: { errors: review.errors.to_hash(true).transform_values(&:to_sentence) }
     else
@@ -47,12 +47,16 @@ class Admin::SignOffsController < Admin::ApplicationController
     redirect_to admin_sign_offs_path(id: submission.public_id), notice: "Checking it again."
   end
 
+  # Sends it back to the queue. From the review page it carries the admin's changes (`draft`), kept for the next
+  # reviewer, and goes on to the next one.
   def destroy
     submission = find_and_authorize
-    if SubmissionReview.send_back(submission, true_user)
-      redirect_to admin_sign_offs_path(id: next_case), notice: "#{submission.project.title}: back in the queue."
+    draft = params[:draft].present? ? params.expect(draft: {}).to_unsafe_h : nil
+    after = draft ? review_next_sign_off_path(skip: skipped) : admin_sign_offs_path(id: next_case)
+    if SubmissionReview.send_back(submission, true_user, draft:)
+      redirect_to after, notice: "#{submission.project.title}: back in the queue#{", with your changes" if draft}."
     else
-      redirect_to admin_sign_offs_path(id: next_case), alert: "#{submission.project.title}: already signed off or sent back by someone else."
+      redirect_to after, alert: "#{submission.project.title}: already signed off or sent back by someone else."
     end
   end
 
@@ -87,6 +91,9 @@ class Admin::SignOffsController < Admin::ApplicationController
       Arel.sql("COALESCE(SUM(requested_cents) FILTER (WHERE proposed_review->>'verdict' = 'approved'), 0)"))
     { count:, approvals_cents: cents }
   end
+
+  # The submissions passed over in this review session (Review::SubmissionsController#skipped).
+  def skipped = params[:skip].to_s.split(",").grep(/\Asub_\w+\z/).first(50).join(",").presence
 
   # The case the desk should land on after this one is dealt with, as the page asked for it.
   def next_case = params[:next].to_s[/\Asub_\w+\z/]

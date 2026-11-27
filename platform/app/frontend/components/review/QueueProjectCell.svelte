@@ -14,6 +14,12 @@
       >Resubmitted</span
     >
   {/if}
+  {#if row.sent_back_by}
+    <span
+      class="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+      >Sent back by {row.sent_back_by.name}</span
+    >
+  {/if}
   {#if row.flagged}
     <span
       class="rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-medium text-red-700 dark:bg-red-950 dark:text-red-400"

@@ -39,6 +39,7 @@ export interface ReviewPage {
   draft: { data: Partial<ReviewDraft>; at: string; by: Person | null } | null
   // A design reviewer's decision held for an admin (SubmissionReview#propose), as it was sent. `at` names it exactly.
   proposal: { data: ProposedReview; at: string; by: Person | null } | null
+  sent_back: { at: string; by: Person | null; to: Person | null } | null
   project: ReviewProject
   journals: ReviewJournal[]
   repo: ReviewRepo | null

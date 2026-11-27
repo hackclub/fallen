@@ -33,6 +33,7 @@
 #  review_draft              :jsonb
 #  review_draft_at           :datetime
 #  rubric                    :jsonb            not null
+#  sent_back_at              :datetime
 #  status                    :string           default("pending"), not null
 #  used_ai                   :boolean          default(FALSE), not null
 #  created_at                :datetime         not null
@@ -44,6 +45,8 @@
 #  repo_snapshot_id          :bigint
 #  review_draft_by_id        :bigint
 #  reviewer_id               :bigint
+#  sent_back_by_id           :bigint
+#  sent_back_to_id           :bigint
 #  signed_off_by_id          :bigint
 #  user_id                   :bigint           not null
 #  ysws_airtable_id          :string
@@ -58,6 +61,8 @@
 #  index_submissions_on_repo_snapshot_id          (repo_snapshot_id)
 #  index_submissions_on_review_draft_by_id        (review_draft_by_id)
 #  index_submissions_on_reviewer_id               (reviewer_id)
+#  index_submissions_on_sent_back_by_id           (sent_back_by_id)
+#  index_submissions_on_sent_back_to_id           (sent_back_to_id)
 #  index_submissions_on_signed_off_by_id          (signed_off_by_id)
 #  index_submissions_on_status_and_created_at     (status,created_at)
 #  index_submissions_on_user_id                   (user_id)
@@ -72,6 +77,8 @@
 #  fk_rails_...  (repo_snapshot_id => repo_snapshots.id)
 #  fk_rails_...  (review_draft_by_id => users.id)
 #  fk_rails_...  (reviewer_id => users.id)
+#  fk_rails_...  (sent_back_by_id => users.id)
+#  fk_rails_...  (sent_back_to_id => users.id)
 #  fk_rails_...  (signed_off_by_id => users.id)
 #  fk_rails_...  (user_id => users.id)
 #
@@ -107,6 +114,10 @@ class Submission < ApplicationRecord
   belongs_to :signed_off_by, class_name: "User", optional: true
   # The admin who compared a copy check's match by hand and found it was not a copy (CopyCheck.compared!).
   belongs_to :copy_check_cleared_by, class_name: "User", optional: true
+  # A held decision an admin sent back (SubmissionReview.send_back): it stays the proposing reviewer's, first in their
+  # queue, until it's proposed or decided again.
+  belongs_to :sent_back_by, class_name: "User", optional: true
+  belongs_to :sent_back_to, class_name: "User", optional: true
   has_many :bom_items, -> { ordered }, dependent: :delete_all, inverse_of: :submission
   has_many :journal_reviews, dependent: :delete_all
   has_one :grant_payout, dependent: :restrict_with_error
@@ -125,16 +136,38 @@ class Submission < ApplicationRecord
   # Submitting ends journal review for a project that has had one, and withdrawing brings it back (ProgressStatus).
   after_commit -> { ProgressRefreshJob.perform_later(project_id) }, if: -> { previous_changes.key?("id") || previous_changes.key?("status") }
 
+  # The reviewer a submission was sent back to can still take it: a design reviewer or admin, not banned or deleted, and
+  # not on the project's team (User#reviews_designs?, Project.teamed_with).
+  SENT_BACK_REVIEWER_CAN_TAKE = <<~SQL.squish.freeze
+    SELECT 1 FROM users sent_back_reviewer
+    WHERE sent_back_reviewer.id = submissions.sent_back_to_id
+      AND sent_back_reviewer.discarded_at IS NULL AND NOT sent_back_reviewer.is_banned
+      AND sent_back_reviewer.roles && ARRAY['design_reviewer', 'admin']::varchar[]
+      AND NOT EXISTS (SELECT 1 FROM projects WHERE projects.id = submissions.project_id AND projects.user_id = sent_back_reviewer.id)
+      AND NOT EXISTS (SELECT 1 FROM project_members WHERE project_members.project_id = submissions.project_id AND project_members.user_id = sent_back_reviewer.id)
+  SQL
+
   scope :pending, -> { where(status: "pending") }
   scope :decided, -> { where(status: DECIDED) }
   scope :approved, -> { where(status: "approved") }
   scope :queued, -> { pending.where(flagged_at: nil, proposed_at: nil) }
   scope :awaiting_sign_off, -> { pending.where.not(proposed_at: nil) }
   scope :newest_first, -> { order(created_at: :desc, id: :desc) }
+  # The queue as one reviewer sees it: what was sent back to them first, then the one waiting longest. What was sent
+  # back to someone else stays theirs and isn't in it, unless they can no longer review it (SENT_BACK_REVIEWER_CAN_TAKE),
+  # so it never sits out of everyone's reach.
+  scope :queue_for, ->(reviewer) {
+    queued.where("submissions.sent_back_to_id IS NULL OR submissions.sent_back_to_id = ? OR NOT EXISTS (#{SENT_BACK_REVIEWER_CAN_TAKE})", reviewer.id)
+      .in_queue_order_for(reviewer)
+  }
+  scope :in_queue_order_for, ->(reviewer) {
+    order(Arel.sql(sanitize_sql_array([ "submissions.sent_back_to_id = ? DESC NULLS LAST", reviewer.id ]))).order(:created_at, :id)
+  }
 
   STATUSES.each { |status| define_method(:"#{status}?") { self.status == status } }
   def decided? = status.in?(DECIDED)
   def awaiting_sign_off? = pending? && proposed_at.present?
+  def sent_back? = pending? && sent_back_at.present?
   # A copy check match nobody has compared yet: approving waits for an admin to look (CopyCheck).
   def copy_check_holds_approval? = copy_check&.dig("status") == "match" && copy_check_cleared_at.nil?
   def requested_text = Money.format(requested_cents)
@@ -172,11 +205,17 @@ class Submission < ApplicationRecord
   # submission, so leaving the page loses nothing and the next reviewer starts from it. False when they don't hold it
   # (someone else does, or it's decided), so a tab left open can't write over another reviewer's work.
   def save_review_draft(reviewer, data)
-    data = data.to_h.stringify_keys.slice(*DRAFT_KEYS)
-    return false if data.to_json.bytesize > MAX_DRAFT_BYTES
+    data = self.class.review_draft_data(data)
+    return false unless data
 
     Submission.pending.where(id:, claimed_by_id: reviewer.id).where(claim_expires_at: Time.current..)
       .update_all(review_draft: data, review_draft_at: Time.current, review_draft_by_id: reviewer.id, updated_at: Time.current) == 1
+  end
+
+  # An unfinished review's fields, or nil when it's too big to keep.
+  def self.review_draft_data(data)
+    data = data.to_h.stringify_keys.slice(*DRAFT_KEYS)
+    data unless data.to_json.bytesize > MAX_DRAFT_BYTES
   end
 
   # The project's hours as staff count them, for YSWS: the time that counts less the reviewer's internal cut
